@@ -21,7 +21,8 @@
 ;; Interpret a given program from a given state.
 ;; program: a list of (inst,const)
 ;; state: progstate
-(define (interpret program state)
+;; spec-state: state after intepreting spec. This is given when interpreting sketch.
+(define (interpret program state [spec-state #f])
   (define a (progstate-a state))
   (define b (progstate-b state))
   (define p (progstate-p state))
@@ -35,8 +36,8 @@
                         (vector-copy (stack-body (progstate-return state)))))
   (define memory (vector-copy (progstate-memory state)))
   
-  (define comm-data (list))
-  (define comm-type (list))
+  (define recv (progstate-recv state))
+  (define comm (progstate-comm state))
   
   ;;; Pushes to the data stack.
   (define (push! value)
@@ -70,25 +71,21 @@
   ;; now).
   (define (read-memory addr)
     (if (member addr (list UP DOWN LEFT RIGHT IO))
-        (let ([value 12])
-          (set! comm-data (cons value comm-data))
-          (set! comm-type (cons (hash-ref comm-dict addr) comm-type))
-          value)
-        (if (< addr (vector-length memory))
-            (vector-ref memory addr)
-            (assert #f "memory out of bound"))))
+        (let ([val (car recv)]
+              [type (hash-ref comm-dict addr)])
+          (set! comm (cons (cons val type) comm))
+          (set! recv (cdr recv))
+          val)
+        (vector-ref memory addr)))
   
   ;; Write to the given memeory address or communication
   ;; port. Everything written to any communication port is simply
   ;; aggregated into a list.
   (define (set-memory! addr value)
     (if (member addr (list UP DOWN LEFT RIGHT IO))
-        (begin
-          (set! comm-data (cons value comm-data))
-          (set! comm-type (cons (+ 5 (hash-ref comm-dict addr)) comm-type)))
-        (if (< addr (vector-length memory))
-            (vector-set! memory addr value)
-            (assert #f "memory out of bound"))))
+        (let ([type (+ 5 (hash-ref comm-dict addr))])
+          (set! comm (cons (cons value type) comm)))
+        (vector-set! memory addr value)))
   
   ;; Signed right shift
   (define (right-shift-one x)
@@ -149,7 +146,7 @@
   (for ([inst program])
     (interpret-step inst))
   
-  (values (progstate a b p i r s t data return memory) comm-data comm-type))
+  (progstate a b p i r s t data return memory recv comm))
 
 ;; REQUIRED FUNCTION
 ;; Assert if state1 == state2 wrt to constraint
@@ -177,6 +174,16 @@
         ;; = expects number? not symbolic
         (assert (equal? (vector-ref mem1 i) (vector-ref mem2 i)) `progstate-mem))))
   
+  (define-syntax-rule (check-comm)
+    (when (progstate-comm constraint)
+          (assert (equal? (length (progstate-comm state1)) 
+                          (length (progstate-comm state2))) `comm-length)
+          ;; (for ([i1 (progstate-comm state1)]
+          ;;       [i2 (progstate-comm state2)])
+          ;;      (assert (equal? (car i1) (car i2)) `comm-data)
+          ;;      (assert (equal? (cdr i1) (cdr i2)) `comm-type))
+          ))
+  
   (check-reg progstate-a)
   (check-reg progstate-b)
   (check-reg progstate-r)
@@ -185,6 +192,7 @@
   (check-stack progstate-data)
   (check-stack progstate-return)
   (check-mem)
+  (check-comm)
   )
 
 (define (sym-inst)

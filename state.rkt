@@ -4,14 +4,14 @@
 
 (provide (all-defined-out))
 
-(struct progstate (a b p i r s t data return memory) #:mutable #:transparent)
+(struct progstate (a b p i r s t data return memory recv comm) #:mutable #:transparent)
 (struct commstate (data type recv p) #:mutable #:transparent)
 
 ;;; The empty constraint. Pretty useless.
-(define constraint-none (progstate #f #f #f #f #f #f #f #f #f #f))
+(define constraint-none (progstate #f #f #f #f #f #f #f #f #f #f #f #t))
 
 ;;; Constrain everything. We must have perfection!
-(define constraint-all (progstate #t #t #t #t #t #t #t 8 8 #t))
+(define constraint-all (progstate #t #t #t #t #t #t #t 8 8 #t #f #t))
 
 ;;; Defines a constraint for some fields. For example, `(constraint
 ;;; t)' is the same as constraint-only-t and evaluates to `(progstate
@@ -73,36 +73,33 @@
   (add-vector (stack-body (progstate-data state)))
   (add-vector (stack-body (progstate-return state)))
   (add-vector (progstate-memory state))
+  (for ([x (progstate-recv state)])
+       (add x))
 
   lst)
 
 (define-syntax default-state
   (syntax-rules (data-pair concrete)
-    ;; ((default-state mem) 
-    ;;  (progstate (sym-input) (sym-input) 0 0
-    ;;             (sym-input) (sym-input) (sym-input) 
-    ;;     	(stack 0 (list->vector (for/list ([i (in-range 8)]) (sym-input))))
-    ;;     	(stack 0 (list->vector (for/list ([i (in-range 8)]) (sym-input))))
-    ;;     	(make-vector mem 
-    ;;                          (list->vector (for/list ([i (in-range mem)]) (sym-input))))))
-
-    ((default-state mem init) 
+    ((default-state info init) 
      (progstate init init 0 0
                 init init init
-        	(stack 0 (list->vector (for/list ([i (in-range 8)]) init)))
-        	(stack 0 (list->vector (for/list ([i (in-range 8)]) init)))
-        	(list->vector (for/list ([i (in-range mem)]) init))))
+        	(stack 0 (list->vector (for/list ([i (in-range 8)]) init))) ;; data
+        	(stack 0 (list->vector (for/list ([i (in-range 8)]) init))) ;; return
+        	(list->vector (for/list ([i (in-range (car info))]) init))  ;; memory
+                (for/list ([i (in-range (cdr info))]) init) ;; recv
+                (list) ;; comm
+                ))
 
-    ((default-state mem init [data-pair (i i-val) ...] [key val] ...)
-     (let* ([state (default-state mem init)]
+    ((default-state info init [data-pair (i i-val) ...] [key val] ...)
+     (let* ([state (default-state info init)]
             [body (stack-body (progstate-data state))]
             [pairs (list (cons i i-val) ...)])
        (for ([p pairs])
             (vector-set! body (modulo (- (car p)) 8) (cdr p)))
        (struct-copy progstate state [data (stack 0 body)] [key val] ...)))
 
-    ((default-state mem init [key val] ...)
-     (struct-copy progstate (default-state mem init) [key val] ...))))
+    ((default-state info init [key val] ...)
+     (struct-copy progstate (default-state info init) [key val] ...))))
 
 (define (constrain-stack state precond)
   (when (list? precond)
@@ -148,6 +145,13 @@
     (display (format "~a " (vector-ref memory i))))
   (newline))
 
+;;; Print comm info.
+(define (display-comm state)
+  (display "recv: ")
+  (pretty-display (progstate-recv state))
+  (display "comm: ")
+  (pretty-display (progstate-comm state)))
+
 ;;; Displays some state, useful for debugging. Currently this just
 ;;; shows the pc and data stack.
 (define (display-state state)
@@ -155,4 +159,5 @@
                           (progstate-a state) (progstate-b state)))
   (display-data state)
   (display-return state)
-  (display-memory state))
+  (display-memory state)
+  (display-comm state))
