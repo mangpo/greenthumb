@@ -22,7 +22,7 @@
 ;; program: a list of (inst,const)
 ;; state: progstate
 ;; spec-state: state after intepreting spec. This is given when interpreting sketch.
-(define (interpret program state [spec-state #f])
+(define (interpret program state)
   (define a (progstate-a state))
   (define b (progstate-b state))
   (define p (progstate-p state))
@@ -38,8 +38,9 @@
   
   (define recv (progstate-recv state))
   (define comm (progstate-comm state))
-  (define comm-ref (and spec-state (progstate-comm spec-state)))
-  
+  ;(define comm-ref (and spec-state (reverse (progstate-comm spec-state))))
+  ;(pretty-display `(comm-ref ,comm-ref))
+
   ;;; Pushes to the data stack.
   (define (push! value)
     (push-stack! data s)
@@ -79,7 +80,6 @@
     (define (read port)
       (let ([val (car recv)])
         (set! comm (cons (cons val (hash-ref comm-dict port)) comm))
-        ;(when comm-ref (assert (<= (length comm) (length comm-ref))))
         (set! recv (cdr recv))
         val))
     (if (member? addr UP DOWN LEFT RIGHT IO)
@@ -97,7 +97,6 @@
   (define (set-memory! addr val)
     (define (write port)
       (set! comm (cons (cons val (+ 5 (hash-ref comm-dict port))) comm))
-      ;(when comm-ref (assert (<= (length comm) (length comm-ref))))
       )
     (cond
      [(equal? addr UP)    (write UP)]

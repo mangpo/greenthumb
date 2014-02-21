@@ -1,9 +1,11 @@
 #lang s-exp rosette
 
 (require "f18a.rkt" "state.rkt")
+;(require rosette/solver/z3/z3)
 
 (define (superoptimize spec sketch info constraint)
   (define start-state (default-state info (sym-input)))
+  ;(current-solver (new z3%))
   (configure [bitwidth 18])
   (set! spec (inst-string->list spec))
   (set! sketch (inst-string->list sketch))
