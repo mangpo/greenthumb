@@ -38,6 +38,7 @@
   
   (define recv (progstate-recv state))
   (define comm (progstate-comm state))
+  (define comm-ref (and spec-state (progstate-comm spec-state)))
   
   ;;; Pushes to the data stack.
   (define (push! value)
@@ -65,27 +66,46 @@
   
   ;; Define comm-type
   (define comm-dict (hash UP 0 DOWN 1 LEFT 2 RIGHT 3 IO 4))
+
+  (define-syntax-rule (send val port)
+    (set! comm (cons (cons val (hash-ref comm-dict port)) comm)))
   
   ;; Read from the given memory address or communication port. If it
   ;; gets a communication port, it just returns a random number (for
   ;; now).
   (define (read-memory addr)
-    (if (member addr (list UP DOWN LEFT RIGHT IO))
-        (let ([val (car recv)]
-              [type (hash-ref comm-dict addr)])
-          (set! comm (cons (cons val type) comm))
-          (set! recv (cdr recv))
-          val)
+    (define-syntax-rule (member? x a ...)
+      (or (equal? x a) ...))
+    (define (read port)
+      (let ([val (car recv)])
+        (set! comm (cons (cons val (hash-ref comm-dict port)) comm))
+        ;(when comm-ref (assert (<= (length comm) (length comm-ref))))
+        (set! recv (cdr recv))
+        val))
+    (if (member? addr UP DOWN LEFT RIGHT IO)
+        (cond
+         [(equal? addr UP)    (read UP)]
+         [(equal? addr DOWN)  (read DOWN)]
+         [(equal? addr LEFT)  (read LEFT)]
+         [(equal? addr RIGHT) (read RIGHT)]
+         [(equal? addr IO)    (read IO)])
         (vector-ref memory addr)))
   
   ;; Write to the given memeory address or communication
   ;; port. Everything written to any communication port is simply
   ;; aggregated into a list.
-  (define (set-memory! addr value)
-    (if (member addr (list UP DOWN LEFT RIGHT IO))
-        (let ([type (+ 5 (hash-ref comm-dict addr))])
-          (set! comm (cons (cons value type) comm)))
-        (vector-set! memory addr value)))
+  (define (set-memory! addr val)
+    (define (write port)
+      (set! comm (cons (cons val (+ 5 (hash-ref comm-dict port))) comm))
+      ;(when comm-ref (assert (<= (length comm) (length comm-ref))))
+      )
+    (cond
+     [(equal? addr UP)    (write UP)]
+     [(equal? addr DOWN)  (write DOWN)]
+     [(equal? addr LEFT)  (write LEFT)]
+     [(equal? addr RIGHT) (write RIGHT)]
+     [(equal? addr IO)    (write IO)]
+     [else (vector-set! memory addr val)]))
   
   ;; Signed right shift
   (define (right-shift-one x)
@@ -178,11 +198,13 @@
     (when (progstate-comm constraint)
           (assert (equal? (length (progstate-comm state1)) 
                           (length (progstate-comm state2))) `comm-length)
-          ;; (for ([i1 (progstate-comm state1)]
-          ;;       [i2 (progstate-comm state2)])
-          ;;      (assert (equal? (car i1) (car i2)) `comm-data)
-          ;;      (assert (equal? (cdr i1) (cdr i2)) `comm-type))
-          ))
+          (for*/all ([j1 (progstate-comm state1)]
+                     [j2 (progstate-comm state2)])
+                    (for ([i1 j1]
+                          [i2 j2])
+                         (assert (equal? (car i1) (car i2)) `comm-data)
+                         (assert (equal? (cdr i1) (cdr i2)) `comm-type))
+          )))
   
   (check-reg progstate-a)
   (check-reg progstate-b)
