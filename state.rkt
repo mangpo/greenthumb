@@ -81,14 +81,31 @@
 (define-syntax default-state
   (syntax-rules (data-pair concrete)
     ((default-state info init) 
-     (progstate init init 0 0
-                init init init
-        	(stack 0 (list->vector (for/list ([i (in-range 8)]) init))) ;; data
-        	(stack 0 (list->vector (for/list ([i (in-range 8)]) init))) ;; return
-        	(list->vector (for/list ([i (in-range (car info))]) init))  ;; memory
-                (for/list ([i (in-range (cdr info))]) init) ;; recv
-                (list) ;; comm
-                ))
+     (match info
+      [(cons mem recv-n)
+       (progstate init init 0 0
+                  init init init
+                  (stack 0 (list->vector (for/list ([i (in-range 8)]) init))) ;; data
+                  (stack 0 (list->vector (for/list ([i (in-range 8)]) init))) ;; return
+                  (list->vector (for/list ([i (in-range mem)]) init))  ;; memory
+                  (for/list ([i (in-range recv-n)]) init) ;; recv
+                  (list) ;; comm
+                  )]))
+
+    ;; VECTOR
+    ;; ((default-state info init) 
+    ;;  (match info
+    ;;   [(list mem recv-n comm-n)
+    ;;    (progstate init init 0 0
+    ;;               init init init
+    ;;               (stack 0 (list->vector (for/list ([i (in-range 8)]) init))) ;; data
+    ;;               (stack 0 (list->vector (for/list ([i (in-range 8)]) init))) ;; return
+    ;;               (list->vector (for/list ([i (in-range mem)]) init))  ;; memory
+    ;;               (for/list ([i (in-range recv-n)]) init) ;; recv
+    ;;               (list (list->vector (for/list ([i (in-range comm-n)]) 0)) 
+    ;;                     (list->vector (for/list ([i (in-range comm-n)]) 0))
+    ;;                     0) ;; comm
+    ;;               )]))
 
     ((default-state info init [data-pair (i i-val) ...] [key val] ...)
      (let* ([state (default-state info init)]

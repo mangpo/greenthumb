@@ -39,7 +39,8 @@
 ;; (superoptimize "325 b! !b" "_ _ _" 
 ;;                (cons 0 0)
 ;;                (constraint memory r s t))
-(superoptimize "325 b! !b 277 b! !b 373 b! !b 469 b! !b" "_ _ _ _ _ _ _ _ _ _ _ _" 
-               (cons 0 0)
+(superoptimize "325 b! @b 277 b! @b" 
+               "_ _ _ _ _ _" 
+               (cons 0 2)
                (constraint memory r s t))
 (- (current-seconds) t)

@@ -38,6 +38,12 @@
   
   (define recv (progstate-recv state))
   (define comm (progstate-comm state))
+  ;; VECTOR
+  ;; (define comm-data (vector-copy (first comm)))
+  ;; (define comm-type (vector-copy (second comm)))
+  ;; (define comm-p (third comm))
+
+  ;; MIDDLE
   ;; (define comm-ref (and spec-state (reverse (progstate-comm spec-state))))
 
   ;;; Pushes to the data stack.
@@ -71,25 +77,30 @@
   ;; gets a communication port, it just returns a random number (for
   ;; now).
   (define (read-memory addr)
-    (define-syntax-rule (member? x a ...)
-      (or (equal? x a) ...))
     (define (read port)
       (let ([val (car recv)]
             [type (hash-ref comm-dict port)])
+        ;; MIDDLE
         ;; (when comm-ref 
         ;;       (assert (and (equal? val (caar comm-ref)) (equal? type (cdar comm-ref))))
         ;;       (set! comm-ref (cdr comm-ref)))
+
         (set! comm (cons (cons val type) comm))
+
+        ;; VECTOR
+        ;; (vector-set! comm-data val)
+        ;; (vector-set! comm-type type)
+        ;; (set! comm-p (add1 comm-p))
+
         (set! recv (cdr recv))
         val))
-    (if (member? addr UP DOWN LEFT RIGHT IO)
-        (cond
-         [(equal? addr UP)    (read UP)]
-         [(equal? addr DOWN)  (read DOWN)]
-         [(equal? addr LEFT)  (read LEFT)]
-         [(equal? addr RIGHT) (read RIGHT)]
-         [(equal? addr IO)    (read IO)])
-        (vector-ref memory addr)))
+    (cond
+     [(equal? addr UP)    (read UP)]
+     [(equal? addr DOWN)  (read DOWN)]
+     [(equal? addr LEFT)  (read LEFT)]
+     [(equal? addr RIGHT) (read RIGHT)]
+     [(equal? addr IO)    (read IO)]
+     [else (vector-ref memory addr)]))
   
   ;; Write to the given memeory address or communication
   ;; port. Everything written to any communication port is simply
@@ -97,10 +108,18 @@
   (define (set-memory! addr val)
     (define (write port)
       (let ([type (+ 5 (hash-ref comm-dict port))])
+        ;; MIDDLE
         ;; (when comm-ref
         ;;       (assert (and (equal? val (caar comm-ref)) (equal? type (cdar comm-ref))))
         ;;       (set! comm-ref (cdr comm-ref)))
-        (set! comm (cons (cons val type) comm))))
+
+        (set! comm (cons (cons val type) comm))
+
+        ;; VECTOR
+        ;; (vector-set! comm-data comm-p val)
+        ;; (vector-set! comm-type comm-p type)
+        ;; (set! comm-p (add1 comm-p))
+      ))
     (cond
      [(equal? addr UP)    (write UP)]
      [(equal? addr DOWN)  (write DOWN)]
@@ -168,7 +187,10 @@
   (for ([inst program])
     (interpret-step inst))
   
-  (progstate a b p i r s t data return memory recv comm))
+  (progstate a b p i r s t data return memory recv comm)
+  ;; VECTOR
+  ;; (progstate a b p i r s t data return memory recv (list comm-data comm-type comm-p))
+  )
 
 ;; REQUIRED FUNCTION
 ;; Assert if state1 == state2 wrt to constraint
@@ -202,8 +224,19 @@
                     (for ([i1 j1]
                           [i2 j2])
                          (assert (equal? (car i1) (car i2)) `comm-data)
-                         (assert (equal? (cdr i1) (cdr i2)) `comm-type))
-
+                         (assert (equal? (cdr i1) (cdr i2)) `comm-type)))
+          
+          ;; VECTOR
+          ;; (match (progstate-comm state1)
+          ;;  [(list comm-data1 comm-type1 comm-p1)
+          ;;   (match (progstate-comm state2)
+          ;;    [(list comm-data2 comm-type2 comm-p2)
+          ;;     (assert (equal? comm-p1 comm-p2) `(comm-p))
+          ;;     (for ([i (in-range comm-p1)])
+          ;;          (assert (equal? (vector-ref comm-data1 i) (vector-ref comm-data2 i))
+          ;;                  `comm-data)
+          ;;          (assert (equal? (vector-ref comm-type1 i) (vector-ref comm-type2 i))
+          ;;                  `comm-data))])])
           ))
   
   (check-reg progstate-a)
