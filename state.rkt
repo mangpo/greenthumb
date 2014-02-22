@@ -116,9 +116,14 @@
        (struct-copy progstate state [data (stack 0 body)] [key val] ...)))
 
     ((default-state info init [key val] ...)
-     (struct-copy progstate (default-state info init) [key val] ...))))
+     (struct-copy progstate (default-state info init) [key val] ...))
+    
+    ((default-state)
+     (default-state (cons 0 0) 0))
+    ))
 
-(define (constrain-stack state precond)
+(define (constrain-stack precond)
+  (define state (default-state))
   (when (list? precond)
     (for ([assume precond]
           [i (reverse (range (length precond)))])

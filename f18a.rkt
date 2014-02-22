@@ -272,7 +272,8 @@
                   (get-stack (progstate-x constraint) i)))))
   
   (define (check-mem)
-    (when (progstate-memory constraint)
+    (when (= (vector-length (progstate-memory constraint))
+             (vector-length (progstate-memory state)))
       (define mem-state (progstate-memory state))
       (define mem-constraint (progstate-memory constraint))
       (for ([i (in-range 0 (vector-length mem-state))])
