@@ -22,7 +22,7 @@
 ;; program: a list of (inst,const)
 ;; state: progstate
 ;; spec-state: state after intepreting spec. This is given when interpreting sketch.
-(define (interpret program state)
+(define (interpret program state [spec-state #f])
   (define a (progstate-a state))
   (define b (progstate-b state))
   (define p (progstate-p state))
@@ -38,8 +38,7 @@
   
   (define recv (progstate-recv state))
   (define comm (progstate-comm state))
-  ;(define comm-ref (and spec-state (reverse (progstate-comm spec-state))))
-  ;(pretty-display `(comm-ref ,comm-ref))
+  ;; (define comm-ref (and spec-state (reverse (progstate-comm spec-state))))
 
   ;;; Pushes to the data stack.
   (define (push! value)
@@ -67,9 +66,6 @@
   
   ;; Define comm-type
   (define comm-dict (hash UP 0 DOWN 1 LEFT 2 RIGHT 3 IO 4))
-
-  (define-syntax-rule (send val port)
-    (set! comm (cons (cons val (hash-ref comm-dict port)) comm)))
   
   ;; Read from the given memory address or communication port. If it
   ;; gets a communication port, it just returns a random number (for
@@ -78,8 +74,12 @@
     (define-syntax-rule (member? x a ...)
       (or (equal? x a) ...))
     (define (read port)
-      (let ([val (car recv)])
-        (set! comm (cons (cons val (hash-ref comm-dict port)) comm))
+      (let ([val (car recv)]
+            [type (hash-ref comm-dict port)])
+        ;; (when comm-ref 
+        ;;       (assert (and (equal? val (caar comm-ref)) (equal? type (cdar comm-ref))))
+        ;;       (set! comm-ref (cdr comm-ref)))
+        (set! comm (cons (cons val type) comm))
         (set! recv (cdr recv))
         val))
     (if (member? addr UP DOWN LEFT RIGHT IO)
@@ -96,8 +96,11 @@
   ;; aggregated into a list.
   (define (set-memory! addr val)
     (define (write port)
-      (set! comm (cons (cons val (+ 5 (hash-ref comm-dict port))) comm))
-      )
+      (let ([type (+ 5 (hash-ref comm-dict port))])
+        ;; (when comm-ref
+        ;;       (assert (and (equal? val (caar comm-ref)) (equal? type (cdar comm-ref))))
+        ;;       (set! comm-ref (cdr comm-ref)))
+        (set! comm (cons (cons val type) comm))))
     (cond
      [(equal? addr UP)    (write UP)]
      [(equal? addr DOWN)  (write DOWN)]
@@ -188,9 +191,6 @@
       (define mem1 (progstate-memory state1))
       (define mem2 (progstate-memory state2))
       (for ([i (in-range 0 (vector-length mem1))])
-           ;;(pretty-display `(assert (= ,(vector-ref mem1 i) ,(vector-ref mem2 i))))
-        ;; (assert (= (vector-ref mem1 i) (vector-ref mem2 i)) `progstate-mem))))
-        ;; = expects number? not symbolic
         (assert (equal? (vector-ref mem1 i) (vector-ref mem2 i)) `progstate-mem))))
   
   (define-syntax-rule (check-comm)
@@ -203,7 +203,8 @@
                           [i2 j2])
                          (assert (equal? (car i1) (car i2)) `comm-data)
                          (assert (equal? (cdr i1) (cdr i2)) `comm-type))
-          )))
+
+          ))
   
   (check-reg progstate-a)
   (check-reg progstate-b)

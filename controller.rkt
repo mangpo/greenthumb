@@ -1,11 +1,9 @@
 #lang s-exp rosette
 
 (require "f18a.rkt" "state.rkt")
-;(require rosette/solver/z3/z3)
 
 (define (superoptimize spec sketch info constraint)
   (define start-state (default-state info (sym-input)))
-  ;(current-solver (new z3%))
   (configure [bitwidth 18])
   (set! spec (inst-string->list spec))
   (set! sketch (inst-string->list sketch))
@@ -16,7 +14,7 @@
     (pretty-display "interpret spec")
     (define spec-state (interpret spec start-state))
     (pretty-display "interpret sketch")
-    (define sketch-state (interpret sketch start-state))
+    (define sketch-state (interpret sketch start-state spec-state))
     
     
     ;; (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
@@ -38,6 +36,9 @@
   )
 
 (define t (current-seconds))
+;; (superoptimize "325 b! !b" "_ _ _" 
+;;                (cons 0 0)
+;;                (constraint memory r s t))
 (superoptimize "325 b! !b 277 b! !b 373 b! !b 469 b! !b" "_ _ _ _ _ _ _ _ _ _ _ _" 
                (cons 0 0)
                (constraint memory r s t))
