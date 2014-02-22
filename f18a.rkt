@@ -2,7 +2,7 @@
 
 (require "state.rkt" "stack.rkt")
 
-(provide interpret assert-output 
+(provide interpret assert-output assume
          inst-string->list list->inst-string)
 
 ;; ISA
@@ -177,7 +177,7 @@
       [(inst-eq `dup)  (push! t)]
       [(inst-eq `over) (push! s)]
       [(inst-eq `a)    (push! a)]
-      [(inst-eq `nop)    (void)]
+      [(inst-eq `nop)  (void)]
       [(inst-eq `push) (r-push! (pop!))]
       [(inst-eq `b!)   (set! b (pop!))]
       [(inst-eq `a!)   (set! a (pop!))]
@@ -249,6 +249,43 @@
   (check-mem)
   (check-comm)
   )
+
+;; Assert assumption about start-state
+(define (assume state constraint)
+  (define (check item assumption)
+    (when (pair? assumption)
+          (cond
+           [(member (car assumption) (list "=" '=))
+            (assert (equal? item (cdr assumption)))]
+           [(member (car assumption) (list "<=" '<=))
+            (assert (<= item (cdr assumption)))])
+          ))
+          
+
+  (define (check-reg progstate-x)
+    (check (progstate-x state) (progstate-x constraint)))
+  
+  (define (check-stack progstate-x)
+    (when (progstate-x constraint)
+      (for ([i (in-range 8)])
+           (check (get-stack (progstate-x state) i)
+                  (get-stack (progstate-x constraint) i)))))
+  
+  (define (check-mem)
+    (when (progstate-memory constraint)
+      (define mem-state (progstate-memory state))
+      (define mem-constraint (progstate-memory constraint))
+      (for ([i (in-range 0 (vector-length mem-state))])
+           (check (vector-ref mem-state i) (vector-ref mem-constraint i)))))
+
+  (check-reg progstate-a)
+  (check-reg progstate-b)
+  (check-reg progstate-r)
+  (check-reg progstate-s)
+  (check-reg progstate-t)
+  (check-stack progstate-data)
+  (check-stack progstate-return)
+  (check-mem))
 
 (define (sym-inst)
   (define-symbolic* inst number?)

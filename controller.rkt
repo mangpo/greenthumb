@@ -2,7 +2,7 @@
 
 (require "f18a.rkt" "state.rkt")
 
-(define (superoptimize spec sketch info constraint)
+(define (superoptimize spec sketch info constraint #:assume [assumption (default-state info 0)])
   (define start-state (default-state info (sym-input)))
   (configure [bitwidth 18])
   (set! spec (inst-string->list spec))
@@ -29,6 +29,7 @@
   (define model 
     (synthesize 
      #:forall (get-sym-vars start-state)
+     #:assume (assume start-state assumption)
      #:guarantee (compare-spec-sketch))
     )
   
@@ -39,8 +40,10 @@
 ;; (superoptimize "325 b! !b" "_ _ _" 
 ;;                (cons 0 0)
 ;;                (constraint memory r s t))
-(superoptimize "325 b! @b 277 b! @b" 
-               "_ _ _ _ _ _" 
+(superoptimize "1 2 3 4" 
+               "_" 
                (cons 0 2)
-               (constraint memory r s t))
+               (constraint [data 2] memory r s t)
+               #:assume (constrain-stack (default-state (cons 0 2) 0) '((= . 1) (= . 2) (= . 3)))
+               )
 (- (current-seconds) t)
