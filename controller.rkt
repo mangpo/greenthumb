@@ -12,9 +12,11 @@
     ;(pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
     ;(display-state start-state)
     (pretty-display "interpret spec")
-    (define spec-state (interpret spec start-state))
+    (define spec-state (interpret spec start-state (comm-policy all)))
     (pretty-display "interpret sketch")
-    (define sketch-state (interpret sketch start-state spec-state))
+    (define sketch-state (interpret sketch start-state (if (progstate-comm constraint)
+                                                           (comm-policy at-most spec-state)
+                                                           (comm-policy all))))
     
     
     ;; (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
@@ -26,9 +28,14 @@
     (pretty-display "check output")
     (assert-output spec-state sketch-state constraint))
 
+
+  
+  (define sym-vars (get-sym-vars start-state))
+  
   (define model 
     (synthesize 
-     #:forall (get-sym-vars start-state)
+     #:forall sym-vars
+     #:init (sat (for/hash ([v sym-vars]) (values v 0))) ; start cegis with all inputs set to 0
      #:assume (assume start-state assumption)
      #:guarantee (compare-spec-sketch))
     )
@@ -37,13 +44,22 @@
   )
 
 (define t (current-seconds))
-;; (superoptimize "325 b! !b" "_ _ _" 
+;; (superoptimize "325 b! !b 277 b! !b 373 b! !b 469 b! !b" "_ _ _ _ _ _ _ _ _ _ _ _" 
 ;;                (cons 0 0)
 ;;                (constraint memory r s t))
-(superoptimize "1 2 3 4" 
-               "_" 
-               (cons 0 2)
-               (constraint [data 2] memory r s t)
-               #:assume (constrain-stack '((= . 1) (= . 2) (= . 3)))
-               )
+;; (superoptimize "5 b! !b 373 b! @b 5 b! @b 277 b! !b" "_ _ _ _ _ _ _ _ _ _" 
+;;                (cons 6 1)
+;;                (constraint memory s t))
+(superoptimize "4 a! !+ 4 b! @b 373 b! @b +" "_ _ _ _ _ _ _ _" 
+               (cons 5 1)
+               (constraint memory s t))
+;; (superoptimize "2 b! @b 277 b! !b 1 b! @b 277 b! !b" "_ _ _ _ _ _ _ _" 
+;;                (cons 3 0)
+;;                (constraint memory s t))
+;; (superoptimize "1 2 3 4" 
+;;                "_" 
+;;                (cons 0 2)
+;;                (constraint [data 2] memory r s t)
+;;                #:assume (constrain-stack '((= . 1) (= . 2) (= . 3)))
+;;                )
 (- (current-seconds) t)

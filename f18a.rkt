@@ -3,7 +3,7 @@
 (require "state.rkt" "stack.rkt")
 
 (provide interpret assert-output assume
-         inst-string->list list->inst-string)
+         inst-string->list list->inst-string comm-policy)
 
 ;; ISA
 (define inst-id '#(@p @+ @b @ !p !+ !b ! +* 2* 2/ - + 
@@ -22,7 +22,8 @@
 ;; program: a list of (inst,const)
 ;; state: progstate
 ;; spec-state: state after intepreting spec. This is given when interpreting sketch.
-(define (interpret program state [spec-state #f])
+;; policy: a procedure that enforces a communication policy (see the definition of comm-policy below)
+(define (interpret program state policy)
   (define a (progstate-a state))
   (define b (progstate-b state))
   (define p (progstate-p state))
@@ -85,7 +86,7 @@
         ;;       (assert (and (equal? val (caar comm-ref)) (equal? type (cdar comm-ref))))
         ;;       (set! comm-ref (cdr comm-ref)))
 
-        (set! comm (cons (cons val type) comm))
+        (set! comm (policy (cons val type) comm))
 
         ;; VECTOR
         ;; (vector-set! comm-data val)
@@ -113,7 +114,7 @@
         ;;       (assert (and (equal? val (caar comm-ref)) (equal? type (cdar comm-ref))))
         ;;       (set! comm-ref (cdr comm-ref)))
 
-        (set! comm (cons (cons val type) comm))
+        (set! comm (policy (cons val type) comm))
 
         ;; VECTOR
         ;; (vector-set! comm-data comm-p val)
@@ -323,4 +324,23 @@
                     lst)))
   
 
-      
+;; Creates a policy that determines what kind of communication is allowed 
+;; during interpretation.  The policy is a procedure that takes as input a 
+;; comm pair and the current comm list.  If the policy allows 
+;; the given pair to be added to the list, the pair is inserted at the beginning 
+;; of the list and the result is returned.  If the policy doesn't allow the pair 
+;; to be added to the list, then an assertion error is thrown.
+(define-syntax comm-policy
+  (syntax-rules (all at-most)
+    [(comm-policy all) cons]         ; allow everything
+    [(comm-policy at-most state)     ; allow only prefixes of the communication sequence observed in the given state 
+     (let ([limit (reverse (progstate-comm state))])
+       (lambda (p comm)
+         (for*/all ([c comm])        ; this is not needed for correctness, but improves performance
+           (let* ([len (length c)]
+                  [limit-p (list-ref limit len)])
+             (assert (< len (length limit)) 'comm-length)  
+             (assert (equal? (car p) (car limit-p)) `comm-data)
+             (assert (equal? (cdr p) (cdr limit-p)) `comm-type)
+             (cons limit-p c)))))])) ; can return (cons p c) here, but this is more efficient. 
+                                     ; it is correct because we assert that p == limit-p.

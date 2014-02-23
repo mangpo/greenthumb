@@ -1,3 +1,10 @@
 ASK EMINA
 - why = doesn't work but equal? works
-- constrain on progstate-comm
+- make comm faster
+
+- cost function
+- optimize wrt to cost
+- incremental solving?
+- optimize entire program
+- add fixed sequences
+- reg/stack allocation
