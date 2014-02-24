@@ -23,7 +23,11 @@
 ;; state: progstate
 ;; spec-state: state after intepreting spec. This is given when interpreting sketch.
 ;; policy: a procedure that enforces a communication policy (see the definition of comm-policy below)
-(define (interpret program state policy)
+(define (interpret program state [policy #f])
+  (if policy
+      (comm-policy at-most policy)
+      (comm-policy all))
+      
   (define a (progstate-a state))
   (define b (progstate-b state))
   (define p (progstate-p state))
@@ -39,13 +43,12 @@
   
   (define recv (progstate-recv state))
   (define comm (progstate-comm state))
-  ;; VECTOR
-  ;; (define comm-data (vector-copy (first comm)))
-  ;; (define comm-type (vector-copy (second comm)))
-  ;; (define comm-p (third comm))
 
-  ;; MIDDLE
-  ;; (define comm-ref (and spec-state (reverse (progstate-comm spec-state))))
+  ;; Objective cost to be optimized.
+  (define len-cost 0)
+
+  (define-syntax-rule (len-add x)
+    (set! len-cost (+ len-cost x)))
 
   ;;; Pushes to the data stack.
   (define (push! value)
@@ -81,18 +84,7 @@
     (define (read port)
       (let ([val (car recv)]
             [type (hash-ref comm-dict port)])
-        ;; MIDDLE
-        ;; (when comm-ref 
-        ;;       (assert (and (equal? val (caar comm-ref)) (equal? type (cdar comm-ref))))
-        ;;       (set! comm-ref (cdr comm-ref)))
-
         (set! comm (policy (cons val type) comm))
-
-        ;; VECTOR
-        ;; (vector-set! comm-data val)
-        ;; (vector-set! comm-type type)
-        ;; (set! comm-p (add1 comm-p))
-
         (set! recv (cdr recv))
         val))
     (cond
@@ -109,17 +101,7 @@
   (define (set-memory! addr val)
     (define (write port)
       (let ([type (+ 5 (hash-ref comm-dict port))])
-        ;; MIDDLE
-        ;; (when comm-ref
-        ;;       (assert (and (equal? val (caar comm-ref)) (equal? type (cdar comm-ref))))
-        ;;       (set! comm-ref (cdr comm-ref)))
-
         (set! comm (policy (cons val type) comm))
-
-        ;; VECTOR
-        ;; (vector-set! comm-data comm-p val)
-        ;; (vector-set! comm-type comm-p type)
-        ;; (set! comm-p (add1 comm-p))
       ))
     (cond
      [(equal? addr UP)    (write UP)]
@@ -158,39 +140,38 @@
     (define const (cdr inst-const))
     (define-syntax-rule (inst-eq x) (= inst (vector-member x inst-id)))
     (cond
-      [(inst-eq `@p)   (push! const)]
-      [(inst-eq `@+)   (push! (read-memory a)) (set! a (add1 a))]
-      [(inst-eq `@b)   (push! (read-memory b))]
-      [(inst-eq `@)    (push! (read-memory a))]
-      [(inst-eq `!+)   (set-memory! a (pop!)) (set! a (add1 a))]
-      [(inst-eq `!b)   (set-memory! b (pop!))]
-      [(inst-eq `!)    (set-memory! a (pop!))]
+      [(inst-eq `@p)   (push! const) (len-add 5)]
+      [(inst-eq `@+)   (push! (read-memory a)) (set! a (add1 a)) (len-add 1)]
+      [(inst-eq `@b)   (push! (read-memory b)) (len-add 1)]
+      [(inst-eq `@)    (push! (read-memory a)) (len-add 1)]
+      [(inst-eq `!+)   (set-memory! a (pop!)) (set! a (add1 a)) (len-add 1)]
+      [(inst-eq `!b)   (set-memory! b (pop!)) (len-add 1)]
+      [(inst-eq `!)    (set-memory! a (pop!)) (len-add 1)]
       [(inst-eq `+*)   (if (even? a)
                                 (multiply-step-even!)
-                                (multiply-step-odd!))]
-      [(inst-eq `2*)   (set! t (arithmetic-shift t 1))]
-      [(inst-eq `2/)   (set! t (right-shift-one t))] ;; sign shiftx
-      [(inst-eq `-)    (set! t (bitwise-not t))]
-      [(inst-eq `+)    (push! (+ (pop!) (pop!)))]
-      [(inst-eq `and)  (push! (bitwise-and (pop!) (pop!)))]
-      [(inst-eq `or)   (push! (bitwise-xor (pop!) (pop!)))]
-      [(inst-eq `drop) (pop!)]
-      [(inst-eq `dup)  (push! t)]
-      [(inst-eq `over) (push! s)]
-      [(inst-eq `a)    (push! a)]
-      [(inst-eq `nop)  (void)]
-      [(inst-eq `push) (r-push! (pop!))]
-      [(inst-eq `b!)   (set! b (pop!))]
-      [(inst-eq `a!)   (set! a (pop!))]
+                                (multiply-step-odd!))
+                       (len-add 1)]
+      [(inst-eq `2*)   (set! t (arithmetic-shift t 1)) (len-add 1)]
+      [(inst-eq `2/)   (set! t (right-shift-one t)) (len-add 1)] ;; sign shiftx
+      [(inst-eq `-)    (set! t (bitwise-not t)) (len-add 1)]
+      [(inst-eq `+)    (push! (+ (pop!) (pop!))) (len-add 2)]
+      [(inst-eq `and)  (push! (bitwise-and (pop!) (pop!))) (len-add 1)]
+      [(inst-eq `or)   (push! (bitwise-xor (pop!) (pop!))) (len-add 1)]
+      [(inst-eq `drop) (pop!) (len-add 1)]
+      [(inst-eq `dup)  (push! t) (len-add 1)]
+      [(inst-eq `over) (push! s) (len-add 1)]
+      [(inst-eq `a)    (push! a) (len-add 1)]
+      [(inst-eq `nop)  (void) (len-add 0)]
+      [(inst-eq `push) (r-push! (pop!)) (len-add 1)]
+      [(inst-eq `b!)   (set! b (pop!)) (len-add 1)]
+      [(inst-eq `a!)   (set! a (pop!)) (len-add 1)]
       [else (assert #f (format "invalid instruction ~a" inst))]
       ))
   
   (for ([inst program])
     (interpret-step inst))
   
-  (progstate a b p i r s t data return memory recv comm)
-  ;; VECTOR
-  ;; (progstate a b p i r s t data return memory recv (list comm-data comm-type comm-p))
+  (progstate a b p i r s t data return memory recv comm len-cost)
   )
 
 ;; REQUIRED FUNCTION
@@ -226,20 +207,12 @@
                           [i2 j2])
                          (assert (equal? (car i1) (car i2)) `comm-data)
                          (assert (equal? (cdr i1) (cdr i2)) `comm-type)))
-          
-          ;; VECTOR
-          ;; (match (progstate-comm state1)
-          ;;  [(list comm-data1 comm-type1 comm-p1)
-          ;;   (match (progstate-comm state2)
-          ;;    [(list comm-data2 comm-type2 comm-p2)
-          ;;     (assert (equal? comm-p1 comm-p2) `(comm-p))
-          ;;     (for ([i (in-range comm-p1)])
-          ;;          (assert (equal? (vector-ref comm-data1 i) (vector-ref comm-data2 i))
-          ;;                  `comm-data)
-          ;;          (assert (equal? (vector-ref comm-type1 i) (vector-ref comm-type2 i))
-          ;;                  `comm-data))])])
           ))
   
+  (define (check-cost)
+    (when (progstate-cost constraint)
+      (assert (> (progstate-cost state1) (progstate-cost state2)) `progstate-cost)))
+
   (check-reg progstate-a)
   (check-reg progstate-b)
   (check-reg progstate-r)
@@ -249,6 +222,7 @@
   (check-stack progstate-return)
   (check-mem)
   (check-comm)
+  (check-cost)
   )
 
 ;; Assert assumption about start-state
@@ -287,7 +261,8 @@
   (check-reg progstate-t)
   (check-stack progstate-data)
   (check-stack progstate-return)
-  (check-mem))
+  (check-mem)
+  )
 
 (define (sym-inst)
   (define-symbolic* inst number?)

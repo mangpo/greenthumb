@@ -4,14 +4,14 @@
 
 (provide (all-defined-out))
 
-(struct progstate (a b p i r s t data return memory recv comm) #:mutable #:transparent)
-(struct commstate (data type recv p) #:mutable #:transparent)
+(struct progstate (a b p i r s t data return memory recv comm cost) 
+        #:mutable #:transparent)
 
 ;;; The empty constraint. Pretty useless.
-(define constraint-none (progstate #f #f #f #f #f #f #f #f #f #f #f #t))
+(define constraint-none (progstate #f #f #f #f #f #f #f #f #f #f #f #t #t))
 
 ;;; Constrain everything. We must have perfection!
-(define constraint-all (progstate #t #t #t #t #t #t #t 8 8 #t #f #t))
+(define constraint-all (progstate #t #t #t #t #t #t #t 8 8 #t #f #t #t))
 
 ;;; Defines a constraint for some fields. For example, `(constraint
 ;;; t)' is the same as constraint-only-t and evaluates to `(progstate
@@ -90,22 +90,8 @@
                   (list->vector (for/list ([i (in-range mem)]) init))  ;; memory
                   (for/list ([i (in-range recv-n)]) init) ;; recv
                   (list) ;; comm
+                  0 ;; cost
                   )]))
-
-    ;; VECTOR
-    ;; ((default-state info init) 
-    ;;  (match info
-    ;;   [(list mem recv-n comm-n)
-    ;;    (progstate init init 0 0
-    ;;               init init init
-    ;;               (stack 0 (list->vector (for/list ([i (in-range 8)]) init))) ;; data
-    ;;               (stack 0 (list->vector (for/list ([i (in-range 8)]) init))) ;; return
-    ;;               (list->vector (for/list ([i (in-range mem)]) init))  ;; memory
-    ;;               (for/list ([i (in-range recv-n)]) init) ;; recv
-    ;;               (list (list->vector (for/list ([i (in-range comm-n)]) 0)) 
-    ;;                     (list->vector (for/list ([i (in-range comm-n)]) 0))
-    ;;                     0) ;; comm
-    ;;               )]))
 
     ((default-state info init [data-pair (i i-val) ...] [key val] ...)
      (let* ([state (default-state info init)]
@@ -182,4 +168,6 @@
   (display-data state)
   (display-return state)
   (display-memory state)
-  (display-comm state))
+  (display-comm state)
+  (pretty-display (format "cost: ~a" (progstate-cost state)))
+  )

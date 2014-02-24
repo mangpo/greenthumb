@@ -12,23 +12,18 @@
     ;(pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
     ;(display-state start-state)
     (pretty-display "interpret spec")
-    (define spec-state (interpret spec start-state (comm-policy all)))
+    (define spec-state (interpret spec start-state))
     (pretty-display "interpret sketch")
-    (define sketch-state (interpret sketch start-state (if (progstate-comm constraint)
-                                                           (comm-policy at-most spec-state)
-                                                           (comm-policy all))))
+    (define sketch-state (interpret sketch start-state spec-state))
     
-    
-    ;; (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
-    ;; (display-state spec-state)
-    ;; (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
-    ;; (display-state sketch-state)
+    (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
+    (display-state spec-state)
+    (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
+    (display-state sketch-state)
     ;; (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
     ;; (pretty-display (get-sym-vars start-state))
     (pretty-display "check output")
     (assert-output spec-state sketch-state constraint))
-
-
   
   (define sym-vars (get-sym-vars start-state))
   
@@ -44,15 +39,28 @@
   )
 
 (define t (current-seconds))
+;; (superoptimize "a 277 b! dup or a! @+ !b @+ !b @+
+;; 277 a! ! 3 b! @b ! 0 b! @b !
+;; 277 b! @b 0 b! !b 1 b! @b 277 b! !b 277 b! @b 1" 
+;; "a 277 b! dup or a! @+ !b @+ !b @+
+;; 277 a! ! 3 b! @b ! 0 b! @b !
+;; _ _ _ _ _ _ _ _" 
+;;                (cons 4 2)
+;;                (constraint memory s t))
+
+(superoptimize "0" "_ _ _" 
+               (cons 0 0)
+               (constraint memory r s t))
+
 ;; (superoptimize "325 b! !b 277 b! !b 373 b! !b 469 b! !b" "_ _ _ _ _ _ _ _ _ _ _ _" 
 ;;                (cons 0 0)
 ;;                (constraint memory r s t))
 ;; (superoptimize "5 b! !b 373 b! @b 5 b! @b 277 b! !b" "_ _ _ _ _ _ _ _ _ _" 
 ;;                (cons 6 1)
 ;;                (constraint memory s t))
-(superoptimize "4 a! !+ 4 b! @b 373 b! @b +" "_ _ _ _ _ _ _ _" 
-               (cons 5 1)
-               (constraint memory s t))
+;; (superoptimize "4 a! !+ 4 b! @b 373 b! @b +" "_ _ _ _ _ _ _ _" 
+;;                (cons 5 1)
+;;                (constraint memory s t))
 ;; (superoptimize "2 b! @b 277 b! !b 1 b! @b 277 b! !b" "_ _ _ _ _ _ _ _" 
 ;;                (cons 3 0)
 ;;                (constraint memory s t))
