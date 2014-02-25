@@ -1,9 +1,10 @@
 #lang s-exp rosette
 
-(require "state.rkt" "stack.rkt")
+(require "state.rkt" "stack.rkt" "ast.rkt")
 
-(provide interpret assert-output assume
-         inst-string->list list->inst-string comm-policy)
+
+(require rosette/solver/z3/z3)
+(provide (all-defined-out))
 
 ;; ISA
 (define inst-id '#(@p @+ @b @ !p !+ !b ! +* 2* 2/ - + 
@@ -23,7 +24,7 @@
 ;; state: progstate
 ;; spec-state: state after intepreting spec. This is given when interpreting sketch.
 ;; policy: a procedure that enforces a communication policy (see the definition of comm-policy below)
-(define (interpret program state [policy #f])
+(define (interpret bit program state [policy #f])
   (if policy
       (comm-policy at-most policy)
       (comm-policy all))
@@ -140,37 +141,73 @@
     (define const (cdr inst-const))
     (define-syntax-rule (inst-eq x) (= inst (vector-member x inst-id)))
     (cond
-      [(inst-eq `@p)   (push! const) (len-add 5)]
-      [(inst-eq `@+)   (push! (read-memory a)) (set! a (add1 a)) (len-add 1)]
-      [(inst-eq `@b)   (push! (read-memory b)) (len-add 1)]
-      [(inst-eq `@)    (push! (read-memory a)) (len-add 1)]
-      [(inst-eq `!+)   (set-memory! a (pop!)) (set! a (add1 a)) (len-add 1)]
-      [(inst-eq `!b)   (set-memory! b (pop!)) (len-add 1)]
-      [(inst-eq `!)    (set-memory! a (pop!)) (len-add 1)]
-      [(inst-eq `+*)   (if (even? a)
-                                (multiply-step-even!)
-                                (multiply-step-odd!))
-                       (len-add 1)]
-      [(inst-eq `2*)   (set! t (arithmetic-shift t 1)) (len-add 1)]
-      [(inst-eq `2/)   (set! t (right-shift-one t)) (len-add 1)] ;; sign shiftx
-      [(inst-eq `-)    (set! t (bitwise-not t)) (len-add 1)]
-      [(inst-eq `+)    (push! (+ (pop!) (pop!))) (len-add 2)]
-      [(inst-eq `and)  (push! (bitwise-and (pop!) (pop!))) (len-add 1)]
-      [(inst-eq `or)   (push! (bitwise-xor (pop!) (pop!))) (len-add 1)]
-      [(inst-eq `drop) (pop!) (len-add 1)]
-      [(inst-eq `dup)  (push! t) (len-add 1)]
-      [(inst-eq `over) (push! s) (len-add 1)]
-      [(inst-eq `a)    (push! a) (len-add 1)]
-      [(inst-eq `nop)  (void) (len-add 0)]
-      [(inst-eq `push) (r-push! (pop!)) (len-add 1)]
-      [(inst-eq `b!)   (set! b (pop!)) (len-add 1)]
-      [(inst-eq `a!)   (set! a (pop!)) (len-add 1)]
-      [else (assert #f (format "invalid instruction ~a" inst))]
-      ))
-  
-  (for ([inst program])
-    (interpret-step inst))
-  
+     [(inst-eq `@p)   (push! const) (len-add 5)]
+     [(inst-eq `@+)   (push! (read-memory a)) (set! a (add1 a)) (len-add 1)]
+     [(inst-eq `@b)   (push! (read-memory b)) (len-add 1)]
+     [(inst-eq `@)    (push! (read-memory a)) (len-add 1)]
+     [(inst-eq `!+)   (set-memory! a (pop!)) (set! a (add1 a)) (len-add 1)]
+     [(inst-eq `!b)   (set-memory! b (pop!)) (len-add 1)]
+     [(inst-eq `!)    (set-memory! a (pop!)) (len-add 1)]
+     [(inst-eq `+*)   (if (even? a)
+                          (multiply-step-even!)
+                          (multiply-step-odd!))
+                      (len-add 1)]
+     [(inst-eq `2*)   (set! t (arithmetic-shift t 1)) (len-add 1)]
+     [(inst-eq `2/)   (set! t (right-shift-one t)) (len-add 1)] ;; sign shiftx
+     [(inst-eq `-)    (set! t (bitwise-not t)) (len-add 1)]
+     [(inst-eq `+)    (push! (+ (pop!) (pop!))) (len-add 2)]
+     [(inst-eq `and)  (push! (bitwise-and (pop!) (pop!))) (len-add 1)]
+     [(inst-eq `or)   (push! (bitwise-xor (pop!) (pop!))) (len-add 1)]
+     [(inst-eq `drop) (pop!) (len-add 1)]
+     [(inst-eq `dup)  (push! t) (len-add 1)]
+     [(inst-eq `over) (push! s) (len-add 1)]
+     [(inst-eq `a)    (push! a) (len-add 1)]
+     [(inst-eq `nop)  (void) (len-add 0)]
+     [(inst-eq `push) (r-push! (pop!)) (len-add 1)]
+     [(inst-eq `b!)   (set! b (pop!)) (len-add 1)]
+     [(inst-eq `a!)   (set! a (pop!)) (len-add 1)]
+     [else (assert #f (format "invalid instruction ~a" inst))]
+     ))
+
+  (define (interpret-struct x)
+    (cond
+     [(list? x)
+      (if (pair? (car x))
+          (for ([i x]) (interpret-step i))
+          (for ([i x]) (interpret-struct i)))]
+      
+     [(block? x)
+      (interpret-struct (block-body x))]
+
+     [(forloop? x)
+      (interpret-struct (forloop-init x))
+      (r-push! (pop!))
+      (for ([i (in-range (add1 r))])
+           (interpret-struct (forloop-body x))
+           (set! r (sub1 r)))
+      (r-pop!)
+      ]
+
+     [(ift? x)
+      (when (not (equal? t 0))
+            (interpret-struct (ift-t x)))]
+
+     [(iftf? x)
+      (if (not (equal? t 0))
+          (interpret-struct (iftf-t x))
+          (interpret-struct (iftf-f x)))]
+
+     [(-ift? x)
+      (when (negative? t) ;(or (negative? t) (>= t (arithmetic-shift 1 (sub1 bit)))) ;; negative
+            (interpret-struct (-ift-t x)))]
+
+     [(-iftf? x)
+      (if (negative? t) ;(or (negative? t) (>= t (arithmetic-shift 1 (sub1 bit)))) ;; negative
+          (interpret-struct (-iftf-t x))
+          (interpret-struct (-iftf-f x)))]
+     ))
+    
+  (interpret-struct program)
   (progstate a b p i r s t data return memory recv comm len-cost)
   )
 
@@ -222,7 +259,7 @@
   (check-stack progstate-return)
   (check-mem)
   (check-comm)
-  (check-cost)
+  ;;(check-cost)
   )
 
 ;; Assert assumption about start-state
@@ -297,6 +334,63 @@
                                 (number->string (evaluate (cdr x) model)))
                             (symbol->string inst))))
                     lst)))
+
+;; Traverse a given program AST recursively until (base? program) is true.
+;; Then apply base-apply to program.
+(define (traverse program base? base-apply)
+  (define (f x)
+    (cond
+     [(base? x)    (base-apply x)]
+     [(list? x)    (map f x)]
+     [(block? x)   (block (f (block-body x)) (f (block-org x)) 
+                          (block-cnstr x) (block-assume x))]
+     [(forloop? x) (forloop (f (forloop-init x)) (f (forloop-body x)))]
+     [(ift? x)     (ift (f (ift-t x)))]
+     [(iftf? x)    (iftf (f (iftf-t x)) (f (iftf-f x)))]
+     [(-ift? x)    (-ift (f (-ift-t x)))]
+     [(-iftf? x)   (-iftf (f (-iftf-t x)) (f (-iftf-f x)))]
+     ))
+  (f program))
+
+(define (print-program x)
+  (cond
+   [(list? x)
+    (map print-program x)]
+
+   [(block? x)
+    (print-program (block-body x))]
+
+   [(forloop? x)
+    (print (forloop-init x))
+    (display " for ")
+    (print-program (forloop-body x))]
+
+   [(ift? x)
+    (display " if ")
+    (print-program (ift-t x))
+    (display " then ")]
+
+   [(iftf? x)
+    (display " if ")
+    (print-program (iftf-t x))
+    (display " ; ] then ")
+    (print-program (iftf-f x))
+    (newline)]
+
+   [(-ift? x)
+    (display " -if ")
+    (print-program (-ift-t x))
+    (display " then ")]
+
+   [(-iftf? x)
+    (display " -if ")
+    (print-program (-iftf-t x))
+    (display " ; ] then ")
+    (print-program (-iftf-f x))
+    (newline)]
+   
+   [else
+    (display x)]))
   
 
 ;; Creates a policy that determines what kind of communication is allowed 

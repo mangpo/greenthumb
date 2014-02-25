@@ -1,10 +1,4 @@
-ASK EMINA
-- why = doesn't work but equal? works
-- make comm faster
+- negative number
 
-- cost function
-- optimize wrt to cost
-- incremental solving?
-- optimize entire program
 - add fixed sequences
 - reg/stack allocation
