@@ -4,7 +4,7 @@
 (require rosette/solver/z3/z3)
 
 (define (superoptimize spec sketch info constraint
-                       #:bit [bit 6]
+                       #:bit [bit 18]
                        #:assume [assumption (default-state)])
   (current-solver (new z3%))
   (configure [bitwidth bit])
@@ -22,8 +22,8 @@
     
     (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
     (display-state spec-state)
-    (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
-    (display-state sketch-state)
+    ;; (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
+    ;; (display-state sketch-state)
     ;; (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
     ;; (pretty-display (get-sym-vars start-state))
     (pretty-display "check output")
@@ -47,10 +47,10 @@
 
 (define t (current-seconds))
 
-(superoptimize (traverse "63 and" string? inst-string->list)
-               (traverse "@p and" string? inst-string->list)
+(superoptimize (traverse "65536 2*" string? inst-string->list)
+               (traverse "_" string? inst-string->list)
                (cons 0 0)
-               (constraint s t))
+               (constraint [data 1] s t))
 
 ;; (print-program
 ;; (superoptimize (traverse (list (block "-3" #f #f #f) (-iftf "1" "2")) string? inst-string->list)

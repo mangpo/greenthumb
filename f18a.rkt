@@ -2,8 +2,6 @@
 
 (require "state.rkt" "stack.rkt" "ast.rkt")
 
-
-(require rosette/solver/z3/z3)
 (provide (all-defined-out))
 
 ;; ISA
@@ -111,30 +109,28 @@
      [(equal? addr RIGHT) (write RIGHT)]
      [(equal? addr IO)    (write IO)]
      [else (vector-set! memory addr val)]))
-  
-  ;; Signed right shift
-  (define (right-shift-one x)
-    (let ([x17 (bitwise-and x #x20000)])
-      (bitwise-ior x17 (arithmetic-shift x -1))))
+
+  (define (clip x)
+    (let ([res (bitwise-and x #x3ffff)])
+      (if (= (bitwise-and #x20000 res) 0)
+          res
+          (- (add1 (bitwise-xor res #x3ffff))))))
+
+  (define (push-right-one x carry)
+    (clip (bitwise-ior (<< (bitwise-and #x1 carry) (sub1 num-bits)) (>>> x 1))))
   
   ;; Treats T:A as a single 36 bit register and shifts it right by one
   ;; bit. The most signficicant bit (T17) is kept the same.
   (define (multiply-step-even!)
-    (let ([t0  (bitwise-and t #x1)])
-      (set! t (right-shift-one t))
-      (set! a (bitwise-ior (arithmetic-shift t0 (sub1 num-bits)) 
-                           (arithmetic-shift a -1)))))
+    (set! a (push-right-one a t))
+    (set! t (>> t 1)))
   
   ;; Sums T and S and concatenates the result with A, shifting
-  ;; everything to the right by one bit.
+  ;; the concatenated 37-bit to the right by one bit.
   (define (multiply-step-odd!)
-    (let* ([sum (+ t s)]
-           [sum17 (bitwise-and sum #x20000)]
-           [result (bitwise-ior (arithmetic-shift sum (sub1 num-bits)) 
-                                (arithmetic-shift a -1))])
-      (set! a (bitwise-bit-field result 0 num-bits))
-      (set! t (bitwise-ior sum17 
-                           (bitwise-bit-field result num-bits (* 2 num-bits))))))
+    (let ([sum (+ t s)])
+      (set! a (push-right-one a sum))
+      (set! t (>> sum 1))))
   
   (define (interpret-step inst-const)
     (define inst (car inst-const))
@@ -148,14 +144,14 @@
      [(inst-eq `!+)   (set-memory! a (pop!)) (set! a (add1 a)) (len-add 1)]
      [(inst-eq `!b)   (set-memory! b (pop!)) (len-add 1)]
      [(inst-eq `!)    (set-memory! a (pop!)) (len-add 1)]
-     [(inst-eq `+*)   (if (even? a)
+     [(inst-eq `+*)   (if (= (bitwise-and #x1 a) 0)
                           (multiply-step-even!)
                           (multiply-step-odd!))
                       (len-add 1)]
-     [(inst-eq `2*)   (set! t (arithmetic-shift t 1)) (len-add 1)]
-     [(inst-eq `2/)   (set! t (right-shift-one t)) (len-add 1)] ;; sign shiftx
+     [(inst-eq `2*)   (set! t (clip (<< t 1))) (len-add 1)]
+     [(inst-eq `2/)   (set! t (>> t 1)) (len-add 1)] ;; sign shiftx
      [(inst-eq `-)    (set! t (bitwise-not t)) (len-add 1)]
-     [(inst-eq `+)    (push! (+ (pop!) (pop!))) (len-add 2)]
+     [(inst-eq `+)    (push! (clip (+ (pop!) (pop!)))) (len-add 2)]
      [(inst-eq `and)  (push! (bitwise-and (pop!) (pop!))) (len-add 1)]
      [(inst-eq `or)   (push! (bitwise-xor (pop!) (pop!))) (len-add 1)]
      [(inst-eq `drop) (pop!) (len-add 1)]
@@ -355,7 +351,8 @@
 (define (print-program x)
   (cond
    [(list? x)
-    (map print-program x)]
+    (map print-program x)
+    (void)]
 
    [(block? x)
     (print-program (block-body x))]
