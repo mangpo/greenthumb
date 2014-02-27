@@ -4,6 +4,8 @@
 
 (provide (all-defined-out))
 
+(define debug #f)
+
 ;; ISA
 (define inst-id '#(@p @+ @b @ !p !+ !b ! +* 2* 2/ - + 
                       and or drop dup pop over a nop push b! a!))
@@ -23,9 +25,9 @@
 ;; spec-state: state after intepreting spec. This is given when interpreting sketch.
 ;; policy: a procedure that enforces a communication policy (see the definition of comm-policy below)
 (define (interpret bit program state [policy #f])
-  (if policy
-      (comm-policy at-most policy)
-      (comm-policy all))
+  (set! policy (if policy
+                   (comm-policy at-most policy)
+                   (comm-policy all)))
       
   (define a (progstate-a state))
   (define b (progstate-b state))
@@ -98,6 +100,7 @@
   ;; port. Everything written to any communication port is simply
   ;; aggregated into a list.
   (define (set-memory! addr val)
+    (when debug (pretty-display `(set-memory! ,addr ,val)))
     (define (write port)
       (let ([type (+ 5 (hash-ref comm-dict port))])
         (set! comm (policy (cons val type) comm))
@@ -133,6 +136,7 @@
       (set! t (>> sum 1))))
   
   (define (interpret-step inst-const)
+    (when debug (pretty-display `(interpret-step ,inst-const)))
     (define inst (car inst-const))
     (define const (cdr inst-const))
     (define-syntax-rule (inst-eq x) (= inst (vector-member x inst-id)))

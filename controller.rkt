@@ -1,12 +1,12 @@
 #lang s-exp rosette
 
 (require "f18a.rkt" "state.rkt" "ast.rkt")
-(require rosette/solver/z3/z3)
+;(require rosette/solver/z3/z3)
 
 (define (superoptimize spec sketch info constraint
                        #:bit [bit 18]
                        #:assume [assumption (default-state)])
-  (current-solver (new z3%))
+  ;(current-solver (new z3%))
   (configure [bitwidth bit])
   (define start-state (default-state info (sym-input)))
   ;; (set! spec (inst-string->list spec))
@@ -20,8 +20,8 @@
     (pretty-display "interpret sketch")
     (define sketch-state (interpret bit sketch start-state spec-state))
     
-    (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
-    (display-state spec-state)
+    ;; (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
+    ;; (display-state spec-state)
     ;; (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
     ;; (display-state sketch-state)
     ;; (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
@@ -47,10 +47,10 @@
 
 (define t (current-seconds))
 
-(superoptimize (traverse "65536 2*" string? inst-string->list)
-               (traverse "_" string? inst-string->list)
-               (cons 0 0)
-               (constraint [data 1] s t))
+;; (superoptimize (traverse "65536 2*" string? inst-string->list)
+;;                (traverse "_" string? inst-string->list)
+;;                (cons 0 0)
+;;                (constraint [data 1] s t))
 
 ;; (print-program
 ;; (superoptimize (traverse (list (block "-3" #f #f #f) (-iftf "1" "2")) string? inst-string->list)
@@ -73,16 +73,20 @@
 ;;                (cons 4 2)
 ;;                (constraint memory s t))
 
-;; (superoptimize "325 b! !b 277 b! !b 373 b! !b 469 b! !b" "_ _ _ _ _ _ _ _ _ _ _ _" 
+;; (superoptimize (traverse "325 b! !b 277 b! !b 373 b! !b 469 b! !b"  string? inst-string->list)
+;;                (traverse "_ _ _ _ _ _ _ _ _ _ _ _"  string? inst-string->list)
 ;;                (cons 0 0)
-;;                (constraint memory r s t))
-;; (superoptimize "5 b! !b 373 b! @b 5 b! @b 277 b! !b" "_ _ _ _ _ _ _ _ _ _" 
+;;                (constraint memory s t))
+;; (superoptimize (traverse "5 b! !b 373 b! @b 5 b! @b 277 b! !b" string? inst-string->list)
+;;                (traverse "_ _ _ _ _ _ _ _ _ _" string? inst-string->list)
 ;;                (cons 6 1)
 ;;                (constraint memory s t))
-;; (superoptimize "4 a! !+ 4 b! @b 373 b! @b +" "_ _ _ _ _ _ _ _" 
+;; (superoptimize (traverse "4 a! !+ 4 b! @b 373 b! @b +" string? inst-string->list)
+;;                (traverse "_ _ _ _ _ _ _ _" string? inst-string->list)
 ;;                (cons 5 1)
 ;;                (constraint memory s t))
-;; (superoptimize "2 b! @b 277 b! !b 1 b! @b 277 b! !b" "_ _ _ _ _ _ _ _" 
+;; (superoptimize (traverse "2 b! @b 277 b! !b 1 b! @b 277 b! !b" string? inst-string->list)
+;;                (traverse "_ _ _ _ _ _ _ _" string? inst-string->list)
 ;;                (cons 3 0)
 ;;                (constraint memory s t))
 ;; (superoptimize "1 2 3 4" 
