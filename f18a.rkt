@@ -7,8 +7,9 @@
 (define debug #f)
 
 ;; ISA
-(define inst-id '#(@p @+ @b @ !p !+ !b ! +* 2* 2/ - + 
-                      and or drop dup pop over a nop push b! a!))
+(define inst-id '#(@p @+ @b @ !p !+ !b ! +* 2* 
+                      2/ - + and or drop dup pop over a 
+                      nop push b! a!))
 
 (define UP #x145) ;325
 (define DOWN #x115) ;277
@@ -160,6 +161,7 @@
      [(inst-eq `or)   (push! (bitwise-xor (pop!) (pop!))) (len-add 1)]
      [(inst-eq `drop) (pop!) (len-add 1)]
      [(inst-eq `dup)  (push! t) (len-add 1)]
+     [(inst-eq `pop)  (push! (r-pop!)) (len-add 1)]
      [(inst-eq `over) (push! s) (len-add 1)]
      [(inst-eq `a)    (push! a) (len-add 1)]
      [(inst-eq `nop)  (void) (len-add 0)]
@@ -270,7 +272,7 @@
            [(member (car assumption) (list "=" '=))
             (assert (equal? item (cdr assumption)))]
            [(member (car assumption) (list "<=" '<=))
-            (assert (<= item (cdr assumption)))])
+            (assert (and (<= item (cdr assumption)) (>= item 0)))])
           ))
           
 
