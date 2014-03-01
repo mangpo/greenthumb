@@ -2,37 +2,32 @@
 
 (provide (all-defined-out))
 
-(struct block (body org cnstr assume) #:mutable)
-(struct jump (name))
-(struct label (name body simple))
+(struct block (body org cnstr) #:mutable)
+(struct call (name))
+(struct label (name body info)) ;; info may include size of preserved stack and precondition
 (struct vardecl (val))
-(struct forloop (init body))
+(struct forloop (init body bound))
 (struct ift (t))     ;; exit if cond = 0
 (struct iftf (t f))  ;; jump if cond = 0
 (struct -ift (t))    ;; exit if cond >= 0
 (struct -iftf (t f)) ;; jump if cond >= 0
-(struct program (code memsize bit indexmap id))
+(struct program (code memsize indexmap id))
 (struct special (name))
+(struct assumption (cnstr))
+(struct item (x size))
 
-(struct linklist (prev entry next))
-
-;; (define (list->linklist lst)
-;;   (define (copy x)
-;;     (if (block? x)
-;;         (struct-copy block x)
-;;         x))
-
-;;   (define (inner lst)
-;;     (if (empty? lst)
-;;         (linklist #f #f #f)
-;;         (let* ([rest (inner (cdr lst))]
-;;                [me (linklist #f (copy (car lst)) rest)])
-;;           (when rest
-;;             (set-linklist-prev! rest me))
-;;           me)))
-  
-;;   (define non-empty (filter (lambda (x) (not (empty-block? x))) lst))
-;;   (define start (inner non-empty))
-;;   (define head (linklist #f #f start))
-;;   (set-linklist-prev! start head)
-;;   head)
+;; Traverse a given program AST recursively until (base? program) is true.
+;; Then apply base-apply to program.
+(define (traverse program base? base-apply)
+  (define (f x)
+    (cond
+     [(base? x)    (base-apply x)]
+     [(list? x)    (map f x)]
+     [(block? x)   (block (f (block-body x)) (f (block-org x)) (block-cnstr x))]
+     [(forloop? x) (forloop (f (forloop-init x)) (f (forloop-body x)) (forloop-bound x))]
+     [(ift? x)     (ift (f (ift-t x)))]
+     [(iftf? x)    (iftf (f (iftf-t x)) (f (iftf-f x)))]
+     [(-ift? x)    (-ift (f (-ift-t x)))]
+     [(-iftf? x)   (-iftf (f (-iftf-t x)) (f (-iftf-f x)))]
+     ))
+  (f program))

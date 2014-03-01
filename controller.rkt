@@ -3,6 +3,13 @@
 (require "f18a.rkt" "state.rkt" "ast.rkt")
 ;(require rosette/solver/z3/z3)
 
+(provide superoptimize)
+
+;; Superoptimize program given
+;; spec: program specification (naive code)
+;; sketch: skeleton of the output program
+;; info: additional information (e.g. memory size, # of receiveing data)
+;; constraint: constraint on the output state
 (define (superoptimize spec sketch info constraint
                        #:bit [bit 18]
                        #:assume [assumption (default-state)])
@@ -39,83 +46,147 @@
      #:guarantee (compare-spec-sketch))
     )
   
-  (traverse sketch 
-            (lambda (x) (and (list? x) 
-                             (or (empty? x) (pair? (car x)))))
-            (lambda (x) (list->inst-string x model)))
+  (decode sketch model)
   )
 
-(define t (current-seconds))
+(define (optimize-cost spec sketch info constraint)
+  ;; if structure -> linear search
+  ;; if inst seq -> binary search
+  spec)
+   
+(define (optimize program)
+  (define length-limit 16)
 
-;; (superoptimize (traverse "325 b! @b push drop pop 325 b! @b 0 b! !b dup 0 b! @b or over 0 b! @b and or" string? inst-string->list)
-;;                (traverse "_ _ _ _ _ _ _ _ _ _ _ _ _ _" string? inst-string->list)
-;;                (cons 1 2)
-;;                (constraint r s t))
+  (define (optimize-func func)
+    (define (superoptimize-fragment x)
+      (pretty-display `(superopt ,x))
+      (print-program x)
+      (newline)
+      (define simple-x (simplify x))
+      ;; TODO: implement these functions
+      (optimize-cost simple-x 
+		     (generate-sketch simple-x) 
+		     (generate-info program simple-x) 
+		     (generate-constraint func simple-x)))
+    ;; END superoptimize-fragment
 
-;; (superoptimize (traverse "65536 2*" string? inst-string->list)
-;;                (traverse "_" string? inst-string->list)
-;;                (cons 0 0)
-;;                (constraint [data 1] s t))
+    (define (sliding-window x)
+      (define output (list))
+      (define work (list))
+      (define size 0) ;; invariant: size < length-limit
+      
+      (define (optimize-slide buffer)
+	(define res (superoptimize-fragment buffer))
+	(cond
+	 [(equal? res "same")
+	  ;; TODO: org
+	  (set! output (append output (list (original (car work)))))
+	  (set! work (cdr work))]
+	 
+	 [(equal? res "timeout")
+	  (if (> (length buffer) 1)
+	      (sliding-window (take buffer (sub1 (length buffer))))
+	      (begin
+		(set! output (append output (list (car work))))
+		(set! work (cdr work))))]
+	 
+	 [else
+	  (set! output (append output res))
+	  (set! work (drop work (length buffer)))]))
+      
+      (define (until-empty)
+	(unless (empty? work)
+		(optimize-slide work)
+		(until-empty)))
+      
+      ;; sliding window loop
+      (for ([i x])
+	   (cond
+	    [(> (item-size i) length-limit)
+	     (until-empty)
+	     (set! output (append (list (optimize-inner i))))]
+	    
+	    [(> (+ size (item-size i)) length-limit)
+	     (optimize-slide work)
+	     (set! work (append work (list (item-x i))))]
+	    
+	    [else
+	     (set! work (append work (list (item-x i))))]))
+      
+      (until-empty)
+      output)
+    ;; END sliding-window
+    
+    (define (optimize-inner code)
+      (define x (item-x code))
+      (cond
+       [(list? x)
+	(sliding-window x)]
+       
+       [(block? x)
+	(define ret (superoptimize-fragment x))
+	(if (or (equal? ret "timeout") (equal? ret "same"))
+	    (original ret)
+	    ret)]
+       
+       [(forloop? x)
+	(forloop (optimize-inner (forloop-init x)) (optimize-inner (forloop-body x)))]
+       [(ift? x)
+	(ift (optimize-inner (ift-t x)))]
+       [(iftf? x)
+	(iftf (optimize-inner (iftf-t x)) (optimize-inner (iftf-f x)))]
+       [(-ift? x)
+	(-ift (optimize-inner (-ift-t x)))]
+       [(-iftf? x)
+	(-iftf (optimize-inner (-iftf-t x)) (optimize-inner (-iftf-f x)))]
+       [else x]))
+    ;; END optimize-inner
+    
+    ;; optimize-func body
+    (if (label? func)
+	(label (label-name func) (optimize-inner (wrap (label-body func))) (label-info func))
+	func))
+  
+  ;; optimize body
+  (map optimize-func (program-code program)))
+       
+(define x
+  (program
+   (list
+    (vardecl '(32867 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0))
+    (label "sumrotate"
+      ;; linklist
+      (list 
+        (block
+          "dup"
+          "dup" #f)
+        (block
+          "right b! !b"
+          "right b! !b" #f)
+        (block
+          "drop"
+          "drop" #f)
+	) #f)
+    (label "main"
+      (list
+       (forloop 
+	;; linklist
+	(list 
+	 (block
+	  "15"
+	  "15" #f)
+	 )
+	;; linklist
+	(list 
+	 (block
+	  "dup"
+	  "dup" #f)
+	 (block
+	  "b! @b"
+	  "b! @b" #f)))
+	(call "sumrotate")
+       ) #f)
+    )
+   0 #f #f))
 
-;; (print-program
-;; (superoptimize (traverse (list (block "-3" #f #f #f) (-iftf "1" "2")) string? inst-string->list)
-;;                (traverse (list (block "_" #f #f #f) (-iftf "1" "2")) string? inst-string->list)
-;;                (cons 0 0)
-;;                (constraint t)))
-;; (print-program
-;; (superoptimize (traverse (forloop "3" "0") string? inst-string->list)
-;;                (traverse (forloop "3" "dup dup or") string? inst-string->list)
-;;                (cons 0 0)
-;;                (constraint memory r s t)))
-
-
-;; (superoptimize "a 277 b! dup or a! @+ !b @+ !b @+
-;; 277 a! ! 3 b! @b ! 0 b! @b !
-;; 277 b! @b 0 b! !b 1 b! @b 277 b! !b 277 b! @b 1" 
-;; "a 277 b! dup or a! @+ !b @+ !b @+
-;; 277 a! ! 3 b! @b ! 0 b! @b !
-;; _ _ _ _ _ _ _ _" 
-;;                (cons 4 2)
-;;                (constraint memory s t))
-
-;;;;;;;;;;;;;;;; assume ;;;;;;;;;;;;;;;;;;
-(superoptimize (traverse "0 a! !+ push !+ pop dup 1 b! @b 0 b! @b 65535 or over - and + or push drop pop" string? inst-string->list)
-               (traverse "_ _ _ _ _ _ _ _ _" string? inst-string->list)
-               (cons 2 0)
-               (constraint s t)
-               #:assume (constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
-
-;;;;;;;;;;;;;;;; no comm ;;;;;;;;;;;;;;;;;;
-;; (superoptimize (traverse "2 b! @b 3 b! !b 1 b! @b 2 b! !b"  string? inst-string->list)
-;;                (traverse "_ _ _ _ _ _ _ _"  string? inst-string->list)
-;;                (cons 4 0)
-;;                (constraint memory s t))
-;; (superoptimize (traverse "0 a! !+ !+ !+ !+ 3 b! @b 1 b! @b"  string? inst-string->list)
-;;                (traverse "_ _ _ _ _ _ _ _ _ _"  string? inst-string->list)
-;;                (cons 4 0)
-;;                (constraint [data 1] memory s t))
-
-;;;;;;;;;;;;;;;; communication ;;;;;;;;;;;;;;;;;;;
-;; (superoptimize (traverse "325 b! !b 277 b! !b 373 b! !b 469 b! !b"  string? inst-string->list)
-;;                (traverse "_ _ _ _ _ _ _ _ _ _ _ _"  string? inst-string->list)
-;;                (cons 0 0)
-;;                (constraint memory s t))
-;; (superoptimize (traverse "2 b! @b 277 b! !b 1 b! @b 277 b! !b" string? inst-string->list)
-;;                (traverse "_ _ _ _ _ _ _ _" string? inst-string->list)
-;;                (cons 3 0)
-;;                (constraint memory s t))
-;; (superoptimize (traverse "4 a! !+ 4 b! @b 373 b! @b +" string? inst-string->list)
-;;                (traverse "_ _ _ _ _ _ _ _" string? inst-string->list)
-;;                (cons 5 1)
-;;                (constraint memory s t))
-;; (superoptimize (traverse "5 b! !b 373 b! @b 5 b! @b 277 b! !b" string? inst-string->list)
-;;                (traverse "_ _ _ _ _ _ _ _ _ _" string? inst-string->list)
-;;                (cons 6 1)
-;;                (constraint memory s t))
-;; (superoptimize "1 2 3 4" 
-;;                "_" 
-;;                (cons 0 2)
-;;                (constraint [data 2] memory r s t)
-;;                #:assume (constrain-stack '((= . 1) (= . 2) (= . 3)))
-;;                )
-(pretty-display `(time ,(- (current-seconds) t)))
+(optimize x)

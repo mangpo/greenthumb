@@ -2,7 +2,9 @@
 
 (require "state.rkt" "stack.rkt" "ast.rkt")
 
-(provide (all-defined-out))
+(provide interpret assert-output assume
+	 encode decode wrap original
+	 print-program)
 
 (define debug #f)
 
@@ -303,6 +305,27 @@
   (check-mem)
   )
 
+;; Creates a policy that determines what kind of communication is allowed 
+;; during interpretation.  The policy is a procedure that takes as input a 
+;; comm pair and the current comm list.  If the policy allows 
+;; the given pair to be added to the list, the pair is inserted at the beginning 
+;; of the list and the result is returned.  If the policy doesn't allow the pair 
+;; to be added to the list, then an assertion error is thrown.
+(define-syntax comm-policy
+  (syntax-rules (all at-most)
+    [(comm-policy all) cons]         ; allow everything
+    [(comm-policy at-most state)     ; allow only prefixes of the communication sequence observed in the given state 
+     (let ([limit (reverse (progstate-comm state))])
+       (lambda (p comm)
+         (for*/all ([c comm])        ; this is not needed for correctness, but improves performance
+           (let* ([len (length c)]
+                  [limit-p (list-ref limit len)])
+             (assert (< len (length limit)) 'comm-length)  
+             (assert (equal? (car p) (car limit-p)) `comm-data)
+             (assert (equal? (cdr p) (cdr limit-p)) `comm-type)
+             (cons limit-p c)))))])) ; can return (cons p c) here, but this is more efficient. 
+                                     ; it is correct because we assert that p == limit-p.
+
 (define (sym-inst)
   (define-symbolic* inst number?)
   (assert (and (>= inst 0) (< inst (vector-length inst-id))))
@@ -337,22 +360,81 @@
                             (symbol->string inst))))
                     lst)))
 
-;; Traverse a given program AST recursively until (base? program) is true.
-;; Then apply base-apply to program.
-(define (traverse program base? base-apply)
+(define (encode program)
+  (traverse program string? inst-string->list))
+
+(define (decode program model)
+  (traverse program
+            (lambda (x) (and (list? x) 
+                             (or (empty? x) (pair? (car x)))))
+            (lambda (x) (list->inst-string x model))))
+
+
+(define (simplify program)
+  (define (merge lst)
+    (list (block (string-join (map block-body lst))
+		 (string-join (map block-org lst))
+		 (block-cnstr (last lst)))))
+
   (define (f x)
-    (cond
-     [(base? x)    (base-apply x)]
-     [(list? x)    (map f x)]
-     [(block? x)   (block (f (block-body x)) (f (block-org x)) 
-                          (block-cnstr x) (block-assume x))]
-     [(forloop? x) (forloop (f (forloop-init x)) (f (forloop-body x)))]
-     [(ift? x)     (ift (f (ift-t x)))]
-     [(iftf? x)    (iftf (f (iftf-t x)) (f (iftf-f x)))]
-     [(-ift? x)    (-ift (f (-ift-t x)))]
-     [(-iftf? x)   (-iftf (f (-iftf-t x)) (f (-iftf-f x)))]
-     ))
-  (f program))
+    (define output (list))
+    (define buffer (list))
+    (for ([i x])
+	 (if (block? i)
+	     (set! buffer (cons i buffer))
+	     (begin
+	       (set! output (append output (merge (reverse buffer)) (list i)))
+	       (set! buffer (list)))))
+    (append output (merge (reverse buffer))))
+	 
+  (traverse program list? f))
+
+(define (original program)
+  (traverse program block? (lambda (x) (block (block-org x) (block-org x) (block-cnstr x)))))
+
+(define (number-of-insts insts)
+  (length (string-split insts)))
+
+(define (wrap x)
+  (cond
+   ;;[(string? x) x] ;; encode here?
+   [(list? x)    
+    (define lst (map wrap x))
+    (define size (foldl + 0 (map item-size lst)))
+    (item lst size)]
+
+   [(block? x)  
+    (item x (length (string-split (block-body x))))]
+
+   [(forloop? x)
+    (define init-ret (wrap (forloop-init x)))
+    (define body-ret (wrap (forloop-body x)))
+    (item (forloop init-ret body-ret (forloop-bound x)) (+ (item-size init-ret) (item-size body-ret)))]
+
+   [(ift? x)
+    (define t-ret (wrap (ift-t x)))
+    (item (ift t-ret) (item-size t-ret))]
+
+   [(iftf? x)
+    (define t-ret (wrap (iftf-t x)))
+    (define f-ret (wrap (iftf-f x)))
+    (item (iftf t-ret f-ret) (+ (item-size t-ret) (item-size f-ret)))]
+
+   [(-ift? x)
+    (define t-ret (wrap (-ift-t x)))
+    (item (-ift t-ret) (item-size t-ret))]
+
+   [(-iftf? x)
+    (define t-ret (wrap (-iftf-t x)))
+    (define f-ret (wrap (-iftf-f x)))
+    (item (-iftf t-ret f-ret) (+ (item-size t-ret) (item-size f-ret)))]
+
+   [(or (vardecl? x) (call? x) (special? x))
+    (item x 1000000)]
+
+   [(assumption? x)
+    (item x 0)]
+   ))
 
 (define (print-program x)
   (cond
@@ -364,8 +446,8 @@
     (print-program (block-body x))]
 
    [(forloop? x)
-    (print (forloop-init x))
-    (display " for ")
+    (print-program (forloop-init x))
+    (display "for ")
     (print-program (forloop-body x))]
 
    [(ift? x)
@@ -391,28 +473,10 @@
     (display " ; ] then ")
     (print-program (-iftf-f x))
     (newline)]
+
+   [(item? x)
+    (print-program (item-x x))]
    
    [else
-    (display x)]))
+    (display x) (display " ")]))
   
-
-;; Creates a policy that determines what kind of communication is allowed 
-;; during interpretation.  The policy is a procedure that takes as input a 
-;; comm pair and the current comm list.  If the policy allows 
-;; the given pair to be added to the list, the pair is inserted at the beginning 
-;; of the list and the result is returned.  If the policy doesn't allow the pair 
-;; to be added to the list, then an assertion error is thrown.
-(define-syntax comm-policy
-  (syntax-rules (all at-most)
-    [(comm-policy all) cons]         ; allow everything
-    [(comm-policy at-most state)     ; allow only prefixes of the communication sequence observed in the given state 
-     (let ([limit (reverse (progstate-comm state))])
-       (lambda (p comm)
-         (for*/all ([c comm])        ; this is not needed for correctness, but improves performance
-           (let* ([len (length c)]
-                  [limit-p (list-ref limit len)])
-             (assert (< len (length limit)) 'comm-length)  
-             (assert (equal? (car p) (car limit-p)) `comm-data)
-             (assert (equal? (cdr p) (cdr limit-p)) `comm-type)
-             (cons limit-p c)))))])) ; can return (cons p c) here, but this is more efficient. 
-                                     ; it is correct because we assert that p == limit-p.
