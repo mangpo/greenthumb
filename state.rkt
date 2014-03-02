@@ -125,6 +125,39 @@
        )))
   state)
 
+;; (define (add-stack-cnstr cnstr extra)
+;;   (if (= extra 0) 
+;;       cnstr
+;;       (let ([new-n (+ extra
+;;                       (cond
+;;                        [(> 0 (progstate-data cnstr)) (+ (progstate-data cnstr) 2)]
+;;                        [(progstate-s cnstr) 2]
+;;                        [(progstate-t cnstr) 1]
+;;                        [else 0]))])
+;;         (cond
+;;          [(= new-n 0) cnstr]
+;;          [(= new-n 1) (struct-copy progstate cnstr [t #t])]
+;;          [(= new-n 2) (struct-copy progstate cnstr [s #t] [t #t])]
+;;          [else (struct-copy progstate cnstr [s #t] [t #t] [data (- new-n 2)])]))))
+
+(define (create-constraint lst extra-data extra-return)
+  (define a #f) 
+  (define b #f) 
+  (define memory #f)
+  (define data extra-data)
+  (define return extra-return)
+  (for ([i lst])
+       (cond
+        [(equal? i 'a)      (set! a #t)]
+        [(equal? i 'b)      (set! b #t)]
+        [(equal? i 'memory) (set! memory #t)]
+        [(and (pair? i) (equal? (car i) 'data))   (set! data (+ data (cdr i)))]
+        [(and (pair? i) (equal? (car i) 'return)) (set! return (+ return (cdr i)))]
+        [else (raise (format "create-constraint: unimplemented for ~a" i))]))
+  (struct-copy progstate constraint-none [a a] [b b] [memory memory]
+               [t (>= data 1)] [s (>= data 2)] [data (max 0 (- data 2))]
+               [r (>= return 1)] [return (max 0 (- return 1))]))
+
 (define (progstate-copy x)
   (struct-copy progstate x
                [data (stack (stack-sp (progstate-data x))

@@ -3,7 +3,7 @@
 (require "f18a.rkt" "state.rkt" "ast.rkt")
 ;(require rosette/solver/z3/z3)
 
-(provide superoptimize)
+(provide superoptimize optimize)
 
 ;; Superoptimize program given
 ;; spec: program specification (naive code)
@@ -27,10 +27,10 @@
     (pretty-display "interpret sketch")
     (define sketch-state (interpret bit sketch start-state spec-state))
     
-    ;; (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
-    ;; (display-state spec-state)
-    ;; (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
-    ;; (display-state sketch-state)
+    (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
+    (display-state spec-state)
+    (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
+    (display-state sketch-state)
     ;; (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
     ;; (pretty-display (get-sym-vars start-state))
     (pretty-display "check output")
@@ -46,29 +46,73 @@
      #:guarantee (compare-spec-sketch))
     )
   
-  (decode sketch model)
+  (define ret (decode sketch model))
+
+  (pretty-display "superoptimize: output")
+  (print-struct ret)
+  ret
   )
 
 (define (optimize-cost spec sketch info constraint assumption [prefix (list)])
   ;; if structure -> linear search
   ;; if inst seq -> binary search
-  spec)
+  (pretty-display "SPEC >>")
+  (print-struct spec)
+  (pretty-display "SKETCH >>")
+  (print-struct sketch)
+  (pretty-display "INFO >>")
+  (print-struct info)
+  (pretty-display "CONSTRAINT >>")
+  (print-struct constraint)
+
+  (if (and (= (length spec) 1) (block? (car spec)))
+      ;(binary-search)
+      (superoptimize (encode spec) (encode sketch) info constraint #:assume assumption)
+      (superoptimize (encode spec) (encode sketch) info constraint #:assume assumption)))
+
+;; Merge consecutive blocks into one block, and get rid of item object.
+(define (simplify program)
+  ;; (pretty-display `(simplify ,program))
+  (define (merge lst)
+    (if (empty? lst) 
+        lst
+        (list (merge-blocks lst))))
+
+  (define (f x)
+    ;; (pretty-display `(simplify-f ,x))
+    (define output (list))
+    (define buffer (list))
+    (for ([i x])
+	 (cond 
+          [(block? i) (set! buffer (cons i buffer))]
+          [(and (item? i) (block? (item-x i))) (set! buffer (cons (item-x i) buffer))]
+          [(assumption? i) (void)]
+          [(and (item? i) (assumption? (item-x i))) (void)]
+          [else
+           (set! output (append output (merge (reverse buffer)) (list (simplify i))))
+           (set! buffer (list))]))
+    (append output (merge (reverse buffer))))
+	 
+  (traverse program list? f))
    
 (define (optimize program)
-  (define length-limit 16)
 
   (define (optimize-func func)
+    ;; If func is simple, then limit is large so that we can optimize entire function.
+    (define length-limit (and (label? func) (get-length-limit func)))
     (define (superoptimize-fragment x)
-      (pretty-display `(superopt ,x))
+      (pretty-display `(superopt-fragment ,x))
       (print-program x)
       (newline)
-      (define simple-x (simplify x))
-      ;; TODO: implement these functions
+      (define simple-x (simplify x)) ;; TODO: error here!
+      (pretty-display ">>> after simplify >>>")
+      (print-struct simple-x)
       (optimize-cost simple-x 
 		     (generate-sketch simple-x) 
 		     (generate-info program simple-x) 
 		     (generate-constraint func simple-x)
-		     (generate-assumption func simple-x))
+		     (generate-assumption x))
+      )
     ;; END superoptimize-fragment
 
     (define (sliding-window x)
@@ -77,22 +121,27 @@
       (define size 0) ;; invariant: size < length-limit
       
       (define (optimize-slide buffer)
+        (pretty-display ">>> optimize-slide >>>")
+        (print-struct buffer)
 	(define res (superoptimize-fragment buffer))
 	(cond
 	 [(equal? res "same")
 	  ;; TODO: org
 	  (set! output (append output (list (original (car work)))))
+          (set! size (- size (item-size (car work))))
 	  (set! work (cdr work))]
 	 
 	 [(equal? res "timeout")
 	  (if (> (length buffer) 1)
 	      (sliding-window (take buffer (sub1 (length buffer))))
 	      (begin
-		(set! output (append output (list (car work))))
+		(set! output (append output (list (original (car work)))))
+                (set! size (- size (item-size (car work))))
 		(set! work (cdr work))))]
 	 
 	 [else
 	  (set! output (append output res))
+          (set! size (- size (foldl + 0 (map item-size buffer))))
 	  (set! work (drop work (length buffer)))]))
       
       (define (until-empty)
@@ -105,14 +154,17 @@
 	   (cond
 	    [(> (item-size i) length-limit)
 	     (until-empty)
-	     (set! output (append (list (optimize-inner i))))]
+	     (set! output (append (list (optimize-inner i))))
+             (set! size 0)]
 	    
 	    [(> (+ size (item-size i)) length-limit)
 	     (optimize-slide work)
-	     (set! work (append work (list (item-x i))))]
+	     (set! work (append work (list i)))
+             (set! size (+ size (item-size i)))]
 	    
 	    [else
-	     (set! work (append work (list (item-x i))))]))
+	     (set! work (append work (list i)))
+             (set! size (+ size (item-size i)))]))
       
       (until-empty)
       output)
@@ -120,6 +172,8 @@
     
     (define (optimize-inner code)
       (define x (item-x code))
+      (pretty-display ">>> optimize-inner >>>")
+      (print-struct x)
       (cond
        [(list? x)
 	(sliding-window x)]
@@ -145,49 +199,11 @@
     
     ;; optimize-func body
     (if (label? func)
-	(label (label-name func) (optimize-inner (wrap (label-body func))) (label-info func))
+        (label (label-name func) 
+               (optimize-inner (wrap (label-body func))) 
+               (label-info func))
 	func))
   
   ;; optimize body
   (map optimize-func (program-code program)))
        
-(define x
-  (program
-   (list
-    (vardecl '(32867 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0))
-    (label "sumrotate"
-      ;; linklist
-      (list 
-        (block
-          "dup"
-          "dup" #f)
-        (block
-          "right b! !b"
-          "right b! !b" #f)
-        (block
-          "drop"
-          "drop" #f)
-	) #f)
-    (label "main"
-      (list
-       (forloop 
-	;; linklist
-	(list 
-	 (block
-	  "15"
-	  "15" #f)
-	 )
-	;; linklist
-	(list 
-	 (block
-	  "dup"
-	  "dup" #f)
-	 (block
-	  "b! @b"
-	  "b! @b" #f)))
-	(call "sumrotate")
-       ) #f)
-    )
-   0 #f #f))
-
-(optimize x)

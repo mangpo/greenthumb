@@ -1,18 +1,44 @@
 #lang racket
 
-(require "controller.rkt" "state.rkt" "ast.rkt")
+(require "controller.rkt" "state.rkt" "ast.rkt" "f18a.rkt")
 
 (define t (current-seconds))
+
+;; (superoptimize (encode
+;;                 (forloop 
+;;                  (list 
+;;                   (block "1" "1" (blockinfo '((data . 2)) #f 0)))
+;;                  (list 
+;;                   (block
+;;                    "0 b! @b drop" ;;"dup b! @b drop"
+;;                    "dup b! @b drop" (blockinfo '((data . 1) (return . 1)) #f 0)))
+;;                  16))
+;;                (encode
+;;                 (forloop 
+;;                  (list 
+;;                   (block "1" "1" (blockinfo '((data . 2)) #f 0)))
+;;                  (list 
+;;                   (block
+;;                    "0 b! @b drop" ;;"dup b! @b drop"
+;;                    "dup b! @b drop" (blockinfo '((data . 1) (return . 1)) #f 0)))
+;;                  16))
+;;                (cons 5 0)
+;;                (constraint r t))
+
+(superoptimize (encode "b! @b")
+               (encode "b! @b")
+               (cons 5 0)
+               (constraint s t))
 
 ;; (superoptimize (encode "325 b! @b push drop pop 325 b! @b 0 b! !b dup 0 b! @b or over 0 b! @b and or")
 ;;                (encode "_ _ _ _ _ _ _ _ _ _ _ _ _ _")
 ;;                (cons 1 2)
 ;;                (constraint r s t))
 
-(superoptimize (encode "65536 2*")
-               (encode "_")
-               (cons 0 0)
-               (constraint [data 1] s t))
+;; (superoptimize (encode "65536 2*")
+;;                (encode "_")
+;;                (cons 0 0)
+;;                (constraint [data 1] s t))
 
 ;; (print-program
 ;; (superoptimize (encode (list (block "-3" #f #f) (-iftf "1" "2")))
@@ -20,8 +46,10 @@
 ;;                (cons 0 0)
 ;;                (constraint t)))
 ;; (print-program
-;; (superoptimize (encode (forloop "3" "0"))
-;;                (encode (forloop "3" "dup dup or"))
+;; (superoptimize (encode (forloop (list (block "3" "3" #f)) 
+;;                                 (list (block "0" "0" #f)) 4))
+;;                (encode (forloop (list (block "3" "3" #f)) 
+;;                                 (list (block "dup dup or" "dup dup or" #f)) 4))
 ;;                (cons 0 0)
 ;;                (constraint memory r s t)))
 
@@ -70,3 +98,4 @@
 ;;                (cons 6 1)
 ;;                (constraint memory s t))
 (pretty-display `(time ,(- (current-seconds) t)))
+

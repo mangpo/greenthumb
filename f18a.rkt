@@ -2,9 +2,18 @@
 
 (require "state.rkt" "stack.rkt" "ast.rkt")
 
-(provide interpret assert-output assume
-	 encode decode wrap original
-	 print-program)
+(provide print-program print-struct
+         ;; superoptimizer
+         interpret assert-output assume
+         ;; for controller
+         encode decode wrap original
+         get-length-limit merge-blocks
+         generate-sketch generate-info generate-constraint generate-assumption
+         ;; for naive code-gen
+         blockinfo labelinfo)
+
+(struct blockinfo (cnstr assume recv))
+(struct labelinfo (data return simple))
 
 (define debug #f)
 
@@ -209,6 +218,8 @@
       (if (negative? t) ;(or (negative? t) (>= t (arithmetic-shift 1 (sub1 bit)))) ;; negative
           (interpret-struct (-iftf-t x))
           (interpret-struct (-iftf-f x)))]
+
+     [else (raise (format "interpret-struct: unimplemented for ~a" x))]
      ))
     
   (interpret-struct program)
@@ -276,7 +287,6 @@
            [(member (car assumption) (list "<=" '<=))
             (assert (and (<= item (cdr assumption)) (>= item 0)))])
           ))
-          
 
   (define (check-reg progstate-x)
     (check (progstate-x state) (progstate-x constraint)))
@@ -337,12 +347,15 @@
 
 ;; Convert a program from string into a proper format for 'interpret' function.
 (define (inst-string->list program)
+  (define port-dict (hash "up" UP "down" DOWN "left" LEFT "right" RIGHT "io" IO))
   (map (lambda (x) 
          (cond 
            [(equal? x "_") 
             (cons (sym-inst) (sym-const))]
            [(string->number x) 
             (cons (vector-member `@p inst-id) (string->number x))]
+           [(hash-has-key? port-dict x)
+            (cons (vector-member `@p inst-id) (hash-ref port-dict x))]
            [(equal? x "@p")
             (cons (vector-member `@p inst-id) (sym-const))]
            [else
@@ -371,47 +384,75 @@
                              (or (empty? x) (pair? (car x)))))
             (lambda (x) (list->inst-string x model))))
 
-;; Merge consecutive blocks into one block, and get rid of item object.
-(define (simplify program)
-  (define (merge lst)
-    (list (block (string-join (map block-body lst))
-		 (string-join (map block-org lst))
-		 (block-info (last lst)))))
-
-  (define (f x)
-    (define output (list))
-    (define buffer (list))
-    (for ([i x])
-	 (if (block? i)
-	     (set! buffer (cons i buffer))
-	     (begin
-	       (set! output (append output (merge (reverse buffer)) (list i)))
-	       (set! buffer (list)))))
-    (append output (merge (reverse buffer))))
-	 
-  (traverse program list? f))
+;; Merge a list of block into one block.
+(define (merge-blocks block-list)
+  (define infos (map block-info block-list))
+  (define cnstr (blockinfo-cnstr (last infos)))
+  (define assume (blockinfo-assume (first infos)))
+  (define recv (foldl + 0 (map blockinfo-recv infos)))
+  (block (string-join (map block-body block-list))
+         (string-join (map block-org block-list))
+         (blockinfo cnstr assume recv)))
 
 (define (generate-sketch spec)
-  (traverse spec string? (lambda (x) (length (string-split x)))))
-
-;; TODO: last-block, add-stack-cnstr, generate-assumption
+  (pretty-display ">>> generate-sketch >>>")
+  (traverse spec string? (lambda (x) 
+                           (string-join (build-list (length (string-split x)) 
+                                                    (lambda (i) "_"))))))
 
 ;; Generate info necessary for creating default-state.
 ;; (cons mem-size recv-size)
 (define (generate-info program spec)
-  (cons (program-memsize program) (blockinfo-recv (block-info (last-block)))))
+  (pretty-display ">>> generate-info >>>")
+  (cons (program-memsize program) (number-of-recv spec)))
 
 ;; Generate output constraint for synthesizer.
 (define (generate-constraint func spec)
-  (add-stack-cnstr (blockinfo-cnst (block-info (list-block spec))) 
-		   (labelinfo-stack (label-info func))))
+  (pretty-display ">>> generate-constraint >>>")
+  (create-constraint (blockinfo-cnstr (block-info (last-block spec))) 
+                     (labelinfo-data (label-info func))
+                     (labelinfo-return (label-info func))))
+
+;; Generate assumption for synthesizer.
+(define (generate-assumption spec [res (default-state)])
+  (pretty-display ">>> generate-assumption >>>")
+  (cond
+   [(and (list? spec) (block? (first spec)) (blockinfo-assume (block-info (first spec))))
+    (blockinfo-assume (block-info (first spec)))
+    (cond
+     [(equal? (car assume) "a") (struct-copy progstate res [a (cdr assume)])]
+     [(equal? (car assume) "b") (struct-copy progstate res [b (cdr assume)])]
+     [else (raise "generate-assumption: unimplemented for ~a" assume)])]
+
+   [(and (list? spec) (assumption? (first spec)))
+    ;; TODO: currently only support assumption <= or = on stack.
+    (generate-assumption (cdr spec) (constrain-stack (assumption-cnstr (first spec))))]
+
+   [else res]))
+
+(define (get-length-limit func)
+  (if (labelinfo-simple (label-info func)) 1000 16))
 
 ;; Replace block-body with block-org.
 (define (original program)
-  (traverse program block? (lambda (x) (block (block-org x) (block-org x) (block-info x)))))
+  (traverse program block? 
+            (lambda (x) (block (block-org x) (block-org x) (block-info x)))))
 
 (define (number-of-insts insts)
   (length (string-split insts)))
+
+(define (number-of-recv x)
+  (cond
+   [(block? x) (blockinfo-recv (block-info x))]
+   [(list? x)  (foldl + 0 (map number-of-recv x))]
+   [(forloop? x) 
+    (* (forloop-bound x) 
+       (+ (number-of-recv (forloop-init x)) (number-of-recv (forloop-body x))))]
+   [(ift? x)   (number-of-recv (ift-t x))]
+   [(iftf? x)  (max (number-of-recv (iftf-t x)) (number-of-recv (iftf-f x)))]
+   [(-ift? x)  (number-of-recv (-ift-t x))]
+   [(-iftf? x) (max (number-of-recv (-iftf-t x)) (number-of-recv (-iftf-f x)))]
+   [else       (raise (format "number-of-recv: unimplemented for ~a" x))]))
 
 ;; Wrap every object inside item object.
 (define (wrap x)
@@ -453,6 +494,8 @@
 
    [(assumption? x)
     (item x 0)]
+   
+   [else (raise (format "wrap: unimplemented for ~a" x))]
    ))
 
 (define (print-program x)
@@ -499,3 +542,50 @@
    [else
     (display x) (display " ")]))
   
+(define (print-struct x [indent ""])
+  (define (inc ind) (string-append ind "  "))
+  (cond
+   [(list? x)
+    (pretty-display (format "~a(list" indent))
+    (for ([i x]) (print-struct i (inc indent)))
+    (pretty-display (format "~a)" indent))]
+
+   [(block? x)
+    (pretty-display (format "~a(block ~a)" indent (block-body x)))]
+             
+
+   [(forloop? x)
+    (pretty-display (format "~a(forloop" indent))
+    (print-struct (forloop-init x) (inc indent))
+    (print-struct (forloop-body x) (inc indent))
+    (pretty-display (format "~a)" indent))]
+
+   [(ift? x)
+    (pretty-display (format "~a(ift" indent))
+    (print-struct (ift-t x) (inc indent))
+    (pretty-display (format "~a)" indent))]
+
+   [(iftf? x)
+    (pretty-display (format "~a(iftf" indent))
+    (print-struct (iftf-t x) (inc indent))
+    (print-struct (iftf-f x) (inc indent))
+    (pretty-display (format "~a)" indent))]
+
+   [(-ift? x)
+    (pretty-display (format "~a(-ift" indent))
+    (print-struct (-ift-t x) (inc indent))
+    (pretty-display (format "~a)" indent))]
+
+   [(-iftf? x)
+    (pretty-display (format "~a(-iftf" indent))
+    (print-struct (-iftf-t x) (inc indent))
+    (print-struct (-iftf-f x) (inc indent))
+    (pretty-display (format "~a)" indent))]
+
+   [(item? x)
+    (pretty-display (format "~a(item" indent))
+    (print-struct (item-x x) (inc indent))
+    (pretty-display (format "~a)" indent))]
+   
+   [else
+    (pretty-display (format "~a~a" indent x))]))
