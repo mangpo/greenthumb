@@ -360,21 +360,23 @@
                             (symbol->string inst))))
                     lst)))
 
+;; Convert string of instructions into encoded numbers.
 (define (encode program)
   (traverse program string? inst-string->list))
 
+;; Convert encoded numbers into string of instructions.
 (define (decode program model)
   (traverse program
             (lambda (x) (and (list? x) 
                              (or (empty? x) (pair? (car x)))))
             (lambda (x) (list->inst-string x model))))
 
-
+;; Merge consecutive blocks into one block, and get rid of item object.
 (define (simplify program)
   (define (merge lst)
     (list (block (string-join (map block-body lst))
 		 (string-join (map block-org lst))
-		 (block-cnstr (last lst)))))
+		 (block-info (last lst)))))
 
   (define (f x)
     (define output (list))
@@ -389,12 +391,29 @@
 	 
   (traverse program list? f))
 
+(define (generate-sketch spec)
+  (traverse spec string? (lambda (x) (length (string-split x)))))
+
+;; TODO: last-block, add-stack-cnstr, generate-assumption
+
+;; Generate info necessary for creating default-state.
+;; (cons mem-size recv-size)
+(define (generate-info program spec)
+  (cons (program-memsize program) (blockinfo-recv (block-info (last-block)))))
+
+;; Generate output constraint for synthesizer.
+(define (generate-constraint func spec)
+  (add-stack-cnstr (blockinfo-cnst (block-info (list-block spec))) 
+		   (labelinfo-stack (label-info func))))
+
+;; Replace block-body with block-org.
 (define (original program)
-  (traverse program block? (lambda (x) (block (block-org x) (block-org x) (block-cnstr x)))))
+  (traverse program block? (lambda (x) (block (block-org x) (block-org x) (block-info x)))))
 
 (define (number-of-insts insts)
   (length (string-split insts)))
 
+;; Wrap every object inside item object.
 (define (wrap x)
   (cond
    ;;[(string? x) x] ;; encode here?

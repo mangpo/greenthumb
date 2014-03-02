@@ -49,7 +49,7 @@
   (decode sketch model)
   )
 
-(define (optimize-cost spec sketch info constraint)
+(define (optimize-cost spec sketch info constraint assumption [prefix (list)])
   ;; if structure -> linear search
   ;; if inst seq -> binary search
   spec)
@@ -67,7 +67,8 @@
       (optimize-cost simple-x 
 		     (generate-sketch simple-x) 
 		     (generate-info program simple-x) 
-		     (generate-constraint func simple-x)))
+		     (generate-constraint func simple-x)
+		     (generate-assumption func simple-x))
     ;; END superoptimize-fragment
 
     (define (sliding-window x)
