@@ -27,7 +27,7 @@
     (cond
      [(base? x)    (base-apply x)]
      [(list? x)    (map f x)]
-     [(block? x)   (block (f (block-body x)) (f (block-org x)) (block-info x))]
+     [(block? x)   (block (f (block-body x)) (block-org x) (block-info x))]
      [(forloop? x) (forloop (f (forloop-init x)) (f (forloop-body x)) (forloop-bound x))]
      [(ift? x)     (ift (f (ift-t x)))]
      [(iftf? x)    (iftf (f (iftf-t x)) (f (iftf-f x)))]
@@ -39,7 +39,7 @@
   (f program))
 
 (define (last-block x)
-  (pretty-display `(last-block ,x))
+  ;; (pretty-display `(last-block ,x))
   (cond
    [(block? x)   x]
    [(list? x)    (last-block (last x))]

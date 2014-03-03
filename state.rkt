@@ -155,8 +155,8 @@
         [(and (pair? i) (equal? (car i) 'return)) (set! return (+ return (cdr i)))]
         [else (raise (format "create-constraint: unimplemented for ~a" i))]))
   (struct-copy progstate constraint-none [a a] [b b] [memory memory]
-               [t (>= data 1)] [s (>= data 2)] [data (max 0 (- data 2))]
-               [r (>= return 1)] [return (max 0 (- return 1))]))
+               [t (>= data 1)] [s (>= data 2)] [data (and (> (- data 2) 0) (- data 2))]
+               [r (>= return 1)] [return (and (> (- return 1) 0) (- return 1))]))
 
 (define (progstate-copy x)
   (struct-copy progstate x

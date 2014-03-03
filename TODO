@@ -1,2 +1,10 @@
+- what if all 0 input violates the assumption?
+
+- printing SPEC, SKETCH, FORALL => 2nd seq doesn't terminate
+- without printing, 1st + 2nd seqs together don't terminate
+- why assume (interpret-spec) make it so much slower?
+  => if none of arg is used for index, don't use (interpret-spec)?
+
+- binary search
 - add fixed sequences
 - reg/stack allocation

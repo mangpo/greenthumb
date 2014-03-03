@@ -20,29 +20,31 @@
           "drop" (blockinfo '() #f 0)))
       (labelinfo 1  0 #f)
       )
-    (label "main"
-      (list
-       (forloop 
-	;; linklist
-	(list 
-	 (block
-	  "15"
-	  "15" (blockinfo '((data . 2)) #f 0))
-	 )
-	;; linklist
-	(list 
-	 (block
-	  "dup"
-	  "dup" (blockinfo '((data . 2) (return . 1)) #f 0))
-	 (block
-	  "b! @b drop"
-	  "b! @b drop" (blockinfo '((data . 1) (return . 1)) #f 0)))
-        16)
-	(call "sumrotate")
-       )
-      (labelinfo 0 0 #f)
-      )
+    ;; (label "main"
+    ;;   (list
+    ;;    (forloop 
+    ;;     ;; linklist
+    ;;     (list 
+    ;;      (block
+    ;;       "15"
+    ;;       "15" (blockinfo '((data . 2)) #f 0))
+    ;;      )
+    ;;     ;; linklist
+    ;;     (list 
+    ;;      (block
+    ;;       "dup"
+    ;;       "dup" (blockinfo '((data . 2) (return . 1)) #f 0))
+    ;;      (block
+    ;;       "b! @b drop"
+    ;;       "b! @b drop" (blockinfo '((data . 1) (return . 1)) #f 0)))
+    ;;     16)
+    ;;     (call "sumrotate")
+    ;;    )
+    ;;   (labelinfo 0 0 #f)
+    ;;   )
     )
    5 #f #f))
 
+(define t (current-seconds))
 (optimize x)
+(pretty-display `(time ,(- (current-seconds) t)))

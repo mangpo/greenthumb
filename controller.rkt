@@ -2,6 +2,7 @@
 
 (require "f18a.rkt" "state.rkt" "ast.rkt")
 ;(require rosette/solver/z3/z3)
+;(require rosette/solver/kodkod/kodkod)
 
 (provide superoptimize optimize)
 
@@ -13,17 +14,29 @@
 (define (superoptimize spec sketch info constraint
                        #:bit [bit 18]
                        #:assume [assumption (default-state)])
+  (pretty-display "SUPERPOTIMIZE")
+  (print-struct spec)
+  (print-struct sketch)
+  (pretty-display info)
+  (pretty-display constraint)
+  (pretty-display assumption)
+
   ;(current-solver (new z3%))
+  ;(current-solver (new kodkod%))
   (configure [bitwidth bit])
   (define start-state (default-state info (sym-input)))
-  ;; (set! spec (inst-string->list spec))
-  ;; (set! sketch (inst-string->list sketch))
+  (define spec-state #f)
+
+  (define (interpret-spec)
+    (assume start-state assumption)
+    (pretty-display "interpret spec")
+    (set! spec-state (interpret bit spec start-state)))
 
   (define (compare-spec-sketch)
     ;; (pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
     ;; (display-state start-state)
-    (pretty-display "interpret spec")
-    (define spec-state (interpret bit spec start-state))
+    ;; (pretty-display "interpret spec")
+    ;; (define spec-state (interpret bit spec start-state))
     (pretty-display "interpret sketch")
     (define sketch-state (interpret bit sketch start-state spec-state))
     
@@ -31,8 +44,8 @@
     (display-state spec-state)
     (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
     (display-state sketch-state)
-    ;; (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
-    ;; (pretty-display (get-sym-vars start-state))
+    (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
+    (pretty-display (get-sym-vars start-state))
     (pretty-display "check output")
     (assert-output spec-state sketch-state constraint))
   
@@ -42,14 +55,15 @@
     (synthesize 
      #:forall sym-vars
      #:init (sat (for/hash ([v sym-vars]) (values v 0))) ; start cegis with all inputs set to 0
-     #:assume (assume start-state assumption)
+     #:assume (interpret-spec);; (assume start-state assumption)
      #:guarantee (compare-spec-sketch))
     )
   
   (define ret (decode sketch model))
 
-  (pretty-display "superoptimize: output")
+  (pretty-display "superoptimize-output >>")
   (print-struct ret)
+  ;(clear-asserts)
   ret
   )
 
@@ -101,9 +115,6 @@
     ;; If func is simple, then limit is large so that we can optimize entire function.
     (define length-limit (and (label? func) (get-length-limit func)))
     (define (superoptimize-fragment x)
-      (pretty-display `(superopt-fragment ,x))
-      (print-program x)
-      (newline)
       (define simple-x (simplify x)) ;; TODO: error here!
       (pretty-display ">>> after simplify >>>")
       (print-struct simple-x)

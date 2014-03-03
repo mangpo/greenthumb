@@ -4,31 +4,32 @@
 
 (define t (current-seconds))
 
-;; (superoptimize (encode
-;;                 (forloop 
-;;                  (list 
-;;                   (block "1" "1" (blockinfo '((data . 2)) #f 0)))
-;;                  (list 
-;;                   (block
-;;                    "0 b! @b drop" ;;"dup b! @b drop"
-;;                    "dup b! @b drop" (blockinfo '((data . 1) (return . 1)) #f 0)))
-;;                  16))
-;;                (encode
-;;                 (forloop 
-;;                  (list 
-;;                   (block "1" "1" (blockinfo '((data . 2)) #f 0)))
-;;                  (list 
-;;                   (block
-;;                    "0 b! @b drop" ;;"dup b! @b drop"
-;;                    "dup b! @b drop" (blockinfo '((data . 1) (return . 1)) #f 0)))
-;;                  16))
+;; (superoptimize (encode "dup right b! !b drop")
+;;                (encode "_ _ _ _ _")
 ;;                (cons 5 0)
-;;                (constraint r t))
+;;                (constraint t))
 
-(superoptimize (encode "b! @b")
-               (encode "b! @b")
+(superoptimize (encode
+                (forloop 
+                 (list 
+                  (block "15" "1" (blockinfo '((data . 2)) #f 0)))
+                 (list 
+                  (block
+                   "dup b! @b drop" ;;"dup b! @b drop"
+                   "dup b! @b drop" (blockinfo '((data . 1) (return . 1)) #f 0)))
+                 16))
+               (encode
+                (forloop 
+                 (list 
+                  (block "_" "1" (blockinfo '((data . 2)) #f 0)))
+                 (list 
+                  (block
+                   "_ _ _ _" ;;"dup b! @b drop"
+                   "dup b! @b drop" (blockinfo '((data . 1) (return . 1)) #f 0)))
+                 16))
                (cons 5 0)
-               (constraint s t))
+               (constraint r t))
+
 
 ;; (superoptimize (encode "325 b! @b push drop pop 325 b! @b 0 b! !b dup 0 b! @b or over 0 b! @b and or")
 ;;                (encode "_ _ _ _ _ _ _ _ _ _ _ _ _ _")
@@ -41,8 +42,8 @@
 ;;                (constraint [data 1] s t))
 
 ;; (print-program
-;; (superoptimize (encode (list (block "-3" #f #f) (-iftf "1" "2")))
-;;                (encode (list (block "_" #f #f) (-iftf "1" "2")))
+;; (superoptimize (encode (list (block "-3" "-3" #f) (-iftf "1" "2")))
+;;                (encode (list (block "_" "_" #f) (-iftf "1" "2")))
 ;;                (cons 0 0)
 ;;                (constraint t)))
 ;; (print-program
@@ -56,10 +57,10 @@
 
 ;; (superoptimize (encode "a 277 b! dup or a! @+ !b @+ !b @+
 ;; 277 a! ! 3 b! @b ! 0 b! @b !
-;; 277 b! @b 0 b! !b 1 b! @b 277 b! !b 277 b! @b 1" 
-;; (encode "a 277 b! dup or a! @+ !b @+ !b @+
-;; 277 a! ! 3 b! @b ! 0 b! @b !)
-;; _ _ _ _ _ _ _ _") 
+;; 277 b! @b 0 b! !b 1 b! @b 277 b! !b 277 b! @b 1")
+;;                (encode "a 277 b! dup or a! @+ !b @+ !b @+
+;; 277 a! ! 3 b! @b ! 0 b! @b !
+;; _ _ _ _ _ _ _ _")
 ;;                (cons 4 2)
 ;;                (constraint memory s t))
 
