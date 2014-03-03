@@ -29,8 +29,8 @@
   (define spec-state #f)
   (define sketch-state #f)
 
-  ;; (pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
-  ;; (display-state start-state)
+  (pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
+  (display-state start-state)
 
   (define (interpret-spec)
     (assume start-state assumption)
@@ -41,8 +41,8 @@
     (pretty-display "interpret sketch")
     (set! sketch-state (interpret bit sketch start-state spec-state))
     
-    ;; (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
-    ;; (display-state spec-state)
+    (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
+    (display-state spec-state)
     ;; (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
     ;; (display-state sketch-state)
     ;; (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
@@ -50,6 +50,7 @@
     (pretty-display "check output")
     (assert-output spec-state sketch-state constraint cost))
   
+  ;; Collect input variables and contruct their init values.
   (define sym-vars (get-sym-vars start-state))
   (define init-pair (make-hash (for/list ([v sym-vars]) (cons v 0))))
   (define init-pair2 
@@ -67,15 +68,18 @@
   ;; (pretty-display ">>>>>>>>>>> INIT >>>>>>>>>>>>>")
   ;; (pretty-display init-pair)
   
+  ;; ATTN(emina)
+  ;; (assume start-state assumption) = precondition from the user
+  ;; (interpret-spec) = precondition for input that is legal for spec
+  ;; Using (assume start-state assumption) is faster.
   (define model 
     (synthesize 
      #:forall sym-vars
      #:init (sat (make-immutable-hash (hash->list init-pair)))
-     ;; start cegis with all inputs set to 0
-     #:assume (interpret-spec);; (assume start-state assumption)
+     #:assume (interpret-spec) ;; (assume start-state assumption)
      #:guarantee (compare-spec-sketch))
     )
-  
+
   (define ret (decode sketch model))
 
   (pretty-display ">>> superoptimize-output")
