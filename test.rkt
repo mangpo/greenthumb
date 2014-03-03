@@ -41,10 +41,10 @@
 ;;;;;;;;;;;;;;; test cases ;;;;;;;;;;;;;;;;
 
 ;; can't init with all 0
-;; (superoptimize (encode "0 b! @b -5 + b! @b")
-;;                (encode "_ _ _ _ + b! @b")
-;;                (cons 5 0)
-;;                (constraint t))
+(superoptimize (encode "0 b! @b -5 + b! @b")
+               (encode "0 b! @b _ + b! @b")
+               (cons 5 0)
+               (constraint t))
 
 ;; assume interpret-spec
 ;; (superoptimize (encode "b! @b")
@@ -92,10 +92,10 @@
 ;;                (constraint [data 1] memory s t))
 
 ;;;;;;;;;;;;;;;; communication ;;;;;;;;;;;;;;;;;;;
-(superoptimize (encode "325 b! !b 277 b! !b 373 b! !b 469 b! !b")
-               (encode "_ _ _ _ _ _ _ _ _ _ _ _")
-               (cons 0 0)
-               (constraint memory s t))
+;; (superoptimize (encode "325 b! !b 277 b! !b 373 b! !b 469 b! !b")
+;;                (encode "_ _ _ _ _ _ _ _ _ _ _ _")
+;;                (cons 0 0)
+;;                (constraint memory s t))
 ;; (superoptimize (encode "2 b! @b 277 b! !b 1 b! @b 277 b! !b")
 ;;                (encode "_ _ _ _ _ _ _ _")
 ;;                (cons 3 0)

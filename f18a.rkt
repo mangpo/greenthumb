@@ -43,8 +43,6 @@
       
   (define a (progstate-a state))
   (define b (progstate-b state))
-  (define p (progstate-p state))
-  (define i (progstate-i state))
   (define r (progstate-r state))
   (define s (progstate-s state))
   (define t (progstate-t state))
@@ -223,7 +221,7 @@
      ))
     
   (interpret-struct program)
-  (progstate a b p i r s t data return memory recv comm len-cost)
+  (progstate a b r s t data return memory recv comm len-cost)
   )
 
 ;; REQUIRED FUNCTION
@@ -231,7 +229,7 @@
 ;; state1, state2, constraint: progstate
 ;; TODO: comm-data, comm-type
 (define (assert-output state1 state2 constraint)
-  (define-syntax-rule (check-reg progstate-x)
+  (define (check-reg progstate-x)
     (when (progstate-x constraint)
       (assert (equal? (progstate-x state1) (progstate-x state2)) `progstate-x)))
   
@@ -261,7 +259,7 @@
                          (assert (equal? (cdr i1) (cdr i2)) `comm-type)))
           ))
   
-  (define (check-cost)
+  (define-syntax-rule (check-cost)
     (when (progstate-cost constraint)
       (assert (> (progstate-cost state1) (progstate-cost state2)) `progstate-cost)))
 
@@ -457,7 +455,6 @@
 ;; Wrap every object inside item object.
 (define (wrap x)
   (cond
-   ;;[(string? x) x] ;; encode here?
    [(list? x)    
     (define lst (map wrap x))
     (define size (foldl + 0 (map item-size lst)))

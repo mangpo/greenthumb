@@ -4,14 +4,14 @@
 
 (provide (all-defined-out))
 
-(struct progstate (a b p i r s t data return memory recv comm cost) 
+(struct progstate (a b r s t data return memory recv comm cost) 
         #:mutable #:transparent)
 
 ;;; The empty constraint. Pretty useless.
-(define constraint-none (progstate #f #f #f #f #f #f #f #f #f #f #f #t #t))
+(define constraint-none (progstate #f #f #f #f #f #f #f #f #f #t #t))
 
 ;;; Constrain everything. We must have perfection!
-(define constraint-all (progstate #t #t #t #t #t #t #t 8 8 #t #f #t #t))
+(define constraint-all (progstate #t #t #t #t #t 8 8 #t #f #t #t))
 
 ;;; Defines a constraint for some fields. For example, `(constraint
 ;;; t)' is the same as constraint-only-t and evaluates to `(progstate
@@ -63,8 +63,6 @@
 
   (add-var progstate-a)
   (add-var progstate-b)
-  (add-var progstate-p)
-  (add-var progstate-i)
   (add-var progstate-r)
   (add-var progstate-s)
   (add-var progstate-t)
@@ -83,7 +81,7 @@
     ((default-state info init) 
      (match info
       [(cons mem recv-n)
-       (progstate init init 0 0
+       (progstate init init
                   init init init
                   (stack 0 (list->vector (for/list ([i (in-range 8)]) init))) ;; data
                   (stack 0 (list->vector (for/list ([i (in-range 8)]) init))) ;; return
@@ -124,21 +122,6 @@
 	(raise "A small function cannot have more than 10 parameters.")]
        )))
   state)
-
-;; (define (add-stack-cnstr cnstr extra)
-;;   (if (= extra 0) 
-;;       cnstr
-;;       (let ([new-n (+ extra
-;;                       (cond
-;;                        [(> 0 (progstate-data cnstr)) (+ (progstate-data cnstr) 2)]
-;;                        [(progstate-s cnstr) 2]
-;;                        [(progstate-t cnstr) 1]
-;;                        [else 0]))])
-;;         (cond
-;;          [(= new-n 0) cnstr]
-;;          [(= new-n 1) (struct-copy progstate cnstr [t #t])]
-;;          [(= new-n 2) (struct-copy progstate cnstr [s #t] [t #t])]
-;;          [else (struct-copy progstate cnstr [s #t] [t #t] [data (- new-n 2)])]))))
 
 (define (create-constraint lst extra-data extra-return)
   (define a #f) 
