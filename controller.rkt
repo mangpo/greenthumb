@@ -226,7 +226,7 @@
     ;; optimize-func body
     (if (label? func)
         (label (label-name func) 
-               (optimize-inner (wrap (label-body func))) 
+               (optimize-inner (wrap (label-body func) number-of-insts)) 
                (label-info func))
 	func))
   

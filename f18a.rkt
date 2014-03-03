@@ -2,11 +2,11 @@
 
 (require "state.rkt" "stack.rkt" "ast.rkt")
 
-(provide print-program print-struct
+(provide 
          ;; superoptimizer
          interpret assert-output assume
          ;; for controller
-         encode decode wrap original
+         encode decode number-of-insts original
          get-length-limit merge-blocks
          generate-sketch generate-info generate-constraint generate-assumption
          ;; for naive code-gen
@@ -452,137 +452,3 @@
    [(-iftf? x) (max (number-of-recv (-iftf-t x)) (number-of-recv (-iftf-f x)))]
    [else       (raise (format "number-of-recv: unimplemented for ~a" x))]))
 
-;; Wrap every object inside item object.
-(define (wrap x)
-  (cond
-   [(list? x)    
-    (define lst (map wrap x))
-    (define size (foldl + 0 (map item-size lst)))
-    (item lst size)]
-
-   [(block? x)  
-    (item x (length (string-split (block-body x))))]
-
-   [(forloop? x)
-    (define init-ret (wrap (forloop-init x)))
-    (define body-ret (wrap (forloop-body x)))
-    (item (forloop init-ret body-ret (forloop-bound x)) (+ (item-size init-ret) (item-size body-ret)))]
-
-   [(ift? x)
-    (define t-ret (wrap (ift-t x)))
-    (item (ift t-ret) (item-size t-ret))]
-
-   [(iftf? x)
-    (define t-ret (wrap (iftf-t x)))
-    (define f-ret (wrap (iftf-f x)))
-    (item (iftf t-ret f-ret) (+ (item-size t-ret) (item-size f-ret)))]
-
-   [(-ift? x)
-    (define t-ret (wrap (-ift-t x)))
-    (item (-ift t-ret) (item-size t-ret))]
-
-   [(-iftf? x)
-    (define t-ret (wrap (-iftf-t x)))
-    (define f-ret (wrap (-iftf-f x)))
-    (item (-iftf t-ret f-ret) (+ (item-size t-ret) (item-size f-ret)))]
-
-   [(or (vardecl? x) (call? x) (special? x))
-    (item x 1000000)]
-
-   [(assumption? x)
-    (item x 0)]
-   
-   [else (raise (format "wrap: unimplemented for ~a" x))]
-   ))
-
-(define (print-program x)
-  (cond
-   [(list? x)
-    (map print-program x)
-    (void)]
-
-   [(block? x)
-    (print-program (block-body x))]
-
-   [(forloop? x)
-    (print-program (forloop-init x))
-    (display "for ")
-    (print-program (forloop-body x))]
-
-   [(ift? x)
-    (display " if ")
-    (print-program (ift-t x))
-    (display " then ")]
-
-   [(iftf? x)
-    (display " if ")
-    (print-program (iftf-t x))
-    (display " ; ] then ")
-    (print-program (iftf-f x))
-    (newline)]
-
-   [(-ift? x)
-    (display " -if ")
-    (print-program (-ift-t x))
-    (display " then ")]
-
-   [(-iftf? x)
-    (display " -if ")
-    (print-program (-iftf-t x))
-    (display " ; ] then ")
-    (print-program (-iftf-f x))
-    (newline)]
-
-   [(item? x)
-    (print-program (item-x x))]
-   
-   [else
-    (display x) (display " ")]))
-  
-(define (print-struct x [indent ""])
-  (define (inc ind) (string-append ind "  "))
-  (cond
-   [(list? x)
-    (pretty-display (format "~a(list" indent))
-    (for ([i x]) (print-struct i (inc indent)))
-    (pretty-display (format "~a)" indent))]
-
-   [(block? x)
-    (pretty-display (format "~a(block ~a)" indent (block-body x)))]
-             
-
-   [(forloop? x)
-    (pretty-display (format "~a(forloop" indent))
-    (print-struct (forloop-init x) (inc indent))
-    (print-struct (forloop-body x) (inc indent))
-    (pretty-display (format "~a)" indent))]
-
-   [(ift? x)
-    (pretty-display (format "~a(ift" indent))
-    (print-struct (ift-t x) (inc indent))
-    (pretty-display (format "~a)" indent))]
-
-   [(iftf? x)
-    (pretty-display (format "~a(iftf" indent))
-    (print-struct (iftf-t x) (inc indent))
-    (print-struct (iftf-f x) (inc indent))
-    (pretty-display (format "~a)" indent))]
-
-   [(-ift? x)
-    (pretty-display (format "~a(-ift" indent))
-    (print-struct (-ift-t x) (inc indent))
-    (pretty-display (format "~a)" indent))]
-
-   [(-iftf? x)
-    (pretty-display (format "~a(-iftf" indent))
-    (print-struct (-iftf-t x) (inc indent))
-    (print-struct (-iftf-f x) (inc indent))
-    (pretty-display (format "~a)" indent))]
-
-   [(item? x)
-    (pretty-display (format "~a(item" indent))
-    (print-struct (item-x x) (inc indent))
-    (pretty-display (format "~a)" indent))]
-   
-   [else
-    (pretty-display (format "~a~a" indent x))]))
