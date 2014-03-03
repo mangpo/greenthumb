@@ -27,34 +27,49 @@
   (define start-state (default-state info (sym-input)))
   (define spec-state #f)
 
+  ;; (pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
+  ;; (display-state start-state)
+
   (define (interpret-spec)
     (assume start-state assumption)
     (pretty-display "interpret spec")
     (set! spec-state (interpret bit spec start-state)))
 
   (define (compare-spec-sketch)
-    ;; (pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
-    ;; (display-state start-state)
-    ;; (pretty-display "interpret spec")
-    ;; (define spec-state (interpret bit spec start-state))
     (pretty-display "interpret sketch")
     (define sketch-state (interpret bit sketch start-state spec-state))
     
-    (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
-    (display-state spec-state)
-    (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
-    (display-state sketch-state)
-    (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
-    (pretty-display (get-sym-vars start-state))
+    ;; (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
+    ;; (display-state spec-state)
+    ;; (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
+    ;; (display-state sketch-state)
+    ;; (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
+    ;; (pretty-display (get-sym-vars start-state))
     (pretty-display "check output")
     (assert-output spec-state sketch-state constraint))
   
   (define sym-vars (get-sym-vars start-state))
+  (define init-pair (make-hash (for/list ([v sym-vars]) (cons v 0))))
+  (define init-pair2 
+    (make-hash (for/list ([v sym-vars]) 
+                         (let* ([rand (random (<< 1 bit))]
+                                [val (if (>= rand (<< 1 (sub1 bit)))
+                                         (- rand (<< 1 bit))
+                                         rand)])
+                             (cons v val)))))
+  (for ([pair (solution->list (solve (interpret-spec)))])
+       (when (hash-has-key? init-pair (car pair))
+             (hash-set! init-pair (car pair) (cdr pair))
+             (hash-set! init-pair2 (car pair) (cdr pair))
+             ))
+  (pretty-display ">>>>>>>>>>> INIT >>>>>>>>>>>>>")
+  (pretty-display init-pair2)
   
   (define model 
     (synthesize 
      #:forall sym-vars
-     #:init (sat (for/hash ([v sym-vars]) (values v 0))) ; start cegis with all inputs set to 0
+     #:init (sat (make-immutable-hash (hash->list init-pair)))
+     ;; start cegis with all inputs set to 0
      #:assume (interpret-spec);; (assume start-state assumption)
      #:guarantee (compare-spec-sketch))
     )
