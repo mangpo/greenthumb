@@ -3,6 +3,16 @@
 (require "controller.rkt" "state.rkt" "ast.rkt" "f18a.rkt")
 
 (define t (current-seconds))
+
+(binary-search (block "1 65536 2* +" #f #f)
+               (cons 0 0)
+               (constraint [data 1] s t))
+
+;; (linear-search (encode "1 65536 2* +")
+;;                (encode "_ _ _ _")
+;;                (cons 0 0)
+;;                (constraint [data 1] s t))
+
 ;;;;;;;;;;;;;;;;;;;;;;;; problem here ;;;;;;;;;;;;;;;;;;;;;;
 
 ;; (superoptimize (encode "dup right b! !b drop")
@@ -41,10 +51,10 @@
 ;;;;;;;;;;;;;;; test cases ;;;;;;;;;;;;;;;;
 
 ;; can't init with all 0
-(superoptimize (encode "0 b! @b -5 + b! @b")
-               (encode "0 b! @b _ + b! @b")
-               (cons 5 0)
-               (constraint t))
+;; (superoptimize (encode "0 b! @b -5 + b! @b")
+;;                (encode "0 b! @b _ + b! @b")
+;;                (cons 5 0)
+;;                (constraint t))
 
 ;; assume interpret-spec
 ;; (superoptimize (encode "b! @b")

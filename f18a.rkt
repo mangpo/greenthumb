@@ -228,7 +228,7 @@
 ;; Assert if state1 == state2 wrt to constraint
 ;; state1, state2, constraint: progstate
 ;; TODO: comm-data, comm-type
-(define (assert-output state1 state2 constraint)
+(define (assert-output state1 state2 constraint cost)
   (define (check-reg progstate-x)
     (when (progstate-x constraint)
       (assert (equal? (progstate-x state1) (progstate-x state2)) `progstate-x)))
@@ -261,7 +261,10 @@
   
   (define-syntax-rule (check-cost)
     (when (progstate-cost constraint)
-      (assert (> (progstate-cost state1) (progstate-cost state2)) `progstate-cost)))
+          (if cost
+              (assert (< (progstate-cost state2) cost) `progstate-cost)
+              (assert (< (progstate-cost state2) (progstate-cost state1)) 
+                      `progstate-cost))))
 
   (check-reg progstate-a)
   (check-reg progstate-b)
@@ -272,7 +275,7 @@
   (check-stack progstate-return)
   (check-mem)
   (check-comm)
-  ;;(check-cost)
+  (check-cost)
   )
 
 ;; Assert assumption about start-state

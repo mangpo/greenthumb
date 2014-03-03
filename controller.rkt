@@ -4,28 +4,30 @@
 ;(require rosette/solver/z3/z3)
 ;(require rosette/solver/kodkod/kodkod)
 
-(provide superoptimize optimize)
+(provide superoptimize optimize linear-search binary-search)
 
 ;; Superoptimize program given
 ;; spec: program specification (naive code)
 ;; sketch: skeleton of the output program
 ;; info: additional information (e.g. memory size, # of receiveing data)
 ;; constraint: constraint on the output state
-(define (superoptimize spec sketch info constraint
+;; cost: upperbound (exclusive) of the cost of the output program
+(define (superoptimize spec sketch info constraint [cost #f]
                        #:bit [bit 18]
                        #:assume [assumption (default-state)])
-  (pretty-display "SUPERPOTIMIZE")
-  (print-struct spec)
-  (print-struct sketch)
-  (pretty-display info)
-  (pretty-display constraint)
-  (pretty-display assumption)
+  ;; (pretty-display "SUPERPOTIMIZE")
+  ;; (print-struct spec)
+  ;; (print-struct sketch)
+  ;; (pretty-display info)
+  ;; (pretty-display constraint)
+  ;; (pretty-display assumption)
 
   ;(current-solver (new z3%))
   ;(current-solver (new kodkod%))
   (configure [bitwidth bit])
   (define start-state (default-state info (sym-input)))
   (define spec-state #f)
+  (define sketch-state #f)
 
   ;; (pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
   ;; (display-state start-state)
@@ -37,7 +39,7 @@
 
   (define (compare-spec-sketch)
     (pretty-display "interpret sketch")
-    (define sketch-state (interpret bit sketch start-state spec-state))
+    (set! sketch-state (interpret bit sketch start-state spec-state))
     
     ;; (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
     ;; (display-state spec-state)
@@ -46,7 +48,7 @@
     ;; (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
     ;; (pretty-display (get-sym-vars start-state))
     (pretty-display "check output")
-    (assert-output spec-state sketch-state constraint))
+    (assert-output spec-state sketch-state constraint cost))
   
   (define sym-vars (get-sym-vars start-state))
   (define init-pair (make-hash (for/list ([v sym-vars]) (cons v 0))))
@@ -62,8 +64,8 @@
              (hash-set! init-pair (car pair) (cdr pair))
              (hash-set! init-pair2 (car pair) (cdr pair))
              ))
-  (pretty-display ">>>>>>>>>>> INIT >>>>>>>>>>>>>")
-  (pretty-display init-pair2)
+  ;; (pretty-display ">>>>>>>>>>> INIT >>>>>>>>>>>>>")
+  ;; (pretty-display init-pair)
   
   (define model 
     (synthesize 
@@ -76,11 +78,64 @@
   
   (define ret (decode sketch model))
 
-  (pretty-display "superoptimize-output >>")
+  (pretty-display ">>> superoptimize-output")
   (print-struct ret)
+  (pretty-display (format "limit cost = ~a" cost))
+  (pretty-display (format "old cost = ~a" (progstate-cost spec-state)))
+  (pretty-display (format "new cost = ~a" (evaluate (progstate-cost sketch-state) model)))
+  (pretty-display "=====================================")
   ;(clear-asserts)
-  ret
+  (values ret (evaluate (progstate-cost sketch-state) model))
   )
+
+;; Optimize the cost incrementally using fixed number of holes.
+;; spec: encoded spec
+;; sketch: encoded spec
+(define (linear-search spec sketch info constraint [assumption (default-state)])
+  (define final-program #f)
+  (define (inner cost)
+    (define-values (out-program out-cost) 
+      (superoptimize spec sketch info constraint cost #:assume assumption))
+    (set! final-program out-program)
+    (inner out-cost))
+
+  (with-handlers* ([exn:fail? (lambda (e) 
+                                (if (equal? (exn-message e) "synthesize: synthesis failed")
+                                    final-program
+                                    (raise e)))])
+    (inner #f)))
+
+;; Optimize the cost using binary search on the number of holes.
+;; spec: non-encoded block
+(define (binary-search spec info constraint [assumption (default-state)])
+  
+  (define final-program (block-body spec))
+  (define encoded-spec (encode final-program))
+  (define (inner begin end cost)
+    (define middle (quotient (+ begin end) 2))
+    (pretty-display `(binary-search ,begin ,end ,middle))
+    (define encoded-sketch (encode (string-join (build-list middle (lambda (x) "_")))))
+    (define-values (out-program out-cost)
+      (with-handlers* ([exn:fail? 
+                        (lambda (e) 
+                          (pretty-display "catch error")
+                          (if (equal? (exn-message e) "synthesize: synthesis failed")
+                              (values #f cost)
+                              (raise e)))])
+        (superoptimize encoded-spec encoded-sketch info constraint cost 
+                       #:assume assumption)))
+    (pretty-display `(out ,out-program ,out-cost))
+
+    (when out-program 
+          (set! final-program out-program))
+
+    (if out-program
+        (inner begin middle out-cost)
+        (and (< middle end) (inner (add1 middle) end cost))))
+  
+  (inner 1 (number-of-insts (block-body spec)) #f)
+  (pretty-display "after inner")
+  (block final-program (block-org spec) (block-info spec)))
 
 (define (optimize-cost spec sketch info constraint assumption [prefix (list)])
   ;; if structure -> linear search
@@ -95,9 +150,8 @@
   (print-struct constraint)
 
   (if (and (= (length spec) 1) (block? (car spec)))
-      ;(binary-search)
-      (superoptimize (encode spec) (encode sketch) info constraint #:assume assumption)
-      (superoptimize (encode spec) (encode sketch) info constraint #:assume assumption)))
+      (list (binary-search (car spec) info constraint assumption))
+      (linear-search (encode spec) (encode sketch) info constraint assumption)))
 
 ;; Merge consecutive blocks into one block, and get rid of item object.
 (define (simplify program)
