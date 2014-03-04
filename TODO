@@ -3,6 +3,6 @@
   => if none of arg is used for index, don't use (interpret-spec)?
 - more than one init counterexamples
 
-- binary search
+- make greensyn prints new format for modular superoptimizer
 - add fixed sequences
 - reg/stack allocation

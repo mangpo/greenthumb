@@ -80,16 +80,17 @@
      #:guarantee (compare-spec-sketch))
     )
 
-  (define ret (decode sketch model))
+  (define final-program (decode sketch model))
+  (define final-cost (evaluate (progstate-cost sketch-state) model))
 
   (pretty-display ">>> superoptimize-output")
-  (print-struct ret)
+  (print-struct final-program)
   (pretty-display (format "limit cost = ~a" cost))
   (pretty-display (format "old cost = ~a" (progstate-cost spec-state)))
-  (pretty-display (format "new cost = ~a" (evaluate (progstate-cost sketch-state) model)))
+  (pretty-display (format "new cost = ~a" final-cost))
   (pretty-display "=====================================")
-  ;(clear-asserts)
-  (values ret (evaluate (progstate-cost sketch-state) model))
+  (clear-asserts)
+  (values final-program final-cost)
   )
 
 ;; Optimize the cost incrementally using fixed number of holes.

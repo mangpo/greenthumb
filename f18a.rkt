@@ -275,7 +275,7 @@
   (check-stack progstate-return)
   (check-mem)
   (check-comm)
-  ;(check-cost)
+  (check-cost)
   )
 
 ;; Assert assumption about start-state

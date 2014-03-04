@@ -4,14 +4,14 @@
 
 (define t (current-seconds))
 
-;; (binary-search (block "1 65536 2* +" #f #f)
-;;                (cons 0 0)
-;;                (constraint [data 1] s t))
+(binary-search (block "1 65536 2* +" #f #f)
+               (cons 0 0)
+               (constraint [data 1] s t))
 
-;; (linear-search (encode "1 65536 2* +")
-;;                (encode "_ _ _ _")
-;;                (cons 0 0)
-;;                (constraint [data 1] s t))
+(linear-search (encode "1 65536 2* +")
+               (encode "_ _ _ _")
+               (cons 0 0)
+               (constraint [data 1] s t))
 
 ;;;;;;;;;;;;;;;;;;;;;;;; problem here ;;;;;;;;;;;;;;;;;;;;;;
 
