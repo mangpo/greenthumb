@@ -106,8 +106,7 @@
      (default-state (cons 0 0) 0))
     ))
 
-(define (constrain-stack precond)
-  (define state (default-state))
+(define (constrain-stack precond [state (default-state)])
   (when (list? precond)
     (for ([assume precond]
           [i (reverse (range (length precond)))])

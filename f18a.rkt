@@ -12,7 +12,7 @@
          ;; for naive code-gen
          blockinfo labelinfo)
 
-(struct blockinfo (cnstr assume recv))
+(struct blockinfo (cnstr recv))
 (struct labelinfo (data return simple))
 
 (define debug #f)
@@ -389,11 +389,10 @@
 (define (merge-blocks block-list)
   (define infos (map block-info block-list))
   (define cnstr (blockinfo-cnstr (last infos)))
-  (define assume (blockinfo-assume (first infos)))
   (define recv (foldl + 0 (map blockinfo-recv infos)))
   (block (string-join (map block-body block-list))
          (string-join (map block-org block-list))
-         (blockinfo cnstr assume recv)))
+         (blockinfo cnstr recv)))
 
 (define (generate-sketch spec)
   (pretty-display ">>> generate-sketch >>>")
@@ -416,18 +415,28 @@
 
 ;; Generate assumption for synthesizer.
 (define (generate-assumption spec [res (default-state)])
+  (define (to-number x)
+    (cond 
+     [(number? x) x]
+     [(equal? x 'up) UP]
+     [(equal? x 'down) DOWN]
+     [(equal? x 'left) LEFT]
+     [(equal? x 'right) RIGHT]
+     [(equal? x 'io) IO]))
+
   (pretty-display ">>> generate-assumption >>>")
   (cond
-   [(and (list? spec) (block? (first spec)) (blockinfo-assume (block-info (first spec))))
-    (blockinfo-assume (block-info (first spec)))
-    (cond
-     [(equal? (car assume) "a") (struct-copy progstate res [a (cdr assume)])]
-     [(equal? (car assume) "b") (struct-copy progstate res [b (cdr assume)])]
-     [else (raise "generate-assumption: unimplemented for ~a" assume)])]
-
    [(and (list? spec) (assumption? (first spec)))
     ;; TODO: currently only support assumption <= or = on stack.
-    (generate-assumption (cdr spec) (constrain-stack (assumption-cnstr (first spec))))]
+    ;; assume is a pair but can be extended to list of pair
+    (define assume (assumption-cnstr (first spec))) 
+    (generate-assumption 
+     (cdr spec) ;; recursive in case there are more than one assumption objects.
+     (cond 
+      [(equal? (car assume) 'stack) (constrain-stack (cdr assume) res)]
+      [(equal? (car assume) 'a) (struct-copy progstate res [a (to-number (cdr assume))])]
+      [(equal? (car assume) 'b) (struct-copy progstate res [b (to-number (cdr assume))])]
+      [else (raise "generate-assumption: unimplemented for ~a" assume)]))]
 
    [else res]))
 

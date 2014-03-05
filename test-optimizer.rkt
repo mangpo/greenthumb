@@ -11,13 +11,13 @@
       (list 
         (block
           "dup"
-          "dup" (blockinfo '((data . 2)) #f 0))
+          "dup" (blockinfo '((data . 2)) 0))
         (block
           "right b! !b"
-          "right b! !b" (blockinfo '((data . 1)) #f 0))
+          "right b! !b" (blockinfo '((data . 1)) 0))
         (block
           "drop"
-          "drop" (blockinfo '() #f 0)))
+          "drop" (blockinfo '() 0)))
       (labelinfo 1  0 #f)
       )
     ;; (label "main"
@@ -27,16 +27,16 @@
     ;;     (list 
     ;;      (block
     ;;       "15"
-    ;;       "15" (blockinfo '((data . 2)) #f 0))
+    ;;       "15" (blockinfo '((data . 2)) 0))
     ;;      )
     ;;     ;; linklist
     ;;     (list 
     ;;      (block
     ;;       "dup"
-    ;;       "dup" (blockinfo '((data . 2) (return . 1)) #f 0))
+    ;;       "dup" (blockinfo '((data . 2) (return . 1)) 0))
     ;;      (block
     ;;       "b! @b drop"
-    ;;       "b! @b drop" (blockinfo '((data . 1) (return . 1)) #f 0)))
+    ;;       "b! @b drop" (blockinfo '((data . 1) (return . 1)) 0)))
     ;;     16)
     ;;     (call "sumrotate")
     ;;    )
@@ -46,5 +46,5 @@
    5 #f #f))
 
 (define t (current-seconds))
-(optimize x)
+(print-struct (optimize x))
 (pretty-display `(time ,(- (current-seconds) t)))

@@ -182,6 +182,14 @@
     (pretty-display (format "~a(item" indent))
     (print-struct (item-x x) (inc indent))
     (pretty-display (format "~a)" indent))]
+
+   [(vardecl? x)
+    (pretty-display (format "~a(vardecl ~a)" indent (vardecl-val x)))]
+   
+   [(label? x)
+    (pretty-display (format "~a(label ~a" indent (label-name x)))
+    (print-struct (label-body x) (inc indent))
+    (pretty-display (format "~a)" indent))]
    
    [else
     (pretty-display (format "~a~a" indent x))]))
