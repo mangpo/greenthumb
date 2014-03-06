@@ -153,6 +153,8 @@
   (print-struct info)
   (pretty-display "CONSTRAINT >>")
   (print-struct constraint)
+  (pretty-display "ASSUMPTION >>")
+  (print-struct assumption)
 
   (if (and (= (length spec) 1) (block? (car spec)))
       (list (binary-search (car spec) info constraint assumption))

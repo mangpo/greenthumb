@@ -425,18 +425,33 @@
      [(equal? x 'io) IO]))
 
   (pretty-display ">>> generate-assumption >>>")
+  (pretty-display spec)
   (cond
-   [(and (list? spec) (assumption? (first spec)))
+   [(and (list? spec) (assumption? (item-x (first spec))))
     ;; TODO: currently only support assumption <= or = on stack.
     ;; assume is a pair but can be extended to list of pair
-    (define assume (assumption-cnstr (first spec))) 
+    (define assume (assumption-cnstr (item-x (first spec))))
+    (define ele (car assume))
+    (define condition (cdr assume))
+
+    (define ret
     (generate-assumption 
      (cdr spec) ;; recursive in case there are more than one assumption objects.
      (cond 
-      [(equal? (car assume) 'stack) (constrain-stack (cdr assume) res)]
-      [(equal? (car assume) 'a) (struct-copy progstate res [a (to-number (cdr assume))])]
-      [(equal? (car assume) 'b) (struct-copy progstate res [b (to-number (cdr assume))])]
-      [else (raise "generate-assumption: unimplemented for ~a" assume)]))]
+      [(equal? ele 'stack) 
+       (constrain-stack condition res)]
+      [(equal? ele 'a) 
+       (struct-copy progstate res [a (cons (car condition) (to-number (cdr condition)))])]
+      [(equal? ele 'b) 
+       (struct-copy progstate res [b (cons (car condition) (to-number (cdr condition)))])]
+      [(equal? ele 't) 
+       (struct-copy progstate res [t (cons (car condition) (to-number (cdr condition)))])]
+      [else (raise (format "generate-assumption: unimplemented for ~a" assume))]
+      )))
+    
+    (pretty-display `(assumption ,ret))
+    ret
+    ]
 
    [else res]))
 
