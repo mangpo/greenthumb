@@ -13,7 +13,7 @@
 (struct iftf (t f))  ;; jump if cond = 0
 (struct -ift (t))    ;; exit if cond >= 0
 (struct -iftf (t f)) ;; jump if cond >= 0
-(struct program (code memsize indexmap id))
+(struct program (code memsize indexmap))
 (struct special (name))
 (struct assumption (cnstr))
 (struct item (x size))
@@ -94,50 +94,6 @@
      [else (raise (format "inner: unimplemented for ~a" x))]
      ))
   (inner x))
-
-(define (print-program x)
-  (cond
-   [(list? x)
-    (map print-program x)
-    (void)]
-   
-   [(block? x)
-    (print-program (block-body x))]
-   
-   [(forloop? x)
-    (print-program (forloop-init x))
-    (display "for ")
-    (print-program (forloop-body x))]
-   
-   [(ift? x)
-    (display " if ")
-    (print-program (ift-t x))
-    (display " then ")]
-   
-   [(iftf? x)
-    (display " if ")
-    (print-program (iftf-t x))
-    (display " ; ] then ")
-    (print-program (iftf-f x))
-    (newline)]
-   
-   [(-ift? x)
-    (display " -if ")
-    (print-program (-ift-t x))
-    (display " then ")]
-   
-   [(-iftf? x)
-    (display " -if ")
-    (print-program (-iftf-t x))
-    (display " ; ] then ")
-    (print-program (-iftf-f x))
-    (newline)]
-   
-   [(item? x)
-    (print-program (item-x x))]
-   
-   [else
-    (display x) (display " ")]))
   
 (define (print-struct x [indent ""])
   (define (inc ind) (string-append ind "  "))
