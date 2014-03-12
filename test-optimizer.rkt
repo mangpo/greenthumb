@@ -43,7 +43,7 @@
       (labelinfo 0 0 #f)
       )
     )
-   5 #f #f))
+   5 #f))
 
 (define y
   (program
@@ -61,7 +61,7 @@
       (block "right b! !b" "right b! !b" (blockinfo 0 0)))
      (labelinfo 0 0 #f))
     )
-   0 #f #f))
+   0 #f))
 
 (define t (current-seconds))
 (print-struct (optimize y))

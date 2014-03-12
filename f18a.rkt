@@ -2,7 +2,7 @@
 
 (require "state.rkt" "stack.rkt" "ast.rkt")
 
-(provide 
+(provide print-syntax
          ;; superoptimizer
          interpret assert-output assume
          ;; for controller
@@ -284,7 +284,9 @@
     (when (pair? assumption)
           (cond
            [(member (car assumption) (list "=" '=))
-            (assert (equal? item (cdr assumption)))]
+	    (if (list? (cdr assumption))
+		(assert (member item (cdr assumption)))
+		(assert (equal? item (cdr assumption))))]
            [(member (car assumption) (list "<=" '<=))
             (assert (and (<= item (cdr assumption)) (>= item 0)))])
           ))
@@ -422,7 +424,9 @@
      [(equal? x 'down) DOWN]
      [(equal? x 'left) LEFT]
      [(equal? x 'right) RIGHT]
-     [(equal? x 'io) IO]))
+     [(equal? x 'io) IO]
+     [(eqaul? x 'uplr) (list UP DOWN LEFT RIGHT)]
+     ))
 
   (pretty-display ">>> generate-assumption >>>")
   (pretty-display spec)
@@ -484,3 +488,49 @@
    [(-iftf? x) (max (number-of-recv (-iftf-t x)) (number-of-recv (-iftf-f x)))]
    [else       (raise (format "number-of-recv: unimplemented for ~a" x))]))
 
+(define (print-syntax x w h id)
+  (define (f x)
+    (cond
+     [(list? x)
+      (map print-syntax x)
+      (void)]
+     
+     [(block? x)
+      (print-syntax (block-body x))]
+     
+     [(forloop? x)
+      (print-syntax (forloop-init x))
+      (display "for ")
+      (print-syntax (forloop-body x))]
+     
+     [(ift? x)
+      (display " if ")
+      (print-syntax (ift-t x))
+      (display " then ")]
+     
+     [(iftf? x)
+      (display " if ")
+      (print-syntax (iftf-t x))
+      (display " ; ] then ")
+      (print-syntax (iftf-f x))
+      (newline)]
+     
+     [(-ift? x)
+      (display " -if ")
+      (print-syntax (-ift-t x))
+      (display " then ")]
+     
+     [(-iftf? x)
+      (display " -if ")
+      (print-syntax (-iftf-t x))
+      (display " ; ] then ")
+      (print-syntax (-iftf-f x))
+      (newline)]
+     
+     [(item? x)
+      (print-syntax (item-x x))]
+     
+     [else
+      (display x) (display " ")]))
+  (f x))
+  
