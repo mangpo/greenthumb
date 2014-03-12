@@ -425,7 +425,7 @@
      [(equal? x 'left) LEFT]
      [(equal? x 'right) RIGHT]
      [(equal? x 'io) IO]
-     [(equal? x 'uplr) (list UP DOWN LEFT RIGHT)]
+     [(equal? x 'udlr) (list UP DOWN LEFT RIGHT)]
      ))
 
   (pretty-display ">>> generate-assumption >>>")
