@@ -471,8 +471,13 @@
    [(block? x) (blockinfo-recv (block-info x))]
    [(list? x)  (foldl + 0 (map number-of-recv x))]
    [(forloop? x) 
-    (* (forloop-bound x) 
-       (+ (number-of-recv (forloop-init x)) (number-of-recv (forloop-body x))))]
+    (define body-count 
+      (+ (number-of-recv (forloop-init x)) (number-of-recv (forloop-body x))))
+    (if (forloop-bound x) 
+        (* (forloop-bound x) body-count)
+        (if (= body-count 0)
+            0
+            (raise "number-of-recv: there is read operation inside unbounded loop.")))]
    [(ift? x)   (number-of-recv (ift-t x))]
    [(iftf? x)  (max (number-of-recv (iftf-t x)) (number-of-recv (iftf-f x)))]
    [(-ift? x)  (number-of-recv (-ift-t x))]

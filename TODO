@@ -1,8 +1,14 @@
-- without printing, 1st + 2nd seqs together don't terminate
+- test code translation more
+- concrete bound for forloop
+- 0 -> dup dup or
+- compressed memory + verify
+- full run: cos
+- print-syntax
+- less conservative complexity-estimator, define-if, define-rotate
+
 - why assume (interpret-spec) make it so much slower?
   => if none of arg is used for index, don't use (interpret-spec)?
 - more than one init counterexamples
 
-- make greensyn prints new format for modular superoptimizer
 - add fixed sequences
 - reg/stack allocation

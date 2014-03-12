@@ -13,7 +13,7 @@
 (struct iftf (t f))  ;; jump if cond = 0
 (struct -ift (t))    ;; exit if cond >= 0
 (struct -iftf (t f)) ;; jump if cond >= 0
-(struct program (code memsize indexmap id))
+(struct program (code memsize indexmap))
 (struct special (name))
 (struct assumption (cnstr))
 (struct item (x size))

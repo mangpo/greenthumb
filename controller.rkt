@@ -29,8 +29,8 @@
   (define spec-state #f)
   (define sketch-state #f)
 
-  (pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
-  (display-state start-state)
+  ;; (pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
+  ;; (display-state start-state)
 
   (define (interpret-spec)
     (assume start-state assumption)
@@ -41,8 +41,8 @@
     (pretty-display "interpret sketch")
     (set! sketch-state (interpret bit sketch start-state spec-state))
     
-    (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
-    (display-state spec-state)
+    ;; (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
+    ;; (display-state spec-state)
     ;; (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
     ;; (display-state sketch-state)
     ;; (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
