@@ -292,5 +292,7 @@
 	func))
   
   ;; optimize body
-  (map optimize-func (program-code program)))
+  (if program
+      (map optimize-func (program-code program))
+      #f))
        

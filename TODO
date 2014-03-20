@@ -1,10 +1,10 @@
-- test code translation more
+- timeout
 - udlr
 - concrete bound for forloop
 - 0 -> dup dup or
 - compressed memory + verify
-- full run: cos
 - print-syntax
+- test on arrayforth sim
 - less conservative complexity-estimator, define-if, define-rotate
 
 - why assume (interpret-spec) make it so much slower?
