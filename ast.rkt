@@ -20,23 +20,30 @@
 
 ;; Traverse a given program AST recursively until (base? program) is true.
 ;; Then apply base-apply to program.
-(define (traverse program base? base-apply)
-  ;; (pretty-display `(traverse ,program))
-  (define (f x)
-    ;; (pretty-display `(traverse-f ,x))
-    (cond
-     [(base? x)    (base-apply x)]
-     [(list? x)    (map f x)]
-     [(block? x)   (block (f (block-body x)) (block-org x) (block-info x))]
-     [(forloop? x) (forloop (f (forloop-init x)) (f (forloop-body x)) (forloop-bound x))]
-     [(ift? x)     (ift (f (ift-t x)))]
-     [(iftf? x)    (iftf (f (iftf-t x)) (f (iftf-f x)))]
-     [(-ift? x)    (-ift (f (-ift-t x)))]
-     [(-iftf? x)   (-iftf (f (-iftf-t x)) (f (-iftf-f x)))]
-     [(item? x)    (f (item-x x))]
-     [else         (raise (format "traverse: unimplemented for ~a" x))]
-     ))
-  (f program))
+(define-syntax traverse
+  (syntax-rules ()
+    ;; (pretty-display `(traverse ,program))
+    ((traverse program [base? base-apply] ...)
+     (letrec 
+         ([f (lambda (x)
+               ;; (pretty-display `(traverse-f ,x))
+               (cond
+                [(base? x)    (base-apply x)]
+                ...
+                [(list? x)    (map f x)]
+                [(block? x)   (block (f (block-body x)) (block-org x) (block-info x))]
+                [(forloop? x) (forloop (f (forloop-init x)) (f (forloop-body x)) (forloop-bound x))]
+                [(ift? x)     (ift (f (ift-t x)))]
+                [(iftf? x)    (iftf (f (iftf-t x)) (f (iftf-f x)))]
+                [(-ift? x)    (-ift (f (-ift-t x)))]
+                [(-iftf? x)   (-iftf (f (-iftf-t x)) (f (-iftf-f x)))]
+                [(item? x)    (f (item-x x))]
+                [else         (raise (format "traverse: unimplemented for ~a" x))]
+                ))])
+       (f program)))
+
+    ((traverse program base? base-apply)
+     (traverse program [base? base-apply]))))
 
 (define (last-block x)
   ;; (pretty-display `(last-block ,x))

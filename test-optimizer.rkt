@@ -63,6 +63,26 @@
     )
    0 #f))
 
+(define z
+  (program
+   (list
+    (label
+     "main"
+     (list
+      (block "nop nop 0 a!" "nop nop 0 a!" (blockinfo '(a) 0))
+      (forloop 
+       (list 
+        (block "3" "3" (blockinfo '((data . 1) a) 0)))
+       (list 
+        (block
+         "@+ right b! !b"
+         "@+ right b! !b" (blockinfo '((return . 1) a) 0)))
+       4)
+      )
+     (labelinfo 0 0 #f))
+    )
+   4 #f))
+
 (define t (current-seconds))
-(print-struct (optimize y))
+(print-struct (optimize z))
 (pretty-display `(time ,(- (current-seconds) t)))

@@ -146,7 +146,7 @@
       (set! t (>> sum 1))))
   
   (define (interpret-step inst-const)
-    (when debug (pretty-display `(interpret-step ,inst-const)))
+    (when debug (pretty-display `(interpret-step ,inst-const ,len-cost)))
     (define inst (car inst-const))
     (define const (cdr inst-const))
     (define-syntax-rule (inst-eq x) (= inst (vector-member x inst-id)))
@@ -398,9 +398,16 @@
 
 (define (generate-sketch spec)
   (pretty-display ">>> generate-sketch >>>")
-  (traverse spec string? (lambda (x) 
-                           (string-join (build-list (length (string-split x)) 
-                                                    (lambda (i) "_"))))))
+  (define (inner program)
+    (traverse program 
+              [string? 
+               (lambda (x) 
+                 (string-join (build-list (length (string-split x)) (lambda (i) "_"))))]
+              [forloop?
+               (lambda (x)
+                 ;; Keep init concrete
+                 (forloop (forloop-init x) (inner (forloop-body x)) (forloop-bound x)))]))
+  (inner spec))
 
 ;; Generate info necessary for creating default-state.
 ;; (cons mem-size recv-size)

@@ -1,10 +1,12 @@
 - timeout
 - udlr
-- concrete bound for forloop
 - 0 -> dup dup or
 - compressed memory + verify
+  = (normal->compressed code) return code, map, mem
+  = (compressed->normal code map)
 - print-syntax
 - test on arrayforth sim
+- database
 - less conservative complexity-estimator, define-if, define-rotate
 
 - why assume (interpret-spec) make it so much slower?
