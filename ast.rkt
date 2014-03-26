@@ -57,7 +57,7 @@
    [(-iftf? x)   (last-block (-iftf-t x))]
    [else         (raise (format "last-block: unimplemented for ~a" x))]))
 
-;; Wrap every object inside item object.
+;; Wrap every object inside item object and calculate its size.
 (define (wrap x f)
   (define (inner x)
     (cond
@@ -156,3 +156,8 @@
    
    [else
     (pretty-display (format "~a~a" indent x))]))
+
+;; Replace block-body with block-org.
+(define (original program)
+  (traverse program block? 
+            (lambda (x) (block (block-org x) (block-org x) (block-info x)))))

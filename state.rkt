@@ -4,6 +4,8 @@
 
 (provide (all-defined-out))
 
+(struct syninfo   (memsize recv indexmap))
+
 (struct progstate (a b r s t data return memory recv comm cost) 
         #:mutable #:transparent)
 
@@ -79,8 +81,8 @@
 (define-syntax default-state
   (syntax-rules (data-pair concrete)
     ((default-state info init) 
-     (match info
-      [(cons mem recv-n)
+     (let ([mem (syninfo-memsize info)]
+           [recv-n (syninfo-recv info)])
        (progstate init init
                   init init init
                   (stack 0 (list->vector (for/list ([i (in-range 8)]) init))) ;; data
@@ -89,7 +91,7 @@
                   (for/list ([i (in-range recv-n)]) init) ;; recv
                   (list) ;; comm
                   0 ;; cost
-                  )]))
+                  )))
 
     ((default-state info init [data-pair (i i-val) ...] [key val] ...)
      (let* ([state (default-state info init)]
@@ -103,7 +105,7 @@
      (struct-copy progstate (default-state info init) [key val] ...))
     
     ((default-state)
-     (default-state (cons 0 0) 0))
+     (default-state (syninfo 0 0 #f) 0))
     ))
 
 (define (constrain-stack precond [state (default-state)])

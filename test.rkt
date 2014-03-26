@@ -4,42 +4,25 @@
 
 (define t (current-seconds))
 
-(binary-search (block "1 65536 2* +" #f #f)
-               (cons 0 0)
-               (constraint [data 1] s t))
+;; (program-eq? (encode "1 !b") (encode "!b")
+;;              (syninfo 1 0 #f) (constraint t memory))
 
-(linear-search (encode "1 65536 2* +")
-               (encode "_ _ _ _")
-               (cons 0 0)
-               (constraint [data 1] s t))
+;; (binary-search (block "1 65536 2* +" #f #f)
+;;                (syninfo 0 0 #f)
+;;                (constraint [data 1] s t))
 
-;;;;;;;;;;;;;;;;;;;;;;;; problem here ;;;;;;;;;;;;;;;;;;;;;;
+;; (linear-search (encode "1 65536 2* +")
+;;                (encode "_ _ _ _")
+;;                (syninfo 0 0 #f)
+;;                (constraint [data 1] s t))
 
-;; (superoptimize (encode "dup right b! !b drop")
-;;                (encode "_ _ _ _ _")
-;;                (cons 5 0)
-;;                (constraint t))
-
-;; (superoptimize (encode
-;;                 (forloop 
-;;                  (list 
-;;                   (block "15" "1" (blockinfo '((data . 2)) #f 0)))
-;;                  (list 
-;;                   (block
-;;                    "dup b! @b drop" ;;"dup b! @b drop"
-;;                    "dup b! @b drop" (blockinfo '((data . 1) (return . 1)) #f 0)))
-;;                  16))
-;;                (encode
-;;                 (forloop 
-;;                  (list 
-;;                   (block "_" "1" (blockinfo '((data . 2)) #f 0)))
-;;                  (list 
-;;                   (block
-;;                    "_ _ _ _" ;;"dup b! @b drop"
-;;                    "dup b! @b drop" (blockinfo '((data . 1) (return . 1)) #f 0)))
-;;                  16))
-;;                (cons 5 0)
-;;                (constraint r t))
+(linear-search (encode "1 2 3")
+               (encode "_ _ _")
+               (syninfo 5 0 #f)
+               (constraint [data 2] s t))
+(binary-search (block "1 2 3" #f #f)
+               (syninfo 5 0 #f)
+               (constraint [data 2] s t))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

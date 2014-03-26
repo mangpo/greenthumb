@@ -2,7 +2,7 @@
 
 (require "controller.rkt" "ast.rkt" "f18a.rkt")
 
-(define x
+(define a
   (program
    (list
     (vardecl '(32867 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0))
@@ -45,7 +45,7 @@
     )
    5 #f))
 
-(define y
+(define b
   (program
    (list
     (label
@@ -63,7 +63,7 @@
     )
    0 #f))
 
-(define z
+(define c
   (program
    (list
     (label
@@ -83,6 +83,31 @@
     )
    4 #f))
 
+(define d
+  (program
+   (list
+    (label
+     "main"
+     (list
+      (block "1 b! @b 2 b! @b 1 +" "5 b! @b 6 b! @b 1 +" (blockinfo '((data . 2)) 0))
+      )
+     (labelinfo 0 0 #f))
+    )
+   3 #hash((0 . 0) (1 . 5) (2 . 6) (3 . 7))))
+
+(define e
+  (program
+   (list
+    (label
+     "main"
+     (list
+      (block "1 2 3" "1 2 3" (blockinfo '((data . 3)) 0))
+      (block "1 2 3" "1 2 3" (blockinfo '((data . 6)) 0))
+      )
+     (labelinfo 0 0 #f))
+    )
+   3 #f))
+
 (define t (current-seconds))
-(print-struct (optimize z))
+(print-struct (optimize e))
 (pretty-display `(time ,(- (current-seconds) t)))

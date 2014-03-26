@@ -1,9 +1,6 @@
 - timeout
 - udlr
 - 0 -> dup dup or
-- compressed memory + verify
-  = (normal->compressed code) return code, map, mem
-  = (compressed->normal code map)
 - print-syntax
 - test on arrayforth sim
 - database

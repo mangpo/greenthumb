@@ -6,7 +6,7 @@
          ;; superoptimizer
          interpret assert-output assume
          ;; for controller
-         encode decode number-of-insts original
+         encode decode get-size
          get-length-limit merge-blocks
          generate-sketch generate-info generate-constraint generate-assumption
          ;; for naive code-gen
@@ -413,7 +413,7 @@
 ;; (cons mem-size recv-size)
 (define (generate-info program spec)
   (pretty-display ">>> generate-info >>>")
-  (cons (program-memsize program) (number-of-recv spec)))
+  (syninfo (program-memsize program) (number-of-recv spec) (program-indexmap program)))
 
 ;; Generate output constraint for synthesizer.
 (define (generate-constraint func spec)
@@ -469,12 +469,7 @@
 (define (get-length-limit func)
   (if (labelinfo-simple (label-info func)) 1000 16))
 
-;; Replace block-body with block-org.
-(define (original program)
-  (traverse program block? 
-            (lambda (x) (block (block-org x) (block-org x) (block-info x)))))
-
-(define (number-of-insts insts)
+(define (get-size insts)
   (length (string-split insts)))
 
 (define (number-of-recv x)

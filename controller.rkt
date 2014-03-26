@@ -1,10 +1,17 @@
 #lang s-exp rosette
 
-(require "f18a.rkt" "state.rkt" "ast.rkt")
+(require 
+ ;; ISA independent
+ "ast.rkt"
+ ;; ISA dependent
+ "f18a.rkt" "state.rkt" "f18a-compress.rkt")
+
 ;(require rosette/solver/z3/z3)
 ;(require rosette/solver/kodkod/kodkod)
 
-(provide superoptimize optimize linear-search binary-search)
+(provide superoptimize optimize 
+         linear-search binary-search 
+         program-eq? optimize-cost)
 
 ;; Superoptimize program given
 ;; spec: program specification (naive code)
@@ -93,6 +100,43 @@
   (values final-program final-cost)
   )
 
+(define (program-eq? spec program info constraint
+                     #:bit [bit 18]
+                     #:assume [assumption (default-state)])
+  (configure [bitwidth bit])
+  (define start-state (default-state info (sym-input)))
+  (define spec-state #f)
+  (define program-state #f)
+
+  (define (interpret-spec)
+    (assume start-state assumption)
+    (pretty-display "interpret spec")
+    (set! spec-state (interpret bit spec start-state)))
+
+  (define (compare)
+    (pretty-display "interpret program")
+    (set! program-state (interpret bit program start-state spec-state))
+    
+    (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
+    (display-state spec-state)
+    (pretty-display ">>>>>>>>>>> PROG >>>>>>>>>>>>>")
+    (display-state program-state)
+
+    (pretty-display "check output")
+    (pretty-display constraint)
+    (assert-output spec-state program-state 
+                   (struct-copy progstate constraint [cost #f])
+                   #f))
+
+  (with-handlers* ([exn:fail? 
+                    (lambda (e)
+                      (pretty-display "program-eq? SAME")
+                      (or (equal? (exn-message e) "verify: no counterexample found")
+                          (raise e)))])
+    (verify #:assume (interpret-spec) #:guarantee (compare))
+    (pretty-display "program-eq? DIFF")
+    #f))
+
 ;; Optimize the cost incrementally using fixed number of holes.
 ;; spec: encoded spec
 ;; sketch: encoded spec
@@ -113,9 +157,9 @@
 ;; Optimize the cost using binary search on the number of holes.
 ;; spec: non-encoded block
 (define (binary-search spec info constraint [assumption (default-state)])
-  
-  (define final-program (block-body spec))
-  (define encoded-spec (encode final-program))
+  (pretty-display "BINARY")
+  (define final-program #f)
+  (define encoded-spec (encode (block-body spec)))
   (define (inner begin end cost)
     (define middle (quotient (+ begin end) 2))
     (pretty-display `(binary-search ,begin ,end ,middle))
@@ -138,9 +182,11 @@
         (inner begin middle out-cost)
         (and (< middle end) (inner (add1 middle) end cost))))
   
-  (inner 1 (number-of-insts (block-body spec)) #f)
+  (inner 1 (get-size (block-body spec)) #f)
   (pretty-display "after inner")
-  (block final-program (block-org spec) (block-info spec)))
+  (and final-program (list (block final-program (block-org spec) (block-info spec)))))
+
+;; TODO: compress, decompress, "timeout", "same"
 
 (define (optimize-cost spec sketch info constraint assumption [prefix (list)])
   ;; if structure -> linear search
@@ -156,9 +202,16 @@
   (pretty-display "ASSUMPTION >>")
   (print-struct assumption)
 
-  (if (and (= (length spec) 1) (block? (car spec)))
-      (list (binary-search (car spec) info constraint assumption))
-      (linear-search (encode spec) (encode sketch) info constraint assumption)))
+  (define output-compressed
+    (if (and (= (length spec) 1) (block? (car spec)))
+        (binary-search (car spec) info constraint assumption)
+        (linear-search (encode spec) 
+                       (encode sketch) info constraint assumption)))
+
+  ;; Decompress and verfiy
+  (if output-compressed
+      (decompress output-compressed info constraint assumption program-eq?)
+      "same"))
 
 ;; Merge consecutive blocks into one block, and get rid of item object.
 (define (simplify program)
@@ -191,7 +244,7 @@
     ;; If func is simple, then limit is large so that we can optimize entire function.
     (define length-limit (and (label? func) (get-length-limit func)))
     (define (superoptimize-fragment x)
-      (define simple-x (simplify x)) ;; TODO: error here!
+      (define simple-x (simplify x))
       (pretty-display ">>> after simplify >>>")
       (print-struct simple-x)
       (optimize-cost simple-x 
@@ -213,12 +266,13 @@
 	(define res (superoptimize-fragment buffer))
 	(cond
 	 [(equal? res "same")
-	  ;; TODO: org
+          (pretty-display "sliding-window: same->slide")
 	  (set! output (append output (list (original (car work)))))
           (set! size (- size (item-size (car work))))
 	  (set! work (cdr work))]
 	 
 	 [(equal? res "timeout")
+          (pretty-display "sliding-window: timeout->shrink")
 	  (if (> (length buffer) 1)
 	      (sliding-window (take buffer (sub1 (length buffer))))
 	      (begin
@@ -227,6 +281,7 @@
 		(set! work (cdr work))))]
 	 
 	 [else
+          (pretty-display "sliding-window: found->skip")
 	  (set! output (append output res))
           (set! size (- size (foldl + 0 (map item-size buffer))))
 	  (set! work (drop work (length buffer)))]))
@@ -287,7 +342,7 @@
     ;; optimize-func body
     (if (label? func)
         (label (label-name func) 
-               (optimize-inner (wrap (label-body func) number-of-insts)) 
+               (optimize-inner (wrap (label-body func) get-size)) 
                (label-info func))
 	func))
   
