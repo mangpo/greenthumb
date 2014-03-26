@@ -45,6 +45,7 @@
     )
    5 #f))
 
+;; With assumption
 (define b
   (program
    (list
@@ -52,17 +53,18 @@
      "rep"
      (list
       (assumption '(a . (= . right)))
-      (block "right a! !" "right a! !" (blockinfo 0 0)))
+      (block "right a! !" "right a! !" (blockinfo '() 0)))
      (labelinfo 0 0 #f))
-    (label
-     "main"
-     (list
-      (assumption '(b . (= . right)))
-      (block "right b! !b" "right b! !b" (blockinfo 0 0)))
-     (labelinfo 0 0 #f))
+    ;; (label
+    ;;  "main"
+    ;;  (list
+    ;;   (assumption '(b . (= . right)))
+    ;;   (block "right b! !b" "right b! !b" (blockinfo '() 0)))
+    ;;  (labelinfo 0 0 #f))
     )
    0 #f))
 
+;; For loop
 (define c
   (program
    (list
@@ -83,6 +85,7 @@
     )
    4 #f))
 
+;; Decompress
 (define d
   (program
    (list
@@ -95,6 +98,7 @@
     )
    3 #hash((0 . 0) (1 . 5) (2 . 6) (3 . 7))))
 
+;; Sliding window
 (define e
   (program
    (list
@@ -108,6 +112,24 @@
     )
    3 #f))
 
+(define f
+  (program
+   (list
+    (label
+     "main"
+     (list
+      (assumption '(stack . ((<= . 65535) (<= . 65535) (<= . 65535))))
+      (block 
+       "0 a! !+ push !+ pop dup 1 b! @b 0 b! @b 65535 or over - and + or push drop pop"
+       "0 a! !+ push !+ pop dup 1 b! @b 0 b! @b 65535 or over - and + or push drop pop"
+       (blockinfo '((data . 1)) 0))
+      (block "0 +" "0 +" (blockinfo '((data . 1)) 0))
+      )
+     (labelinfo 0 0 #f))
+    )
+   2 #f))
+  
+
 (define t (current-seconds))
-(print-struct (optimize e))
+(print-struct (optimize f))
 (pretty-display `(time ,(- (current-seconds) t)))

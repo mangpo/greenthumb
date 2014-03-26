@@ -13,6 +13,20 @@
          linear-search binary-search 
          program-eq? optimize-cost)
 
+(define time-limit 10)
+(define-syntax-rule (timeout sec expr)
+  (let* ([t (let ([parent (current-thread)])
+              (thread
+               (thunk
+                (thread-send 
+                 parent
+                 (with-handlers [(exn? identity)]
+                                expr)))))]
+         [out (sync/timeout sec t)])
+    (cond [out  (thread-receive)]
+          [else (break-thread t)
+                (raise (thread-receive))])))
+
 ;; Superoptimize program given
 ;; spec: program specification (naive code)
 ;; sketch: skeleton of the output program
@@ -80,11 +94,14 @@
   ;; (interpret-spec) = precondition for input that is legal for spec
   ;; Using (assume start-state assumption) is faster.
   (define model 
-    (synthesize 
-     #:forall sym-vars
-     #:init (sat (make-immutable-hash (hash->list init-pair)))
-     #:assume (interpret-spec) ;; (assume start-state assumption)
-     #:guarantee (compare-spec-sketch))
+    (timeout
+     time-limit
+     (synthesize 
+      #:forall sym-vars
+      #:init (sat (make-immutable-hash (hash->list init-pair)))
+      #:assume (interpret-spec) ;; (assume start-state assumption)
+      #:guarantee (compare-spec-sketch))
+     )
     )
 
   (define final-program (decode sketch model))
@@ -149,7 +166,8 @@
     (inner out-cost))
 
   (with-handlers* ([exn:fail? (lambda (e) 
-                                (if (equal? (exn-message e) "synthesize: synthesis failed")
+                                (if (regexp-match #rx"synthesize: synthesis failed" 
+                                                  (exn-message e))
                                     final-program
                                     (raise e)))])
     (inner #f)))
@@ -157,7 +175,6 @@
 ;; Optimize the cost using binary search on the number of holes.
 ;; spec: non-encoded block
 (define (binary-search spec info constraint [assumption (default-state)])
-  (pretty-display "BINARY")
   (define final-program #f)
   (define encoded-spec (encode (block-body spec)))
   (define (inner begin end cost)
@@ -168,7 +185,8 @@
       (with-handlers* ([exn:fail? 
                         (lambda (e) 
                           (pretty-display "catch error")
-                          (if (equal? (exn-message e) "synthesize: synthesis failed")
+                          (if (regexp-match #rx"synthesize: synthesis failed" 
+                                            (exn-message e))
                               (values #f cost)
                               (raise e)))])
         (superoptimize encoded-spec encoded-sketch info constraint cost 
@@ -202,16 +220,19 @@
   (pretty-display "ASSUMPTION >>")
   (print-struct assumption)
 
-  (define output-compressed
-    (if (and (= (length spec) 1) (block? (car spec)))
-        (binary-search (car spec) info constraint assumption)
-        (linear-search (encode spec) 
-                       (encode sketch) info constraint assumption)))
-
-  ;; Decompress and verfiy
-  (if output-compressed
-      (decompress output-compressed info constraint assumption program-eq?)
-      "same"))
+  (with-handlers 
+   ([exn:break? (lambda (e) "timeout")])
+   (define output-compressed
+     (if (and (= (length spec) 1) (block? (car spec)))
+         (binary-search (car spec) info constraint assumption)
+         (linear-search (encode spec) 
+                        (encode sketch) info constraint assumption)))
+   
+   ;; Decompress and verfiy
+   (if output-compressed
+       (decompress output-compressed info constraint assumption program-eq?)
+       "same"))
+  )
 
 ;; Merge consecutive blocks into one block, and get rid of item object.
 (define (simplify program)
@@ -255,15 +276,26 @@
       )
     ;; END superoptimize-fragment
 
+    (define (number-of-units l)
+      (count (lambda (x) (not (assumption? (item-x x)))) l))
+
+    (define (get-first-unit l)
+      (if (assumption? (item-x (car l)))
+          (cons (car l) (get-first-unit (cdr l)))
+          (list (car l))))
+
     (define (sliding-window x)
+      (pretty-display ">>>>> SLIDING WINDOW >>>>>")
       (define output (list))
       (define work (list))
       (define size 0) ;; invariant: size < length-limit
       
       (define (optimize-slide buffer)
         (pretty-display ">>> optimize-slide >>>")
+        (pretty-display `(buffer ,buffer ,(length buffer)))
         (print-struct buffer)
 	(define res (superoptimize-fragment buffer))
+        (pretty-display `(res ,res))
 	(cond
 	 [(equal? res "same")
           (pretty-display "sliding-window: same->slide")
@@ -273,12 +305,15 @@
 	 
 	 [(equal? res "timeout")
           (pretty-display "sliding-window: timeout->shrink")
-	  (if (> (length buffer) 1)
-	      (sliding-window (take buffer (sub1 (length buffer))))
-	      (begin
-		(set! output (append output (list (original (car work)))))
-                (set! size (- size (item-size (car work))))
-		(set! work (cdr work))))]
+	  (if (> (number-of-units buffer) 1)
+	      (optimize-slide (take buffer (sub1 (length buffer))))
+	      (let ([first-unit (get-first-unit work)])
+		(set! output (append output 
+                                     (original 
+                                      (filter (lambda (x) (not (assumption? (item-x x))))
+                                              first-unit))))
+                (set! size (- size (foldl + 0 (map item-size first-unit))))
+		(set! work (drop work (length first-unit)))))]
 	 
 	 [else
           (pretty-display "sliding-window: found->skip")
@@ -287,24 +322,29 @@
 	  (set! work (drop work (length buffer)))]))
       
       (define (until-empty)
-	(unless (empty? work)
-		(optimize-slide work)
-		(until-empty)))
+	(when (> size 0)
+              (optimize-slide work)
+              (until-empty)))
       
       ;; sliding window loop
       (for ([i x])
+           (pretty-display `(superopt-unit ,i))
 	   (cond
 	    [(> (item-size i) length-limit)
+             (pretty-display `(> (item-size i) length-limit))
 	     (until-empty)
-	     (set! output (append (list (optimize-inner i))))
-             (set! size 0)]
+             (set! work (append work (list i)))
+             (set! size (+ size (item-size i)))
+             (optimize-slide work)]
 	    
 	    [(> (+ size (item-size i)) length-limit)
+             (pretty-display `(> (+ size (item-size i)) length-limit))
 	     (optimize-slide work)
 	     (set! work (append work (list i)))
              (set! size (+ size (item-size i)))]
 	    
 	    [else
+             (pretty-display "else")
 	     (set! work (append work (list i)))
              (set! size (+ size (item-size i)))]))
       

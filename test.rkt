@@ -2,6 +2,19 @@
 
 (require "controller.rkt" "state.rkt" "ast.rkt" "f18a.rkt")
 
+(define-syntax-rule (timeout sec expr)
+  (let* ([t (let ([parent (current-thread)])
+              (thread
+               (thunk
+                (thread-send 
+                 parent
+                 (with-handlers [(exn? identity)]
+                   expr)))))]
+         [out (sync/timeout sec t)])
+    (cond [out  (thread-receive)]
+          [else (break-thread t)
+                (raise (thread-receive))])))
+
 (define t (current-seconds))
 
 ;; (program-eq? (encode "1 !b") (encode "!b")
@@ -16,13 +29,13 @@
 ;;                (syninfo 0 0 #f)
 ;;                (constraint [data 1] s t))
 
-(linear-search (encode "1 2 3")
-               (encode "_ _ _")
-               (syninfo 5 0 #f)
-               (constraint [data 2] s t))
-(binary-search (block "1 2 3" #f #f)
-               (syninfo 5 0 #f)
-               (constraint [data 2] s t))
+;; (linear-search (encode "1 2 3")
+;;                (encode "_ _ _")
+;;                (syninfo 5 0 #f)
+;;                (constraint [data 2] s t))
+;; (binary-search (block "1 2 3" #f #f)
+;;                (syninfo 5 0 #f)
+;;                (constraint [data 2] s t))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -68,11 +81,12 @@
 ;;                (constraint memory s t))
 
 ;;;;;;;;;;;;;;;; assume ;;;;;;;;;;;;;;;;;;
-;; (superoptimize (encode "0 a! !+ push !+ pop dup 1 b! @b 0 b! @b 65535 or over - and + or push drop pop")
-;;                (encode "_ _ _ _ _ _ _ _ _")
-;;                (cons 2 0)
-;;                (constraint s t)
-;;                #:assume (constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
+
+(superoptimize (encode "0 a! !+ push !+ pop dup 1 b! @b 0 b! @b 65535 or over - and + or push drop pop")
+               (encode "_ _ _ _ _ _ _ _ _")
+               (syninfo 2 0 #f)
+               (constraint s t)
+               #:assume (constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
 
 ;;;;;;;;;;;;;;;; no comm ;;;;;;;;;;;;;;;;;;
 ;; (superoptimize (encode "2 b! @b 3 b! !b 1 b! @b 2 b! !b")
