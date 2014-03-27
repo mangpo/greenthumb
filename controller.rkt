@@ -330,6 +330,14 @@
       (for ([i x])
            (pretty-display `(superopt-unit ,i))
 	   (cond
+            [(and (> (item-size i) length-limit) (not (block? (item-x i))))
+             (pretty-display `(and (> (item-size i) length-limit) (not (block? (item-x i)))))
+             (until-empty)
+             (set! work (list))
+             (set! size 0)
+             (set! output (append output (list (optimize-inner i))))
+             ]
+
 	    [(> (item-size i) length-limit)
              (pretty-display `(> (item-size i) length-limit))
 	     (until-empty)
@@ -381,9 +389,9 @@
     
     ;; optimize-func body
     (if (label? func)
-        (label (label-name func) 
-               (optimize-inner (wrap (label-body func) get-size)) 
-               (label-info func))
+        (let ([opt (optimize-inner (wrap (label-body func) get-size))])
+          (pretty-display "FINISH")
+          (label (label-name func) opt (label-info func)))
 	func))
   
   ;; optimize body

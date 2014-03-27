@@ -645,7 +645,9 @@
             (pretty-display (format "yellow ~a node" id))
             (pretty-display (format "0 org"))))
       
-      (f (program-code x))]
+      (f (program-code x))
+      (newline)
+      ]
 
      [(vector? x)
       (pretty-display "{block 790}")

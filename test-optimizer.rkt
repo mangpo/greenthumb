@@ -128,8 +128,24 @@
      (labelinfo 0 0 #f))
     )
    2 #f))
+
+(define g
+  (program 
+   (list 
+    (vardecl '())
+    (label "main"
+           (list 
+            (block
+             "right b! @b"
+             "right b! @b"
+             (blockinfo '((data . 1) (return . 0) memory ) 1))
+            (call "out")
+            )
+           (labelinfo 0 0 #f))
+    )
+   0 #f))
   
 
 (define t (current-seconds))
-(print-syntax (optimize d) 2 2 0)
+(print-syntax (optimize g) 2 2 0)
 (pretty-display `(time ,(- (current-seconds) t)))
