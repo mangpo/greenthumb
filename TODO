@@ -1,6 +1,4 @@
 - udlr
-- 0 -> dup dup or
-- print-syntax
 - test on arrayforth sim
 - database
 - less conservative complexity-estimator, define-if, define-rotate

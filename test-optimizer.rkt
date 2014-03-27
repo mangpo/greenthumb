@@ -131,5 +131,5 @@
   
 
 (define t (current-seconds))
-(print-struct (optimize f))
+(print-syntax (optimize d) 2 2 0)
 (pretty-display `(time ,(- (current-seconds) t)))

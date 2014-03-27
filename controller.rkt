@@ -259,7 +259,7 @@
 	 
   (traverse program list? f))
    
-(define (optimize program)
+(define (optimize prog)
 
   (define (optimize-func func)
     ;; If func is simple, then limit is large so that we can optimize entire function.
@@ -270,7 +270,7 @@
       (print-struct simple-x)
       (optimize-cost simple-x 
 		     (generate-sketch simple-x) 
-		     (generate-info program simple-x) 
+		     (generate-info prog simple-x) 
 		     (generate-constraint func simple-x)
 		     (generate-assumption x))
       )
@@ -387,7 +387,12 @@
 	func))
   
   ;; optimize body
-  (if program
-      (map optimize-func (program-code program))
+  (if prog
+      (let ([code (program-code prog)]
+            [memsize (program-memsize prog)]
+            [indexmap (program-indexmap prog)])
+        (program (map optimize-func code)
+                 (if indexmap (dict-ref indexmap memsize) memsize)
+                 indexmap))
       #f))
        
