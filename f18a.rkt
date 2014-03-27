@@ -513,7 +513,7 @@
       (and (< size 4) (small-body? (cdr l) size))]
      [else #f]))
   
-  (define (f x [indent ""])
+  (define (f x indent)
     (cond
      [(string? x)
       (for ([i (string-split x)])
@@ -525,16 +525,11 @@
       ]
       
      [(list? x)
-      (map f x)
-      (void)]
+      (for ([i x])
+           (f i indent))]
      
      [(block? x)
-      (f (block-body x))]
-     
-     [(forloop? x)
-      (f (forloop-init x))
-      (display "for ")
-      (f (forloop-body x))]
+      (f (block-body x) indent)]
      
      [(ift? x)
       (when original (display "| cr"))
@@ -607,7 +602,7 @@
       ]
      
      [(item? x)
-      (f (item-x x))]
+      (f (item-x x) indent)]
     
      [(label? x)
       (display (format ": ~a " (label-name x)))
@@ -645,7 +640,7 @@
             (pretty-display (format "yellow ~a node" id))
             (pretty-display (format "0 org"))))
       
-      (f (program-code x))
+      (f (program-code x) "")
       (newline)
       ]
 
@@ -667,11 +662,11 @@
       
       (for ([i (* w h)])
            (set! id i)
-           (f (vector-ref x i)))
+           (f (vector-ref x i) ""))
       ]
 
      [(or (equal? x #f) (assumption? x)) (void)]
       
      [else (raise (format "print-syntax: unimplemented for ~a" x))]))
-  (f x))
+  (f x ""))
   

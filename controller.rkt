@@ -13,7 +13,7 @@
          linear-search binary-search 
          program-eq? optimize-cost)
 
-(define time-limit 10)
+(define time-limit 3600)
 (define-syntax-rule (timeout sec expr)
   (let* ([t (let ([parent (current-thread)])
               (thread
@@ -375,7 +375,9 @@
 	    ret)]
        
        [(forloop? x)
-	(forloop (optimize-inner (forloop-init x)) (optimize-inner (forloop-body x)))]
+	(forloop (optimize-inner (forloop-init x)) 
+                 (optimize-inner (forloop-body x))
+                 (forloop-bound x))]
        [(ift? x)
 	(ift (optimize-inner (ift-t x)))]
        [(iftf? x)

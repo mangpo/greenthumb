@@ -1,5 +1,6 @@
-- udlr
 - test on arrayforth sim
+- udlr
+- make it faster according to nishant's suggestion
 - database
 - less conservative complexity-estimator, define-if, define-rotate
 
