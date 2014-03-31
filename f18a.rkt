@@ -181,11 +181,13 @@
      ))
 
   (define (interpret-struct x)
+    (when debug (pretty-display `(interpret-struct ,x)))
     (cond
      [(list? x)
-      (if (pair? (car x))
-          (for ([i x]) (interpret-step i))
-          (for ([i x]) (interpret-struct i)))]
+      (unless (empty? x)
+              (if (pair? (car x))
+                  (for ([i x]) (interpret-step i))
+                  (for ([i x]) (interpret-struct i))))]
       
      [(block? x)
       (interpret-struct (block-body x))]
@@ -382,10 +384,14 @@
 
 ;; Convert encoded numbers into string of instructions.
 (define (decode program model)
-  (traverse program
-            (lambda (x) (and (list? x) 
-                             (or (empty? x) (pair? (car x)))))
-            (lambda (x) (list->inst-string x model))))
+  (traverse program block?
+            (lambda (x) (block (list->inst-string (block-body x) model) 
+                               (block-org x) 
+                               (block-info x)))))
+  ;; (traverse program 
+  ;;           (lambda (x) (and (list? x) 
+  ;;                            (or (empty? x) (pair? (car x)))))
+  ;;           (lambda (x) (list->inst-string x model))))
 
 ;; Merge a list of block into one block.
 (define (merge-blocks block-list)

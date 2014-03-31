@@ -36,7 +36,7 @@
 (define (superoptimize spec sketch info constraint [cost #f]
                        #:bit [bit 18]
                        #:assume [assumption (default-state)])
-  ;; (pretty-display "SUPERPOTIMIZE")
+  (pretty-display "SUPERPOTIMIZE")
   ;; (print-struct spec)
   ;; (print-struct sketch)
   ;; (pretty-display info)
@@ -52,6 +52,14 @@
 
   ;; (pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
   ;; (display-state start-state)
+
+  ;; (define (interpret-spec-test)
+  ;;   (define test-state (default-state info 0))
+  ;;   (assume test-state assumption)
+  ;;   (pretty-display "interpret spec test")
+  ;;   (display-state (interpret bit spec test-state)))
+
+  ;; (interpret-spec-test)
 
   (define (interpret-spec)
     (assume start-state assumption)
@@ -93,6 +101,7 @@
   ;; (assume start-state assumption) = precondition from the user
   ;; (interpret-spec) = precondition for input that is legal for spec
   ;; Using (assume start-state assumption) is faster.
+
   (define model 
     (timeout
      time-limit
@@ -127,11 +136,11 @@
 
   (define (interpret-spec)
     (assume start-state assumption)
-    (pretty-display "interpret spec")
+    (pretty-display "eq: interpret spec")
     (set! spec-state (interpret bit spec start-state)))
 
   (define (compare)
-    (pretty-display "interpret program")
+    (pretty-display "eq: interpret program")
     (set! program-state (interpret bit program start-state spec-state))
     
     (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")

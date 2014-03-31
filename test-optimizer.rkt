@@ -144,8 +144,22 @@
            (labelinfo 0 0 #f))
     )
    0 #f))
+
+(define h
+  (program
+   (list
+    (label "main"
+           (list
+            (block "dup drop 1" "dup drop 1" (blockinfo '((data . 1)) 0))
+            (forloop
+             (list)
+            (list (block "2*" "2*" (blockinfo '((data . 1)) 0)))
+            2
+            ))
+           (labelinfo 0 0 #f)))
+   0 #f))
   
 
 (define t (current-seconds))
-(print-syntax (optimize g) 2 2 0)
+(print-syntax (optimize h) 2 2 0)
 (pretty-display `(time ,(- (current-seconds) t)))

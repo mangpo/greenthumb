@@ -1,6 +1,6 @@
 #lang racket
 
-(require "controller.rkt" "state.rkt" "ast.rkt" "f18a.rkt")
+(require "controller.rkt" "state.rkt" "ast.rkt" "f18a.rkt" "f18a-compress.rkt")
 
 (define-syntax-rule (timeout sec expr)
   (let* ([t (let ([parent (current-thread)])
@@ -16,6 +16,38 @@
                 (raise (thread-receive))])))
 
 (define t (current-seconds))
+
+;; (define-values (output cost)
+(superoptimize (encode 
+                (list
+                 (block "dup drop 1" "dup drop 1" #f)
+                 (forloop
+                  (list)
+                  (list (block "2*" "2*" #f))
+                  2
+                  )))
+               (encode 
+                (list
+                 (block "_ _ _" "dup drop 1" #f)
+                 (forloop
+                  (list)
+                  (list (block "_" "2*" #f))
+                  2
+                  )))
+               (syninfo 0 0 #f)
+               (constraint t memory))
+
+;; (decompress (list
+;;              (block "1" "dup drop 1" #f)
+;;              (forloop
+;;               (list)
+;;               (list (block "2*" "2*" #f))
+;;               2
+;;               ))
+;;             (syninfo 0 0 #f)
+;;             (constraint r s t)
+;;             (default-state)
+;;             program-eq?)
 
 ;; (program-eq? (encode "1 !b") (encode "!b")
 ;;              (syninfo 1 0 #f) (constraint t memory))
@@ -82,11 +114,11 @@
 
 ;;;;;;;;;;;;;;;; assume ;;;;;;;;;;;;;;;;;;
 
-(superoptimize (encode "0 a! !+ push !+ pop dup 1 b! @b 0 b! @b 65535 or over - and + or push drop pop")
-               (encode "_ _ _ _ _ _ _ _ _")
-               (syninfo 2 0 #f)
-               (constraint s t)
-               #:assume (constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
+;; (superoptimize (encode "0 a! !+ push !+ pop dup 1 b! @b 0 b! @b 65535 or over - and + or push drop pop")
+;;                (encode "_ _ _ _ _ _ _ _ _")
+;;                (syninfo 2 0 #f)
+;;                (constraint s t)
+;;                #:assume (constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
 
 ;;;;;;;;;;;;;;;; no comm ;;;;;;;;;;;;;;;;;;
 ;; (superoptimize (encode "2 b! @b 3 b! !b 1 b! @b 2 b! !b")
