@@ -384,10 +384,19 @@
 
 ;; Convert encoded numbers into string of instructions.
 (define (decode program model)
-  (traverse program block?
-            (lambda (x) (block (list->inst-string (block-body x) model) 
-                               (block-org x) 
-                               (block-info x)))))
+  (traverse program 
+	    [block?
+	     (lambda (x) (block (list->inst-string (block-body x) model) 
+				(block-org x) 
+				(block-info x)))]
+
+	    [(lambda (x) (and (list? x) (empty? x)))
+	     (lambda (x) x)]
+
+	    [(lambda (x) (and (list? x) (pair? (car x))))
+	     (lambda (x) (list->inst-string x model))]))
+
+	    
   ;; (traverse program 
   ;;           (lambda (x) (and (list? x) 
   ;;                            (or (empty? x) (pair? (car x)))))
