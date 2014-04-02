@@ -158,8 +158,44 @@
             ))
            (labelinfo 0 0 #f)))
    0 #f))
-  
+
+(define i
+  (program
+   (list
+    (label "main"
+           (list
+            (forloop 
+             (list 
+              (block
+               "15"
+               "15"
+               (blockinfo '((data . 2) (return . 0) memory ) 0))
+              )
+             (list 
+              (block
+               "dup"
+               "dup"
+               (blockinfo '((data . 2) (return . 1) memory ) 0))
+              (block
+               "right b! @b"
+               "right b! @b"
+               (blockinfo '((data . 3) (return . 1) memory ) 1))
+              (block
+               "+"
+               "+"
+               (blockinfo '((data . 2) (return . 1) memory ) 0))
+              (block
+               "push drop pop"
+               "push drop pop"
+               (blockinfo '((data . 1) (return . 1) memory ) 0)))
+             16)
+            (block
+             "0 b! @b"
+             "0 b! @b"
+             (blockinfo '((data . 2) (return . 0) memory ) 0)))
+           (labelinfo 0 0 #f)))
+   1 #f))
 
 (define t (current-seconds))
-(print-syntax (optimize h) 2 2 0)
+(print-syntax (optimize e) 2 2 0)
 (pretty-display `(time ,(- (current-seconds) t)))
