@@ -73,7 +73,8 @@
       (define init-ret (inner (forloop-init x)))
       (define body-ret (inner (forloop-body x)))
       (if (forloop-bound x)
-          (item (forloop init-ret body-ret (forloop-bound x)) (+ (item-size init-ret) (item-size body-ret)))
+          (item (forloop init-ret body-ret (forloop-bound x)) 
+		(* 2 (+ (item-size init-ret) (item-size body-ret))))
           1000000)]
      
      [(ift? x)

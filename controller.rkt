@@ -298,37 +298,54 @@
       (define output (list))
       (define work (list))
       (define size 0) ;; invariant: size < length-limit
+      (define need-opt #t)
       
       (define (optimize-slide buffer)
         (pretty-display ">>> optimize-slide >>>")
         (pretty-display `(buffer ,buffer ,(length buffer)))
         (print-struct buffer)
-	(define res (superoptimize-fragment buffer))
-        (pretty-display `(res ,res))
-	(cond
-	 [(equal? res "same")
-          (pretty-display "sliding-window: same->slide")
-	  (set! output (append output (list (original (car work)))))
-          (set! size (- size (item-size (car work))))
-	  (set! work (cdr work))]
+	(if need-opt
+	    (let ([res (superoptimize-fragment buffer)])
+	      (pretty-display `(res ,res))
+	      (cond
+	       [(equal? res "same")
+		(set! need-opt #f)
+		(pretty-display "sliding-window: same->slide")
+		(set! output (append output (list (original (car work)))))
+		(set! size (- size (item-size (car work))))
+		(set! work (cdr work))]
+	       
+	       [(equal? res "timeout")
+		(pretty-display "sliding-window: timeout->shrink")
+		(if (> (number-of-units buffer) 1)
+		    (optimize-slide (take buffer (sub1 (length buffer))))
+		    (let ([first-unit (get-first-unit work)])
+		      (if (block? (item-x (last first-unit)))
+			  ;; block
+			  (set! output 
+				(append 
+				 output 
+				 (original (filter (lambda (x) (not (assumption? (item-x x))))
+						   first-unit))))
+			  ;; structure => recurse opyimixr-inner
+			  (set! output 
+				(append output (list (optimize-struct (last first-unit))))))
+					 
+		      (set! size (- size (foldl + 0 (map item-size first-unit))))
+		      (set! work (drop work (length first-unit)))))]
 	 
-	 [(equal? res "timeout")
-          (pretty-display "sliding-window: timeout->shrink")
-	  (if (> (number-of-units buffer) 1)
-	      (optimize-slide (take buffer (sub1 (length buffer))))
-	      (let ([first-unit (get-first-unit work)])
-		(set! output (append output 
-                                     (original 
-                                      (filter (lambda (x) (not (assumption? (item-x x))))
-                                              first-unit))))
-                (set! size (- size (foldl + 0 (map item-size first-unit))))
-		(set! work (drop work (length first-unit)))))]
-	 
-	 [else
-          (pretty-display "sliding-window: found->skip")
-	  (set! output (append output res))
-          (set! size (- size (foldl + 0 (map item-size buffer))))
-	  (set! work (drop work (length buffer)))]))
+	       [else
+		(pretty-display "sliding-window: found->skip")
+		(set! output (append output res))
+		(set! size (- size (foldl + 0 (map item-size buffer))))
+		(set! work (drop work (length buffer)))]))
+	    (begin
+	      ;; no better implementation & no new unit => output original
+	      (pretty-display "no more unit added (output = original)")
+	      (set! output (append output (list (original buffer))))
+	      (set! size (- size (foldl + 0 (map item-size buffer))))
+	      (set! work (drop work (length buffer))))))
+	      
       
       (define (until-empty)
 	(when (> size 0)
@@ -344,13 +361,14 @@
              (until-empty)
              (set! work (list))
              (set! size 0)
-             (set! output (append output (list (optimize-inner i))))
+             (set! output (append output (list (optimize-struct i))))
              ]
 
 	    [(> (item-size i) length-limit)
              (pretty-display `(> (item-size i) length-limit))
 	     (until-empty)
              (set! work (append work (list i)))
+	     (set! need-opt #t)
              (set! size (+ size (item-size i)))
              (optimize-slide work)]
 	    
@@ -358,20 +376,22 @@
              (pretty-display `(> (+ size (item-size i)) length-limit))
 	     (optimize-slide work)
 	     (set! work (append work (list i)))
+	     (set! need-opt #t)
              (set! size (+ size (item-size i)))]
 	    
 	    [else
              (pretty-display "else")
 	     (set! work (append work (list i)))
+	     (set! need-opt #t)
              (set! size (+ size (item-size i)))]))
       
       (until-empty)
       output)
     ;; END sliding-window
     
-    (define (optimize-inner code)
+    (define (optimize-struct code)
       (define x (item-x code))
-      (pretty-display ">>> optimize-inner >>>")
+      (pretty-display ">>> optimize-struct >>>")
       (print-struct x)
       (cond
        [(list? x)
@@ -380,27 +400,27 @@
        [(block? x)
 	(define ret (superoptimize-fragment x))
 	(if (or (equal? ret "timeout") (equal? ret "same"))
-	    (original ret)
+	    (original x)
 	    ret)]
        
        [(forloop? x)
-	(forloop (optimize-inner (forloop-init x)) 
-                 (optimize-inner (forloop-body x))
+	(forloop (forloop-init x)
+                 (optimize-struct (forloop-body x))
                  (forloop-bound x))]
        [(ift? x)
-	(ift (optimize-inner (ift-t x)))]
+	(ift (optimize-struct (ift-t x)))]
        [(iftf? x)
-	(iftf (optimize-inner (iftf-t x)) (optimize-inner (iftf-f x)))]
+	(iftf (optimize-struct (iftf-t x)) (optimize-struct (iftf-f x)))]
        [(-ift? x)
-	(-ift (optimize-inner (-ift-t x)))]
+	(-ift (optimize-struct (-ift-t x)))]
        [(-iftf? x)
-	(-iftf (optimize-inner (-iftf-t x)) (optimize-inner (-iftf-f x)))]
+	(-iftf (optimize-struct (-iftf-t x)) (optimize-struct (-iftf-f x)))]
        [else x]))
-    ;; END optimize-inner
+    ;; END optimize-struct
     
     ;; optimize-func body
     (if (label? func)
-        (let ([opt (optimize-inner (wrap (label-body func) get-size))])
+        (let ([opt (optimize-struct (wrap (label-body func) get-size))])
           (pretty-display "FINISH")
           (label (label-name func) opt (label-info func)))
 	func))
