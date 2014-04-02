@@ -64,7 +64,9 @@
   (define (interpret-spec)
     (assume start-state assumption)
     (pretty-display "interpret spec")
-    (set! spec-state (interpret bit spec start-state)))
+    (set! spec-state (interpret bit spec start-state))
+    (pretty-display "done interpret spec")
+    )
 
   (define (compare-spec-sketch)
     (pretty-display "interpret sketch")
@@ -89,13 +91,16 @@
                                          (- rand (<< 1 bit))
                                          rand)])
                              (cons v val)))))
+  ;; (pretty-display ">>>>>>>>>>> INIT >>>>>>>>>>>>>")
   (for ([pair (solution->list (solve (interpret-spec)))])
+       ;; (pretty-display `(pair ,pair))
        (when (hash-has-key? init-pair (car pair))
+             (pretty-display `(in-sol ,pair))
              (hash-set! init-pair (car pair) (cdr pair))
              (hash-set! init-pair2 (car pair) (cdr pair))
              ))
-  ;; (pretty-display ">>>>>>>>>>> INIT >>>>>>>>>>>>>")
-  ;; (pretty-display init-pair)
+  ;; (pretty-display ">>>>>>>>>>> DONE INIT >>>>>>>>>>>>>")
+  ;; (pretty-display init-pair2)
   
   ;; ATTN(emina)
   ;; (assume start-state assumption) = precondition from the user
@@ -107,7 +112,10 @@
      time-limit
      (synthesize 
       #:forall sym-vars
-      #:init (sat (make-immutable-hash (hash->list init-pair)))
+      #:init (list 
+              (sat (make-immutable-hash (hash->list init-pair)))
+              (sat (make-immutable-hash (hash->list init-pair2)))
+              )
       #:assume (interpret-spec) ;; (assume start-state assumption)
       #:guarantee (compare-spec-sketch))
      )

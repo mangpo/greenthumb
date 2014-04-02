@@ -18,24 +18,24 @@
 (define t (current-seconds))
 
 ;; (define-values (output cost)
-(superoptimize (encode 
-                (list
-                 (block "dup drop 1" "dup drop 1" #f)
-                 (forloop
-                  (list)
-                  (list (block "2*" "2*" #f))
-                  2
-                  )))
-               (encode 
-                (list
-                 (block "_ _ _" "dup drop 1" #f)
-                 (forloop
-                  (list)
-                  (list (block "_" "2*" #f))
-                  2
-                  )))
-               (syninfo 0 0 #f)
-               (constraint t memory))
+;; (superoptimize (encode 
+;;                 (list
+;;                  (block "dup drop 1" "dup drop 1" #f)
+;;                  (forloop
+;;                   (list)
+;;                   (list (block "2*" "2*" #f))
+;;                   2
+;;                   )))
+;;                (encode 
+;;                 (list
+;;                  (block "_ _ _" "dup drop 1" #f)
+;;                  (forloop
+;;                   (list)
+;;                   (list (block "_" "2*" #f))
+;;                   2
+;;                   )))
+;;                (syninfo 0 0 #f)
+;;                (constraint t memory))
 
 ;; (decompress (list
 ;;              (block "1" "dup drop 1" #f)
@@ -123,12 +123,12 @@
 ;;;;;;;;;;;;;;;; no comm ;;;;;;;;;;;;;;;;;;
 ;; (superoptimize (encode "2 b! @b 3 b! !b 1 b! @b 2 b! !b")
 ;;                (encode "_ _ _ _ _ _ _ _")
-;;                (cons 4 0)
-;;                (constraint memory s t))
+;;                (syninfo 4 0 #f)
+;;                (constraint memory s t)) ; 19, 15, 27
 ;; (superoptimize (encode "0 a! !+ !+ !+ !+ 3 b! @b 1 b! @b")
 ;;                (encode "_ _ _ _ _ _ _ _ _ _")
-;;                (cons 4 0)
-;;                (constraint [data 1] memory s t))
+;;                (syninfo 4 0 #f)
+;;                (constraint [data 1] memory s t)) ; (121 125), (99 18 39), (140 126)
 
 ;;;;;;;;;;;;;;;; communication ;;;;;;;;;;;;;;;;;;;
 ;; (superoptimize (encode "325 b! !b 277 b! !b 373 b! !b 469 b! !b")
@@ -143,9 +143,9 @@
 ;;                (encode "_ _ _ _ _ _ _ _")
 ;;                (cons 5 1)
 ;;                (constraint memory s t))
-;; (superoptimize (encode "5 b! !b 373 b! @b 5 b! @b 277 b! !b")
-;;                (encode "_ _ _ _ _ _ _ _ _ _")
-;;                (cons 6 1)
-;;                (constraint memory s t))
+(superoptimize (encode "5 b! !b 373 b! @b 5 b! @b 277 b! !b")
+               (encode "_ _ _ _ _ _ _ _ _ _")
+               (syninfo 6 1 #f)
+               (constraint memory s t)) ; (22 23), (74 27 68)
 (pretty-display `(time ,(- (current-seconds) t)))
 

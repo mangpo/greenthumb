@@ -1,12 +1,11 @@
-- test on arrayforth sim
+- test fir, cos, and one more
+- time assume benchmark with 2 CEs
 - udlr
-- make it faster according to nishant's suggestion
 - database
 - less conservative complexity-estimator, define-if, define-rotate
 
 - why assume (interpret-spec) make it so much slower?
   => if none of arg is used for index, don't use (interpret-spec)?
-- more than one init counterexamples
 
 - add fixed sequences
 - reg/stack allocation
