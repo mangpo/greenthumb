@@ -1,4 +1,11 @@
-- test fir, cos, and one more
+- bug uncaught exception: "traverse: unimplemented for #<assumption>"
+- @b
+
+- test prefix
+  = with assumption
+  = with indexrename
+  = change size-limit back to 16
+
 - time assume benchmark with 2 CEs
 - udlr
 - database

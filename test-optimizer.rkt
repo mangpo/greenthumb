@@ -196,6 +196,56 @@
            (labelinfo 0 0 #f)))
    1 #f))
 
+(define j
+  (program 
+   (list 
+    (label "main"
+	   (list 
+	    (forloop 
+	     (list 
+	      (block
+	       "255"
+	       "255"
+	       (blockinfo '((data . 1) (return . 0) memory ) 0))
+	      )
+	     (list 
+	      (call "in")
+	      (block
+	       "right b! !b"
+	       "right b! !b"
+	       (blockinfo '((data . 0) (return . 1) memory ) 0))
+	      (call "in")
+	      (block
+	       "down b! !b"
+	       "down b! !b"
+	       (blockinfo '((data . 0) (return . 1) memory ) 0))
+	      )
+	     256)
+	    (call "25rep")
+	    (assumption '(b . (= . down)))
+	    (block
+	     "@b"
+	     "@b"
+	     (blockinfo '((data . 1) (return . 0) memory ) 1))
+	    (block
+	     "right b! !b"
+	     "right b! !b"
+	     (blockinfo '((data . 0) (return . 0) memory ) 0))
+	    (call "25rep")
+	    (assumption '(b . (= . down)))
+	    (block
+	     "@b"
+	     "@b"
+	     (blockinfo '((data . 1) (return . 0) memory ) 1))
+	    (block
+	     "right b! !b"
+	     "right b! !b"
+	     (blockinfo '((data . 0) (return . 0) memory ) 0))
+	    )
+	   (labelinfo 0 0 #f))
+    )
+   0 #f))
+
 (define t (current-seconds))
-(print-syntax (optimize e) 2 2 0)
+(print-syntax (optimize j) 2 2 0)
 (pretty-display `(time ,(- (current-seconds) t)))
