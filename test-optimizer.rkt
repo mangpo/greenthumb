@@ -106,7 +106,7 @@
      "main"
      (list
       (block "1 2 3" "1 2 3" (blockinfo '((data . 3)) 0))
-      (block "1 2 3" "1 2 3" (blockinfo '((data . 6)) 0))
+      (block "1 2 3" "1 2 3" (blockinfo '((data . 3)) 0))
       )
      (labelinfo 0 0 #f))
     )
@@ -197,5 +197,5 @@
    1 #f))
 
 (define t (current-seconds))
-(print-syntax (optimize e) 2 2 0)
+(print-syntax (optimize i) 2 2 0)
 (pretty-display `(time ,(- (current-seconds) t)))

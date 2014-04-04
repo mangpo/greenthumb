@@ -133,7 +133,7 @@
   
   index-set)
 
-(define (decompress code-compressed info constraint assumption program-eq?)
+(define (decompress code-compressed info constraint assumption program-eq? #:prefix [prefix (list)])
   (define index-map (syninfo-indexmap info))
   (define mem-size (syninfo-memsize info))
 
@@ -153,11 +153,13 @@
     (pretty-display ">>> Decompress & verify")
     (define code (traverse code-compressed block? renameindex))
     (define spec (original code-compressed))
+    (define org-prefix (original prefix))
     (pretty-display "decompressed-program:")
     (print-struct code)
     (pretty-display "original spec:")
     (print-struct spec)
-    (if (program-eq? (encode code) (encode spec) 
+    (if (program-eq? (encode (append org-prefix code)) 
+		     (encode (append org-prefix spec))
                      (syninfo (dict-ref index-map mem-size)
                               (syninfo-recv info)
                               (syninfo-indexmap info))

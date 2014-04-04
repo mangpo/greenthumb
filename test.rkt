@@ -52,14 +52,18 @@
 ;; (program-eq? (encode "1 !b") (encode "!b")
 ;;              (syninfo 1 0 #f) (constraint t memory))
 
-;; (binary-search (block "1 65536 2* +" #f #f)
-;;                (syninfo 0 0 #f)
-;;                (constraint [data 1] s t))
+(print-struct
+(binary-search (block "1 65536 2* +" #f #f)
+               (syninfo 0 0 #f)
+               (constraint t)
+	       #:prefix (list (block "-131071" #f #f))))
 
-;; (linear-search (encode "1 65536 2* +")
-;;                (encode "_ _ _ _")
+;; (print-struct
+;; (linear-search (encode (list (block "1 65536 2* +" #f #f)))
+;;                (encode (list (block "_ _ _ _" #f #f)))
 ;;                (syninfo 0 0 #f)
-;;                (constraint [data 1] s t))
+;;                (constraint t)
+;; 	       #:prefix (encode (list (block "-131071" #f #f)))))
 
 ;; (linear-search (encode "1 2 3")
 ;;                (encode "_ _ _")
@@ -143,9 +147,9 @@
 ;;                (encode "_ _ _ _ _ _ _ _")
 ;;                (cons 5 1)
 ;;                (constraint memory s t))
-(superoptimize (encode "5 b! !b 373 b! @b 5 b! @b 277 b! !b")
-               (encode "_ _ _ _ _ _ _ _ _ _")
-               (syninfo 6 1 #f)
-               (constraint memory s t)) ; (22 23), (74 27 68)
+;; (superoptimize (encode "5 b! !b 373 b! @b 5 b! @b 277 b! !b")
+;;                (encode "_ _ _ _ _ _ _ _ _ _")
+;;                (syninfo 6 1 #f)
+;;                (constraint memory s t)) ; (22 23), (74 27 68)
 (pretty-display `(time ,(- (current-seconds) t)))
 

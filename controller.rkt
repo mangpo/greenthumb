@@ -174,30 +174,43 @@
 ;; Optimize the cost incrementally using fixed number of holes.
 ;; spec: encoded spec
 ;; sketch: encoded spec
-(define (linear-search spec sketch info constraint [assumption (default-state)])
+(define (linear-search spec sketch info constraint [assumption (default-state)] 
+		       #:prefix [prefix (list)])
   (define final-program #f)
   (define (inner cost)
     (define-values (out-program out-cost) 
-      (superoptimize spec sketch info constraint cost #:assume assumption))
+      (if (empty? prefix)
+	  (superoptimize spec sketch info constraint cost 
+			 #:assume assumption)
+	  (superoptimize (append prefix spec) (append prefix sketch) info constraint cost 
+			 #:assume assumption)))
     (set! final-program out-program)
     (inner out-cost))
 
   (with-handlers* ([exn:fail? (lambda (e) 
                                 (if (regexp-match #rx"synthesize: synthesis failed" 
                                                   (exn-message e))
-                                    final-program
+				    (if (empty? prefix)
+					final-program
+					(drop final-program (length prefix)))
                                     (raise e)))])
     (inner #f)))
 
 ;; Optimize the cost using binary search on the number of holes.
 ;; spec: non-encoded block
-(define (binary-search spec info constraint [assumption (default-state)])
+(define (binary-search spec info constraint [assumption (default-state)]
+		       #:prefix [prefix (list)])
   (define final-program #f)
-  (define encoded-spec (encode (block-body spec)))
+  (define encoded-prefix (encode prefix))
+  (define encoded-spec (encode spec))
   (define (inner begin end cost)
     (define middle (quotient (+ begin end) 2))
     (pretty-display `(binary-search ,begin ,end ,middle))
-    (define encoded-sketch (encode (string-join (build-list middle (lambda (x) "_")))))
+    (define encoded-sketch 
+      (block
+       (encode (string-join (build-list middle (lambda (x) "_"))))
+       #f #f))
+      
     (define-values (out-program out-cost)
       (with-handlers* ([exn:fail? 
                         (lambda (e) 
@@ -206,7 +219,9 @@
                                             (exn-message e))
                               (values #f cost)
                               (raise e)))])
-        (superoptimize encoded-spec encoded-sketch info constraint cost 
+        (superoptimize (append encoded-prefix (list encoded-spec)) 
+		       (append encoded-prefix (list encoded-sketch))
+		       info constraint cost 
                        #:assume assumption)))
     (pretty-display `(out ,out-program ,out-cost))
 
@@ -219,13 +234,15 @@
   
   (inner 1 (get-size (block-body spec)) #f)
   (pretty-display "after inner")
-  (and final-program (list (block final-program (block-org spec) (block-info spec)))))
+  (and final-program
+       (let ([last-block (last final-program)])
+	 (list (block (block-body last-block) (block-org spec) (block-info spec))))))
 
-;; TODO: compress, decompress, "timeout", "same"
-
-(define (optimize-cost spec sketch info constraint assumption [prefix (list)])
+(define (optimize-cost spec sketch info constraint assumption #:prefix [prefix (list)])
   ;; if structure -> linear search
   ;; if inst seq -> binary search
+  (pretty-display "PREFIX >>")
+  (print-struct prefix)
   (pretty-display "SPEC >>")
   (print-struct spec)
   (pretty-display "SKETCH >>")
@@ -241,13 +258,13 @@
    ([exn:break? (lambda (e) "timeout")])
    (define output-compressed
      (if (and (= (length spec) 1) (block? (car spec)))
-         (binary-search (car spec) info constraint assumption)
+         (binary-search (car spec) info constraint assumption #:prefix prefix)
          (linear-search (encode spec) 
-                        (encode sketch) info constraint assumption)))
+                        (encode sketch) info constraint assumption #:prefix (encode prefix))))
    
    ;; Decompress and verfiy
    (if output-compressed
-       (decompress output-compressed info constraint assumption program-eq?)
+       (decompress output-compressed info constraint assumption program-eq? #:prefix prefix)
        "same"))
   )
 
@@ -281,15 +298,17 @@
   (define (optimize-func func)
     ;; If func is simple, then limit is large so that we can optimize entire function.
     (define length-limit (and (label? func) (get-length-limit func)))
-    (define (superoptimize-fragment x)
+    (define (superoptimize-fragment x #:prefix [prefix (list)])
       (define simple-x (simplify x))
+      (define simple-prefix (simplify prefix))
       (pretty-display ">>> after simplify >>>")
       (print-struct simple-x)
       (optimize-cost simple-x 
 		     (generate-sketch simple-x) 
-		     (generate-info prog simple-x) 
-		     (generate-constraint func simple-x)
-		     (generate-assumption x))
+		     (generate-info prog simple-x #:prefix simple-prefix) 
+		     (generate-constraint func simple-x #:prefix simple-prefix)
+		     (generate-assumption x #:prefix prefix)
+		     #:prefix simple-prefix)
       )
     ;; END superoptimize-fragment
 
@@ -304,24 +323,34 @@
     (define (sliding-window x)
       (pretty-display ">>>>> SLIDING WINDOW >>>>>")
       (define output (list))
+      (define output-org (list))
       (define work (list))
       (define size 0) ;; invariant: size < length-limit
       (define need-opt #t)
+
+      (define (adjust-work-size lst)
+	(set! output-org (append output-org lst))
+	(set! size (- size (foldl + 0 (map item-size lst))))
+	(set! work (drop work (length lst))))
+
+      (define (append-org-output lst)
+	(set! output (append output 
+			     (original (filter (lambda (x) (not (assumption? (item-x x)))) lst)))))
       
       (define (optimize-slide buffer)
         (pretty-display ">>> optimize-slide >>>")
         (pretty-display `(buffer ,buffer ,(length buffer)))
         (print-struct buffer)
 	(if need-opt
-	    (let ([res (superoptimize-fragment buffer)])
+	    (let ([res (superoptimize-fragment buffer #:prefix output-org)])
 	      (pretty-display `(res ,res))
 	      (cond
 	       [(equal? res "same")
 		(set! need-opt #f)
 		(pretty-display "sliding-window: same->slide")
-		(set! output (append output (list (original (car work)))))
-		(set! size (- size (item-size (car work))))
-		(set! work (cdr work))]
+		(define first-unit (get-first-unit work))
+		(append-org-output first-unit)
+		(adjust-work-size first-unit)]
 	       
 	       [(equal? res "timeout")
 		(pretty-display "sliding-window: timeout->shrink")
@@ -330,29 +359,22 @@
 		    (let ([first-unit (get-first-unit work)])
 		      (if (block? (item-x (last first-unit)))
 			  ;; block
-			  (set! output 
-				(append 
-				 output 
-				 (original (filter (lambda (x) (not (assumption? (item-x x))))
-						   first-unit))))
+			  (append-org-output first-unit)
 			  ;; structure => recurse opyimixr-inner
 			  (set! output 
 				(append output (list (optimize-struct (last first-unit))))))
 					 
-		      (set! size (- size (foldl + 0 (map item-size first-unit))))
-		      (set! work (drop work (length first-unit)))))]
+		      (adjust-work-size first-unit)))]
 	 
 	       [else
 		(pretty-display "sliding-window: found->skip")
 		(set! output (append output res))
-		(set! size (- size (foldl + 0 (map item-size buffer))))
-		(set! work (drop work (length buffer)))]))
+		(adjust-work-size buffer)]))
 	    (begin
 	      ;; no better implementation & no new unit => output original
 	      (pretty-display "no more unit added (output = original)")
-	      (set! output (append output (list (original buffer))))
-	      (set! size (- size (foldl + 0 (map item-size buffer))))
-	      (set! work (drop work (length buffer))))))
+	      (append-org-output buffer)
+	      (adjust-work-size buffer))))
 	      
       
       (define (until-empty)

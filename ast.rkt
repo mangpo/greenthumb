@@ -2,7 +2,7 @@
 
 (provide (all-defined-out))
 
-(struct block (body org info) #:mutable) 
+(struct block (body org info))
 ;; info may include output constraint and # of recv data depending on arch
 (struct call (name))
 (struct label (name body info)) 
