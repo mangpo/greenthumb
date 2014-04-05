@@ -426,19 +426,19 @@
 
 ;; Generate info necessary for creating default-state.
 ;; (cons mem-size recv-size)
-(define (generate-info program spec)
+(define (generate-info program spec #:prefix [prefix (list)])
   (pretty-display ">>> generate-info >>>")
-  (syninfo (program-memsize program) (number-of-recv spec) (program-indexmap program)))
+  (syninfo (program-memsize program) (number-of-recv (append prefix spec)) (program-indexmap program)))
 
 ;; Generate output constraint for synthesizer.
-(define (generate-constraint func spec)
+(define (generate-constraint func spec #:prefix [prefix (list)])
   (pretty-display ">>> generate-constraint >>>")
   (create-constraint (blockinfo-cnstr (block-info (last-block spec))) 
                      (labelinfo-data (label-info func))
                      (labelinfo-return (label-info func))))
 
 ;; Generate assumption for synthesizer.
-(define (generate-assumption spec [res (default-state)])
+(define (generate-assumption spec #:prefix [prefix (list)])
   (define (to-number x)
     (cond 
      [(number? x) x]
@@ -451,35 +451,38 @@
      ))
 
   (pretty-display ">>> generate-assumption >>>")
-  (pretty-display spec)
-  (cond
-   [(and (list? spec) (assumption? (item-x (first spec))))
-    ;; TODO: currently only support assumption <= or = on stack.
-    ;; assume is a pair but can be extended to list of pair
-    (define assume (assumption-cnstr (item-x (first spec))))
-    (define ele (car assume))
-    (define condition (cdr assume))
 
-    (define ret
-    (generate-assumption 
-     (cdr spec) ;; recursive in case there are more than one assumption objects.
-     (cond 
-      [(equal? ele 'stack) 
-       (constrain-stack condition res)]
-      [(equal? ele 'a) 
-       (struct-copy progstate res [a (cons (car condition) (to-number (cdr condition)))])]
-      [(equal? ele 'b) 
-       (struct-copy progstate res [b (cons (car condition) (to-number (cdr condition)))])]
-      [(equal? ele 't) 
-       (struct-copy progstate res [t (cons (car condition) (to-number (cdr condition)))])]
-      [else (raise (format "generate-assumption: unimplemented for ~a" assume))]
-      )))
-    
-    (pretty-display `(assumption ,ret))
-    ret
-    ]
+  (define (inner spec [res (default-state)])
+    (cond
+     [(and (list? spec) (assumption? (item-x (first spec))))
+      ;; TODO: currently only support assumption <= or = on stack.
+      ;; assume is a pair but can be extended to list of pair
+      (define assume (assumption-cnstr (item-x (first spec))))
+      (define ele (car assume))
+      (define condition (cdr assume))
+      
+      (define ret
+	(inner
+	 (cdr spec) ;; recursive in case there are more than one assumption objects.
+	 (cond 
+	  [(equal? ele 'stack) 
+	   (constrain-stack condition res)]
+	  [(equal? ele 'a) 
+	   (struct-copy progstate res [a (cons (car condition) (to-number (cdr condition)))])]
+	  [(equal? ele 'b) 
+	   (struct-copy progstate res [b (cons (car condition) (to-number (cdr condition)))])]
+	  [(equal? ele 't) 
+	   (struct-copy progstate res [t (cons (car condition) (to-number (cdr condition)))])]
+	  [else (raise (format "generate-assumption: unimplemented for ~a" assume))]
+	  )))
+      
+      (pretty-display `(assumption ,ret))
+      ret
+      ]
+     
+     [else res]))
 
-   [else res]))
+  (if (empty? prefix) (inner spec) (inner prefix)))
 
 (define (get-length-limit func)
   (if (labelinfo-simple (label-info func)) 1000 16))

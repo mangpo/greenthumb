@@ -106,7 +106,7 @@
      "main"
      (list
       (block "1 2 3" "1 2 3" (blockinfo '((data . 3)) 0))
-      (block "1 2 3" "1 2 3" (blockinfo '((data . 6)) 0))
+      (block "1 2 3" "1 2 3" (blockinfo '((data . 3)) 0))
       )
      (labelinfo 0 0 #f))
     )
@@ -222,7 +222,7 @@
 	      )
 	     256)
 	    (call "25rep")
-	    (assumption '(b . (= . down)))
+	    (assumption '(b . (= . right)))
 	    (block
 	     "@b"
 	     "@b"
@@ -232,7 +232,7 @@
 	     "right b! !b"
 	     (blockinfo '((data . 0) (return . 0) memory ) 0))
 	    (call "25rep")
-	    (assumption '(b . (= . down)))
+	    (assumption '(b . (= . right)))
 	    (block
 	     "@b"
 	     "@b"

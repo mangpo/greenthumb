@@ -1,5 +1,4 @@
-- bug uncaught exception: "traverse: unimplemented for #<assumption>"
-- @b
+- debug md5
 
 - test prefix
   = with assumption

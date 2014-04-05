@@ -2,7 +2,7 @@
 
 (provide (all-defined-out))
 
-(struct block (body org info) #:mutable) 
+(struct block (body org info))
 ;; info may include output constraint and # of recv data depending on arch
 (struct call (name))
 (struct label (name body info)) 
@@ -72,10 +72,10 @@
      [(forloop? x)
       (define init-ret (inner (forloop-init x)))
       (define body-ret (inner (forloop-body x)))
-      (if (forloop-bound x)
-          (item (forloop init-ret body-ret (forloop-bound x)) 
-		(* 2 (+ (item-size init-ret) (item-size body-ret))))
-          1000000)]
+      (item (forloop init-ret body-ret (forloop-bound x)) 
+	    (if (forloop-bound x)
+		(* 2 (+ (item-size init-ret) (item-size body-ret)))
+		1000000))]
      
      [(ift? x)
       (define t-ret (inner (ift-t x)))
