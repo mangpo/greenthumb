@@ -137,21 +137,31 @@
   (define index-map (syninfo-indexmap info))
   (define mem-size (syninfo-memsize info))
 
-  (define (renameindex ast)
+  (define (decompress-code code)
+    (traverse code [block? modify-index] [forloop? modify-bound]))
+
+  (define (modify-index ast)
     (define body (string-split (block-body ast)))
-    (define rename-set (track-index body))
+    (define modify-set (track-index body))
     (define new-body
       (for/list ([inst body]
                  [i (in-range (length body))])
-                (if (and (set-member? rename-set i) 
+                (if (and (set-member? modify-set i) 
                          (dict-has-key? index-map (string->number inst)))
                     (number->string (dict-ref index-map (string->number inst)))
                     inst)))
     (block (string-join new-body) (block-org ast) (block-info ast)))
 
+  (define (modify-bound ast)
+    (forloop (original (forloop-init ast)) 
+             (decompress-code (forloop-body ast))
+             (forloop-bound ast)))
+
   (define (decompress-verify)
     (pretty-display ">>> Decompress & verify")
-    (define code (traverse code-compressed block? renameindex))
+    (define code (traverse code-compressed 
+                           [block? modify-index]
+                           [forloop? modify-bound]))
     (define spec (original code-compressed))
     (define org-prefix (original prefix))
     (pretty-display "decompressed-program:")

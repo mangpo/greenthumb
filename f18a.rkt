@@ -428,7 +428,9 @@
 ;; (cons mem-size recv-size)
 (define (generate-info program spec #:prefix [prefix (list)])
   (pretty-display ">>> generate-info >>>")
-  (syninfo (program-memsize program) (number-of-recv (append prefix spec)) (program-indexmap program)))
+  (syninfo (program-memsize program) 
+           (number-of-recv (append prefix spec)) 
+           (program-indexmap program)))
 
 ;; Generate output constraint for synthesizer.
 (define (generate-constraint func spec #:prefix [prefix (list)])
