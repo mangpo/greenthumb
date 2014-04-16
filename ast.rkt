@@ -38,7 +38,10 @@
                 [(-ift? x)    (-ift (f (-ift-t x)))]
                 [(-iftf? x)   (-iftf (f (-iftf-t x)) (f (-iftf-f x)))]
                 [(item? x)    (f (item-x x))]
-                [else         (raise (format "traverse: unimplemented for ~a" x))]
+                [(label? x)   (label (label-name x) (f (label-body x)) (label-info x))]
+                [(program? x) 
+                 (program (f (program-code x)) (program-memsize x) (program-indexmap x))]
+                [else x]
                 ))])
        (f program)))
 
@@ -164,3 +167,6 @@
 (define (original program)
   (traverse program block? 
             (lambda (x) (block (block-org x) (block-org x) (block-info x)))))
+
+(define (concrete-in x lst)
+  (and (member x lst) #t))

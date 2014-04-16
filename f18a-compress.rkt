@@ -1,4 +1,4 @@
-#lang s-exp rosette
+#lang racket
 
 (require "state.rkt" "stack.rkt" "f18a.rkt" "ast.rkt")
 

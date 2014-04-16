@@ -49,14 +49,15 @@
 ;;             (default-state)
 ;;             program-eq?)
 
-;; (program-eq? (encode "1 !b") (encode "!b")
-;;              (syninfo 1 0 #f) (constraint t memory))
+(program-eq? (encode "a! over or dup a and or or") (encode "- push over or pop and or")
+             (syninfo 0 0 #f) (constraint t)
+             #:assume (constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
 
-(print-struct
-(binary-search (block "1 65536 2* +" #f #f)
-               (syninfo 0 0 #f)
-               (constraint t)
-	       #:prefix (list (block "-131071" #f #f))))
+;; (print-struct
+;; (binary-search (block "1 65536 2* +" #f #f)
+;;                (syninfo 0 0 #f)
+;;                (constraint t)
+;; 	       #:prefix (list (block "-131071" #f #f))))
 
 ;; (print-struct
 ;; (linear-search (encode (list (block "1 65536 2* +" #f #f)))

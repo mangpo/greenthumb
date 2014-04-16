@@ -7,13 +7,8 @@
          interpret assert-output assume
          ;; for controller
          encode decode get-size
-         get-length-limit merge-blocks
-         generate-sketch generate-info generate-constraint generate-assumption
-         ;; for naive code-gen
-         blockinfo labelinfo)
-
-(struct blockinfo (cnstr recv))
-(struct labelinfo (data return simple))
+         get-length-limit merge-blocks modify-blockinfo
+         generate-sketch generate-info generate-constraint generate-assumption)
 
 (define debug #f)
 
@@ -279,6 +274,7 @@
   (check-comm)
   (check-cost)
   )
+  
 
 ;; Assert assumption about start-state
 (define (assume state constraint)
@@ -435,9 +431,16 @@
 ;; Generate output constraint for synthesizer.
 (define (generate-constraint func spec #:prefix [prefix (list)])
   (pretty-display ">>> generate-constraint >>>")
-  (create-constraint (blockinfo-cnstr (block-info (last-block spec))) 
-                     (labelinfo-data (label-info func))
-                     (labelinfo-return (label-info func))))
+  (blockinfo-cnstr (block-info (last-block spec))))
+
+;; Transform blockinfo-cnstr into progstate format.
+(define (modify-blockinfo b func)
+  (block (block-body b) 
+         (block-org b) 
+         (blockinfo (create-constraint (blockinfo-cnstr (block-info b))
+                                       (labelinfo-data (label-info func))
+                                       (labelinfo-return (label-info func)))
+                    (blockinfo-recv (block-info b)))))
 
 ;; Generate assumption for synthesizer.
 (define (generate-assumption spec #:prefix [prefix (list)])

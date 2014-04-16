@@ -1,12 +1,8 @@
+- constraint in block not blockinfo
 - debug md5
-
-- test prefix
-  = with assumption
-  = with indexrename
-  = change size-limit back to 16
-
-- time assume benchmark with 2 CEs
-- udlr
+- prefix
+  = test with core with if & for and no function call
+  
 - database
 - less conservative complexity-estimator, define-if, define-rotate
 

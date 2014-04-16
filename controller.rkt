@@ -2,7 +2,7 @@
 
 (require 
  ;; ISA independent
- "ast.rkt"
+ "ast.rkt" "liveness.rkt"
  ;; ISA dependent
  "f18a.rkt" "state.rkt" "f18a-compress.rkt")
 
@@ -452,16 +452,23 @@
     
     ;; optimize-func body
     (if (label? func)
-        (let ([opt (optimize-struct (wrap (label-body func) get-size))])
-          (pretty-display "FINISH")
-          (label (label-name func) opt (label-info func)))
-	func))
+        (let ([body 
+               (traverse (label-body func) block? (lambda (x) (modify-blockinfo x func)))])
+          (pretty-display "here 2")
+          (relax-constraint body func prog)
+          (print-struct body)
+          (raise "done")
+          (let ([opt (optimize-struct (wrap body get-size))])
+            (pretty-display "FINISH")
+            (label (label-name func) opt (label-info func))))
+        func))
   
   ;; optimize body
   (if prog
       (let ([code (program-code prog)]
             [memsize (program-memsize prog)]
             [indexmap (program-indexmap prog)])
+        (pretty-display "here 1")
         (program (map optimize-func code)
                  (if indexmap (dict-ref indexmap memsize) memsize)
                  indexmap))

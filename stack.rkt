@@ -23,6 +23,10 @@
 (define (get-stack stack i)
   (vector-ref (stack-body stack) (modulo- (- (stack-sp stack) i) 8)))
 
+;;; Set item i in the stack
+(define (set-stack! stack i x)
+  (vector-set! (stack-body stack) (modulo- (- (stack-sp stack) i) 8) x))
+
 ;;; Pushes a value to the given stack's body.
 (define (push-stack! stack value)
   (set-stack-sp! stack (modulo+ (add1 (stack-sp stack)) 8))

@@ -5,6 +5,8 @@
 (provide (all-defined-out))
 
 (struct syninfo   (memsize recv indexmap))
+(struct blockinfo (cnstr recv))
+(struct labelinfo (data return simple))
 
 (struct progstate (a b r s t data return memory recv comm cost) 
         #:mutable #:transparent)
@@ -21,7 +23,7 @@
 ;;; everything *except* the given fields, start with the except
 ;;; keyword: `(constrain except t)' constrains everything but t. 
 (define-syntax constraint
-  (syntax-rules (except data return)
+  (syntax-rules (except data return none)
 
     ((constraint (return val1) (data val2) var ...)  
      (struct-copy progstate constraint-none [return val1] [data val2] [var #t] ...))
