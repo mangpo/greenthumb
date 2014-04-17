@@ -1,5 +1,6 @@
 #lang racket
 
+(require "state.rkt")
 (provide (all-defined-out))
 
 (struct block (body org info))
@@ -52,12 +53,13 @@
   ;; (pretty-display `(last-block ,x))
   (cond
    [(block? x)   x]
-   [(list? x)    (last-block (last x))]
+   [(list? x)    (ormap last-block (reverse x))]
    [(forloop? x) (last-block (forloop-body x))]
    [(ift? x)     (last-block (ift-t x))]
    [(iftf? x)    (last-block (iftf-t x))]
    [(-ift? x)    (last-block (-ift-t x))]
    [(-iftf? x)   (last-block (-iftf-t x))]
+   [(or (call? x) (special? x)) #f]
    [else         (raise (format "last-block: unimplemented for ~a" x))]))
 
 ;; Wrap every object inside item object and calculate its size.
@@ -117,7 +119,9 @@
     (pretty-display (format "~a)" indent))]
 
    [(block? x)
-    (pretty-display (format "~a(block ~a)" indent (block-body x)))]
+    (pretty-display (format "~a(block ~a" indent (block-body x)))
+    (print-blockinfo (block-info x) (inc indent))
+    (pretty-display ")")]
 
    [(forloop? x)
     (pretty-display (format "~a(forloop" indent))

@@ -126,17 +126,17 @@
        )))
   state)
 
-(define (create-constraint lst extra-data extra-return)
+(define (create-constraint lst extra-data extra-return memsize)
   (define a #f) 
   (define b #f) 
-  (define memory #f)
+  (define memory (make-vector memsize #f))
   (define data extra-data)
   (define return extra-return)
   (for ([i lst])
        (cond
         [(equal? i 'a)      (set! a #t)]
         [(equal? i 'b)      (set! b #t)]
-        [(equal? i 'memory) (set! memory #t)]
+        [(equal? i 'memory) (set! memory(make-vector memsize #t))]
         [(and (pair? i) (equal? (car i) 'data))   (set! data (+ data (cdr i)))]
         [(and (pair? i) (equal? (car i) 'return)) (set! return (+ return (cdr i)))]
         [else (raise (format "create-constraint: unimplemented for ~a" i))]))
@@ -190,3 +190,9 @@
   (display-comm state)
   (pretty-display (format "cost: ~a" (progstate-cost state)))
   )
+
+(define (print-blockinfo x indent)
+  (if x
+      (display (format "~a(blockinfo ~a ~a)" indent (blockinfo-cnstr x) (blockinfo-recv x)))
+      (display (format "~a#f" indent))))
+  

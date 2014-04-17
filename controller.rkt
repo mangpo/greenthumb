@@ -308,7 +308,7 @@
       (optimize-cost simple-x 
 		     (generate-sketch simple-x) 
 		     (generate-info prog simple-x #:prefix simple-prefix) 
-		     (generate-constraint func simple-x #:prefix simple-prefix)
+		     (generate-constraint simple-x)
 		     (generate-assumption x #:prefix prefix)
 		     #:prefix simple-prefix)
       )
@@ -452,12 +452,10 @@
     
     ;; optimize-func body
     (if (label? func)
-        (let ([body 
-               (traverse (label-body func) block? (lambda (x) (modify-blockinfo x func)))])
-          (pretty-display "here 2")
+        (let ([body (traverse (label-body func) 
+                              block? (lambda (x) (modify-blockinfo x func prog)))])
           (relax-constraint body func prog)
           (print-struct body)
-          (raise "done")
           (let ([opt (optimize-struct (wrap body get-size))])
             (pretty-display "FINISH")
             (label (label-name func) opt (label-info func))))
@@ -468,7 +466,6 @@
       (let ([code (program-code prog)]
             [memsize (program-memsize prog)]
             [indexmap (program-indexmap prog)])
-        (pretty-display "here 1")
         (program (map optimize-func code)
                  (if indexmap (dict-ref indexmap memsize) memsize)
                  indexmap))

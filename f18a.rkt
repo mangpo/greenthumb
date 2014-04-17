@@ -238,11 +238,13 @@
                 `progstate-x))))
   
   (define-syntax-rule (check-mem)
-    (when (progstate-memory constraint)
-      (define mem1 (progstate-memory state1))
-      (define mem2 (progstate-memory state2))
+    (let ([mem1 (progstate-memory state1)]
+          [mem2 (progstate-memory state2)]
+          [mem-const (progstate-memory constraint)])
       (for ([i (in-range 0 (vector-length mem1))])
-        (assert (equal? (vector-ref mem1 i) (vector-ref mem2 i)) `progstate-mem))))
+           (when (vector-ref mem-const i)
+                 (assert (equal? (vector-ref mem1 i) (vector-ref mem2 i)) 
+                         `progstate-mem)))))
   
   (define-syntax-rule (check-comm)
     (when (progstate-comm constraint)
@@ -429,17 +431,19 @@
            (program-indexmap program)))
 
 ;; Generate output constraint for synthesizer.
-(define (generate-constraint func spec #:prefix [prefix (list)])
+(define (generate-constraint spec)
   (pretty-display ">>> generate-constraint >>>")
   (blockinfo-cnstr (block-info (last-block spec))))
 
 ;; Transform blockinfo-cnstr into progstate format.
-(define (modify-blockinfo b func)
+(define (modify-blockinfo b func prog)
   (block (block-body b) 
          (block-org b) 
          (blockinfo (create-constraint (blockinfo-cnstr (block-info b))
                                        (labelinfo-data (label-info func))
-                                       (labelinfo-return (label-info func)))
+                                       (labelinfo-return (label-info func))
+                                       (program-memsize prog)
+                                       )
                     (blockinfo-recv (block-info b)))))
 
 ;; Generate assumption for synthesizer.
