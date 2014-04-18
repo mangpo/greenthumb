@@ -23,8 +23,10 @@
   (set-progstate-memory! start-cnstr start-mem-cnstr)
 
   (define-syntax-rule (check read-start set-start! target)
-    (when (concrete-in (read-start start) target)
-          (set-start! start-cnstr #t)))
+    (let ([x (read-start start)])
+      ;; (pretty-display `(check ,x ,target))
+      (when (concrete-in x target)
+	    (set-start! start-cnstr #t))))
 
   (define-syntax-rule (check-stack progstate-stack target)
     ;; Don't change stack constraints
@@ -38,6 +40,7 @@
                  (vector-set! start-mem-cnstr i #t)))))
 
   (define (check-entire target)
+    ;; (pretty-display `(check-entire ,target))
     (check progstate-a set-progstate-a! target)
     (check progstate-b set-progstate-b! target)
     (check progstate-r set-progstate-r! target)
@@ -69,8 +72,12 @@
                  (when target (check-entire (symbolics val)))))))
 
   (define (live-comm)
-    (for ([i (progstate-comm end)])
-         (check-entire (symbolics i))))
+    ;; (for ([i (progstate-comm end)])
+    ;;      (check-entire (symbolics i)))
+    (for/all ([o (progstate-comm end)])
+	     (for ([i o])
+		  (check-entire (symbolics i))))
+    )
       
   (pretty-display "check live-reg")
   (live-reg progstate-a)
@@ -80,7 +87,9 @@
   (live-reg progstate-t)
   (live-stack progstate-data)
   (live-stack progstate-return)
+  (pretty-display "check live-mem")
   (live-mem)
+  (pretty-display "check live-comm")
   (live-comm)
   (pretty-display "done check live")
 

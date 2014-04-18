@@ -1,6 +1,6 @@
 #lang racket
 
-(require "controller.rkt" "ast.rkt" "f18a.rkt")
+(require "controller.rkt" "ast.rkt" "f18a.rkt" "state.rkt")
 
 (define a
   (program
@@ -247,5 +247,5 @@
    0 #f))
 
 (define t (current-seconds))
-(print-syntax (optimize j) 2 2 0)
+(print-syntax (optimize i) 2 2 0)
 (pretty-display `(time ,(- (current-seconds) t)))
