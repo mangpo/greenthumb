@@ -1,5 +1,7 @@
 - constraint in block not blockinfo
-- debug md5
+- debug md5-1
+- found->timeout->shrink :(
+- shirink->nothing added->no optimizing :(
 - prefix
   = test with core with if & for and no function call
   

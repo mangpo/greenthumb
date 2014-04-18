@@ -187,13 +187,19 @@
     (set! final-program out-program)
     (inner out-cost))
 
-  (with-handlers* ([exn:fail? (lambda (e) 
-                                (if (regexp-match #rx"synthesize: synthesis failed" 
-                                                  (exn-message e))
-				    (if (empty? prefix)
-					final-program
-					(drop final-program (length prefix)))
-                                    (raise e)))])
+  (with-handlers* 
+   ([exn:fail? (lambda (e) 
+                 (if (regexp-match #rx"synthesize: synthesis failed" (exn-message e))
+                     (if (empty? prefix)
+                         final-program
+                         (drop final-program (length prefix)))
+                     (raise e)))]
+    [exn:break? (lambda (e) 
+                  (if final-program
+                      (if (empty? prefix)
+                          final-program
+                          (drop final-program (length prefix)))
+                      "timeout"))])
     (inner #f)))
 
 ;; Optimize the cost using binary search on the number of holes.
@@ -232,11 +238,15 @@
         (inner begin middle out-cost)
         (and (< middle end) (inner (add1 middle) end cost))))
   
-  (inner 1 (get-size (block-body spec)) #f)
+  (with-handlers 
+   ([exn:break? (lambda (e) (unless final-program (set! final-program "timeout")))])
+   (inner 1 (get-size (block-body spec)) #f))
+
   (pretty-display "after inner")
-  (and final-program
-       (let ([last-block (last final-program)])
-	 (list (block (block-body last-block) (block-org spec) (block-info spec))))))
+  (if (list? final-program)
+      (let ([last-block (last final-program)])
+        (list (block (block-body last-block) (block-org spec) (block-info spec))))
+      final-program))
 
 (define (optimize-cost spec sketch info constraint assumption #:prefix [prefix (list)])
   ;; if structure -> linear search
@@ -256,18 +266,18 @@
   (pretty-display "ASSUMPTION >>")
   (print-struct assumption)
 
-  (with-handlers 
-   ([exn:break? (lambda (e) "timeout")])
-   (define output-compressed
-     (if (and (= (length spec) 1) (block? (car spec)))
-         (binary-search (car spec) info constraint assumption #:prefix prefix)
-         (linear-search (encode spec) 
-                        (encode sketch) info constraint assumption #:prefix (encode prefix))))
+  (define output-compressed
+    (if (and (= (length spec) 1) (block? (car spec)))
+        (binary-search (car spec) info constraint assumption #:prefix prefix)
+        (linear-search (encode spec) 
+                       (encode sketch) info constraint assumption #:prefix (encode prefix))))
    
    ;; Decompress and verfiy
-   (if output-compressed
-       (decompress output-compressed info constraint assumption program-eq? #:prefix prefix)
-       "same"))
+  (cond
+   [(equal? output-compressed "timeout") "timeout"]
+   [(list? output-compressed) 
+    (decompress output-compressed info constraint assumption program-eq? #:prefix prefix)]
+   [else "same"])
   )
 
 ;; Merge consecutive blocks into one block, and get rid of item object.
@@ -348,7 +358,8 @@
 	      (pretty-display `(res ,res))
 	      (cond
 	       [(equal? res "same")
-		(set! need-opt #f)
+                (when (= (length buffer) (length work))
+                  (set! need-opt #f))
 		(pretty-display "sliding-window: same->slide")
 		(define first-unit (get-first-unit work))
 		(append-org-output first-unit)

@@ -478,4 +478,5 @@
 5 #f)
 )
 
-(optimize d)
+(print-struct
+(optimize d))
