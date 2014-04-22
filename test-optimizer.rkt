@@ -246,6 +246,29 @@
     )
    0 #f))
 
+(define k
+(program 
+  (list 
+    (label "cadd"
+      (list 
+        (block
+          "dup drop 4 b! !b"
+          "dup drop 14 b! !b"
+          (blockinfo '((data . -3) (return . 0) memory ) 0))
+        (block
+          "4 b! @b"
+          "14 b! @b"
+          (blockinfo '((data . -1) (return . 0) memory ) 0))
+        (block
+          "dup"
+          "dup"
+          (blockinfo '((data . -2) (return . 0)) 0))
+      )
+      (labelinfo 4 3 #f))
+  )
+7 #hash((0 . 0) (2 . 10) (3 . 13) (4 . 14) (6 . 19) (7 . 20)))
+)
+
 (define t (current-seconds))
-(print-syntax (optimize i) 2 2 0)
+(print-syntax (optimize k) 2 2 0)
 (pretty-display `(time ,(- (current-seconds) t)))

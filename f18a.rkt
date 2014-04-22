@@ -228,11 +228,14 @@
 (define (assert-output state1 state2 constraint cost)
   (define (check-reg progstate-x)
     (when (progstate-x constraint)
+      ;(pretty-display `(check-reg ,(equal? (progstate-x state1) (progstate-x state2))))
       (assert (equal? (progstate-x state1) (progstate-x state2)) `progstate-x)))
   
   (define-syntax-rule (check-stack progstate-x)
     (when (progstate-x constraint)
       (for ([i (in-range (progstate-x constraint))])
+           ;; (pretty-display `(check-stack ,(equal? (get-stack (progstate-x state1) i) 
+           ;;                                        (get-stack (progstate-x state2) i))))
         (assert (equal? (get-stack (progstate-x state1) i) 
                    (get-stack (progstate-x state2) i))
                 `progstate-x))))
@@ -243,11 +246,15 @@
           [mem-const (progstate-memory constraint)])
       (for ([i (in-range 0 (vector-length mem1))])
            (when (vector-ref mem-const i)
+                 ;(pretty-display `(check-mem ,(equal? (vector-ref mem1 i) (vector-ref mem2 i))))
                  (assert (equal? (vector-ref mem1 i) (vector-ref mem2 i)) 
-                         `progstate-mem)))))
+                         `progstate-mem)))
+    ))
   
   (define-syntax-rule (check-comm)
     (when (progstate-comm constraint)
+          ;; (pretty-display `(check-comm-length ,(equal? (length (progstate-comm state1)) 
+          ;;                                              (length (progstate-comm state2)))))
           (assert (equal? (length (progstate-comm state1)) 
                           (length (progstate-comm state2))) `comm-length)
           (for*/all ([j1 (progstate-comm state1)]
@@ -260,6 +267,7 @@
   
   (define-syntax-rule (check-cost)
     (when (progstate-cost constraint)
+          ;(pretty-display "check-cost")
           (if cost
               (assert (< (progstate-cost state2) cost) `progstate-cost)
               (assert (< (progstate-cost state2) (progstate-cost state1)) 

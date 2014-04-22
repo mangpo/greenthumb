@@ -133,12 +133,37 @@
   
   index-set)
 
-(define (decompress code-compressed info constraint assumption program-eq? #:prefix [prefix (list)])
+(define (decompress code-compressed info constraint assumption program-eq? 
+                    #:prefix [prefix (list)])
   (define index-map (syninfo-indexmap info))
   (define mem-size (syninfo-memsize info))
+  (define real-size (dict-ref index-map mem-size))
 
   (define (decompress-code code)
     (traverse code [block? modify-index] [forloop? modify-bound]))
+
+  (define (decompress-constraint x)
+    (define mem-small (progstate-memory x))
+    (define mem-full (make-vector real-size #f))
+    (define from-full 0)
+    (define last-val #f)
+
+    (for ([s (in-range mem-size)])
+         (when (hash-has-key? index-map s)
+               (let ([to-full (dict-ref index-map s)])
+                 (for ([f (in-range from-full to-full)])
+                      (vector-set! mem-full f last-val))
+                 (set! from-full to-full)
+                 (set! last-val (vector-ref mem-small s)))))
+
+    (for ([f (in-range from-full real-size)])
+         (vector-set! mem-full f last-val))
+
+    ;; (pretty-display `(index-map ,index-map))
+    ;; (pretty-display `(mem-small ,mem-small))
+    ;; (pretty-display `(mem-full ,mem-full))
+
+    (struct-copy progstate x [memory mem-full]))
 
   (define (modify-index ast)
     (define body (string-split (block-body ast)))
@@ -170,10 +195,11 @@
     (print-struct spec)
     (if (program-eq? (encode (append org-prefix code)) 
 		     (encode (append org-prefix spec))
-                     (syninfo (dict-ref index-map mem-size)
+                     (syninfo real-size
                               (syninfo-recv info)
                               (syninfo-indexmap info))
-                     constraint #:assume assumption)
+                     (decompress-constraint constraint) 
+                     #:assume assumption)
         code
         "same"))
   

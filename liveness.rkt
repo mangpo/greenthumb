@@ -24,18 +24,18 @@
   (define (analyze x cnstr)
     (cond
      [(list? x) 
-      (pretty-display `(analyze list ,cnstr))
+      ;(pretty-display `(analyze list ,cnstr))
       (foldr analyze cnstr x)]
      
      [(block? x) 
-      (pretty-display `(analyze block ,cnstr))
+      ;(pretty-display `(analyze block ,cnstr))
       (live x cnstr)]
      
      [(forloop? x)
-      (pretty-display `(analyze forloop))
+      ;(pretty-display `(analyze forloop))
       (define (inner body cnstr-old)
         (define cnstr-new (analyze body cnstr-old))
-        (pretty-display `(analyze forloop inner ,cnstr-old ,cnstr-new ,(contain cnstr-old cnstr-new)))
+        ;(pretty-display `(analyze forloop inner ,cnstr-old ,cnstr-new ,(contain cnstr-old cnstr-new)))
         (if (contain cnstr-old cnstr-new)
             (analyze (forloop-init x) cnstr-old)
             (inner body (union cnstr-new cnstr-old))))
@@ -56,7 +56,7 @@
       (union t f)]
      
      [(or (call? x) (assumption? x))
-      (pretty-display `(analyze call ,cnstr))
+      ;(pretty-display `(analyze call ,cnstr))
       cnstr ;; TODO: check
       ]
      
