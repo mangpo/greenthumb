@@ -137,12 +137,12 @@
                     #:prefix [prefix (list)])
   (define index-map (syninfo-indexmap info))
   (define mem-size (syninfo-memsize info))
-  (define real-size (dict-ref index-map mem-size))
 
   (define (decompress-code code)
     (traverse code [block? modify-index] [forloop? modify-bound]))
 
   (define (decompress-constraint x)
+    (define real-size (dict-ref index-map mem-size))
     (define mem-small (progstate-memory x))
     (define mem-full (make-vector real-size #f))
     (define from-full 0)
@@ -195,7 +195,7 @@
     (print-struct spec)
     (if (program-eq? (encode (append org-prefix code)) 
 		     (encode (append org-prefix spec))
-                     (syninfo real-size
+                     (syninfo (dict-ref index-map mem-size)
                               (syninfo-recv info)
                               (syninfo-indexmap info))
                      (decompress-constraint constraint) 
