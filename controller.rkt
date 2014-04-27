@@ -465,6 +465,7 @@
     (if (label? func)
         (let ([body (traverse (label-body func) 
                               block? (lambda (x) (modify-blockinfo x func prog)))])
+          (pretty-display ">>> optimize-func >>>")
           (relax-constraint body func prog)
           (print-struct body)
           (let ([opt (optimize-struct (wrap body get-size))])

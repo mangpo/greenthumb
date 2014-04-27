@@ -63,7 +63,9 @@
      [else (raise (format "relax-constraint: analyze: unimplemented for ~a" x))]
      ))
   
-  ;; (define (f x)
-  ;;   (block (block-body x) (block-org x) 
-  ;; (traverse (label-body func) block? f)
-  (analyze code (generate-constraint (last-block code))))
+  (when debug
+        (pretty-display "RELAX CONSTRAINT")
+        (print-struct code))
+  (define b (last-block code))
+  ;; If b is #f, no need to perform liveness analysis.
+  (when b (analyze code (generate-constraint b))))
