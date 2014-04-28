@@ -50,12 +50,6 @@
   (define recv (progstate-recv state))
   (define comm (progstate-comm state))
 
-  ;; Objective cost to be optimized.
-  (define len-cost 0)
-
-  (define-syntax-rule (len-add x)
-    (set! len-cost (+ len-cost x)))
-
   ;;; Pushes to the data stack.
   (define (push! value)
     (push-stack! data s)
@@ -141,37 +135,36 @@
       (set! t (>> sum 1))))
   
   (define (interpret-step inst-const)
-    (when debug (pretty-display `(interpret-step ,inst-const ,len-cost)))
+    (when debug (pretty-display `(interpret-step ,inst-const)))
     (define inst (car inst-const))
     (define const (cdr inst-const))
     (define-syntax-rule (inst-eq x) (= inst (vector-member x inst-id)))
     (cond
-     [(inst-eq `@p)   (push! const) (len-add 5)]
-     [(inst-eq `@+)   (push! (read-memory a)) (set! a (add1 a)) (len-add 1)]
-     [(inst-eq `@b)   (push! (read-memory b)) (len-add 1)]
-     [(inst-eq `@)    (push! (read-memory a)) (len-add 1)]
-     [(inst-eq `!+)   (set-memory! a (pop!)) (set! a (add1 a)) (len-add 1)]
-     [(inst-eq `!b)   (set-memory! b (pop!)) (len-add 1)]
-     [(inst-eq `!)    (set-memory! a (pop!)) (len-add 1)]
+     [(inst-eq `@p)   (push! const)]
+     [(inst-eq `@+)   (push! (read-memory a)) (set! a (add1 a))]
+     [(inst-eq `@b)   (push! (read-memory b))]
+     [(inst-eq `@)    (push! (read-memory a))]
+     [(inst-eq `!+)   (set-memory! a (pop!)) (set! a (add1 a))]
+     [(inst-eq `!b)   (set-memory! b (pop!))]
+     [(inst-eq `!)    (set-memory! a (pop!))]
      [(inst-eq `+*)   (if (= (bitwise-and #x1 a) 0)
                           (multiply-step-even!)
-                          (multiply-step-odd!))
-                      (len-add 1)]
-     [(inst-eq `2*)   (set! t (clip (<< t 1))) (len-add 1)]
-     [(inst-eq `2/)   (set! t (>> t 1)) (len-add 1)] ;; sign shiftx
-     [(inst-eq `-)    (set! t (bitwise-not t)) (len-add 1)]
-     [(inst-eq `+)    (push! (clip (+ (pop!) (pop!)))) (len-add 2)]
-     [(inst-eq `and)  (push! (bitwise-and (pop!) (pop!))) (len-add 1)]
-     [(inst-eq `or)   (push! (bitwise-xor (pop!) (pop!))) (len-add 1)]
-     [(inst-eq `drop) (pop!) (len-add 1)]
-     [(inst-eq `dup)  (push! t) (len-add 1)]
-     [(inst-eq `pop)  (push! (r-pop!)) (len-add 1)]
-     [(inst-eq `over) (push! s) (len-add 1)]
-     [(inst-eq `a)    (push! a) (len-add 1)]
-     [(inst-eq `nop)  (void) (len-add 0)]
-     [(inst-eq `push) (r-push! (pop!)) (len-add 1)]
-     [(inst-eq `b!)   (set! b (pop!)) (len-add 1)]
-     [(inst-eq `a!)   (set! a (pop!)) (len-add 1)]
+                          (multiply-step-odd!))]
+     [(inst-eq `2*)   (set! t (clip (<< t 1)))]
+     [(inst-eq `2/)   (set! t (>> t 1))] ;; sign shiftx
+     [(inst-eq `-)    (set! t (bitwise-not t))]
+     [(inst-eq `+)    (push! (clip (+ (pop!) (pop!))))]
+     [(inst-eq `and)  (push! (bitwise-and (pop!) (pop!)))]
+     [(inst-eq `or)   (push! (bitwise-xor (pop!) (pop!)))]
+     [(inst-eq `drop) (pop!)]
+     [(inst-eq `dup)  (push! t)]
+     [(inst-eq `pop)  (push! (r-pop!))]
+     [(inst-eq `over) (push! s)]
+     [(inst-eq `a)    (push! a)]
+     [(inst-eq `nop)  (void)]
+     [(inst-eq `push) (r-push! (pop!))]
+     [(inst-eq `b!)   (set! b (pop!))]
+     [(inst-eq `a!)   (set! a (pop!))]
      [else (assert #f (format "invalid instruction ~a" inst))]
      ))
 
@@ -216,9 +209,38 @@
 
      [else (raise (format "interpret-struct: unimplemented for ~a" x))]
      ))
+
+  (define (cost-step inst-const)
+    (define inst (car inst-const))
+    (define-syntax-rule (inst-eq x) (= inst (vector-member x inst-id)))
+    (cond
+     [(inst-eq `+) 2]
+     [(inst-eq `nop) 0]
+     [else 1]))
+
+  (define (cost-struct x)
+    ;(pretty-display `(cost-struct ,x))
+    (cond
+     [(list? x)
+      ;(pretty-display `(list ,(empty? x)))
+                   (if (empty? x)
+                       0
+                       (if (pair? (car x))
+                           (foldl (lambda (i all) (+ all (cost-step i))) 0 x)
+                           (foldl (lambda (i all) (+ all (cost-struct i))) 0 x)))]
+     [(block? x)   (cost-struct (block-body x))]
+     [(forloop? x) (+ (cost-struct (forloop-init x)) (cost-struct (forloop-body x)))]
+     [(ift? x)     (cost-struct (ift-t x))]
+     [(iftf? x)    (+ (cost-struct (iftf-t x)) (cost-struct (iftf-f x)))]
+     [(-ift? x)    (cost-struct (-ift-t x))]
+     [(-iftf? x)   (+ (cost-struct (-iftf-t x)) (cost-struct (-iftf-f x)))]
+     [else (raise (format "cost-struct: unimplemented for ~a" x))]
+     ))
     
   (interpret-struct program)
-  (progstate a b r s t data return memory recv comm len-cost)
+  (define cost (cost-struct program))
+  ;(pretty-display `(cost ,cost))
+  (progstate a b r s t data return memory recv comm cost)
   )
 
 ;; REQUIRED FUNCTION
@@ -267,7 +289,7 @@
   
   (define-syntax-rule (check-cost)
     (when (progstate-cost constraint)
-          ;(pretty-display "check-cost")
+          ;(pretty-display `(check-cost ,cost ,(progstate-cost state2) ,(progstate-cost state1)))
           (if cost
               (assert (< (progstate-cost state2) cost) `progstate-cost)
               (assert (< (progstate-cost state2) (progstate-cost state1)) 
@@ -282,7 +304,9 @@
   (check-stack progstate-return)
   (check-mem)
   (check-comm)
+  ;(pretty-display "check cost")
   (check-cost)
+  ;(pretty-display "done check cost")
   )
   
 

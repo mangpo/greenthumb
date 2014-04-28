@@ -50,8 +50,8 @@
   (define spec-state #f)
   (define sketch-state #f)
 
-  ;; (pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
-  ;; (display-state start-state)
+  (pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
+  (display-state start-state)
 
   ;; (define (interpret-spec-test)
   ;;   (define test-state (default-state info 0))
@@ -72,10 +72,10 @@
     (pretty-display "interpret sketch")
     (set! sketch-state (interpret bit sketch start-state spec-state))
     
-    ;; (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
-    ;; (display-state spec-state)
-    ;; (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
-    ;; (display-state sketch-state)
+    (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
+    (display-state spec-state)
+    (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
+    (display-state sketch-state)
     ;; (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
     ;; (pretty-display (get-sym-vars start-state))
     (pretty-display "check output")
@@ -189,7 +189,8 @@
 
   (with-handlers* 
    ([exn:fail? (lambda (e) 
-                 (if (regexp-match #rx"synthesize: synthesis failed" (exn-message e))
+                 (if (or (regexp-match #rx"synthesize: synthesis failed" (exn-message e))
+                         (regexp-match #rx"assert: progstate-cost" (exn-message e)))
                      (if (empty? prefix)
                          final-program
                          (drop final-program (length prefix)))

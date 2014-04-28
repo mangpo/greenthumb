@@ -269,6 +269,47 @@
 7 #hash((0 . 0) (2 . 10) (3 . 13) (4 . 14) (6 . 19) (7 . 20)))
 )
 
+(define l
+  (program
+   (list
+        (label "1if"
+      (list 
+        (-iftf 
+          (list 
+            (block
+              "drop"
+              "drop"
+              (blockinfo '((data . -1) (return . 0) memory ) 0))
+            (block
+              "dup"
+              "dup"
+              (blockinfo '((data . 0) (return . 0) memory ) 0))
+            (block
+              "16"
+              "16"
+              (blockinfo '((data . 1) (return . 0) memory ) 0))
+            (block
+              "- 1 + +"
+              "- 1 + +"
+              (blockinfo '((data . 0) (return . 0) memory ) 0))
+            (block
+              "push drop pop"
+              "push drop pop"
+              (blockinfo '((data . -1) (return . 0) memory ) 0))
+          )
+          (list 
+            (block
+              "drop"
+              "drop"
+              (blockinfo '((data . -1) (return . 0) memory ) 0))
+          )
+        )
+      )
+      (labelinfo 2 4 #f)))
+   0 #f)
+)
+   
+
 (define t (current-seconds))
-(print-syntax (optimize k) 2 2 0)
+(print-syntax (optimize l) 2 2 0)
 (pretty-display `(time ,(- (current-seconds) t)))

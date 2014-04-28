@@ -49,9 +49,9 @@
 ;;             (default-state)
 ;;             program-eq?)
 
-(program-eq? (encode "a! over or dup a and or or") (encode "- push over or pop and or")
-             (syninfo 0 0 #f) (constraint t)
-             #:assume (constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
+;; (program-eq? (encode "a! over or dup a and or or") (encode "- push over or pop and or")
+;;              (syninfo 0 0 #f) (constraint t)
+;;              #:assume (constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
 
 ;; (print-struct
 ;; (binary-search (block "1 65536 2* +" #f #f)
@@ -65,6 +65,39 @@
 ;;                (syninfo 0 0 #f)
 ;;                (constraint t)
 ;; 	       #:prefix (encode (list (block "-131071" #f #f)))))
+
+(print-struct
+(linear-search (encode 
+                      (list 
+                       (-iftf 
+                        (list 
+                         (block
+                          "drop dup 16 - 1 + + push drop pop"
+                          "drop dup 16 - 1 + + push drop pop"
+                          #f)
+                         )
+                        (list 
+                         (block
+                          "drop"
+                          "drop"
+                          (blockinfo '((data . -1) (return . 0) memory ) 0))
+                         ))))
+               (encode 
+                      (list 
+                       (-iftf 
+                        (list 
+                         (block
+                          "_ _ _ _ _ _ _ _ _ _"
+                          "drop dup 16 - 1 + + push drop pop"
+                          #f)
+                         )
+                        (list 
+                         (block
+                          "_"
+                          "drop"
+                          #f)))))
+               (syninfo 0 0 #f)
+               (constraint t)))
 
 ;; (linear-search (encode "1 2 3")
 ;;                (encode "_ _ _")
