@@ -272,10 +272,10 @@
                      ;;(pretty-display `(check-mem ,(equal? (vector-ref mem1 i) (vector-ref mem2 i))))
                      (assert (equal? (vector-ref mem1 i) (vector-ref mem2 i)) 
                              `progstate-mem)))
-          
-          (for ([i (in-range 0 (vector-length mem1))])
-               (assert (equal? (vector-ref mem1 i) (vector-ref mem2 i)) 
-                       `progstate-mem)))
+          (when mem-const
+                (for ([i (in-range 0 (vector-length mem1))])
+                     (assert (equal? (vector-ref mem1 i) (vector-ref mem2 i)) 
+                             `progstate-mem))))
     ))
   
   (define-syntax-rule (check-comm)
