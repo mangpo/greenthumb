@@ -4,7 +4,7 @@
 (provide relax-constraint)
 
 ;; TODO: check-memory with detail when synthesis
-(define debug #t)
+(define debug #f)
 
 (define (relax-constraint code func prog [bit 18])
 

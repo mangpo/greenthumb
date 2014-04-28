@@ -66,38 +66,38 @@
 ;;                (constraint t)
 ;; 	       #:prefix (encode (list (block "-131071" #f #f)))))
 
-(print-struct
-(linear-search (encode 
-                      (list 
-                       (-iftf 
-                        (list 
-                         (block
-                          "drop dup 16 - 1 + + push drop pop"
-                          "drop dup 16 - 1 + + push drop pop"
-                          #f)
-                         )
-                        (list 
-                         (block
-                          "drop"
-                          "drop"
-                          (blockinfo '((data . -1) (return . 0) memory ) 0))
-                         ))))
-               (encode 
-                      (list 
-                       (-iftf 
-                        (list 
-                         (block
-                          "_ _ _ _ _ _ _ _ _ _"
-                          "drop dup 16 - 1 + + push drop pop"
-                          #f)
-                         )
-                        (list 
-                         (block
-                          "_"
-                          "drop"
-                          #f)))))
-               (syninfo 0 0 #f)
-               (constraint t)))
+;; (print-struct
+;; (linear-search (encode 
+;;                       (list 
+;;                        (-iftf 
+;;                         (list 
+;;                          (block
+;;                           "drop dup 16 - 1 + + push drop pop"
+;;                           "drop dup 16 - 1 + + push drop pop"
+;;                           #f)
+;;                          )
+;;                         (list 
+;;                          (block
+;;                           "drop"
+;;                           "drop"
+;;                           (blockinfo '((data . -1) (return . 0) memory ) 0))
+;;                          ))))
+;;                (encode 
+;;                       (list 
+;;                        (-iftf 
+;;                         (list 
+;;                          (block
+;;                           "_ _ _ _ _ _ _ _ _ _"
+;;                           "drop dup 16 - 1 + + push drop pop"
+;;                           #f)
+;;                          )
+;;                         (list 
+;;                          (block
+;;                           "_"
+;;                           "drop"
+;;                           #f)))))
+;;                (syninfo 0 0 #f)
+;;                (constraint t)))
 
 ;; (linear-search (encode "1 2 3")
 ;;                (encode "_ _ _")
@@ -152,11 +152,13 @@
 
 ;;;;;;;;;;;;;;;; assume ;;;;;;;;;;;;;;;;;;
 
-;; (superoptimize (encode "0 a! !+ push !+ pop dup 1 b! @b 0 b! @b 65535 or over - and + or push drop pop")
-;;                (encode "_ _ _ _ _ _ _ _ _")
-;;                (syninfo 2 0 #f)
-;;                (constraint s t)
-;;                #:assume (constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
+(superoptimize (encode "0 a! !+ push !+ pop dup 1 b! @b 0 b! @b 65535 or over - and + or push drop pop")
+               ;;(encode "_ _ _ _ _ _ _ _ _")
+               (encode "a! over - 65535 a or and nop or or")
+               (syninfo 2 0 #f)
+               (constraint s t)
+               #:assume-interpret #f
+               #:assume (constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
 
 ;;;;;;;;;;;;;;;; no comm ;;;;;;;;;;;;;;;;;;
 ;; (superoptimize (encode "2 b! @b 3 b! !b 1 b! @b 2 b! !b")

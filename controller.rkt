@@ -33,10 +33,12 @@
 ;; info: additional information (e.g. memory size, # of receiveing data)
 ;; constraint: constraint on the output state
 ;; cost: upperbound (exclusive) of the cost of the output program
-(define (superoptimize spec sketch info constraint [cost #f]
+(define (superoptimize spec sketch info constraint 
+                       [cost #f]
+                       #:assume-interpret [assume-interpret #t]
                        #:bit [bit 18]
                        #:assume [assumption (default-state)])
-  (pretty-display "SUPERPOTIMIZE")
+  (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
   ;; (print-struct spec)
   ;; (print-struct sketch)
   ;; (pretty-display info)
@@ -50,8 +52,8 @@
   (define spec-state #f)
   (define sketch-state #f)
 
-  (pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
-  (display-state start-state)
+  ;; (pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
+  ;; (display-state start-state)
 
   ;; (define (interpret-spec-test)
   ;;   (define test-state (default-state info 0))
@@ -72,10 +74,10 @@
     (pretty-display "interpret sketch")
     (set! sketch-state (interpret bit sketch start-state spec-state))
     
-    (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
-    (display-state spec-state)
-    (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
-    (display-state sketch-state)
+    ;; (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
+    ;; (display-state spec-state)
+    ;; (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
+    ;; (display-state sketch-state)
     ;; (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
     ;; (pretty-display (get-sym-vars start-state))
     (pretty-display "check output")
@@ -95,7 +97,7 @@
   (for ([pair (solution->list (solve (interpret-spec)))])
        ;; (pretty-display `(pair ,pair))
        (when (hash-has-key? init-pair (car pair))
-             (pretty-display `(in-sol ,pair))
+             ;; (pretty-display `(in-sol ,pair))
              (hash-set! init-pair (car pair) (cdr pair))
              (hash-set! init-pair2 (car pair) (cdr pair))
              ))
@@ -116,7 +118,7 @@
               (sat (make-immutable-hash (hash->list init-pair)))
               (sat (make-immutable-hash (hash->list init-pair2)))
               )
-      #:assume (interpret-spec) ;; (assume start-state assumption)
+      #:assume (if assume-interpret (interpret-spec) (assume start-state assumption))
       #:guarantee (compare-spec-sketch))
      )
     )
@@ -174,15 +176,19 @@
 ;; Optimize the cost incrementally using fixed number of holes.
 ;; spec: encoded spec
 ;; sketch: encoded spec
-(define (linear-search spec sketch info constraint [assumption (default-state)] 
+(define (linear-search spec sketch info constraint 
+                       [assumption (default-state)] 
+                       [assume-interpret #t]
 		       #:prefix [prefix (list)])
   (define final-program #f)
   (define (inner cost)
     (define-values (out-program out-cost) 
       (if (empty? prefix)
 	  (superoptimize spec sketch info constraint cost 
+                         #:assume-interpret assume-interpret
 			 #:assume assumption)
 	  (superoptimize (append prefix spec) (append prefix sketch) info constraint cost 
+                         #:assume-interpret assume-interpret
 			 #:assume assumption)))
     (set! final-program out-program)
     (inner out-cost))
@@ -205,7 +211,9 @@
 
 ;; Optimize the cost using binary search on the number of holes.
 ;; spec: non-encoded block
-(define (binary-search spec info constraint [assumption (default-state)]
+(define (binary-search spec info constraint 
+                       [assumption (default-state)]
+                       [assume-interpret #t]
 		       #:prefix [prefix (list)])
   (define final-program #f)
   (define encoded-prefix (encode prefix))
@@ -229,6 +237,7 @@
         (superoptimize (append encoded-prefix (list encoded-spec)) 
 		       (append encoded-prefix (list encoded-sketch))
 		       info constraint cost 
+                       #:assume-interpret assume-interpret
                        #:assume assumption)))
     (pretty-display `(out ,out-program ,out-cost))
 
@@ -266,12 +275,17 @@
   (print-struct constraint)
   (pretty-display "ASSUMPTION >>")
   (print-struct assumption)
+  (pretty-display "INTERPRET FOR ASSUME? >>")
+  (define assume-interpret (interpret-for-assume? spec))
 
   (define output-compressed
     (if (and (= (length spec) 1) (block? (car spec)))
-        (binary-search (car spec) info constraint assumption #:prefix prefix)
+        (binary-search (car spec) info constraint assumption assume-interpret 
+                       #:prefix prefix)
         (linear-search (encode spec) 
-                       (encode sketch) info constraint assumption #:prefix (encode prefix))))
+                       (encode sketch) 
+                       info constraint assumption assume-interpret
+                       #:prefix (encode prefix))))
    
    ;; Decompress and verfiy
   (cond

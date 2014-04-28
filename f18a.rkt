@@ -7,7 +7,7 @@
          interpret assert-output assume
          ;; for controller
          encode decode get-size
-         get-length-limit merge-blocks modify-blockinfo
+         get-length-limit merge-blocks modify-blockinfo interpret-for-assume?
          generate-sketch generate-info generate-constraint generate-assumption)
 
 (define debug #f)
@@ -266,11 +266,16 @@
     (let ([mem1 (progstate-memory state1)]
           [mem2 (progstate-memory state2)]
           [mem-const (progstate-memory constraint)])
-      (for ([i (in-range 0 (vector-length mem1))])
-           (when (vector-ref mem-const i)
-                 ;(pretty-display `(check-mem ,(equal? (vector-ref mem1 i) (vector-ref mem2 i))))
-                 (assert (equal? (vector-ref mem1 i) (vector-ref mem2 i)) 
-                         `progstate-mem)))
+      (if (vector? mem-const)
+          (for ([i (in-range 0 (vector-length mem1))])
+               (when (vector-ref mem-const i)
+                     ;;(pretty-display `(check-mem ,(equal? (vector-ref mem1 i) (vector-ref mem2 i))))
+                     (assert (equal? (vector-ref mem1 i) (vector-ref mem2 i)) 
+                             `progstate-mem)))
+          
+          (for ([i (in-range 0 (vector-length mem1))])
+               (assert (equal? (vector-ref mem1 i) (vector-ref mem2 i)) 
+                       `progstate-mem)))
     ))
   
   (define-syntax-rule (check-comm)
@@ -304,9 +309,9 @@
   (check-stack progstate-return)
   (check-mem)
   (check-comm)
-  ;(pretty-display "check cost")
+  ;;(pretty-display "check cost")
   (check-cost)
-  ;(pretty-display "done check cost")
+  ;;(pretty-display "done check cost")
   )
   
 
@@ -524,6 +529,30 @@
      [else res]))
 
   (if (empty? prefix) (inner spec) (inner prefix)))
+
+(define (interpret-for-assume? code)
+  (define last-inst #f)
+  (define (f x)
+    (cond
+     [(block? x)
+      (define need-interpret #f)
+      (for ([inst (string-split (block-body x))])
+           (when (and (or (equal? inst "b!") (equal? inst "a!"))
+                      (equal? (string->number last-inst) #f)
+                      (not (member last-inst (list "up" "down" "left" "right" "io" "udlr"))))
+                 (set! need-interpret #t))
+           (set! last-inst inst))
+      need-interpret]
+     [(list? x)    (ormap f x)]
+     [(forloop? x) (or (f (forloop-init x)) (f (forloop-body x)))]
+     [(ift? x)     (f (ift-t x))]
+     [(iftf? x)    (or (f (iftf-t x)) (f (iftf-f x)))]
+     [(-ift? x)    (f (-ift-t x))]
+     [(-iftf? x)   (or (f (-iftf-t x)) (f (-iftf-f x)))]
+     [else (raise (format "interpret-for-assume?: unimplemented for ~a" x))]))
+  (define ret (f code))
+  (pretty-display `(interpret-for-assume? ,ret))
+  ret)
 
 (define (get-length-limit func)
   (if (labelinfo-simple (label-info func)) 1000 16))

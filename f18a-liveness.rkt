@@ -3,7 +3,7 @@
 (require "state.rkt" "stack.rkt" "ast.rkt")
 (provide extract-liveness set-constraint! contain union)
 
-(define debug #t)
+(define debug #f)
 
 ;; Return liveness of start
 ;; start    : symbolic input state
