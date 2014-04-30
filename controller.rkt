@@ -110,8 +110,8 @@
   ;; Using (assume start-state assumption) is faster.
 
   (define model 
-    (timeout
-     time-limit
+    ;(timeout
+     ;time-limit
      (synthesize 
       #:forall sym-vars
       #:init (list 
@@ -120,7 +120,7 @@
               )
       #:assume (if assume-interpret (interpret-spec) (assume start-state assumption))
       #:guarantee (compare-spec-sketch))
-     )
+     ;)
     )
 
   (define final-program (decode sketch model))
@@ -185,10 +185,10 @@
     (define-values (out-program out-cost) 
       (if (empty? prefix)
 	  (superoptimize spec sketch info constraint cost 
-                         #:assume-interpret assume-interpret
+                         ;#:assume-interpret assume-interpret
 			 #:assume assumption)
 	  (superoptimize (append prefix spec) (append prefix sketch) info constraint cost 
-                         #:assume-interpret assume-interpret
+                         ;#:assume-interpret assume-interpret
 			 #:assume assumption)))
     (set! final-program out-program)
     (inner out-cost))
@@ -237,7 +237,7 @@
         (superoptimize (append encoded-prefix (list encoded-spec)) 
 		       (append encoded-prefix (list encoded-sketch))
 		       info constraint cost 
-                       #:assume-interpret assume-interpret
+                       ;#:assume-interpret assume-interpret
                        #:assume assumption)))
     (pretty-display `(out ,out-program ,out-cost))
 
@@ -276,15 +276,15 @@
   (pretty-display "ASSUMPTION >>")
   (print-struct assumption)
   (pretty-display "INTERPRET FOR ASSUME? >>")
-  (define assume-interpret (interpret-for-assume? spec))
+  ;(define assume-interpret (interpret-for-assume? spec))
 
   (define output-compressed
     (if (and (= (length spec) 1) (block? (car spec)))
-        (binary-search (car spec) info constraint assumption assume-interpret 
+        (binary-search (car spec) info constraint assumption ;assume-interpret 
                        #:prefix prefix)
         (linear-search (encode spec) 
                        (encode sketch) 
-                       info constraint assumption assume-interpret
+                       info constraint assumption ;assume-interpret
                        #:prefix (encode prefix))))
    
    ;; Decompress and verfiy

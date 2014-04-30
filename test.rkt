@@ -152,19 +152,19 @@
 
 ;;;;;;;;;;;;;;;; assume ;;;;;;;;;;;;;;;;;;
 
-(superoptimize (encode "0 a! !+ push !+ pop dup 1 b! @b 0 b! @b 65535 or over - and + or push drop pop")
-               ;;(encode "_ _ _ _ _ _ _ _ _")
-               (encode "a! over - 65535 a or and nop or or")
-               (syninfo 2 0 #f)
-               (constraint s t)
-               #:assume-interpret #f
-               #:assume (constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
+;; (superoptimize (encode "0 a! !+ push !+ pop dup 1 b! @b 0 b! @b 65535 or over - and + or push drop pop")
+;;                (encode "_ _ _ _ _ _ _ _ _")
+;;                ;;(encode "65535 or push over - pop and or or")
+;;                (syninfo 2 0 #f)
+;;                (constraint s t)
+;;                #:assume-interpret #t
+;;                #:assume (constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
 
 ;;;;;;;;;;;;;;;; no comm ;;;;;;;;;;;;;;;;;;
-;; (superoptimize (encode "2 b! @b 3 b! !b 1 b! @b 2 b! !b")
-;;                (encode "_ _ _ _ _ _ _ _")
-;;                (syninfo 4 0 #f)
-;;                (constraint memory s t)) ; 19, 15, 27
+(superoptimize (encode "2 b! @b 3 b! !b 1 b! @b 2 b! !b")
+               (encode "_ _ _ _ _ _ _ _")
+               (syninfo 4 0 #f)
+               (constraint memory s t)) ; 19, 15, 27
 ;; (superoptimize (encode "0 a! !+ !+ !+ !+ 3 b! @b 1 b! @b")
 ;;                (encode "_ _ _ _ _ _ _ _ _ _")
 ;;                (syninfo 4 0 #f)
@@ -188,4 +188,3 @@
 ;;                (syninfo 6 1 #f)
 ;;                (constraint memory s t)) ; (22 23), (74 27 68)
 (pretty-display `(time ,(- (current-seconds) t)))
-
