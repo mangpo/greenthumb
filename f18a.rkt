@@ -531,7 +531,7 @@
   (if (empty? prefix) (inner spec) (inner prefix)))
 
 (define (interpret-for-assume? code)
-  (define last-inst #f)
+  (define last-inst "dup")
   (define (f x)
     (cond
      [(block? x)
