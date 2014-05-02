@@ -56,7 +56,7 @@
       (define f (analyze (-iftf-f x) cnstr))
       (union t f)]
 
-     [(assumption? x)
+     [(or (assumption? x) (special? x))
       cnstr]
      
      [(call? x)
