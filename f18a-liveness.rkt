@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "state.rkt" "stack.rkt" "ast.rkt")
-(provide extract-liveness set-constraint! contain union)
+(provide extract-liveness inline? set-constraint! contain union)
 
 (define debug #f)
 
@@ -135,7 +135,7 @@
 
     (for ([i (in-range mem-len)])
          (vector-set! memory i
-                      (or (vector-ref memory-x i) (vector-ref memory memory-y i))))
+                      (or (vector-ref memory-x i) (vector-ref memory-y i))))
     (set-progstate-memory! out memory))
 
   (check progstate-a set-progstate-a!)
@@ -154,3 +154,7 @@
   (set-progstate-a! old-cnstr (progstate-a cnstr))
   (set-progstate-b! old-cnstr (progstate-b cnstr))
   (set-progstate-memory! old-cnstr (progstate-memory cnstr)))
+
+(define (inline? x)
+  (regexp-match #rx"rep" (call-name x)))
+      

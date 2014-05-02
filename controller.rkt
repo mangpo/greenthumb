@@ -110,8 +110,8 @@
   ;; Using (assume start-state assumption) is faster.
 
   (define model 
-    ;(timeout
-     ;time-limit
+    (timeout
+     time-limit
      (synthesize 
       #:forall sym-vars
       #:init (list 
@@ -120,7 +120,7 @@
               )
       #:assume (if assume-interpret (interpret-spec) (assume start-state assumption))
       #:guarantee (compare-spec-sketch))
-     ;)
+     )
     )
 
   (define final-program (decode sketch model))
@@ -478,22 +478,34 @@
     
     ;; optimize-func body
     (if (label? func)
-        (let ([body (traverse (label-body func) 
-                              block? (lambda (x) (modify-blockinfo x func prog)))])
+        (let ([body (label-body func)])
           (pretty-display ">>> optimize-func >>>")
-          (relax-constraint body func prog)
+	  (when (label? (hash-ref func-dict (label-name func)))
+		(pretty-display (format "RELAX: ~a" (label-name func)))
+		(relax-constraint body prog func-dict))
           (print-struct body)
           (let ([opt (optimize-struct (wrap body get-size))])
             (pretty-display "FINISH")
             (label (label-name func) opt (label-info func))))
         func))
+
+  (define func-dict (make-hash))
+  (define (modify-blockinfo-all func)
+    (if (label? func)
+	(let* ([name (label-name func)]
+	       [body (traverse (label-body func) 
+			       block? (lambda (x) (modify-blockinfo x func prog)))]
+	       [new-func (label name body (label-info func))])
+	  (hash-set! func-dict name new-func)
+	  new-func)
+	func))
   
   ;; optimize body
   (if prog
-      (let ([code (program-code prog)]
+      (let ([code (map modify-blockinfo-all (program-code prog))]
             [memsize (program-memsize prog)]
             [indexmap (program-indexmap prog)])
-        (program (map optimize-func code)
+        (program (reverse (map optimize-func (reverse code)))
                  (if indexmap (dict-ref indexmap memsize) memsize)
                  indexmap))
       #f))
