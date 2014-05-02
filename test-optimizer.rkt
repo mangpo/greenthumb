@@ -288,6 +288,44 @@
 )
    
 
+(define m
+  (program
+   (list
+    (label "1rep"
+      (list 
+        (block
+         "1 b! !b 2 b! !b" "1 b! !b 2 b! !b"
+         (blockinfo '((data . 0) (return . 0)) 0))
+      )
+      (labelinfo 0 1 #f))
+    (label "main1"
+      (list 
+        (block
+         "1 b! !b 2 b! !b" "1 b! !b 2 b! !b"
+         (blockinfo '((data . 2) (return . 0) memory ) 0))
+        (call "1rep")
+        (block
+         "2 b! @b" "2 b! @b"
+         (blockinfo '((data . 2) (return . 0)) 0))
+        
+      )
+      (labelinfo 0 0 #f))
+    (label "main2"
+      (list 
+        (block
+         "1 b! !b 2 b! !b" "1 b! !b 2 b! !b"
+         (blockinfo '((data . 2) (return . 0) memory ) 0))
+        (call "1rep")
+        (block
+         "1 b! @b" "1 b! @b"
+         (blockinfo '((data . 0) (return . 0)) 0))
+        
+      )
+      (labelinfo 0 0 #f))
+    )
+   5 #f)
+)
+
 (define t (current-seconds))
-(print-syntax (optimize a) 2 2 0)
+(print-syntax (optimize m) 2 2 0)
 (pretty-display `(time ,(- (current-seconds) t)))

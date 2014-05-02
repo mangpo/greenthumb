@@ -1,7 +1,9 @@
 #lang s-exp rosette
 
 (require "state.rkt" "stack.rkt" "ast.rkt")
-(provide extract-liveness inline? set-constraint! contain union)
+(provide extract-liveness inline? 
+         set-constraint! get-constraint
+         contain union)
 
 (define debug #f)
 
@@ -154,6 +156,9 @@
   (set-progstate-a! old-cnstr (progstate-a cnstr))
   (set-progstate-b! old-cnstr (progstate-b cnstr))
   (set-progstate-memory! old-cnstr (progstate-memory cnstr)))
+
+(define (get-constraint b)
+  (blockinfo-cnstr (block-info b)))
 
 (define (inline? x)
   (regexp-match #rx"rep" (call-name x)))

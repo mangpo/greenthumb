@@ -480,9 +480,9 @@
     (if (label? func)
         (let ([body (label-body func)])
           (pretty-display ">>> optimize-func >>>")
-	  (when (label? (hash-ref func-dict (label-name func)))
-		(pretty-display (format "RELAX: ~a" (label-name func)))
-		(relax-constraint body prog func-dict))
+          (pretty-display (format "RELAX: ~a" (label-name func)))
+          (relax-constraint body prog func-dict 
+                            (cdr (hash-ref func-dict (label-name func))))
           (print-struct body)
           (let ([opt (optimize-struct (wrap body get-size))])
             (pretty-display "FINISH")
@@ -496,7 +496,7 @@
 	       [body (traverse (label-body func) 
 			       block? (lambda (x) (modify-blockinfo x func prog)))]
 	       [new-func (label name body (label-info func))])
-	  (hash-set! func-dict name new-func)
+	  (hash-set! func-dict name (cons new-func #f))
 	  new-func)
 	func))
   

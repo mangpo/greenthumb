@@ -4,17 +4,17 @@
 (provide relax-constraint)
 
 ;; TODO: check-memory with detail when synthesis
-(define debug #t)
+(define debug #f)
 
-(define (relax-constraint code prog func-dict [bit 18])
+(define (relax-constraint code prog func-dict cnstr [bit 18])
   
   (define (analyze x cnstr)
       
     (define (live b cnstr)
       (set-constraint! b cnstr)
       (when debug
-	    (pretty-display "====================== work on ========================")
-	    (print-struct b))
+            (pretty-display "====================== work on ========================")
+            (print-struct b))
       (define start-state (default-state (generate-info prog (list b)) (sym-input)))
       (define end-state (interpret bit (encode (block-body b)) start-state))
       (define ret (extract-liveness start-state end-state (generate-constraint b)))
@@ -71,7 +71,11 @@
 	    ;; 	    (hash-set! func-dict name new-cnstr)
 	    ;; 	    new-cnstr))
 	    ;; 	val))
-	    (analyze (label-body val) cnstr)) ;; need union
+            (if (cdr val)
+                (hash-set! func-dict name (cons (car val) (union (cdr val) cnstr)))
+                (hash-set! func-dict name (cons (car val) cnstr)))
+            (pretty-display (format "RELAX: ~a" name))
+	    (analyze (label-body (car val)) cnstr))
 	  cnstr)
       ]
      
@@ -83,4 +87,4 @@
 	(print-struct code))
   (define b (last-block code))
   ;; If b is #f, no need to perform liveness analysis.
-  (when b (analyze code (generate-constraint b))))
+  (when b (analyze code (if cnstr cnstr (generate-constraint b)))))
