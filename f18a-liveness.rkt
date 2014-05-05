@@ -161,5 +161,5 @@
   (blockinfo-cnstr (block-info b)))
 
 (define (inline? x)
-  (regexp-match #rx"rep" (call-name x)))
+  (or (regexp-match #rx"rep" (call-name x)) (regexp-match #rx"if" (call-name x))))
       

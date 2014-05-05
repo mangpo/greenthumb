@@ -216,6 +216,8 @@
                        [assume-interpret #t]
 		       #:prefix [prefix (list)])
   (define final-program #f)
+  (define final-len (get-size (block-body spec)))
+  (define final-cost #f)
   (define encoded-prefix (encode prefix))
   (define encoded-spec (encode spec))
   (define (inner begin end cost)
@@ -242,15 +244,24 @@
     (pretty-display `(out ,out-program ,out-cost))
 
     (when out-program 
-          (set! final-program out-program))
+          (set! final-program out-program)
+	  (set! final-len middle)
+	  (set! final-cost out-cost))
 
     (if out-program
-        (inner begin middle out-cost)
-        (and (< middle end) (inner (add1 middle) end cost))))
+        (when (< begin middle) (inner begin (sub1 middle) out-cost))
+        (when (< middle end) (inner (add1 middle) end cost))))
   
   (with-handlers 
    ([exn:break? (lambda (e) (unless final-program (set! final-program "timeout")))])
-   (inner 1 (get-size (block-body spec)) #f))
+   (inner 1 final-len #f))
+
+  ;; Try len + 2
+  (unless (equal? final-program "timeout")
+	  (with-handlers 
+	   ([exn:break? (lambda (e) (void))])
+	   (inner (+ final-len 2) (+ final-len 2) final-cost)))
+	
 
   (pretty-display "after inner")
   (if (list? final-program)
