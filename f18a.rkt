@@ -214,6 +214,7 @@
     (define inst (car inst-const))
     (define-syntax-rule (inst-eq x) (= inst (vector-member x inst-id)))
     (cond
+     [(inst-eq `@p) 5]
      [(inst-eq `+) 2]
      [(inst-eq `nop) 0]
      [else 1]))

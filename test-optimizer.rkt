@@ -291,34 +291,34 @@
 (define m
   (program
    (list
-    (label "1rep"
+    (label "1if"
       (list 
         (block
-         "1 b! !b 2 b! !b" "1 b! !b 2 b! !b"
+         "1 b! !b 0 b! !b" "1 b! !b 0 b! !b"
          (blockinfo '((data . 0) (return . 0)) 0))
       )
       (labelinfo 0 1 #f))
     (label "main1"
       (list 
         (block
-         "1 b! !b 2 b! !b" "1 b! !b 2 b! !b"
+         "1 b! !b 0 b! !b" "1 b! !b 0 b! !b"
          (blockinfo '((data . 2) (return . 0) memory ) 0))
-        (call "1rep")
+        (call "1if")
         (block
-         "2 b! @b" "2 b! @b"
-         (blockinfo '((data . 2) (return . 0)) 0))
+         "0 b! @b" "0 b! @b"
+         (blockinfo '((data . 1) (return . 0)) 0))
         
       )
       (labelinfo 0 0 #f))
     (label "main2"
       (list 
         (block
-         "1 b! !b 2 b! !b" "1 b! !b 2 b! !b"
+         "1 b! !b 0 b! !b" "1 b! !b 0 b! !b"
          (blockinfo '((data . 2) (return . 0) memory ) 0))
-        (call "1rep")
+        (call "1if")
         (block
          "1 b! @b" "1 b! @b"
-         (blockinfo '((data . 0) (return . 0)) 0))
+         (blockinfo '((data . 1) (return . 0)) 0))
         
       )
       (labelinfo 0 0 #f))
