@@ -249,7 +249,7 @@
 	  (set! final-cost out-cost))
 
     (if out-program
-        (when (< begin middle) (inner begin (sub1 middle) out-cost))
+        (inner begin middle out-cost)
         (when (< middle end) (inner (add1 middle) end cost))))
   
   (with-handlers 
