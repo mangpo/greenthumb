@@ -109,63 +109,6 @@
      [else (raise (format "inner: unimplemented for ~a" x))]
      ))
   (inner x))
-  
-(define (print-struct x [indent ""])
-  (define (inc ind) (string-append ind "  "))
-  (cond
-   [(list? x)
-    (pretty-display (format "~a(list" indent))
-    (for ([i x]) (print-struct i (inc indent)))
-    (pretty-display (format "~a)" indent))]
-
-   [(block? x)
-    (pretty-display (format "~a(block ~a" indent (block-body x)))
-    (print-blockinfo (block-info x) (inc indent))
-    (pretty-display ")")]
-
-   [(forloop? x)
-    (pretty-display (format "~a(forloop" indent))
-    (print-struct (forloop-init x) (inc indent))
-    (print-struct (forloop-body x) (inc indent))
-    (pretty-display (format "~a)" indent))]
-
-   [(ift? x)
-    (pretty-display (format "~a(ift" indent))
-    (print-struct (ift-t x) (inc indent))
-    (pretty-display (format "~a)" indent))]
-
-   [(iftf? x)
-    (pretty-display (format "~a(iftf" indent))
-    (print-struct (iftf-t x) (inc indent))
-    (print-struct (iftf-f x) (inc indent))
-    (pretty-display (format "~a)" indent))]
-
-   [(-ift? x)
-    (pretty-display (format "~a(-ift" indent))
-    (print-struct (-ift-t x) (inc indent))
-    (pretty-display (format "~a)" indent))]
-
-   [(-iftf? x)
-    (pretty-display (format "~a(-iftf" indent))
-    (print-struct (-iftf-t x) (inc indent))
-    (print-struct (-iftf-f x) (inc indent))
-    (pretty-display (format "~a)" indent))]
-
-   [(item? x)
-    (pretty-display (format "~a(item" indent))
-    (print-struct (item-x x) (inc indent))
-    (pretty-display (format "~a)" indent))]
-
-   [(vardecl? x)
-    (pretty-display (format "~a(vardecl ~a)" indent (vardecl-val x)))]
-   
-   [(label? x)
-    (pretty-display (format "~a(label ~a" indent (label-name x)))
-    (print-struct (label-body x) (inc indent))
-    (pretty-display (format "~a)" indent))]
-   
-   [else
-    (pretty-display (format "~a~a" indent x))]))
 
 ;; Replace block-body with block-org.
 (define (original program)
