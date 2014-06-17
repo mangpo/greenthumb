@@ -1,6 +1,6 @@
 #lang racket
 
-(require "state.rkt")
+(require "GA/state.rkt")
 (provide (all-defined-out))
 
 (struct block (body org info))

@@ -1,6 +1,6 @@
 #lang s-exp rosette
 
-(require "state.rkt" "stack.rkt" "ast.rkt")
+(require "state.rkt" "stack.rkt" "../ast.rkt")
 (provide extract-liveness inline? 
          set-constraint! get-constraint
          contain union)

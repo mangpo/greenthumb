@@ -4,7 +4,7 @@
  ;; ISA independent
  "ast.rkt" "liveness.rkt"
  ;; ISA dependent
- "f18a.rkt" "state.rkt" "f18a-compress.rkt")
+ "GA/interpret.rkt" "GA/state.rkt" "GA/compress.rkt")
 
 ;(require rosette/solver/z3/z3)
 ;(require rosette/solver/kodkod/kodkod)

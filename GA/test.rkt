@@ -1,6 +1,6 @@
 #lang racket
 
-(require "controller.rkt" "state.rkt" "ast.rkt" "f18a.rkt" "f18a-compress.rkt")
+(require "../controller.rkt" "../ast.rkt" "state.rkt" "interpret.rkt" "compress.rkt")
 
 (define-syntax-rule (timeout sec expr)
   (let* ([t (let ([parent (current-thread)])
