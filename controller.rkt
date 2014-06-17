@@ -2,18 +2,18 @@
 
 (require 
  ;; ISA independent
- "ast.rkt" "liveness.rkt"
+ "ast.rkt" ;; "liveness.rkt"
  ;; ISA dependent
- "GA/interpret.rkt" "GA/state.rkt" "GA/print.rkt" "GA/compress.rkt"
+ "vpe/interpret.rkt" "vpe/state.rkt" "vpe/print.rkt" ;; "GA/compress.rkt"
  )
 
-;(require rosette/solver/z3/z3)
+(require rosette/solver/z3/z3)
 ;(require rosette/solver/kodkod/kodkod)
 
 (provide superoptimize 
-	 optimize 
-         linear-search binary-search 
-         program-eq? optimize-cost
+	 ;; optimize 
+         ;; linear-search binary-search 
+         ;; program-eq? optimize-cost
 	 )
 
 (define time-limit 3600)
@@ -48,7 +48,7 @@
   ;; (pretty-display constraint)
   ;; (pretty-display assumption)
 
-  ;(current-solver (new z3%))
+  (current-solver (new z3%))
   ;(current-solver (new kodkod%))
   (configure [bitwidth bit])
   (define start-state (default-state info (sym-input)))
@@ -140,6 +140,7 @@
   (values final-program final-cost)
   )
 
+#|
 (define (program-eq? spec program info constraint
                      #:bit [bit 18]
                      #:assume [assumption (default-state)])
@@ -525,3 +526,4 @@
                  indexmap))
       #f))
        
+|#
