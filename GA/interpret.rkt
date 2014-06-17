@@ -4,10 +4,15 @@
 
 (provide ;; superoptimizer
          interpret assert-output assume
-         ;; for controller
-         encode decode get-size
-         get-length-limit merge-blocks modify-blockinfo interpret-for-assume?
-         generate-sketch generate-info generate-constraint generate-assumption)
+         ;; controller: simple
+         encode decode 
+	 ;; controller: binary search on length
+	 get-size
+	 ;; controller: decomposition
+         get-length-limit 
+         generate-sketch generate-info generate-constraint generate-assumption
+	 ;; controller: unnecessary
+	 merge-blocks modify-blockinfo interpret-for-assume?)
 
 (define debug #f)
 
@@ -27,10 +32,9 @@
 ;; REQUIRED FUNCTION
 ;; Interpret a given program from a given state.
 ;; program: a list of (inst,const)
-;; state: progstate
-;; spec-state: state after intepreting spec. This is given when interpreting sketch.
+;; state: initial progstate
 ;; policy: a procedure that enforces a communication policy (see the definition of comm-policy below)
-(define (interpret bit program state [policy #f])
+(define (interpret program state [policy #f])
   (set! policy (if policy
                    (comm-policy at-most policy)
                    (comm-policy all)))
@@ -498,7 +502,7 @@
 
   (pretty-display ">>> generate-assumption >>>")
 
-  (define (inner spec [res (default-state)])
+  (define (inner spec [res (no-assumption)])
     (cond
      [(and (list? spec) (assumption? (item-x (first spec))))
       ;; TODO: currently only support assumption <= or = on stack.

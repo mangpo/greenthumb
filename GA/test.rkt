@@ -47,7 +47,7 @@
 ;;               ))
 ;;             (syninfo 0 0 #f)
 ;;             (constraint r s t)
-;;             (default-state)
+;;             (no-assumption)
 ;;             program-eq?)
 
 ;; (program-eq? (encode "a! over or dup a and or or") (encode "- push over or pop and or")

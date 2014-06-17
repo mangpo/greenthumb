@@ -4,14 +4,17 @@
  ;; ISA independent
  "ast.rkt" "liveness.rkt"
  ;; ISA dependent
- "GA/interpret.rkt" "GA/state.rkt" "GA/compress.rkt")
+ "GA/interpret.rkt" "GA/state.rkt" "GA/print.rkt" "GA/compress.rkt"
+ )
 
 ;(require rosette/solver/z3/z3)
 ;(require rosette/solver/kodkod/kodkod)
 
-(provide superoptimize optimize 
+(provide superoptimize 
+	 optimize 
          linear-search binary-search 
-         program-eq? optimize-cost)
+         program-eq? optimize-cost
+	 )
 
 (define time-limit 3600)
 (define-syntax-rule (timeout sec expr)
@@ -37,7 +40,7 @@
                        [cost #f]
                        #:assume-interpret [assume-interpret #t]
                        #:bit [bit 18]
-                       #:assume [assumption (default-state)])
+                       #:assume [assumption (no-assumption)])
   (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
   ;; (print-struct spec)
   ;; (print-struct sketch)
@@ -59,20 +62,20 @@
   ;;   (define test-state (default-state info 0))
   ;;   (assume test-state assumption)
   ;;   (pretty-display "interpret spec test")
-  ;;   (display-state (interpret bit spec test-state)))
+  ;;   (display-state (interpret spec test-state)))
 
   ;; (interpret-spec-test)
 
   (define (interpret-spec)
     (assume start-state assumption)
     (pretty-display "interpret spec")
-    (set! spec-state (interpret bit spec start-state))
+    (set! spec-state (interpret spec start-state))
     (pretty-display "done interpret spec")
     )
 
   (define (compare-spec-sketch)
     (pretty-display "interpret sketch")
-    (set! sketch-state (interpret bit sketch start-state spec-state))
+    (set! sketch-state (interpret sketch start-state spec-state))
     
     ;; (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
     ;; (display-state spec-state)
@@ -87,12 +90,13 @@
   (define sym-vars (get-sym-vars start-state))
   (define init-pair (make-hash (for/list ([v sym-vars]) (cons v 0))))
   (define init-pair2 
-    (make-hash (for/list ([v sym-vars]) 
-                         (let* ([rand (random (<< 1 bit))]
-                                [val (if (>= rand (<< 1 (sub1 bit)))
-                                         (- rand (<< 1 bit))
-                                         rand)])
-                             (cons v val)))))
+    (make-hash 
+     (for/list ([v sym-vars]) 
+       (let* ([rand (random (min 4294967087 (<< 1 bit)))]
+	      [val (if (>= rand (<< 1 (sub1 bit)))
+		       (- rand (<< 1 bit))
+		       rand)])
+	 (cons v val)))))
   ;; (pretty-display ">>>>>>>>>>> INIT >>>>>>>>>>>>>")
   (for ([pair (solution->list (solve (interpret-spec)))])
        ;; (pretty-display `(pair ,pair))
@@ -147,11 +151,11 @@
   (define (interpret-spec)
     (assume start-state assumption)
     (pretty-display "eq: interpret spec")
-    (set! spec-state (interpret bit spec start-state)))
+    (set! spec-state (interpret spec start-state)))
 
   (define (compare)
     (pretty-display "eq: interpret program")
-    (set! program-state (interpret bit program start-state spec-state))
+    (set! program-state (interpret program start-state spec-state))
     
     (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
     (display-state spec-state)

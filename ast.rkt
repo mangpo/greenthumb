@@ -1,8 +1,8 @@
-#lang racket
+#lang s-exp rosette
 
-(require "GA/state.rkt")
 (provide (all-defined-out))
 
+(struct inst (op args))
 (struct block (body org info))
 ;; info may include output constraint and # of recv data depending on arch
 (struct call (name))
@@ -18,6 +18,10 @@
 (struct special (name))
 (struct assumption (cnstr))
 (struct item (x size))
+
+(define (sym-input)
+  (define-symbolic* input number?)
+  input)
 
 ;; Traverse a given program AST recursively until (base? program) is true.
 ;; Then apply base-apply to program.

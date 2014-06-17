@@ -48,10 +48,6 @@
     ((constraint var ...)        (struct-copy progstate constraint-none [var #t] ...))
     ))
 
-(define (sym-input)
-  (define-symbolic* input number?)
-  input)
-
 (define (get-sym-vars state)
   (define lst (list))
   (define (add x)
@@ -109,6 +105,9 @@
     ((default-state)
      (default-state (syninfo 0 0 #f) 0))
     ))
+
+(define-syntax-rule (no-assumption)
+  (default-state))
 
 (define (constrain-stack precond [state (default-state)])
   (when (list? precond)

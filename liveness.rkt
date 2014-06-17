@@ -16,7 +16,7 @@
             (pretty-display "====================== work on ========================")
             (print-struct b))
       (define start-state (default-state (generate-info prog (list b)) (sym-input)))
-      (define end-state (interpret bit (encode (block-body b)) start-state))
+      (define end-state (interpret (encode (block-body b)) start-state))
       (define ret (extract-liveness start-state end-state (generate-constraint b)))
       (when debug
 	    (pretty-display "return:")
