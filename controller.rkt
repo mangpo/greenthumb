@@ -13,7 +13,9 @@
 (provide superoptimize 
 	 ;; optimize 
          ;; linear-search binary-search 
-         ;; program-eq? optimize-cost
+         ;; optimize-cost
+         program-eq? generate-inputs
+         timeout
 	 )
 
 (define time-limit 3600)
@@ -29,6 +31,42 @@
     (cond [out  (thread-receive)]
           [else (break-thread t)
                 (raise (thread-receive))])))
+
+(define (interpret-spec spec start-state assumption)
+  (assume start-state assumption)
+  (interpret spec start-state))
+
+(define (generate-inputs-inner n spec start-state assumption)
+  (define sym-vars (get-sym-vars start-state))
+
+  ;; All 0s
+  (define inputs (list (make-hash (for/list ([v sym-vars]) (cons v 0)))))
+
+  ;; Random
+  (for ([i (in-range (sub1 n))])
+       (let ([init-pair
+              (make-hash 
+               (for/list ([v sym-vars]) 
+                         (let* ([rand (random (min 4294967087 (<< 1 bit)))]
+                                [val (if (>= rand (<< 1 (sub1 bit)))
+                                         (- rand (<< 1 bit))
+                                         rand)])
+                           (cons v val))))])
+         (set! inputs (cons init-pair inputs))))
+
+  ;; Constraint solving to fix invalid inputs
+  ;; TODO: better input distribution
+  (for ([pair (solution->list (solve (interpret-spec spec start-state assumption)))])
+       (when (hash-has-key? (car inputs) (car pair))
+             (for ([input inputs])
+                  (hash-set! input (car pair) (cdr pair)))))
+
+  (values sym-vars inputs))
+
+(define (generate-inputs n spec info assumption)
+  (define-values (sym-vars inputs)
+    (generate-inputs-inner n spec (default-state info (sym-input)) assumption))
+  inputs)
 
 ;; Superoptimize program given
 ;; spec: program specification (naive code)
@@ -66,12 +104,8 @@
 
   ;; (interpret-spec-test)
 
-  (define (interpret-spec)
-    (assume start-state assumption)
-    (pretty-display "interpret spec")
-    (set! spec-state (interpret spec start-state))
-    (pretty-display "done interpret spec")
-    )
+  (define (interpret-spec!)
+    (set! spec-state (interpret-spec spec start-state assumption)))
 
   (define (compare-spec-sketch)
     (pretty-display "interpret sketch")
@@ -83,46 +117,20 @@
     ;; (display-state sketch-state)
     ;; (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
     ;; (pretty-display (get-sym-vars start-state))
-    (pretty-display "check output")
+    ;;(pretty-display "check output")
     (assert-output spec-state sketch-state constraint cost))
   
   ;; Collect input variables and contruct their init values.
-  (define sym-vars (get-sym-vars start-state))
-  (define init-pair (make-hash (for/list ([v sym-vars]) (cons v 0))))
-  (define init-pair2 
-    (make-hash 
-     (for/list ([v sym-vars]) 
-       (let* ([rand (random (min 4294967087 (<< 1 bit)))]
-	      [val (if (>= rand (<< 1 (sub1 bit)))
-		       (- rand (<< 1 bit))
-		       rand)])
-	 (cons v val)))))
-  ;; (pretty-display ">>>>>>>>>>> INIT >>>>>>>>>>>>>")
-  (for ([pair (solution->list (solve (interpret-spec)))])
-       ;; (pretty-display `(pair ,pair))
-       (when (hash-has-key? init-pair (car pair))
-             ;; (pretty-display `(in-sol ,pair))
-             (hash-set! init-pair (car pair) (cdr pair))
-             (hash-set! init-pair2 (car pair) (cdr pair))
-             ))
-  ;; (pretty-display ">>>>>>>>>>> DONE INIT >>>>>>>>>>>>>")
-  ;; (pretty-display init-pair2)
-  
-  ;; ATTN(emina)
-  ;; (assume start-state assumption) = precondition from the user
-  ;; (interpret-spec) = precondition for input that is legal for spec
-  ;; Using (assume start-state assumption) is faster.
+  (define-values (sym-vars inputs)
+    (generate-inputs-inner 2 spec start-state assumption))
 
   (define model 
     (timeout
      time-limit
      (synthesize 
       #:forall sym-vars
-      #:init (list 
-              (sat (make-immutable-hash (hash->list init-pair)))
-              (sat (make-immutable-hash (hash->list init-pair2)))
-              )
-      #:assume (if assume-interpret (interpret-spec) (assume start-state assumption))
+      #:init (map (lambda (x) (sat (make-immutable-hash (hash->list x)))) inputs)
+      #:assume (if assume-interpret (interpret-spec!) (assume start-state assumption))
       #:guarantee (compare-spec-sketch))
      )
     )
@@ -140,10 +148,9 @@
   (values final-program final-cost)
   )
 
-#|
 (define (program-eq? spec program info constraint
                      #:bit [bit 18]
-                     #:assume [assumption (default-state)])
+                     #:assume [assumption (no-assumption)])
   (configure [bitwidth bit])
   (define start-state (default-state info (sym-input)))
   (define spec-state #f)
@@ -178,6 +185,7 @@
     (pretty-display "program-eq? DIFF")
     #f))
 
+#|
 ;; Optimize the cost incrementally using fixed number of holes.
 ;; spec: encoded spec
 ;; sketch: encoded spec
