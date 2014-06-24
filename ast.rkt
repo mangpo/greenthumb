@@ -36,6 +36,7 @@
                 [(base? x)    (base-apply x)]
                 ...
                 [(list? x)    (map f x)]
+                [(vector? x)  (list->vector (map f (vector->list x)))]
                 [(block? x)   (block (f (block-body x)) (block-org x) (block-info x))]
                 [(forloop? x) (forloop (f (forloop-init x)) (f (forloop-body x)) (forloop-bound x))]
                 [(ift? x)     (ift (f (ift-t x)))]

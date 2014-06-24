@@ -14,7 +14,7 @@
 	 ;; optimize 
          ;; linear-search binary-search 
          ;; optimize-cost
-         program-eq? generate-inputs
+         program-eq? generate-input-states
          timeout
 	 )
 
@@ -34,7 +34,11 @@
 
 (define (interpret-spec spec start-state assumption)
   (assume start-state assumption)
-  (interpret spec start-state))
+  ;; (pretty-display "interpret spec")
+  (define res (interpret spec start-state))
+  ;; (pretty-display "done interpret spec")
+  res
+  )
 
 (define (generate-inputs-inner n spec start-state assumption)
   (define sym-vars (get-sym-vars start-state))
@@ -61,12 +65,15 @@
              (for ([input inputs])
                   (hash-set! input (car pair) (cdr pair)))))
 
-  (values sym-vars inputs))
+  (values sym-vars 
+          (map (lambda (x) (sat (make-immutable-hash (hash->list x)))) inputs)))
 
-(define (generate-inputs n spec info assumption)
-  (define-values (sym-vars inputs)
-    (generate-inputs-inner n spec (default-state info (sym-input)) assumption))
-  inputs)
+(define (generate-input-states n spec info assumption #:bit [bit 18])
+  (configure [bitwidth bit])
+  (define start-state (default-state info (sym-input)))
+  (define-values (sym-vars sltns)
+    (generate-inputs-inner n spec start-state assumption))
+  (map (lambda (x) (evaluate start-state x)) sltns))
 
 ;; Superoptimize program given
 ;; spec: program specification (naive code)
@@ -108,7 +115,7 @@
     (set! spec-state (interpret-spec spec start-state assumption)))
 
   (define (compare-spec-sketch)
-    (pretty-display "interpret sketch")
+    ;; (pretty-display "interpret sketch")
     (set! sketch-state (interpret sketch start-state spec-state))
     
     ;; (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
@@ -129,7 +136,7 @@
      time-limit
      (synthesize 
       #:forall sym-vars
-      #:init (map (lambda (x) (sat (make-immutable-hash (hash->list x)))) inputs)
+      #:init inputs
       #:assume (if assume-interpret (interpret-spec!) (assume start-state assumption))
       #:guarantee (compare-spec-sketch))
      )
@@ -156,22 +163,20 @@
   (define spec-state #f)
   (define program-state #f)
 
-  (define (interpret-spec)
-    (assume start-state assumption)
-    (pretty-display "eq: interpret spec")
-    (set! spec-state (interpret spec start-state)))
+  (define (interpret-spec!)
+    (set! spec-state (interpret-spec spec start-state assumption)))
 
   (define (compare)
-    (pretty-display "eq: interpret program")
+    ;; (pretty-display "eq: interpret program")
     (set! program-state (interpret program start-state spec-state))
     
-    (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
-    (display-state spec-state)
-    (pretty-display ">>>>>>>>>>> PROG >>>>>>>>>>>>>")
-    (display-state program-state)
+    ;; (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
+    ;; (display-state spec-state)
+    ;; (pretty-display ">>>>>>>>>>> PROG >>>>>>>>>>>>>")
+    ;; (display-state program-state)
 
-    (pretty-display "check output")
-    (pretty-display constraint)
+    ;; (pretty-display "check output")
+    ;; (pretty-display constraint)
     (assert-output spec-state program-state 
                    (struct-copy progstate constraint [cost #f])
                    #f))
@@ -181,7 +186,7 @@
                       (pretty-display "program-eq? SAME")
                       (or (equal? (exn-message e) "verify: no counterexample found")
                           (raise e)))])
-    (verify #:assume (interpret-spec) #:guarantee (compare))
+    (verify #:assume (interpret-spec!) #:guarantee (compare))
     (pretty-display "program-eq? DIFF")
     #f))
 
