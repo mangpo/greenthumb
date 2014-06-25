@@ -207,7 +207,8 @@
   (set! best-cost (sub1 (arithmetic-shift 1 (sub1 bit))))
 
   (define (cost-one-input program input output)
-    (with-handlers [(exn? (lambda (e) w-error))]
+    (with-handlers* ([exn:break? (lambda (e) (raise e))]
+                     [exn? (lambda (e) w-error)])
       (let ([program-out (interpret program input)])
         (correctness-cost output program-out constraint))
       )
@@ -244,7 +245,7 @@
   ;; Main loop
   (define (iter current current-cost)
     (set! iter-count (add1 iter-count))
-    (when (= (modulo iter-count 100) 0)
+    (when (= (modulo iter-count 10000) 0)
           (print-stat))
     (define proposal (mutate current))
     (when debug
@@ -269,4 +270,4 @@
                                 (print-stat)
                                 (print-struct best-correct-program)
                                 best-correct-program)])
-                 (timeout 10 (iter init (cost-all-inputs init)))))
+                 (timeout 3600 (iter init (cost-all-inputs init)))))
