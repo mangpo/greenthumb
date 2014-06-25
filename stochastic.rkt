@@ -4,8 +4,8 @@
  ;; ISA independent
  "ast.rkt" "controller.rkt"
  ;; ISA dependent
- "vpe/interpret.rkt" "vpe/state.rkt" "vpe/print.rkt"
- "vpe/stochastic-support.rkt"
+ "vpe/state.rkt" "vpe/print.rkt"
+ "vpe/interpret-racket.rkt" "vpe/stochastic-support.rkt"
  )
 
 (provide stochastic-optimize)
@@ -245,7 +245,7 @@
   ;; Main loop
   (define (iter current current-cost)
     (set! iter-count (add1 iter-count))
-    (when (= (modulo iter-count 10000) 0)
+    (when (= (modulo iter-count 1000) 0)
           (print-stat))
     (define proposal (mutate current))
     (when debug
