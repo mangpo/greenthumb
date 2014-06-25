@@ -269,4 +269,4 @@
                                 (print-stat)
                                 (print-struct best-correct-program)
                                 best-correct-program)])
-                 (timeout 3600 (iter init (cost-all-inputs init)))))
+                 (timeout 10 (iter init (cost-all-inputs init)))))

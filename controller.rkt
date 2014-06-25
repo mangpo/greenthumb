@@ -15,15 +15,12 @@
 	 ;; optimize 
          ;; linear-search binary-search 
          ;; optimize-cost
-         program-eq? generate-input-states
-         timeout
-	 )
+         program-eq? generate-input-states)
 
 
 (define (sym-input)
   (define-symbolic* input number?)
   input)
-
 
 (define (interpret-spec spec start-state assumption)
   (assume start-state assumption)
