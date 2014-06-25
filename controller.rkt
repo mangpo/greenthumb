@@ -5,6 +5,7 @@
  "ast.rkt" ;; "liveness.rkt"
  ;; ISA dependent
  "vpe/interpret.rkt" "vpe/state.rkt" "vpe/print.rkt" ;; "GA/compress.rkt"
+ "vpe/solver-support.rkt"
  )
 
 (require rosette/solver/z3/z3)
@@ -18,19 +19,11 @@
          timeout
 	 )
 
-(define time-limit 3600)
-(define-syntax-rule (timeout sec expr)
-  (let* ([t (let ([parent (current-thread)])
-              (thread
-               (thunk
-                (thread-send 
-                 parent
-                 (with-handlers [(exn? identity)]
-                                expr)))))]
-         [out (sync/timeout sec t)])
-    (cond [out  (thread-receive)]
-          [else (break-thread t)
-                (raise (thread-receive))])))
+
+(define (sym-input)
+  (define-symbolic* input number?)
+  input)
+
 
 (define (interpret-spec spec start-state assumption)
   (assume start-state assumption)
@@ -73,7 +66,7 @@
   (define start-state (default-state info (sym-input)))
   (define-values (sym-vars sltns)
     (generate-inputs-inner n spec start-state assumption))
-  (map (lambda (x) (evaluate start-state x)) sltns))
+  (map (lambda (x) (evaluate-state start-state x)) sltns))
 
 ;; Superoptimize program given
 ;; spec: program specification (naive code)

@@ -5,6 +5,7 @@
  "ast.rkt" "controller.rkt"
  ;; ISA dependent
  "vpe/interpret.rkt" "vpe/state.rkt" "vpe/print.rkt"
+ "vpe/stochastic-support.rkt"
  )
 
 (provide stochastic-optimize)
@@ -208,7 +209,9 @@
   (define (cost-one-input program input output)
     (with-handlers [(exn? (lambda (e) w-error))]
       (let ([program-out (interpret program input)])
-        (correctness-cost output program-out constraint))))
+        (correctness-cost output program-out constraint))
+      )
+    )
 
   (define (cost-all-inputs program)
     (define correct (foldl (lambda (input output res) 

@@ -1,4 +1,4 @@
-#lang s-exp rosette
+#lang racket
 
 (provide (all-defined-out))
 
@@ -19,9 +19,6 @@
 (struct assumption (cnstr))
 (struct item (x size))
 
-(define (sym-input)
-  (define-symbolic* input number?)
-  input)
 
 ;; Traverse a given program AST recursively until (base? program) is true.
 ;; Then apply base-apply to program.
@@ -122,3 +119,17 @@
 
 (define (concrete-in x lst)
   (and (member x lst) #t))
+
+(define time-limit 3600)
+(define-syntax-rule (timeout sec expr)
+  (let* ([t (let ([parent (current-thread)])
+              (thread
+               (thunk
+                (thread-send 
+                 parent
+                 (with-handlers [(exn? identity)]
+                                expr)))))]
+         [out (sync/timeout sec t)])
+    (cond [out  (thread-receive)]
+          [else (break-thread t)
+                (raise (thread-receive))])))
