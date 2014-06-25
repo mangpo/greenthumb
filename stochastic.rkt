@@ -54,12 +54,14 @@
   (pretty-display (format "best-correct-time:\t~a" best-correct-time))
   (newline)
   (define proposed (foldl + 0 (vector->list propose-stat)))
-  (pretty-display (format "Mutate\tProposed\tAccepted"))
+  (define accepted (foldl + 0 (vector->list accept-stat)))
+  (pretty-display (format "Mutate\tProposed\t\tAccepted\t\tAccepted/Proposed"))
   (for ([i 5])
-    (pretty-display (format "~a\t~a\t~a" 
+    (pretty-display (format "~a\t~a\t~a\t~a" 
                             (vector-ref name-stat i)
                             (exact->inexact (/ (vector-ref propose-stat i) proposed))
-                            (exact->inexact (/ (vector-ref accept-stat i) proposed)))))
+                            (exact->inexact (/ (vector-ref accept-stat i) proposed))
+                            (exact->inexact (/ (vector-ref accept-stat i) (vector-ref propose-stat i))))))
   (newline)
   (pretty-display (format "acceptance rate\t~a" 
                           (exact->inexact (/ accepted proposed)))))
