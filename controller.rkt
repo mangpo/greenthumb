@@ -93,7 +93,7 @@
   ;; (pretty-display constraint)
   ;; (pretty-display assumption)
 
-  (current-solver (new z3%))
+  ;(current-solver (new z3%))
   ;(current-solver (new kodkod%))
   (configure [bitwidth bit])
   (define start-state (default-state info (sym-input)))
@@ -183,11 +183,11 @@
 
   (with-handlers* ([exn:fail? 
                     (lambda (e)
-                      (pretty-display "program-eq? SAME")
+                      (when debug (pretty-display "program-eq? SAME"))
                       (or (equal? (exn-message e) "verify: no counterexample found")
                           (raise e)))])
     (verify #:assume (interpret-spec!) #:guarantee (compare))
-    (pretty-display "program-eq? DIFF")
+    (when debug (pretty-display "program-eq? DIFF"))
     #f))
 
 #|
