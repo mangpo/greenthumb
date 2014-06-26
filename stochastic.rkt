@@ -48,7 +48,7 @@
   (define time (- (current-seconds) start-time))
   (pretty-display "---------------------------------------------------------")
   (pretty-display (format "iterations:\t~a" iter-count))
-  (pretty-display (format "elapsed time:\t~a" time))
+  (pretty-display (format "elapsed-time:\t~a" time))
   (pretty-display (format "iterations/s:\t~a" (exact->inexact (/ iter-count time))))
   (pretty-display (format "best-cost:\t~a" best-cost))
   (pretty-display (format "best-correct-cost:\t~a" best-correct-cost))
@@ -64,14 +64,19 @@
                             (exact->inexact (/ (vector-ref accept-stat i) proposed))
                             (exact->inexact (/ (vector-ref accept-stat i) (vector-ref propose-stat i))))))
   (newline)
-  (pretty-display (format "acceptance rate\t~a" 
+  (pretty-display (format "acceptance-rate:\t~a" 
                           (exact->inexact (/ accepted proposed)))))
+
+(define (print-stat-to-file file)
+  (with-output-to-file #:exists 'truncate file
+    print-stat))
   
   
 ;;;;;;;;;;;;;;;;;;;;; Functions ;;;;;;;;;;;;;;;;;;
 (define (stochastic-optimize spec info constraint 
                              #:assume [assumption (no-assumption)]
-                             #:synthesize [syn-mode #f])
+                             #:synthesize [syn-mode #f]
+                             #:name [name "temp"])
   (init-stochastic)
   ;; Generate testcases
   (when debug 
@@ -91,7 +96,7 @@
         (pretty-display "sketch:")
         (print-struct sketch))
   (mcmc-main spec (if syn-mode sketch spec) 
-             inputs outputs constraint info assumption)
+             inputs outputs constraint info assumption name)
   )
 
 (define (random-insts n)
@@ -198,7 +203,7 @@
               (random-from-vec (vector-ref ranges i))))
   
 
-(define (mcmc-main target init inputs outputs constraint info assumption)
+(define (mcmc-main target init inputs outputs constraint info assumption driver-name)
   (pretty-display ">>> start MCMC sampling")
   (define syn-mode #t)
   (set! best-correct-program target)
@@ -231,6 +236,11 @@
           (set! best-correct-cost total-cost)
           (set! best-correct-program program)
           (set! best-correct-time (- (current-seconds) start-time))
+          (with-output-to-file #:exists 'truncate (format "~a.best" driver-name)
+            (thunk
+             (pretty-display (format "best-correct-cost: ~a" best-correct-cost))
+             (pretty-display (format "best-correct-time: ~a" best-correct-time))
+             (print-struct best-correct-program)))
           )
     total-cost
     )
@@ -246,7 +256,9 @@
   (define (iter current current-cost)
     (set! iter-count (add1 iter-count))
     (when (= (modulo iter-count 1000) 0)
-          (print-stat))
+          (print-stat)
+          (print-stat-to-file (format "~a.stat" driver-name))
+          )
     (define proposal (mutate current))
     (when debug
           (pretty-display (format "================ Propose (syn=~a) =================" syn-mode))
@@ -268,6 +280,7 @@
 
   (with-handlers ([exn:break? (lambda (e) 
                                 (print-stat)
+                                (print-stat-to-file (format "~a.stat" driver-name))
                                 (print-struct best-correct-program)
                                 best-correct-program)])
-                 (timeout 3600 (iter init (cost-all-inputs init)))))
+                 (timeout 10 (iter init (cost-all-inputs init)))))
