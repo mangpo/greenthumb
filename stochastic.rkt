@@ -206,6 +206,7 @@
 (define (mcmc-main target init inputs outputs constraint info assumption driver-name)
   (pretty-display ">>> start MCMC sampling")
   (define syn-mode #t)
+  (define change-mode #f)
   (set! best-correct-program target)
   (set! best-correct-cost (performance-cost target))
   (set! best-program #f)
@@ -220,12 +221,13 @@
     )
 
   (define (cost-all-inputs program)
+    (set! change-mode #f)
     (define correct (foldl (lambda (input output res) 
                              (+ res (cost-one-input program input output))) 
                            0 inputs outputs))
     (when (= correct 0)
           (if (program-eq? target program info constraint #:bit 32 #:assume assumption)
-              (set! syn-mode #f)
+              (when syn-mode (set! syn-mode #f) (set! change-mode #t))
               (set! correct 1)))
 
     (define total-cost (if syn-mode correct (+ (performance-cost program) correct)))
@@ -268,7 +270,7 @@
           (pretty-display (format "current cost: ~a" current-cost))
           (pretty-display (format "proposal cost: ~a" proposal-cost)))
 
-    (when (accept current-cost proposal-cost)
+    (when (or (accept current-cost proposal-cost) change-mode)
           (when debug
                 (pretty-display "================ ACCEPT! =================")
                 (print-struct proposal))
