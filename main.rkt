@@ -18,7 +18,7 @@
 (define live-memory (list))
 (define synthesize #t)
 (define path "output/driver")
-(define cores 20)
+(define cores 10)
 
 (system (format "rm ~a*" path))
 
@@ -48,8 +48,8 @@
   )
 
 (define (run-file id)
-  (define out-port (open-output-file (format "~a-~a.log" path id) #:exists 'truncate))
-  (define-values (sp o i e) (subprocess out-port #f out-port
+  ;(define out-port (open-output-file (format "~a-~a.log" path id) #:exists 'truncate))
+  (define-values (sp o i e) (subprocess #f #f #f
                                         (find-executable-path "racket") (format "~a-~a.rkt" path id)))
   sp)
 

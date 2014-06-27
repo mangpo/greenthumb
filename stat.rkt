@@ -26,7 +26,7 @@
 
     (define/public (inc-iter)
       (set! iter-count (add1 iter-count))
-      (when (= (modulo iter-count 1000) 0)
+      (when (= (modulo iter-count 10000) 0)
             (print-stat-to-file)))
 
     (define/public (inc-propose x)
@@ -55,10 +55,12 @@
       (set! time (- (current-seconds) start-time))
       (with-output-to-file #:exists 'truncate (format "~a.stat" name)
         (thunk (print-stat)))
-      (print-stat))
+      ;(print-stat)
+      )
 
     (define/public (print-stat)
       (pretty-display "---------------------------------------------------------")
+      (pretty-display (format "memory-use:\t~a" (exact->inexact (/ (current-memory-use) 1000))))
       (pretty-display (format "iterations:\t~a" iter-count))
       (pretty-display (format "elapsed-time:\t~a" time))
       (when (> time 0)
