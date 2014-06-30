@@ -55,7 +55,7 @@
       (set! time (- (current-seconds) start-time))
       (with-output-to-file #:exists 'truncate (format "~a.stat" name)
         (thunk (print-stat)))
-      ;(print-stat)
+      (print-stat)
       )
 
     (define/public (print-stat)
@@ -77,7 +77,9 @@
                                    (vector-ref name-stat i)
                                    (exact->inexact (/ (vector-ref propose-stat i) proposed))
                                    (exact->inexact (/ (vector-ref accept-stat i) proposed))
-                                   (exact->inexact (/ (vector-ref accept-stat i) (vector-ref propose-stat i))))))
+                                   (if (> (vector-ref propose-stat i) 0)
+                                       (exact->inexact (/ (vector-ref accept-stat i) (vector-ref propose-stat i)))
+                                       0))))
       (newline)
       (pretty-display (format "acceptance-rate:\t~a" 
                               (exact->inexact (/ accepted proposed)))))

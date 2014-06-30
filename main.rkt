@@ -16,9 +16,9 @@
 (define nmems 1)
 (define live-regs (list 0))
 (define live-memory (list))
-(define synthesize #t)
+(define synthesize #f)
 (define path "output/driver")
-(define cores 10)
+(define cores 2)
 
 (system (format "rm ~a*" path))
 
@@ -48,8 +48,8 @@
   )
 
 (define (run-file id)
-  ;(define out-port (open-output-file (format "~a-~a.log" path id) #:exists 'truncate))
-  (define-values (sp o i e) (subprocess #f #f #f
+  (define out-port (open-output-file (format "~a-~a.log" path id) #:exists 'truncate))
+  (define-values (sp o i e) (subprocess out-port #f out-port
                                         (find-executable-path "racket") (format "~a-~a.rkt" path id)))
   sp)
 

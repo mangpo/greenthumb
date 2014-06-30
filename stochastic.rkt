@@ -78,6 +78,18 @@
   (vector-ref vec (random (vector-length vec))))
 
 (define (mutate p stat)
+  (define new-p (vector-copy p))
+  (define vec-len (vector-length new-p))
+  (define index (random vec-len))
+  (define entry (vector-ref new-p index))
+  (define opcode-id (inst-op entry))
+  (define opcode-name (vector-ref inst-id opcode-id))
+  (define nop (get-nop-opcode))
+  (vector-set! new-p index (inst opcode-id (vector-copy (inst-args entry))))
+  (send stat inc-propose 0)
+  new-p)
+
+(define (mutate-org p stat)
   (define type (random))
   (define new-p (vector-copy p))
   (define vec-len (vector-length new-p))
@@ -224,10 +236,8 @@
 
   (with-handlers ([exn:break? (lambda (e) 
                                 (send stat print-stat-to-file)
-                                ;(print-struct best-correct-program)
-                                ;best-correct-program
-                                ;stat
-                                ;(void)
                                 )])
-    (timeout 36000 (iter init (cost-all-inputs init (arithmetic-shift 1 32)))))
+    (timeout 36000 
+             (iter init (cost-all-inputs init (arithmetic-shift 1 32)))
+             ))
   )
