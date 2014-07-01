@@ -16,15 +16,15 @@
 (define nmems 1)
 (define live-regs (list 0))
 (define live-memory (list))
-(define synthesize #f)
+(define synthesize #t)
 (define path "output/driver")
-(define cores 2)
+(define cores 12)
 
 (system (format "rm ~a*" path))
 
 (define (create-file id)
   (define (req file)
-    (format "(file \"/bard/wilma/pphothil/superopt/modular-optimizer/~a\")" file))
+    (format "(file \"/bard/wilma/pphothil/superopt/modular-optimizer2/~a\")" file))
   (define require-files 
     (string-join 
      (map req 
@@ -43,9 +43,9 @@
      (pretty-display (format "(define code (ast-from-string \"~a\"))" code))
      (pretty-display (format "(define encoded-code (encode code #f))"))
      (pretty-display (format "(stochastic-optimize encoded-code ~a (constraint ~a [reg ~a] [mem ~a]) #:synthesize ~a #:name \"~a-~a\")" 
-                             nmems nmems live-regs-str live-memory-str synthesize path id))))
-  
-  )
+                             nmems nmems live-regs-str live-memory-str synthesize path id))
+     ;(pretty-display "(dump-memory-stats)"
+     )))
 
 (define (run-file id)
   (define out-port (open-output-file (format "~a-~a.log" path id) #:exists 'truncate))

@@ -78,18 +78,6 @@
   (vector-ref vec (random (vector-length vec))))
 
 (define (mutate p stat)
-  (define new-p (vector-copy p))
-  (define vec-len (vector-length new-p))
-  (define index (random vec-len))
-  (define entry (vector-ref new-p index))
-  (define opcode-id (inst-op entry))
-  (define opcode-name (vector-ref inst-id opcode-id))
-  (define nop (get-nop-opcode))
-  (vector-set! new-p index (inst opcode-id (vector-copy (inst-args entry))))
-  (send stat inc-propose 0)
-  new-p)
-
-(define (mutate-org p stat)
   (define type (random))
   (define new-p (vector-copy p))
   (define vec-len (vector-length new-p))
@@ -176,9 +164,8 @@
     (with-handlers* ([exn:break? (lambda (e) (raise e))]
                      [exn? (lambda (e) w-error)])
       (let ([program-out (interpret program input)])
-        (correctness-cost output program-out constraint))
-      )
-    )
+        (correctness-cost output program-out constraint)
+        )))
 
   (define (cost-all-inputs program okay-cost)
     (define correct 0)
@@ -216,7 +203,8 @@
     (define proposal (mutate current stat))
     (when debug
           (pretty-display (format "================ Propose (syn=~a) =================" syn-mode))
-          (print-struct proposal))
+          (print-struct proposal)
+          )
     (define okay-cost (accept-cost current-cost))
     (define proposal-cost (cost-all-inputs proposal okay-cost))
     (when debug
@@ -224,15 +212,14 @@
           (pretty-display (format "okay cost: ~a" okay-cost))
           (pretty-display (format "proposal cost: ~a" proposal-cost)))
 
-    (when proposal-cost
+    (if proposal-cost
+        (begin
           (when debug
                 (pretty-display "================ ACCEPT! =================")
                 (print-struct proposal))
-          (set! current proposal)
-          (set! current-cost proposal-cost)
           (send stat inc-accept)
-          )
-    (iter current current-cost))
+          (iter proposal proposal-cost))
+        (iter current current-cost)))
 
   (with-handlers ([exn:break? (lambda (e) 
                                 (send stat print-stat-to-file)
