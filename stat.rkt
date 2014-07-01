@@ -89,7 +89,7 @@
 (define (print-stat-all stat-list)
   (define time (foldl + 0
                       (map (lambda (x) (get-field time x)) stat-list)))
-  (set! time (/ time (length stat-list)))
+  (set! time (exact->inexact (/ time (length stat-list))))
   (define iter-count (foldl + 0
                             (map (lambda (x) (get-field iter-count x)) stat-list)))
 
