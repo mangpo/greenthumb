@@ -36,4 +36,4 @@ sub LR3, LR4, LR3
 and LR0, LR2, LR3
 xor LR0, LR0, LR1")
 
-(optimize code 5 1 (list 0) (list) #t #:dir "p13_sign1" #:cores 12)
+(optimize code 5 1 (list 0) (list) #t #:dir "output" #:cores 12)
