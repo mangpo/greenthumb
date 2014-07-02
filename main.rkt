@@ -40,7 +40,32 @@
     (define-values (sp o i e) 
       (subprocess out-port #f out-port (find-executable-path "racket") (format "~a-~a.rkt" path id)))
     sp)
-  
+
+  (define (wait)
+    ;;(pretty-display "wait")
+    (sleep 10)
+    (define check-file 
+      (with-output-to-string (thunk (system (format "ls ~a*.stat | wc -l" path)))))
+    (define n 
+      (string->number (substring check-file 0 (- (string-length check-file) 1))))
+    ;;(pretty-display `(n ,check-file ,n ,cores ,(= n cores)))
+    (pretty-display (format "There are currently ~a stats." n))
+    (unless (= n cores)
+            (wait)))
+
+  (define (update-stats)
+    (unless (andmap (lambda (sp) (not (equal? (subprocess-status sp) 'running))) processes)
+        (get-stats)
+        (sleep 60)
+        (update-stats)))
+
+  (define (get-stats)
+    (define stats
+      (for/list ([id cores])
+                (create-stat-from-file (format "~a-~a.stat" path id))))
+    (define output-id (print-stat-all stats))
+    (pretty-display (format "output-id: ~a" output-id)))
+
   (define processes
     (for/list ([id cores])
               (create-file id)
@@ -53,14 +78,11 @@
                              (subprocess-kill sp #f)))
                   (sleep 3)
                   )])
-   (for ([sp processes])
-        (sync sp)))
+   (wait)
+   (update-stats)
+   )
   
-  (define stats
-    (for/list ([id cores])
-              (create-stat-from-file (format "~a-~a.stat" path id))))
-  
-  (print-stat-all stats))
+  (get-stats))
 
 
                        

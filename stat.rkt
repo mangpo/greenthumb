@@ -187,6 +187,7 @@
       (parse)))
  
   (parse)
+  (close-input-port in-port)
 
   (new stat% 
        [time time]

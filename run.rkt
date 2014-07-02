@@ -27,13 +27,25 @@
 ;; 	srai LR0, LR3, 31")
 
 ;; p16_max
-(define code
-"xor LR2, LR0, LR1
-sgeu LR3, LR0, LR1
-movsi LR4, 0
-andi LR3, LR3, 1
-sub LR3, LR4, LR3
-and LR0, LR2, LR3
-xor LR0, LR0, LR1")
+;; (define code
+;; "xor LR2, LR0, LR1
+;; sgeu LR3, LR0, LR1
+;; movsi LR4, 0
+;; andi LR3, LR3, 1
+;; sub LR3, LR4, LR3
+;; and LR0, LR2, LR3
+;; xor LR0, LR0, LR1")
 
-(optimize code 5 1 (list 0) (list) #t #:dir "output" #:cores 12)
+;; p18_power
+(define code "
+	addi LR1, LR0, -1
+	and LR2, LR0, LR1
+	snei LR4, LR0, 0
+	andi LR4, LR4, 1
+	snei LR3, LR2, 0
+	andi LR3, LR3, 1
+	seqi LR3, LR3, 0
+	andi LR3, LR3, 1
+	and LR0, LR3, LR4")
+
+(optimize code 6 1 (list 0) (list) #t #:dir "output" #:cores 12)
