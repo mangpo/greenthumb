@@ -5,7 +5,7 @@
  "ast.rkt" ;; "liveness.rkt"
  ;; ISA dependent
  "vpe/interpret.rkt" "vpe/state.rkt" "vpe/print.rkt" ;; "GA/compress.rkt"
- "vpe/solver-support.rkt"
+ "vpe/solver-support.rkt" "vpe/stochastic-support.rkt"
  )
 
 (require rosette/solver/z3/z3)
@@ -31,22 +31,41 @@
   )
 
 (define (generate-inputs-inner n spec start-state assumption)
+  (define const-range 
+    (list->vector
+     (cons (- (arithmetic-shift 1 (sub1 bit)))
+           (for/list ([i (sub1 bit)]) (arithmetic-shift 1 i)))))
+  (define const-range-len (vector-length const-range))
+
+  (define (generate-one-input random-f)
+    (make-hash 
+     (for/list ([v sym-vars]) 
+               (let ([val (random-f)])
+                 (cons v val)))))
+
   (define sym-vars (get-sym-vars start-state))
 
   ;; All 0s
-  (define inputs (list (make-hash (for/list ([v sym-vars]) (cons v 0)))))
+  (define input-zero (list (make-hash (for/list ([v sym-vars]) (cons v 0)))))
 
+  (define m (quotient n 2))
   ;; Random
-  (for ([i (in-range (sub1 n))])
-       (let ([init-pair
-              (make-hash 
-               (for/list ([v sym-vars]) 
-                         (let* ([rand (random (min 4294967087 (<< 1 bit)))]
-                                [val (if (>= rand (<< 1 (sub1 bit)))
-                                         (- rand (<< 1 bit))
-                                         rand)])
-                           (cons v val))))])
-         (set! inputs (cons init-pair inputs))))
+  (define input-random
+    (for/list ([i m])
+              (generate-one-input 
+               (lambda () (let ([rand (random (min 4294967087 (<< 1 bit)))])
+                            (if (>= rand (<< 1 (sub1 bit)))
+                                (- rand (<< 1 bit))
+                                rand))))))
+
+  ;; Random in const list
+  (define input-random-const
+    (for/list ([i (- n m 1)])
+              (generate-one-input 
+               (lambda () 
+                 (vector-ref const-range (random const-range-len))))))
+
+  (define inputs (append input-zero input-random input-random-const))
 
   ;; Constraint solving to fix invalid inputs
   ;; TODO: better input distribution

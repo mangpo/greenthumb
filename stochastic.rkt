@@ -13,10 +13,10 @@
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
 (define w-error 9999)
 (define beta 1)
-(define opcode-mass 0.25)
-(define operand-mass 0.25)
-(define swap-mass 0.25)
-(define inst-mass 0.25)
+(define opcode-mass 0.35)
+(define operand-mass 0.35)
+(define swap-mass 0.15)
+(define inst-mass 0.15)
 (define nop-mass 0.8)
 (define ntests 8)
   
@@ -37,6 +37,9 @@
              (display-state i))
         (pretty-display ">>> Phase 2: genenrate output states"))
   (define outputs (map (lambda (x) (interpret spec x)) inputs))
+  (when debug
+        (for ([i outputs])
+             (display-state i)))
 
   ;; MCMC sampling
   (define sketch (random-insts (vector-length spec)))
@@ -77,104 +80,71 @@
 (define (random-from-vec vec)
   (vector-ref vec (random (vector-length vec))))
 
-(define (random-opcode new-p vec-len [count 0])
-  (define index (random vec-len))
-  (define entry (vector-ref new-p index))
-  (define opcode-id (inst-op entry))
-  (define opcode-name (vector-ref inst-id opcode-id))
-  (define class (get-class opcode-name))
-  (if class
-      (values index opcode-name (inst-args entry) class)
-      (if (> count 10)
-          (values #f #f #f #f)
-          (random-opcode new-p vec-len (add1 count)))))
-  
-(define (random-operand new-p vec-len [count 0])
-  (define index (random vec-len))
-  (define entry (vector-ref new-p index))
-  (define opcode-id (inst-op entry))
-  (define opcode-name (vector-ref inst-id opcode-id))
-  (define ranges (get-arg-ranges opcode-name))
-  (if (> (vector-length ranges) 0)
-      (values index opcode-id opcode-name (vector-copy (inst-args entry)) ranges)
-      (if (> count 10)
-          (values #f #f #f #f #f)
-          (random-operand new-p vec-len (add1 count)))))
-
-(define (random-swap new-p vec-len [count 0])
-  (define index1 (random vec-len))
-  (define opcode-id1 (inst-op (vector-ref new-p index1)))
-  (define index2 (random-from-list-ex (range vec-len) index1))
-  (define opcode-id2 (inst-op (vector-ref new-p index2)))
-  (define nop-id (vector-member (get-nop-opcode) inst-id))
-  (if (and (= opcode-id1 nop-id) (= opcode-id2 nop-id))
-      (if (> count 10)
-          (values #f #f)
-          (random-swap new-p vec-len (add1 count)))
-      (values index1 index2)))
-  
-
 (define (mutate p stat)
   (define type (random))
   (define new-p (vector-copy p))
   (define vec-len (vector-length new-p))
-  (when debug (pretty-display (format " >> mutate prop = ~a" type)))
+  (define index (random vec-len))
+  (define entry (vector-ref new-p index))
+  (define opcode-id (inst-op entry))
+  (define opcode-name (vector-ref inst-id opcode-id))
+  (define nop (get-nop-opcode))
+  (define new #f)
+  (when debug (pretty-display (format " >> mutate prop = ~a, index = ~a" type index)))
   (cond
    ;; opcode
-   [(< type opcode-mass)
-    (define-values (index opcode-name args class) (random-opcode new-p vec-len))
-    (unless index (set! new-p #f))
-    (when index
-      (when debug
-            (pretty-display (format " >> mutate opcode"))
-            (pretty-display (format " --> org = ~a" opcode-name))
-            (pretty-display (format " --> class = ~a" class)))
+   [(and (not (equal? opcode-name nop)) (< type opcode-mass))
+    (define class (get-class opcode-name))
+    (when debug
+          (pretty-display (format " >> mutate opcode"))
+          (pretty-display (format " --> org = ~a ~a" opcode-name opcode-id))
+          (pretty-display (format " --> class = ~a" class)))
+    (when class
       (define new-opcode-name (random-from-list-ex class opcode-name))
       (define new-opcode-id (vector-member new-opcode-name inst-id))
       (when debug
             (pretty-display (format " --> new = ~a ~a" new-opcode-name new-opcode-id)))
-      (vector-set! new-p index (inst new-opcode-id args))
-      (send stat inc-propose 0))
+      (vector-set! new-p index (inst new-opcode-id (inst-args entry)))
+      (send stat inc-propose 0)
+      (set! new #t)
+      )
     ]
 
    ;; operand
-   [(< type (+ opcode-mass operand-mass))
-    (define-values (index opcode-id opcode-name args ranges) (random-operand new-p vec-len))
-    (unless index (set! new-p #f))
-    (when index
-      (when debug (pretty-display " >> mutate operand"))
-      (define change (random (vector-length ranges)))
-      (define valid-vals (vector-ref ranges change))
-      (define new-val (random-from-vec-ex valid-vals (vector-ref args change)))
-      (when debug
-            (pretty-display (format " --> org = ~a ~a" opcode-name args))
-            (pretty-display (format " --> new = [~a]->~a)" change new-val)))
-      (vector-set! args change new-val)
-      (vector-set! new-p index (inst opcode-id args))
-      (send stat inc-propose 1))
+   [(and (not (equal? opcode-name nop)) (< type (+ opcode-mass operand-mass)))
+    (when debug (pretty-display " >> mutate operand"))
+    (define ranges (get-arg-ranges opcode-name))
+    (when (> (vector-length ranges) 0)
+          (define args (vector-copy (inst-args entry)))
+          (define change (random (vector-length ranges)))
+          (define valid-vals (vector-ref ranges change))
+          (define new-val (random-from-vec-ex valid-vals (vector-ref args change)))
+          (when debug
+                (pretty-display (format " --> org = ~a ~a" opcode-name args))
+                (pretty-display (format " --> new = [~a]->~a)" change new-val)))
+          (vector-set! args change new-val)
+          (vector-set! new-p index (inst opcode-id args))
+          (send stat inc-propose 1)
+          (set! new #t)
+          )
     ]
-    
-    ;; swap
-   [(< type (+ opcode-mass operand-mass swap-mass))
-    (define-values (index1 index2) (random-swap new-p vec-len))
-    (unless index1 (set! new-p #f))
-    (when index1
-      (when debug
-            (pretty-display " >> mutate swap")
-            (pretty-display (format " --> swap = ~a" index2)))
-      (define entry (vector-ref new-p index1))
-      (vector-set! new-p index1 (vector-ref new-p index2))
-      (vector-set! new-p index2 entry)
-      (send stat inc-propose 2))
+   
+   ;; swap
+   [(if (not (equal? opcode-name nop))
+        (< type (+ opcode-mass operand-mass swap-mass))
+        (< type (/ swap-mass (+ swap-mass inst-mass))))
+    (define index2 (random-from-list-ex (range vec-len) index))
+    (when debug
+          (pretty-display " >> mutate swap")
+          (pretty-display (format " --> swap = ~a" index2)))
+    (vector-set! new-p index (vector-ref new-p index2))
+    (vector-set! new-p index2 entry)
+    (send stat inc-propose 2)
+    (set! new #t)
     ]
    
    ;; brand new instruction
    [else
-    (define index (random vec-len))
-    (define entry (vector-ref new-p index))
-    (define opcode-id (inst-op entry))
-    (define opcode-name (vector-ref inst-id opcode-id))
-    (define nop (get-nop-opcode))
     (define new-opcode-name
       (if (and (not (equal? opcode-name nop)) (< (random) nop-mass))
           (begin (send stat inc-propose 4) nop)
@@ -184,9 +154,13 @@
           (pretty-display (format " >> mutate instruction ~a" new-opcode-name)))
     (define new-args (random-args-from-op new-opcode-name))
     (vector-set! new-p index (inst new-opcode-id new-args))
+    (set! new #t)
     ])
 
-  (or new-p (mutate p stat)))
+  (if new
+      new-p
+      (mutate p stat))
+      )
 
 (define (random-args-from-op opcode-name)
   (define ranges (get-arg-ranges opcode-name))
@@ -219,8 +193,12 @@
                      (set! correct #f))))
 
     (when (equal? correct 0)
+          (send stat inc-correct)
           (if (program-eq? target program info constraint #:bit 32 #:assume assumption)
-              (when syn-mode (set! change-mode #t) (set! syn-mode #f))
+              (begin
+                (when syn-mode (set! change-mode #t) (set! syn-mode #f))
+                ;(send stat inc-correct)
+                )
               (set! correct 1)))
 
     (and correct
@@ -271,7 +249,7 @@
   (with-handlers ([exn:break? (lambda (e) 
                                 (send stat print-stat-to-file)
                                 )])
-    (timeout 36000 
+    (timeout 1000 
              (iter init (cost-all-inputs init (arithmetic-shift 1 32)))
              ))
   )
