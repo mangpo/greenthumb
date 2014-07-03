@@ -12,7 +12,7 @@
   
   (define (create-file id)
     (define (req file)
-      (format "(file \"/bard/wilma/pphothil/superopt/modular-optimizer/~a\")" file))
+      (format "(file \"/bard/wilma/pphothil/superopt/modular-optimizer3/~a\")" file))
     (define require-files 
       (string-join 
        (map req 
@@ -56,15 +56,19 @@
   (define (update-stats)
     (unless (andmap (lambda (sp) (not (equal? (subprocess-status sp) 'running))) processes)
         (get-stats)
-        (sleep 60)
+        (sleep 10)
         (update-stats)))
 
   (define (get-stats)
     (define stats
       (for/list ([id cores])
                 (create-stat-from-file (format "~a-~a.stat" path id))))
-    (define output-id (print-stat-all stats))
-    (pretty-display (format "output-id: ~a" output-id)))
+    (with-handlers* 
+     ([exn? (lambda (e) (pretty-display "Error: print stat"))])
+     (let ([output-id (print-stat-all stats)])
+       (pretty-display (format "output-id: ~a" output-id)))
+     )
+    )
 
   (define processes
     (for/list ([id cores])
@@ -76,7 +80,7 @@
                   (for ([sp processes])
                        (when (equal? (subprocess-status sp) 'running)
                              (subprocess-kill sp #f)))
-                  (sleep 3)
+                  (sleep 5)
                   )])
    (wait)
    (update-stats)

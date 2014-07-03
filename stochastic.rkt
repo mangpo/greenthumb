@@ -205,7 +205,7 @@
                              (when debug (pretty-display "Error!"))
                              w-error)])
       (let ([program-out (interpret program input)])
-        (correctness-cost output program-out constraint)
+        (correctness-cost output program-out constraint stat)
         )))
 
   (define (cost-all-inputs program okay-cost)
@@ -263,6 +263,8 @@
                 (pretty-display "================ ACCEPT! =================")
                 (print-struct proposal))
           (send stat inc-accept)
+          (when (> proposal-cost current-cost) 
+                (send stat inc-accept-higher))
           (iter proposal proposal-cost))
         (iter current current-cost)))
 

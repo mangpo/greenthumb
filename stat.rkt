@@ -19,6 +19,9 @@
                 [best-cost (arithmetic-shift 1 32)]
                 [current-mutate #f]
                 [iter-count 0]
+                [misalign-count 0]
+                [correct-count 0]
+                [accept-higher-count 0]
                 [name #f]
                 )
            
@@ -26,8 +29,9 @@
 
     (define/public (inc-iter)
       (set! iter-count (add1 iter-count))
-      (when (= (modulo iter-count 10000) 0)
-            (print-stat-to-file)))
+      (when (= (modulo iter-count 1000) 0)
+            (print-stat-to-file)
+            ))
 
     (define/public (inc-propose x)
       (vector-set! propose-stat x (add1 (vector-ref propose-stat x)))
@@ -36,6 +40,15 @@
     (define/public (inc-accept)
       (vector-set! accept-stat current-mutate 
                    (add1 (vector-ref accept-stat current-mutate))))
+
+    (define/public (inc-accept-higher)
+      (set! accept-higher-count (add1 accept-higher-count)))
+
+    (define/public (inc-correct)
+      (set! correct-count (add1 correct-count)))
+    
+    (define/public (inc-misalign)
+      (set! misalign-count (add1 misalign-count)))
 
     (define/public (update-best program cost)
       (set! best-program program)
@@ -62,6 +75,8 @@
       (pretty-display "---------------------------------------------------------")
       (pretty-display (format "memory-use:\t~a" (exact->inexact (/ (current-memory-use) 1000))))
       (pretty-display (format "iterations:\t~a" iter-count))
+      (pretty-display (format "test-correct-count:\t~a" correct-count))
+      (pretty-display (format "misalign-correct-count:\t~a" misalign-count))
       (pretty-display (format "elapsed-time:\t~a" time))
       (when (> time 0)
             (pretty-display (format "iterations/s:\t~a" (exact->inexact (/ iter-count time)))))
@@ -82,22 +97,41 @@
                                        0))))
       (newline)
       (pretty-display (format "acceptance-rate:\t~a" 
-                              (exact->inexact (/ accepted proposed)))))
+                              (exact->inexact (/ accepted proposed))))
+      (define accept-count (exact->inexact (* (/ accepted proposed) iter-count)))
+      (pretty-display (format "accept-count:\t~a" accept-count))
+      (pretty-display (format "accept-higher-count:\t~a" accept-higher-count))
+      (pretty-display (format "accept-higher-percent:\t~a" 
+                              (exact->inexact (/ accept-higher-count accept-count))))
       
+    )
     ))
 
 (define (print-stat-all stat-list)
+  (pretty-display "time")
   (define time (foldl + 0
                       (map (lambda (x) (get-field time x)) stat-list)))
   (set! time (exact->inexact (/ time (length stat-list))))
+  (pretty-display "iter-count")
   (define iter-count (foldl + 0
                             (map (lambda (x) (get-field iter-count x)) stat-list)))
+  (pretty-display "correct-count")
+  (define correct-count (foldl + 0
+                            (map (lambda (x) (get-field correct-count x)) stat-list)))
+  (pretty-display "misalign-count")
+  (define misalign-count (foldl + 0
+                            (map (lambda (x) (get-field misalign-count x)) stat-list)))
+  (pretty-display "accept-higher-count")
+  (define accept-higher-count (foldl + 0
+                            (map (lambda (x) (get-field accept-higher-count x)) stat-list)))
 
   (define all 0)
+  (pretty-display "propose-stat")
   (define propose-stat
     (for/vector ([i n])
       (foldl + 0 (map (lambda (x) (vector-ref (get-field propose-stat x) i))
                       stat-list))))
+  (pretty-display "accept-stat")
   (define accept-stat
     (for/vector ([i n])
       (foldl + 0 (map (lambda (x) (vector-ref (get-field accept-stat x) i)) 
@@ -129,6 +163,9 @@
   (define stat (new stat%
                     [time time]
                     [iter-count iter-count]
+                    [correct-count correct-count]
+                    [accept-higher-count accept-higher-count]
+                    [misalign-count misalign-count]
                     [propose-stat propose-stat]
                     [accept-stat accept-stat]
                     [best-correct-program #f]
@@ -144,6 +181,9 @@
   (define id #f)
   (define time #f)
   (define iter-count #f)
+  (define correct-count #f)
+  (define misalign-count #f)
+  (define accept-higher-count #f)
   (define propose-stat (make-vector n))
   (define accept-stat (make-vector n))
 
@@ -156,7 +196,7 @@
     (define line (read-line in-port))
     (unless (equal? eof line)
       (define tokens (string-split line))
-      (pretty-display `(tokens ,tokens))
+      ;(pretty-display `(tokens ,tokens))
 
       (define-syntax pattern
         (syntax-rules (single array)
@@ -175,6 +215,9 @@
 
       (pattern [single (#rx"elapsed-time" time)
                        (#rx"iterations:" iter-count)
+                       (#rx"test-correct-count:" correct-count)
+                       (#rx"misalign-correct-count:" misalign-count)
+                       (#rx"accept-higher-count:" accept-higher-count)
                        (#rx"best-cost" best-cost)
                        (#rx"best-correct-cost" best-correct-cost)
                        (#rx"best-correct-time" best-correct-time)]
@@ -192,6 +235,9 @@
   (new stat% 
        [time time]
        [iter-count iter-count]
+       [correct-count correct-count]
+       [misalign-count misalign-count]
+       [accept-higher-count accept-higher-count]
        [propose-stat propose-stat]
        [accept-stat accept-stat]
        [best-correct-program #f]
