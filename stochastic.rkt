@@ -18,7 +18,7 @@
 (define swap-mass 0.15)
 (define inst-mass 0.15)
 (define nop-mass 0.8)
-(define ntests 8)
+(define ntests 16)
   
   
 ;;;;;;;;;;;;;;;;;;;;; Functions ;;;;;;;;;;;;;;;;;;
@@ -208,6 +208,12 @@
                  (send stat update-best program total-cost)
                  )
            (when (and (= correct 0) (< total-cost (get-field best-correct-cost stat)))
+                 (pretty-display "NEW! best-correct-program")
+                 (pretty-display "program-eq? --> true")
+                 (pretty-display "target:")
+                 (print-struct target)
+                 (pretty-display "candidate")
+                 (print-struct program)
                  (send stat update-best-correct program total-cost)
                  )
            (and (or (<= total-cost okay-cost) change-mode) total-cost)))
@@ -249,7 +255,7 @@
   (with-handlers ([exn:break? (lambda (e) 
                                 (send stat print-stat-to-file)
                                 )])
-    (timeout 1000 
+    (timeout 36000 
              (iter init (cost-all-inputs init (arithmetic-shift 1 32)))
              ))
   )
