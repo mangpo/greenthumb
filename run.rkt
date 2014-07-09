@@ -48,4 +48,4 @@
 	andi LR3, LR3, 1
 	and LR0, LR3, LR4")
 
-(optimize code 5 1 (list 0) (list) #f #:dir "output" #:cores 12)
+(optimize code 5 1 (list 0) (list) #t #:dir "output" #:cores 12)

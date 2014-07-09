@@ -201,7 +201,8 @@
                 )
               (set! correct 1)))
 
-    (and correct
+    
+    (if (number? correct)
          (let ([total-cost 
                 (if syn-mode correct (+ (performance-cost program) correct))])
            (when (< total-cost (get-field best-cost stat))
@@ -216,7 +217,11 @@
                  (print-struct program)
                  (send stat update-best-correct program total-cost)
                  )
-           (and (or (<= total-cost okay-cost) change-mode) total-cost)))
+           (if (or (<= total-cost okay-cost) change-mode) 
+                ;; return (correctness-cost . correct)
+               (cons total-cost (= correct 0))
+               (cons #f #f)))
+         (cons #f #f))
     )
 
   (define (accept-cost current-cost)
@@ -229,13 +234,14 @@
     (when debug
           (pretty-display (format "================ Current (syn=~a) =================" syn-mode))
           (print-struct current)
-          (define cost (cost-all-inputs current (arithmetic-shift 1 32)))
-          (pretty-display (format "actual cost: ~a" cost))
+          ;; (define cost (cost-all-inputs current (arithmetic-shift 1 32)))
+          ;; (pretty-display (format "actual cost: ~a" cost))
           (pretty-display (format "================ Propose (syn=~a) =================" syn-mode))
           (print-struct proposal)
           )
     (define okay-cost (accept-cost current-cost))
-    (define proposal-cost (cost-all-inputs proposal okay-cost))
+    (define cost-correct (cost-all-inputs proposal okay-cost))
+    (define proposal-cost (car cost-correct))
     (when debug
           (pretty-display (format "current cost: ~a" current-cost))
           (pretty-display (format "okay cost: ~a" okay-cost))
@@ -249,13 +255,14 @@
           (send stat inc-accept)
           (when (> proposal-cost current-cost) 
                 (send stat inc-accept-higher))
-          (iter proposal proposal-cost))
+          (iter (if (cdr cost-correct) (remove-nops proposal) proposal) 
+                proposal-cost))
         (iter current current-cost)))
 
   (with-handlers ([exn:break? (lambda (e) 
                                 (send stat print-stat-to-file)
                                 )])
-    (timeout 36000 
-             (iter init (cost-all-inputs init (arithmetic-shift 1 32)))
+    (timeout 18000 
+             (iter init (car (cost-all-inputs init (arithmetic-shift 1 32))))
              ))
   )
