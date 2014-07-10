@@ -77,9 +77,9 @@
   (values sym-vars 
           (map (lambda (x) (sat (make-immutable-hash (hash->list x)))) inputs)))
 
-(define (generate-input-states n spec info assumption #:bit [bit 18])
+(define (generate-input-states n spec assumption #:bit [bit 18])
   (configure [bitwidth bit])
-  (define start-state (default-state info (sym-input)))
+  (define start-state (default-state (sym-input)))
   (define-values (sym-vars sltns)
     (generate-inputs-inner n spec start-state assumption))
   (map (lambda (x) (evaluate-state start-state x)) sltns))
@@ -87,10 +87,9 @@
 ;; Superoptimize program given
 ;; spec: program specification (naive code)
 ;; sketch: skeleton of the output program
-;; info: additional information (e.g. memory size, # of receiveing data)
 ;; constraint: constraint on the output state
 ;; cost: upperbound (exclusive) of the cost of the output program
-(define (superoptimize spec sketch info constraint 
+(define (superoptimize spec sketch constraint 
                        [cost #f]
                        #:assume-interpret [assume-interpret #t]
                        #:bit [bit 18]
@@ -98,14 +97,13 @@
   (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
   ;; (print-struct spec)
   ;; (print-struct sketch)
-  ;; (pretty-display info)
   ;; (pretty-display constraint)
   ;; (pretty-display assumption)
 
   ;(current-solver (new z3%))
   ;(current-solver (new kodkod%))
   (configure [bitwidth bit])
-  (define start-state (default-state info (sym-input)))
+  (define start-state (default-state (sym-input)))
   (define spec-state #f)
   (define sketch-state #f)
 
@@ -113,7 +111,7 @@
   ;; (display-state start-state)
 
   ;; (define (interpret-spec-test)
-  ;;   (define test-state (default-state info 0))
+  ;;   (define test-state (default-state 0))
   ;;   (assume test-state assumption)
   ;;   (pretty-display "interpret spec test")
   ;;   (display-state (interpret spec test-state)))
@@ -164,11 +162,11 @@
   (values final-program final-cost)
   )
 
-(define (program-eq? spec program info constraint
+(define (program-eq? spec program constraint
                      #:bit [bit 18]
                      #:assume [assumption (no-assumption)])
   (configure [bitwidth bit])
-  (define start-state (default-state info (sym-input)))
+  (define start-state (default-state (sym-input)))
   (define spec-state #f)
   (define program-state #f)
 
@@ -200,6 +198,8 @@
     #f))
 
 #|
+;; TODO: remove all info
+
 ;; Optimize the cost incrementally using fixed number of holes.
 ;; spec: encoded spec
 ;; sketch: encoded spec

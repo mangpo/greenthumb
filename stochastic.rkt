@@ -22,15 +22,15 @@
   
   
 ;;;;;;;;;;;;;;;;;;;;; Functions ;;;;;;;;;;;;;;;;;;
-(define (stochastic-optimize spec info constraint 
+(define (stochastic-optimize spec constraint 
                              #:assume [assumption (no-assumption)]
                              #:synthesize [syn-mode #f]
                              #:name [name "temp"])
-  (init-stochastic)
+  (init-operand-ranges)
   ;; Generate testcases
   (when debug 
         (pretty-display ">>> Phase 1: genenrate input states"))
-  (define inputs (generate-input-states ntests spec info assumption #:bit 32))
+  (define inputs (generate-input-states ntests spec assumption #:bit 32))
 
   (when debug
         (for ([i inputs])
@@ -52,7 +52,7 @@
                     [best-correct-cost (performance-cost spec)]
                     [name name]))
   (mcmc-main spec (if syn-mode sketch spec) 
-             inputs outputs constraint info assumption stat)
+             inputs outputs constraint assumption stat)
   )
 
 (define (random-insts n)
@@ -169,7 +169,7 @@
               (random-from-vec (vector-ref ranges i))))
   
 
-(define (mcmc-main target init inputs outputs constraint info assumption stat)
+(define (mcmc-main target init inputs outputs constraint assumption stat)
   (pretty-display ">>> start MCMC sampling")
   (define syn-mode #t)
 
@@ -194,7 +194,7 @@
 
     (when (equal? correct 0)
           (send stat inc-correct)
-          (if (program-eq? target program info constraint #:bit 32 #:assume assumption)
+          (if (program-eq? target program constraint #:bit 32 #:assume assumption)
               (begin
                 (when syn-mode (set! change-mode #t) (set! syn-mode #f))
                 ;(send stat inc-correct)

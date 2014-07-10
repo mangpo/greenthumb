@@ -1,10 +1,10 @@
 #lang racket
 
-(require "stat.rkt")
+(require "stat.rkt" "vpe/state.rkt")
 (provide optimize)
 
-(define (optimize code nregs nmems live-regs live-memory synthesize 
-                  #:bit [bit 32] #:dir [dir "output"] #:cores [cores 12])
+(define (optimize code machine-info live-output synthesize 
+                  #:dir [dir "output"] #:cores [cores 12])
 
   (define path (format "~a/driver" dir))
   (system (format "mkdir ~a" dir))
@@ -19,19 +19,16 @@
             '(ast.rkt stochastic.rkt 
                       vpe/parser.rkt vpe/state.rkt vpe/print.rkt 
                       vpe/solver-support.rkt))))
-    (define live-regs-str (string-join (map number->string live-regs)))
-    (define live-memory-str (string-join (map number->string live-memory)))
     (with-output-to-file #:exists 'truncate (format "~a-~a.rkt" path id)
       (thunk
        (pretty-display (format "#lang racket"))
        (pretty-display (format "(require ~a)" require-files))
-       (pretty-display (format "(set-bit! ~a)" bit))
-       (pretty-display (format "(set-nregs! ~a)" nregs))
-       (pretty-display (format "(set-nmems! ~a)" nmems))
+       (pretty-display (set-machine-config-string machine-info))
        (pretty-display (format "(define code (ast-from-string \"~a\"))" code))
        (pretty-display (format "(define encoded-code (encode code #f))"))
-       (pretty-display (format "(stochastic-optimize encoded-code ~a (constraint ~a [reg ~a] [mem ~a]) #:synthesize ~a #:name \"~a-~a\")" 
-                               nmems nmems live-regs-str live-memory-str synthesize path id))
+       (pretty-display (format "(stochastic-optimize encoded-code ~a #:synthesize ~a #:name \"~a-~a\")" 
+                               (output-constraint-string live-output)
+                               synthesize path id))
        ;;(pretty-display "(dump-memory-stats)"
        )))
 
