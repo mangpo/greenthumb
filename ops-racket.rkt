@@ -1,6 +1,6 @@
 #lang racket
 
-(require "vpe/state.rkt")
+(require "vpe/machine.rkt")
 (provide (all-defined-out))
 
 (define-syntax-rule (<< x y)

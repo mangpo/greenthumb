@@ -4,8 +4,8 @@
  ;; ISA independent
  "ast.rkt" ;; "liveness.rkt"
  ;; ISA dependent
- "vpe/interpret.rkt" "vpe/state.rkt" "vpe/print.rkt" ;; "GA/compress.rkt"
- "vpe/solver-support.rkt" "vpe/stochastic-support.rkt"
+ "vpe/interpret.rkt" "vpe/machine.rkt" "vpe/print.rkt" ;; "GA/compress.rkt"
+ "vpe/solver-support.rkt"
  )
 
 (require rosette/solver/z3/z3)
@@ -77,7 +77,7 @@
   (values sym-vars 
           (map (lambda (x) (sat (make-immutable-hash (hash->list x)))) inputs)))
 
-(define (generate-input-states n spec assumption #:bit [bit 18])
+(define (generate-input-states n spec assumption)
   (configure [bitwidth bit])
   (define start-state (default-state (sym-input)))
   (define-values (sym-vars sltns)
@@ -92,7 +92,6 @@
 (define (superoptimize spec sketch constraint 
                        [cost #f]
                        #:assume-interpret [assume-interpret #t]
-                       #:bit [bit 18]
                        #:assume [assumption (no-assumption)])
   (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
   ;; (print-struct spec)
@@ -163,7 +162,6 @@
   )
 
 (define (program-eq? spec program constraint
-                     #:bit [bit 18]
                      #:assume [assumption (no-assumption)])
   (configure [bitwidth bit])
   (define start-state (default-state (sym-input)))

@@ -1,6 +1,6 @@
 #lang racket
 
-(require "ast.rkt" "GA/interpret.rkt" "GA/liveness.rkt" "GA/state.rkt")
+(require "ast.rkt" "GA/interpret.rkt" "GA/liveness.rkt" "GA/machine.rkt")
 (provide relax-constraint)
 
 ;; TODO: check-memory with detail when synthesis

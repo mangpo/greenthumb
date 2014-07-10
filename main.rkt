@@ -1,6 +1,6 @@
 #lang racket
 
-(require "stat.rkt" "vpe/state.rkt")
+(require "stat.rkt" "vpe/machine.rkt")
 (provide optimize)
 
 (define (optimize code machine-info live-output synthesize 
@@ -17,7 +17,7 @@
       (string-join 
        (map req 
             '(ast.rkt stochastic.rkt 
-                      vpe/parser.rkt vpe/state.rkt vpe/print.rkt 
+                      vpe/parser.rkt vpe/machine.rkt vpe/print.rkt 
                       vpe/solver-support.rkt))))
     (with-output-to-file #:exists 'truncate (format "~a-~a.rkt" path id)
       (thunk

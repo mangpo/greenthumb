@@ -1,6 +1,5 @@
 #lang s-exp rosette
 
-(require "vpe/state.rkt")
 (provide (all-defined-out))
 
 (define (finitize num) 

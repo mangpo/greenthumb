@@ -2,9 +2,9 @@
 
 (require 
  ;; ISA independent
- "ast.rkt" "controller.rkt" "stat.rkt"
+ "ast.rkt" "solver.rkt" "stat.rkt"
  ;; ISA dependent
- "vpe/state.rkt" "vpe/print.rkt"
+ "vpe/machine.rkt" "vpe/print.rkt"
  "vpe/interpret-racket.rkt" "vpe/stochastic-support.rkt"
  )
 
@@ -30,7 +30,7 @@
   ;; Generate testcases
   (when debug 
         (pretty-display ">>> Phase 1: genenrate input states"))
-  (define inputs (generate-input-states ntests spec assumption #:bit 32))
+  (define inputs (generate-input-states ntests spec assumption))
 
   (when debug
         (for ([i inputs])
@@ -194,7 +194,7 @@
 
     (when (equal? correct 0)
           (send stat inc-correct)
-          (if (program-eq? target program constraint #:bit 32 #:assume assumption)
+          (if (program-eq? target program constraint #:assume assumption)
               (begin
                 (when syn-mode (set! change-mode #t) (set! syn-mode #f))
                 ;(send stat inc-correct)
