@@ -64,7 +64,9 @@
 
 (define (random-from-list-ex lst ex)
   (let ([new-lst (remove ex lst)])
-    (list-ref new-lst (random (length new-lst)))))
+    (if (empty? new-lst)
+        ex
+        (list-ref new-lst (random (length new-lst))))))
 
 (define (random-from-vec-ex vec ex)
   (define len (vector-length vec))
