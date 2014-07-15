@@ -67,12 +67,44 @@
 
   (define inputs (append input-zero input-random input-random-const))
 
-  ;; Constraint solving to fix invalid inputs
-  ;; TODO: better input distribution
-  (for ([pair (solution->list (solve (interpret-spec spec start-state assumption)))])
-       (when (hash-has-key? (car inputs) (car pair))
-             (for ([input inputs])
-                  (hash-set! input (car pair) (cdr pair)))))
+  ;; Construct cnstr-inputs.
+  (define cnstr-inputs (list))
+  (define (loop [extra #t] [count n])
+    (define (assert-extra-and-interpret)
+      ;; Assert that the solution has to be different.
+      (assert extra)
+      (interpret-spec spec start-state assumption))
+    (define sol (solve (assert-extra-and-interpret)))
+    (define restrict-pairs (list))
+    (for ([pair (solution->list sol)])
+         ;; Filter only the ones that matter.
+         (when (hash-has-key? (car inputs) (car pair))
+               (set! restrict-pairs (cons pair restrict-pairs))))
+    (unless (empty? restrict-pairs)
+          (set! cnstr-inputs (cons restrict-pairs cnstr-inputs))
+          (when (> count 1)
+                (loop 
+                 (and extra (ormap (lambda (x) (not (equal? (car x) (cdr x)))) restrict-pairs))
+                 (sub1 count)))))
+
+  (with-handlers* ([exn:fail? 
+                    (lambda (e)
+                      (unless (equal? (exn-message e) "solve: no satisfying execution found")
+                              (pretty-display "no more!")
+                              (raise e)))])
+   (loop))
+
+  (set! cnstr-inputs (list->vector (reverse cnstr-inputs)))
+  (define cnstr-inputs-len (vector-length cnstr-inputs))
+  (when debug (pretty-display `(cnstr-inputs ,cnstr-inputs-len ,cnstr-inputs)))
+
+  ;; Modify inputs with cnstr-inputs
+  (when (> cnstr-inputs-len 0)
+        (for ([i n]
+              [input inputs])
+             (let ([cnstr-input (vector-ref cnstr-inputs (modulo i cnstr-inputs-len))])
+               (for ([pair cnstr-input])
+                    (hash-set! input (car pair) (cdr pair))))))
 
   (values sym-vars 
           (map (lambda (x) (sat (make-immutable-hash (hash->list x)))) inputs)))
@@ -83,6 +115,57 @@
   (define-values (sym-vars sltns)
     (generate-inputs-inner n spec start-state assumption))
   (map (lambda (x) (evaluate-state start-state x)) sltns))
+
+;; (define (generate-input-states2 n spec constraint assumption)
+;;   (define sketch (generate-sketch 2))
+
+;;   (define (syn start-states)
+;;     (pretty-display `(syn))
+;;     (for ([state start-states]) (display-state state))
+;;     (define sol
+;;       (solve 
+;;        (andmap 
+;;         (lambda (start-state)
+;;           (let ([spec-state (interpret spec start-state)])
+;;             (assert-output
+;;              spec-state
+;;              (interpret sketch start-state spec-state)
+;;              (struct-copy progstate constraint [cost #f])
+;;              #f)))
+;;         start-states)
+;;        ))
+;;     (evaluate-program sketch sol))
+    
+;;   (define (ver candidate)
+;;     (pretty-display `(ver))
+;;     (print-struct candidate)
+;;     (pretty-display `(eq? ,(program-eq? spec candidate constraint #:assume assumption)))
+;;     (define start-state (default-state (sym-input)))
+;;     (define spec-state #f)
+;;     (define program-state #f)
+
+;;     (define (interpret-spec!)
+;;       (set! spec-state (interpret-spec spec start-state assumption)))
+    
+;;     (define (compare)
+;;       (set! program-state (interpret candidate start-state spec-state))
+;;       (assert-output spec-state program-state 
+;;                      (struct-copy progstate constraint [cost #f])
+;;                      #f))
+
+;;     (define sol
+;;       (verify #:assume (interpret-spec!) #:guarantee (compare)))
+;;     (evaluate-state start-state sol))
+
+;;   (define (loop i start-states)
+;;     (pretty-display `(loop ,i))
+;;     (if (> i 0)
+;;         (let ([candidate (syn start-states)])
+;;           (loop (sub1 i) (cons (ver candidate) start-states)))
+;;         start-states))
+
+;;   (loop n (generate-input-states 1 spec assumption)))
+  
 
 ;; Superoptimize program given
 ;; spec: program specification (naive code)
