@@ -13,11 +13,13 @@
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
 (define w-error 9999)
 (define beta 1)
+
 (define opcode-mass 0.35)
 (define operand-mass 0.35)
 (define swap-mass 0.15)
 (define inst-mass 0.15)
 (define nop-mass 0.8)
+
 (define ntests 16)
   
   
@@ -96,7 +98,8 @@
   (cond
    ;; opcode
    [(and (not (equal? opcode-name nop)) (< type opcode-mass))
-    (define class (get-class opcode-name))
+    (define class-id (get-class-id opcode-name))
+    (define class (and class-id (vector-ref classes class-id)))
     (when debug
           (pretty-display (format " >> mutate opcode"))
           (pretty-display (format " --> org = ~a ~a" opcode-name opcode-id))

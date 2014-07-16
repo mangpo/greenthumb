@@ -60,9 +60,9 @@
       (set! best-correct-time (- (current-seconds) start-time))
       (with-output-to-file #:exists 'truncate (format "~a.best" name)
         (thunk
-         (pretty-display (format "best-correct-cost: ~a" best-correct-cost))
-         (pretty-display (format "best-correct-time: ~a" best-correct-time))
-         (print-struct best-correct-program))))
+         ;; (pretty-display (format "best-correct-cost: ~a" best-correct-cost))
+         ;; (pretty-display (format "best-correct-time: ~a" best-correct-time))
+         (print-syntax best-correct-program))))
     
     (define/public (print-stat-to-file)
       (set! time (- (current-seconds) start-time))
@@ -73,7 +73,7 @@
 
     (define/public (print-stat)
       (pretty-display "---------------------------------------------------------")
-      (pretty-display (format "memory-use:\t~a" (exact->inexact (/ (current-memory-use) 1000))))
+      ;(pretty-display (format "memory-use:\t~a" (exact->inexact (/ (current-memory-use) 1000))))
       (pretty-display (format "iterations:\t~a" iter-count))
       (pretty-display (format "test-correct-count:\t~a" correct-count))
       (pretty-display (format "misalign-correct-count:\t~a" misalign-count))
@@ -108,30 +108,30 @@
     ))
 
 (define (print-stat-all stat-list)
-  (pretty-display "time")
+  ;(pretty-display "time")
   (define time (foldl + 0
                       (map (lambda (x) (get-field time x)) stat-list)))
   (set! time (exact->inexact (/ time (length stat-list))))
-  (pretty-display "iter-count")
+  ;(pretty-display "iter-count")
   (define iter-count (foldl + 0
                             (map (lambda (x) (get-field iter-count x)) stat-list)))
-  (pretty-display "correct-count")
+  ;(pretty-display "correct-count")
   (define correct-count (foldl + 0
                             (map (lambda (x) (get-field correct-count x)) stat-list)))
-  (pretty-display "misalign-count")
+  ;(pretty-display "misalign-count")
   (define misalign-count (foldl + 0
                             (map (lambda (x) (get-field misalign-count x)) stat-list)))
-  (pretty-display "accept-higher-count")
+  ;(pretty-display "accept-higher-count")
   (define accept-higher-count (foldl + 0
                             (map (lambda (x) (get-field accept-higher-count x)) stat-list)))
 
   (define all 0)
-  (pretty-display "propose-stat")
+  ;(pretty-display "propose-stat")
   (define propose-stat
     (for/vector ([i n])
       (foldl + 0 (map (lambda (x) (vector-ref (get-field propose-stat x) i))
                       stat-list))))
-  (pretty-display "accept-stat")
+  ;(pretty-display "accept-stat")
   (define accept-stat
     (for/vector ([i n])
       (foldl + 0 (map (lambda (x) (vector-ref (get-field accept-stat x) i)) 
