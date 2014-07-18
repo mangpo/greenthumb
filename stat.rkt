@@ -5,6 +5,7 @@
 
 (define name-stat '#(opcode operand swap inst nop))
 (define n (vector-length name-stat))
+(define-syntax-rule (ratio x y) (~r (exact->inexact (/ x y)) #:precision 6))
 
 (define stat%
   (class object%
@@ -20,9 +21,15 @@
                 [current-mutate #f]
                 [iter-count 0]
                 [misalign-count 0]
+                [validate-count 0]
                 [correct-count 0]
+                [accept-count 0]
                 [accept-higher-count 0]
                 [name #f]
+                [simulate-time 0]
+                [check-time 0]
+                [validate-time 0]
+                [mutate-time 0]
                 )
            
     (super-new)
@@ -38,6 +45,7 @@
       (set! current-mutate x))
 
     (define/public (inc-accept)
+      (set! accept-count (add1 accept-count))
       (vector-set! accept-stat current-mutate 
                    (add1 (vector-ref accept-stat current-mutate))))
 
@@ -46,6 +54,9 @@
 
     (define/public (inc-correct)
       (set! correct-count (add1 correct-count)))
+
+    (define/public (inc-validate)
+      (set! validate-count (add1 validate-count)))
     
     (define/public (inc-misalign)
       (set! misalign-count (add1 misalign-count)))
@@ -63,6 +74,11 @@
          ;; (pretty-display (format "best-correct-cost: ~a" best-correct-cost))
          ;; (pretty-display (format "best-correct-time: ~a" best-correct-time))
          (print-syntax best-correct-program))))
+
+    (define/public (simulate x) (set! simulate-time (+ simulate-time x)))
+    (define/public (check x)    (set! check-time (+ check-time x)))
+    (define/public (validate x) (set! validate-time (+ validate-time x)))
+    (define/public (mutate x)   (set! mutate-time (+ mutate-time x)))
     
     (define/public (print-stat-to-file)
       (set! time (- (current-seconds) start-time))
@@ -74,10 +90,17 @@
     (define/public (print-stat)
       (pretty-display "---------------------------------------------------------")
       ;(pretty-display (format "memory-use:\t~a" (exact->inexact (/ (current-memory-use) 1000))))
-      (pretty-display (format "iterations:\t~a" iter-count))
-      (pretty-display (format "test-correct-count:\t~a" correct-count))
-      (pretty-display (format "misalign-correct-count:\t~a" misalign-count))
       (pretty-display (format "elapsed-time:\t~a" time))
+      (pretty-display (format "mutate-time:\t~a" mutate-time))
+      (pretty-display (format "simulate-time:\t~a" simulate-time))
+      (pretty-display (format "check-time:\t~a" check-time))
+      (pretty-display (format "validate-time:\t~a" validate-time))
+      (newline)
+      (pretty-display (format "validate-count:\t~a" validate-count))
+      (pretty-display (format "correct-count:\t~a" correct-count))
+      (pretty-display (format "misalign-count:\t~a" misalign-count))
+      (newline)
+      (pretty-display (format "iterations:\t~a" iter-count))
       (when (> time 0)
             (pretty-display (format "iterations/s:\t~a" (exact->inexact (/ iter-count time)))))
       (pretty-display (format "best-cost:\t~a" best-cost))
@@ -96,34 +119,38 @@
                                        (exact->inexact (/ (vector-ref accept-stat i) (vector-ref propose-stat i)))
                                        0))))
       (newline)
-      (pretty-display (format "acceptance-rate:\t~a" 
-                              (exact->inexact (/ accepted proposed))))
-      (define accept-count (exact->inexact (* (/ accepted proposed) iter-count)))
+      ;; (pretty-display (format "acceptance-rate:\t~a" 
+      ;;                         (exact->inexact (/ accepted proposed))))
       (pretty-display (format "accept-count:\t~a" accept-count))
       (pretty-display (format "accept-higher-count:\t~a" accept-higher-count))
-      (pretty-display (format "accept-higher-percent:\t~a" 
-                              (exact->inexact (/ accept-higher-count accept-count))))
+      ;; (pretty-display (format "accept-higher-percent:\t~a" 
+      ;;                         (exact->inexact (/ accept-higher-count accept-count))))
       
     )
     ))
 
 (define (print-stat-all stat-list)
+  (define-syntax-rule (reduce+ field)
+    (foldl + 0 (map (lambda (x) (get-field field x)) stat-list)))
+
   ;(pretty-display "time")
-  (define time (foldl + 0
-                      (map (lambda (x) (get-field time x)) stat-list)))
-  (set! time (exact->inexact (/ time (length stat-list))))
+  (define time (reduce+ time))
+  (define mutate-time (reduce+ mutate-time))
+  (define simulate-time (reduce+ simulate-time))
+  (define check-time (reduce+ check-time))
+  (define validate-time (reduce+ validate-time))
   ;(pretty-display "iter-count")
-  (define iter-count (foldl + 0
-                            (map (lambda (x) (get-field iter-count x)) stat-list)))
+  (define iter-count (reduce+ iter-count))
+  ;(pretty-display "validate-count")
+  (define validate-count (reduce+ validate-count))
   ;(pretty-display "correct-count")
-  (define correct-count (foldl + 0
-                            (map (lambda (x) (get-field correct-count x)) stat-list)))
+  (define correct-count (reduce+ correct-count))
   ;(pretty-display "misalign-count")
-  (define misalign-count (foldl + 0
-                            (map (lambda (x) (get-field misalign-count x)) stat-list)))
+  (define misalign-count (reduce+ misalign-count))
   ;(pretty-display "accept-higher-count")
-  (define accept-higher-count (foldl + 0
-                            (map (lambda (x) (get-field accept-higher-count x)) stat-list)))
+
+  (define accept-higher-count (reduce+ accept-higher-count))
+  (define accept-count (reduce+ accept-count))
 
   (define all 0)
   ;(pretty-display "propose-stat")
@@ -160,12 +187,19 @@
          (when (< cost best-cost)
                (set! best-cost cost))))
 
+
   (define stat (new stat%
-                    [time time]
+                    [time (quotient time (length stat-list))]
+                    [mutate-time (ratio (/ mutate-time 1000) time)]
+                    [simulate-time (ratio (/ simulate-time 1000) time)]
+                    [check-time (ratio (/ check-time 1000) time)]
+                    [validate-time (ratio (/ validate-time 1000) time)]
                     [iter-count iter-count]
-                    [correct-count correct-count]
-                    [accept-higher-count accept-higher-count]
-                    [misalign-count misalign-count]
+                    [validate-count (ratio validate-count iter-count)]
+                    [correct-count (ratio correct-count iter-count)]
+                    [accept-count (ratio accept-count iter-count)]
+                    [accept-higher-count (ratio accept-higher-count iter-count)]
+                    [misalign-count (ratio misalign-count iter-count)]
                     [propose-stat propose-stat]
                     [accept-stat accept-stat]
                     [best-correct-program #f]
@@ -180,9 +214,16 @@
 
   (define id #f)
   (define time #f)
+  (define mutate-time #f)
+  (define simulate-time #f)
+  (define check-time #f)
+  (define validate-time #f)
+
   (define iter-count #f)
+  (define validate-count #f)
   (define correct-count #f)
   (define misalign-count #f)
+  (define accept-count #f)
   (define accept-higher-count #f)
   (define propose-stat (make-vector n))
   (define accept-stat (make-vector n))
@@ -214,9 +255,15 @@
             ))))
 
       (pattern [single (#rx"elapsed-time" time)
+                       (#rx"mutate-time" mutate-time)
+                       (#rx"simulate-time" simulate-time)
+                       (#rx"check-time" check-time)
+                       (#rx"validate-time" validate-time)
                        (#rx"iterations:" iter-count)
-                       (#rx"test-correct-count:" correct-count)
-                       (#rx"misalign-correct-count:" misalign-count)
+                       (#rx"validate-count:" validate-count)
+                       (#rx"correct-count:" correct-count)
+                       (#rx"misalign-count:" misalign-count)
+                       (#rx"accept-count:" accept-count)
                        (#rx"accept-higher-count:" accept-higher-count)
                        (#rx"best-cost" best-cost)
                        (#rx"best-correct-cost" best-correct-cost)
@@ -232,11 +279,21 @@
   (parse)
   (close-input-port in-port)
 
+  ;; (pretty-display `(validate-count ,validate-count))
+  ;; (pretty-display `(correct-count ,correct-count))
+  ;; (pretty-display `(misalign-count ,misalign-count))
+
   (new stat% 
        [time time]
+       [mutate-time mutate-time]
+       [simulate-time simulate-time]
+       [check-time check-time]
+       [validate-time validate-time]
        [iter-count iter-count]
+       [validate-count validate-count]
        [correct-count correct-count]
        [misalign-count misalign-count]
+       [accept-count accept-count]
        [accept-higher-count accept-higher-count]
        [propose-stat propose-stat]
        [accept-stat accept-stat]

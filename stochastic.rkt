@@ -183,8 +183,15 @@
                      [exn? (lambda (e) 
                              (when debug (pretty-display "Error!"))
                              w-error)])
-      (let ([program-out (interpret program input)])
-        (correctness-cost output program-out constraint stat)
+      (let* ([t1 (current-milliseconds)]
+             [program-out (interpret program input)]
+             [t2 (current-milliseconds)]
+             [ret (correctness-cost output program-out constraint stat)]
+             [t3 (current-milliseconds)]
+             )
+        (send stat simulate (- t2 t1))
+        (send stat check (- t3 t2))
+        ret
         )))
 
   (define (cost-all-inputs program okay-cost)
@@ -198,14 +205,18 @@
                      (set! correct #f))))
 
     (when (equal? correct 0)
-          (send stat inc-correct)
+          (send stat inc-validate)
+          (define t1 (current-milliseconds))
           (if (program-eq? target program constraint #:assume assumption)
               (begin
+                (send stat inc-correct)
                 (when syn-mode (set! change-mode #t) (set! syn-mode #f))
                 ;(send stat inc-correct)
                 )
-              (set! correct 1)))
-
+              (set! correct 1))
+          (define t2 (current-milliseconds))
+          (send stat validate (- t2 t1))
+          )
     
     (if (number? correct)
          (let ([total-cost 
@@ -235,7 +246,10 @@
   ;; Main loop
   (define (iter current current-cost)
     (send stat inc-iter)
+    (define t1 (current-milliseconds))
     (define proposal (mutate current stat))
+    (define t2 (current-milliseconds))
+    (send stat mutate (- t2 t1))
     (when debug
           (pretty-display (format "================ Current (syn=~a) =================" syn-mode))
           (print-struct current)
