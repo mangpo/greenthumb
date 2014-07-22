@@ -1,23 +1,29 @@
 #lang racket
 
-(require "stat.rkt" "vpe/parser.rkt" "vpe/machine.rkt" "vpe/compress.rkt" "vpe/print.rkt")
+(require "stat.rkt" 
+         "vpe/llvm-parser.rkt" "vpe/machine.rkt" "vpe/compress.rkt" "vpe/print.rkt")
 (provide optimize)
 
-(define (optimize file machine-info live-output synthesize 
-                  #:dir [dir "output"] #:cores [cores 12])
-
+(define (optimize-inner code-org live-out-org synthesize dir cores)
   (define path (format "~a/driver" dir))
   (system (format "mkdir ~a" dir))
   (system (format "rm ~a*" path))
+  
+  (pretty-display "select code:")
+  (print-syntax code-org #:LR #f)
+  (pretty-display `(live-output ,live-out-org))
+
   ;; Use the fewest number of registers possible.
-  (define-values (code map-forward map-back n) (compress-reg-space (ast-from-file file)))
-  (define compressed-live-output (pre-constraint-rename live-output map-forward))
+  (define-values (code live-out map-back machine-info) 
+    (compress-reg-space code-org live-out-org))
   (pretty-display "compressed-code:")
   (print-syntax code #:LR #f)
+  (pretty-display `(machine-info ,machine-info))
+  (pretty-display `(live-out ,live-out))
   
   (define (create-file id)
     (define (req file)
-      (format "(file \"/bard/wilma/pphothil/superopt/modular-optimizer2/~a\")" file))
+      (format "(file \"/bard/wilma/pphothil/superopt/modular-optimizer/~a\")" file))
     (define require-files 
       (string-join 
        (map req 
@@ -34,17 +40,17 @@
        (pretty-display "\"))")
        (pretty-display (format "(define encoded-code (encode code #f))"))
        (pretty-display (format "(stochastic-optimize encoded-code ~a #:synthesize ~a #:name \"~a-~a\")" 
-                               (output-constraint-string compressed-live-output)
+                               (output-constraint-string live-out)
                                synthesize path id))
        ;;(pretty-display "(dump-memory-stats)"
        )))
-
+  
   (define (run-file id)
     (define out-port (open-output-file (format "~a-~a.log" path id) #:exists 'truncate))
     (define-values (sp o i e) 
       (subprocess out-port #f out-port (find-executable-path "racket") (format "~a-~a.rkt" path id)))
     sp)
-
+  
   (define (wait)
     ;;(pretty-display "wait")
     (sleep 10)
@@ -56,13 +62,13 @@
     (pretty-display (format "There are currently ~a stats." n))
     (unless (= n cores)
             (wait)))
-
+  
   (define (update-stats)
     (unless (andmap (lambda (sp) (not (equal? (subprocess-status sp) 'running))) processes)
-        (get-stats)
-        (sleep 10)
-        (update-stats)))
-
+            (get-stats)
+            (sleep 10)
+            (update-stats)))
+  
   (define (get-stats)
     (define stats
       (for/list ([id cores])
@@ -75,7 +81,7 @@
        )
      )
     )
-
+  
   (define processes
     (for/list ([id cores])
               (create-file id)
@@ -94,8 +100,36 @@
   
   (define id (get-stats))
   (define output-code (ast-from-file (format "~a-~a.best" path id)))
-  (print-syntax (decompress-reg-space output-code map-back) #:LR #f)
+  (define decompressed-code (decompress-reg-space output-code map-back))
+  (print-syntax decompressed-code #:LR #f)
+  decompressed-code
   )
+
+;; Inputs
+;; live-out: live-out info in custom format--- for vpe, a list of live registers
+;; synthesize: #t = synthesize mode, #f = optimize mode
+(define (optimize file live-out synthesize 
+                  #:dir [dir "output"] #:cores [cores 12])
+
+  (define code-org (ast-from-file file))
+  (define-values (pass start stop extra-live-out) (select-code code-org))
+
+  (when pass
+        (define middle-output
+          (optimize-inner (vector-drop (vector-take code-org (add1 stop)) start)
+                          (combine-live-out live-out extra-live-out)
+                          synthesize
+                          dir cores))
+        
+        (vector-append (take code-org start)
+                       middle-output
+                       (drop code-org stop)))
+  )
+
+;; (optimize "vpe/programs/ntt.ll"
+;;           (list 2 3 7 8 26 27 28)
+;;           #f #:dir "output" #:cores 12)
+          
 
 
                        
