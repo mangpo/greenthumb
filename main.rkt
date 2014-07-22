@@ -1,7 +1,8 @@
 #lang racket
 
 (require "stat.rkt" 
-         "vpe/llvm-parser.rkt" "vpe/machine.rkt" "vpe/compress.rkt" "vpe/print.rkt")
+         "vpe/llvm-parser.rkt" "vpe/parser.rkt"
+         "vpe/machine.rkt" "vpe/compress.rkt" "vpe/print.rkt")
 (provide optimize)
 
 (define (optimize-inner code-org live-out-org synthesize dir cores)
@@ -111,9 +112,9 @@
 (define (optimize file live-out synthesize 
                   #:dir [dir "output"] #:cores [cores 12])
 
-  (define code-org (ast-from-file file))
+  (define code-org (ast-from-file-llvm file))
   (define-values (pass start stop extra-live-out) (select-code code-org))
-
+  (pretty-display `(select-code ,pass ,start ,stop ,extra-live-out))
   (when pass
         (define middle-output
           (optimize-inner (vector-drop (vector-take code-org (add1 stop)) start)
