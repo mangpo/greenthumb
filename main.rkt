@@ -5,7 +5,7 @@
          "vpe/machine.rkt" "vpe/compress.rkt" "vpe/print.rkt")
 (provide optimize)
 
-(define (optimize-inner code-org live-out-org synthesize dir cores)
+(define (optimize-inner code-org live-out-org synthesize dir cores time-limit)
   (define path (format "~a/driver" dir))
   (system (format "mkdir ~a" dir))
   (system (format "rm ~a*" path))
@@ -40,9 +40,9 @@
        (print-syntax code #:LR #f)
        (pretty-display "\"))")
        (pretty-display (format "(define encoded-code (encode code #f))"))
-       (pretty-display (format "(stochastic-optimize encoded-code ~a #:synthesize ~a #:name \"~a-~a\")" 
+       (pretty-display (format "(stochastic-optimize encoded-code ~a ~a \"~a-~a\" ~a)" 
                                (output-constraint-string live-out)
-                               synthesize path id))
+                               synthesize path id time-limit))
        ;;(pretty-display "(dump-memory-stats)"
        )))
   
@@ -108,7 +108,7 @@
       code-org)
   )
 
-(define (optimize-filter code-org live-out synthesize dir cores)
+(define (optimize-filter code-org live-out synthesize dir cores time-limit)
   (define-values (pass start stop extra-live-out) (select-code code-org))
   (pretty-display `(select-code ,pass ,start ,stop ,extra-live-out))
   (if pass
@@ -116,16 +116,12 @@
              (optimize-inner 
               (vector-drop (vector-take code-org (add1 stop)) start)
               (combine-live-out live-out extra-live-out)
-              synthesize
-              dir cores)])
+              synthesize dir cores time-limit)])
         (vector-append (vector-take code-org start)
                        middle-output
                        (vector-drop code-org stop)))
       code-org)
   )
-
-(define (optimize-s code-org live-out synthesize dir cores)
-  (optimize-inner code-org live-out synthesize dir cores))
 
 ;; Inputs
 ;; input: can be in 3 different types.
@@ -136,7 +132,9 @@
                   #:is-file [is-file #t] 
                   #:is-llvm [is-llvm #f]
                   #:need-filter [need-filter #f]
-                  #:dir [dir "output"] #:cores [cores 12])
+                  #:dir [dir "output"] 
+                  #:cores [cores 12]
+                  #:time-limit [time-limit 36000])
 
   (define code-org 
     (if is-file
@@ -146,8 +144,8 @@
         input))
 
   (if need-filter
-      (optimize-filter code-org live-out synthesize dir cores)
-      (optimize-inner code-org live-out synthesize dir cores)))
+      (optimize-filter code-org live-out synthesize dir cores time-limit)
+      (optimize-inner code-org live-out synthesize dir cores time-limit)))
 
 ;; (optimize "vpe/programs/ntt.ll"
 ;;           (list 2 3 7 8 26 27 28)

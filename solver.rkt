@@ -222,7 +222,7 @@
 
   (define model 
     (timeout
-     time-limit
+     3600
      (synthesize 
       #:forall sym-vars
       #:init inputs

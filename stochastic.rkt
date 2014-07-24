@@ -25,9 +25,8 @@
   
 ;;;;;;;;;;;;;;;;;;;;; Functions ;;;;;;;;;;;;;;;;;;
 (define (stochastic-optimize spec constraint 
-                             #:assume [assumption (no-assumption)]
-                             #:synthesize [syn-mode #f]
-                             #:name [name "temp"])
+                             syn-mode name time-limit
+                             #:assume [assumption (no-assumption)])
   (init-operand-ranges)
   ;; Generate testcases
   (when debug 
@@ -54,7 +53,7 @@
                     [best-correct-cost (performance-cost spec)]
                     [name name]))
   (mcmc-main spec (if syn-mode sketch spec) 
-             inputs outputs constraint assumption stat)
+             inputs outputs constraint assumption stat time-limit)
   )
 
 (define (random-insts n)
@@ -174,7 +173,8 @@
               (random-from-vec (vector-ref ranges i))))
   
 
-(define (mcmc-main target init inputs outputs constraint assumption stat)
+(define (mcmc-main target init inputs outputs constraint assumption 
+                   stat time-limit)
   (pretty-display ">>> start MCMC sampling")
   (define syn-mode #t)
 
@@ -281,7 +281,7 @@
   (with-handlers ([exn:break? (lambda (e) 
                                 (send stat print-stat-to-file)
                                 )])
-    (timeout 10;36000 
+    (timeout time-limit
              (iter init (car (cost-all-inputs init (arithmetic-shift 1 32))))
              ))
   )
