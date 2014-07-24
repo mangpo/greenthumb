@@ -24,7 +24,7 @@
   
   (define (create-file id)
     (define (req file)
-      (format "(file \"/bard/wilma/pphothil/superopt/modular-optimizer/~a\")" file))
+      (format "(file \"/bard/wilma/pphothil/superopt/modular-optimizer2/~a\")" file))
     (define require-files 
       (string-join 
        (map req 
@@ -106,13 +106,7 @@
   decompressed-code
   )
 
-;; Inputs
-;; live-out: live-out info in custom format--- for vpe, a list of live registers
-;; synthesize: #t = synthesize mode, #f = optimize mode
-(define (optimize file live-out synthesize 
-                  #:dir [dir "output"] #:cores [cores 12])
-
-  (define code-org (ast-from-file-llvm file))
+(define (optimize-llvm code-org live-out synthesize dir cores)
   (define-values (pass start stop extra-live-out) (select-code code-org))
   (pretty-display `(select-code ,pass ,start ,stop ,extra-live-out))
   (when pass
@@ -127,10 +121,35 @@
                        (drop code-org stop)))
   )
 
+(define (optimize-s code-org live-out synthesize dir cores)
+  (optimize-inner code-org live-out synthesize dir cores))
+
+;; Inputs
+;; input: can be in 3 different types.
+;;   1) parsed AST, 2) .s file, 3) LLVM IR file
+;; live-out: live-out info in custom format--- for vpe, a list of live registers
+;;   synthesize: #t = synthesize mode, #f = optimize mode
+(define (optimize input live-out synthesize 
+                  #:is-file [is-file #t] #:is-llvm [is-llvm #f]
+                  #:dir [dir "output"] #:cores [cores 12])
+
+  (define code-org 
+    (if is-file
+        (if is-llvm
+            (ast-from-file-llvm input)
+            (ast-from-file input))
+        input))
+
+  (if is-llvm
+      (optimize-llvm code-org live-out synthesize dir cores)
+      (optimize-inner code-org live-out synthesize dir cores)))
+
 ;; (optimize "vpe/programs/ntt.ll"
 ;;           (list 2 3 7 8 26 27 28)
 ;;           #f #:dir "output" #:cores 12)
           
+
+
 
 
                        
