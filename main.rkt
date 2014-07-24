@@ -10,17 +10,17 @@
   (system (format "mkdir ~a" dir))
   (system (format "rm ~a*" path))
   
-  (pretty-display "select code:")
+  (pretty-display ">>> select code:")
   (print-syntax code-org #:LR #f)
-  (pretty-display `(live-output ,live-out-org))
+  (pretty-display (format ">>> live-out-org: ~a" live-out-org))
 
   ;; Use the fewest number of registers possible.
   (define-values (code live-out map-back machine-info) 
     (compress-reg-space code-org live-out-org))
-  (pretty-display "compressed-code:")
+  (pretty-display ">>> compressed-code:")
   (print-syntax code #:LR #f)
-  (pretty-display `(machine-info ,machine-info))
-  (pretty-display `(live-out ,live-out))
+  (pretty-display (format ">>> machine-info: ~a" machine-info))
+  (pretty-display (format ">>> live-out: ~a" live-out))
   
   (define (create-file id)
     (define (req file)
@@ -101,24 +101,27 @@
   
   (define id (get-stats))
   (define output-code (ast-from-file (format "~a-~a.best" path id)))
-  (define decompressed-code (decompress-reg-space output-code map-back))
-  (print-syntax decompressed-code #:LR #f)
-  decompressed-code
+  (if output-code
+      (let ([decompressed-code (decompress-reg-space output-code map-back)])
+        (print-syntax decompressed-code #:LR #f)
+        decompressed-code)
+      code-org)
   )
 
-(define (optimize-llvm code-org live-out synthesize dir cores)
+(define (optimize-filter code-org live-out synthesize dir cores)
   (define-values (pass start stop extra-live-out) (select-code code-org))
   (pretty-display `(select-code ,pass ,start ,stop ,extra-live-out))
-  (when pass
-        (define middle-output
-          (optimize-inner (vector-drop (vector-take code-org (add1 stop)) start)
-                          (combine-live-out live-out extra-live-out)
-                          synthesize
-                          dir cores))
-        
-        (vector-append (take code-org start)
+  (if pass
+      (let ([middle-output
+             (optimize-inner 
+              (vector-drop (vector-take code-org (add1 stop)) start)
+              (combine-live-out live-out extra-live-out)
+              synthesize
+              dir cores)])
+        (vector-append (vector-take code-org start)
                        middle-output
-                       (drop code-org stop)))
+                       (vector-drop code-org stop)))
+      code-org)
   )
 
 (define (optimize-s code-org live-out synthesize dir cores)
@@ -130,7 +133,9 @@
 ;; live-out: live-out info in custom format--- for vpe, a list of live registers
 ;;   synthesize: #t = synthesize mode, #f = optimize mode
 (define (optimize input live-out synthesize 
-                  #:is-file [is-file #t] #:is-llvm [is-llvm #f]
+                  #:is-file [is-file #t] 
+                  #:is-llvm [is-llvm #f]
+                  #:need-filter [need-filter #f]
                   #:dir [dir "output"] #:cores [cores 12])
 
   (define code-org 
@@ -140,8 +145,8 @@
             (ast-from-file input))
         input))
 
-  (if is-llvm
-      (optimize-llvm code-org live-out synthesize dir cores)
+  (if need-filter
+      (optimize-filter code-org live-out synthesize dir cores)
       (optimize-inner code-org live-out synthesize dir cores)))
 
 ;; (optimize "vpe/programs/ntt.ll"

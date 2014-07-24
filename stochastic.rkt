@@ -281,7 +281,7 @@
   (with-handlers ([exn:break? (lambda (e) 
                                 (send stat print-stat-to-file)
                                 )])
-    (timeout 36000 
+    (timeout 10;36000 
              (iter init (car (cost-all-inputs init (arithmetic-shift 1 32))))
              ))
   )
