@@ -12,7 +12,7 @@
 (define-syntax-rule (>> x y)
   (if (>= y 0)
       (arithmetic-shift x (- y))
-      0))
+      (if (>= x 0) 0 -1)))
 
 (define-syntax-rule (>>> x y)
   (if (= y 0)
