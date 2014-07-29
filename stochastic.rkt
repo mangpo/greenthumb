@@ -204,16 +204,25 @@
                (when (> correct okay-cost)
                      (set! correct #f))))
 
+    (define ce #f)
     (when (equal? correct 0)
           (send stat inc-validate)
           (define t1 (current-milliseconds))
-          (if (program-eq? target program constraint #:assume assumption)
+          (set! ce (counterexample target program constraint #:assume assumption))
+          (if ce 
+              (begin
+                (set! correct 1)
+                (set! inputs (cons ce inputs))
+                (set! outputs (cons (interpret target ce) outputs))
+                (pretty-display (format "Add counterexample. Total = ~a." (length inputs)))
+                (display-state ce)
+                )
               (begin
                 (send stat inc-correct)
                 (when syn-mode (set! change-mode #t) (set! syn-mode #f))
                 ;(send stat inc-correct)
-                )
-              (set! correct 1))
+                ))
+              
           (define t2 (current-milliseconds))
           (send stat validate (- t2 t1))
           )
@@ -221,6 +230,7 @@
     (if (number? correct)
          (let ([total-cost 
                 (if syn-mode correct (+ (performance-cost program) correct))])
+           (when debug (pretty-display `(total-cost ,total-cost)))
            (when (< total-cost (get-field best-cost stat))
                  (send stat update-best program total-cost)
                  )
@@ -258,6 +268,7 @@
           (pretty-display (format "================ Propose (syn=~a) =================" syn-mode))
           (print-struct proposal)
           )
+    (define n-inputs (length inputs))
     (define okay-cost (accept-cost current-cost))
     (define cost-correct (cost-all-inputs proposal okay-cost))
     (define proposal-cost (car cost-correct))
@@ -274,14 +285,29 @@
           (send stat inc-accept)
           (when (> proposal-cost current-cost) 
                 (send stat inc-accept-higher))
+          ;; Adjust cost due to new counterexample
+          (when (> (length inputs) n-inputs)
+                (when debug (display (format "Adjust proposal cost from ~a " proposal-cost)))
+                (set! proposal-cost (sub1 (+ proposal-cost (cost-one-input proposal (car inputs) (car outputs)))))
+                (when debug (pretty-display (format "to ~a." proposal-cost)))
+                )
           (iter (if (cdr cost-correct) (remove-nops proposal) proposal) 
                 proposal-cost))
-        (iter current current-cost)))
+        (begin
+          ;; Adjust cost due to new counterexample
+          (when (> (length inputs) n-inputs)
+                (when debug (display (format "Adjust current cost from ~a " current-cost)))
+                (set! current-cost (+ current-cost (cost-one-input current (car inputs) (car outputs))))
+                (when debug (pretty-display (format "to ~a." current-cost)))
+                )
+          (iter current current-cost))
+        ))
+
 
   (with-handlers ([exn:break? (lambda (e) 
                                 (send stat print-stat-to-file)
                                 )])
-    (timeout 36000 
+    (timeout 36000
              (iter init (car (cost-all-inputs init (arithmetic-shift 1 32))))
              ))
   )

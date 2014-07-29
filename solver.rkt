@@ -15,7 +15,7 @@
 	 ;; optimize 
          ;; linear-search binary-search 
          ;; optimize-cost
-         program-eq? generate-input-states)
+         counterexample generate-input-states)
 
 
 (define (sym-input)
@@ -244,7 +244,7 @@
   (values final-program final-cost)
   )
 
-(define (program-eq? spec program constraint
+(define (counterexample spec program constraint
                      #:assume [assumption (no-assumption)])
   (configure [bitwidth bit])
   (define start-state (default-state (sym-input)))
@@ -272,11 +272,17 @@
   (with-handlers* ([exn:fail? 
                     (lambda (e)
                       (when debug (pretty-display "program-eq? SAME"))
-                      (or (equal? (exn-message e) "verify: no counterexample found")
+                      (if (equal? (exn-message e) "verify: no counterexample found")
+                          #f
                           (raise e)))])
-    (verify #:assume (interpret-spec!) #:guarantee (compare))
-    (when debug (pretty-display "program-eq? DIFF"))
-    #f))
+    (let ([model (verify #:assume (interpret-spec!) #:guarantee (compare))])
+      (when debug (pretty-display "program-eq? DIFF"))
+      (let ([state (evaluate-state start-state model)])
+        ;; (pretty-display model)
+        ;; (display-state state)
+        ;; (raise "done")
+        state)
+      )))
 
 #|
 ;; TODO: remove all info
