@@ -114,12 +114,10 @@
   (if pass
       (let ([middle-output
              (optimize-inner 
-              (vector-drop (vector-take code-org (add1 stop)) start)
+              pass
               (combine-live-out live-out extra-live-out)
               synthesize dir cores time-limit)])
-        (vector-append (vector-take code-org start)
-                       middle-output
-                       (vector-drop code-org (add1 stop))))
+        (combine-code code-org middle-output start stop))
       code-org)
   )
 
@@ -135,7 +133,6 @@
                   #:dir [dir "output"] 
                   #:cores [cores 12]
                   #:time-limit [time-limit 36000])
-
   (define code-org 
     (if is-file
         (if is-llvm
