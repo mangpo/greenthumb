@@ -120,7 +120,6 @@
 (define (concrete-in x lst)
   (and (member x lst) #t))
 
-(define time-limit 3600)
 (define-syntax-rule (timeout sec expr)
   (let* ([t (let ([parent (current-thread)])
               (thread
