@@ -119,7 +119,7 @@
               synthesize dir cores time-limit)])
         (vector-append (vector-take code-org start)
                        middle-output
-                       (vector-drop code-org stop)))
+                       (vector-drop code-org (add1 stop))))
       code-org)
   )
 
