@@ -132,7 +132,7 @@
                   #:need-filter [need-filter #f]
                   #:dir [dir "output"] 
                   #:cores [cores 12]
-                  #:time-limit [time-limit 36000])
+                  #:time-limit [time-limit 3600])
   (define code-org 
     (if is-file
         (if is-llvm
@@ -140,9 +140,11 @@
             (ast-from-file input))
         input))
 
-  (if need-filter
-      (optimize-filter code-org live-out synthesize dir cores time-limit)
-      (optimize-inner code-org live-out synthesize dir cores time-limit)))
+  (if (> (vector-length code-org) 2)
+      (if need-filter
+          (optimize-filter code-org live-out synthesize dir cores time-limit)
+          (optimize-inner code-org live-out synthesize dir cores time-limit))
+      code-org))
 
 ;; (optimize "vpe/programs/ntt.ll"
 ;;           (list 2 3 7 8 26 27 28)
