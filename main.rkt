@@ -24,7 +24,7 @@
   
   (define (create-file id)
     (define (req file)
-      (format "(file \"/bard/wilma/pphothil/superopt/modular-optimizer2/~a\")" file))
+      (format "(file \"/bard/wilma/pphothil/superopt/modular-optimizer/~a\")" file))
     (define require-files 
       (string-join 
        (map req 

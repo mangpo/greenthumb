@@ -9,7 +9,7 @@
  )
 
 (require rosette/solver/z3/z3)
-;(require rosette/solver/kodkod/kodkod)
+(require rosette/solver/kodkod/kodkod)
 
 (provide superoptimize 
 	 ;; optimize 
@@ -31,6 +31,8 @@
   )
 
 (define (generate-inputs-inner n spec start-state assumption)
+  (current-solver (new kodkod%))
+  (configure [bitwidth bit])
   (define const-range 
     (list->vector
      (cons (- (arithmetic-shift 1 (sub1 bit)))
@@ -110,62 +112,10 @@
           (map (lambda (x) (sat (make-immutable-hash (hash->list x)))) inputs)))
 
 (define (generate-input-states n spec assumption)
-  (configure [bitwidth bit])
   (define start-state (default-state (sym-input)))
   (define-values (sym-vars sltns)
     (generate-inputs-inner n spec start-state assumption))
   (map (lambda (x) (evaluate-state start-state x)) sltns))
-
-;; (define (generate-input-states2 n spec constraint assumption)
-;;   (define sketch (generate-sketch 2))
-
-;;   (define (syn start-states)
-;;     (pretty-display `(syn))
-;;     (for ([state start-states]) (display-state state))
-;;     (define sol
-;;       (solve 
-;;        (andmap 
-;;         (lambda (start-state)
-;;           (let ([spec-state (interpret spec start-state)])
-;;             (assert-output
-;;              spec-state
-;;              (interpret sketch start-state spec-state)
-;;              (struct-copy progstate constraint [cost #f])
-;;              #f)))
-;;         start-states)
-;;        ))
-;;     (evaluate-program sketch sol))
-    
-;;   (define (ver candidate)
-;;     (pretty-display `(ver))
-;;     (print-struct candidate)
-;;     (pretty-display `(eq? ,(program-eq? spec candidate constraint #:assume assumption)))
-;;     (define start-state (default-state (sym-input)))
-;;     (define spec-state #f)
-;;     (define program-state #f)
-
-;;     (define (interpret-spec!)
-;;       (set! spec-state (interpret-spec spec start-state assumption)))
-    
-;;     (define (compare)
-;;       (set! program-state (interpret candidate start-state spec-state))
-;;       (assert-output spec-state program-state 
-;;                      (struct-copy progstate constraint [cost #f])
-;;                      #f))
-
-;;     (define sol
-;;       (verify #:assume (interpret-spec!) #:guarantee (compare)))
-;;     (evaluate-state start-state sol))
-
-;;   (define (loop i start-states)
-;;     (pretty-display `(loop ,i))
-;;     (if (> i 0)
-;;         (let ([candidate (syn start-states)])
-;;           (loop (sub1 i) (cons (ver candidate) start-states)))
-;;         start-states))
-
-;;   (loop n (generate-input-states 1 spec assumption)))
-  
 
 ;; Superoptimize program given
 ;; spec: program specification (naive code)
@@ -183,7 +133,7 @@
   ;; (pretty-display assumption)
 
   ;(current-solver (new z3%))
-  ;(current-solver (new kodkod%))
+  (current-solver (new kodkod%))
   (configure [bitwidth bit])
   (define start-state (default-state (sym-input)))
   (define spec-state #f)
@@ -246,6 +196,7 @@
 
 (define (program-eq? spec program constraint
                      #:assume [assumption (no-assumption)])
+  (current-solver (new kodkod%))
   (configure [bitwidth bit])
   (define start-state (default-state (sym-input)))
   (define spec-state #f)
