@@ -9,9 +9,10 @@
  )
 
 (require rosette/solver/z3/z3)
-;(require rosette/solver/kodkod/kodkod)
+(require rosette/solver/kodkod/kodkod)
 
 (provide superoptimize 
+         proper-machine-config
 	 ;; optimize 
          ;; linear-search binary-search 
          ;; optimize-cost
@@ -30,7 +31,34 @@
   res
   )
 
+;; code: non-encoded code
+;; config: machine config
+(define (proper-machine-config code config)
+  (define encoded-code (encode code #f))
+  (define (solve-until-valid config)
+    (set-machine-config config)
+    (current-solver (new kodkod%))
+    (configure [bitwidth bit])
+    (define state (default-state (sym-input)))
+    (with-handlers* 
+     ([exn:fail? 
+       (lambda (e)
+         (if  (equal? (exn-message e) "solve: no satisfying execution found")
+              (let ([new-config (config-adjust config)])
+                (if (config-exceed-limit? new-config)
+                    (raise "Cannot find inputs to the program for the memory size < 1000.
+1) Try increasing memory size when calling (set-machine-config).
+2) Some operation in interpret.rkt might not be legal for Rosette's symbolic object.")
+                    (solve-until-valid new-config)))
+              (raise e)))])
+     (solve (interpret encoded-code state))
+     config))
+
+  (solve-until-valid config))
+
 (define (generate-inputs-inner n spec start-state assumption)
+  (current-solver (new kodkod%))
+  (configure [bitwidth bit])
   (define const-range 
     (list->vector
      (cons (- (arithmetic-shift 1 (sub1 bit)))
@@ -69,6 +97,7 @@
 
   ;; Construct cnstr-inputs.
   (define cnstr-inputs (list))
+  (define first-solve #t)
   (define (loop [extra #t] [count n])
     (define (assert-extra-and-interpret)
       ;; Assert that the solution has to be different.
@@ -76,6 +105,7 @@
       (interpret-spec spec start-state assumption))
     (define sol (solve (assert-extra-and-interpret)))
     (define restrict-pairs (list))
+    (set! first-solve #f)
     (for ([pair (solution->list sol)])
          ;; Filter only the ones that matter.
          (when (hash-has-key? (car inputs) (car pair))
@@ -87,11 +117,14 @@
                  (and extra (ormap (lambda (x) (not (equal? (car x) (cdr x)))) restrict-pairs))
                  (sub1 count)))))
 
-  (with-handlers* ([exn:fail? 
-                    (lambda (e)
-                      (unless (equal? (exn-message e) "solve: no satisfying execution found")
-                              (pretty-display "no more!")
-                              (raise e)))])
+  (with-handlers* 
+   ([exn:fail? 
+     (lambda (e)
+       (if  (equal? (exn-message e) "solve: no satisfying execution found")
+            (if first-solve
+                (raise "Cannot construct valid inputs.")
+                (when debug (pretty-display "no more!")))
+            (raise e)))])
    (loop))
 
   (set! cnstr-inputs (list->vector (reverse cnstr-inputs)))
@@ -110,62 +143,10 @@
           (map (lambda (x) (sat (make-immutable-hash (hash->list x)))) inputs)))
 
 (define (generate-input-states n spec assumption)
-  (configure [bitwidth bit])
   (define start-state (default-state (sym-input)))
   (define-values (sym-vars sltns)
     (generate-inputs-inner n spec start-state assumption))
   (map (lambda (x) (evaluate-state start-state x)) sltns))
-
-;; (define (generate-input-states2 n spec constraint assumption)
-;;   (define sketch (generate-sketch 2))
-
-;;   (define (syn start-states)
-;;     (pretty-display `(syn))
-;;     (for ([state start-states]) (display-state state))
-;;     (define sol
-;;       (solve 
-;;        (andmap 
-;;         (lambda (start-state)
-;;           (let ([spec-state (interpret spec start-state)])
-;;             (assert-output
-;;              spec-state
-;;              (interpret sketch start-state spec-state)
-;;              (struct-copy progstate constraint [cost #f])
-;;              #f)))
-;;         start-states)
-;;        ))
-;;     (evaluate-program sketch sol))
-    
-;;   (define (ver candidate)
-;;     (pretty-display `(ver))
-;;     (print-struct candidate)
-;;     (pretty-display `(eq? ,(program-eq? spec candidate constraint #:assume assumption)))
-;;     (define start-state (default-state (sym-input)))
-;;     (define spec-state #f)
-;;     (define program-state #f)
-
-;;     (define (interpret-spec!)
-;;       (set! spec-state (interpret-spec spec start-state assumption)))
-    
-;;     (define (compare)
-;;       (set! program-state (interpret candidate start-state spec-state))
-;;       (assert-output spec-state program-state 
-;;                      (struct-copy progstate constraint [cost #f])
-;;                      #f))
-
-;;     (define sol
-;;       (verify #:assume (interpret-spec!) #:guarantee (compare)))
-;;     (evaluate-state start-state sol))
-
-;;   (define (loop i start-states)
-;;     (pretty-display `(loop ,i))
-;;     (if (> i 0)
-;;         (let ([candidate (syn start-states)])
-;;           (loop (sub1 i) (cons (ver candidate) start-states)))
-;;         start-states))
-
-;;   (loop n (generate-input-states 1 spec assumption)))
-  
 
 ;; Superoptimize program given
 ;; spec: program specification (naive code)
@@ -183,7 +164,7 @@
   ;; (pretty-display assumption)
 
   ;(current-solver (new z3%))
-  ;(current-solver (new kodkod%))
+  (current-solver (new kodkod%))
   (configure [bitwidth bit])
   (define start-state (default-state (sym-input)))
   (define spec-state #f)
@@ -246,6 +227,7 @@
 
 (define (counterexample spec program constraint
                      #:assume [assumption (no-assumption)])
+  (current-solver (new kodkod%))
   (configure [bitwidth bit])
   (define start-state (default-state (sym-input)))
   (define spec-state #f)

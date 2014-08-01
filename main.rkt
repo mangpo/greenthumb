@@ -1,6 +1,6 @@
 #lang racket
 
-(require "stat.rkt" 
+(require "stat.rkt" "solver.rkt"
          "vpe/llvm-parser.rkt" "vpe/parser.rkt"
          "vpe/machine.rkt" "vpe/compress.rkt" "vpe/print.rkt")
 (provide optimize)
@@ -17,11 +17,13 @@
   ;; Use the fewest number of registers possible.
   (define-values (code live-out map-back machine-info) 
     (compress-reg-space code-org live-out-org))
+  ;; machine-info from compress-reg-space is only accurate for reg but not memory. This will adjust the rest of the machine info.
+  (set! machine-info (proper-machine-config code machine-info))
   (pretty-display ">>> compressed-code:")
   (print-syntax code #:LR #f)
   (pretty-display (format ">>> machine-info: ~a" machine-info))
   (pretty-display (format ">>> live-out: ~a" live-out))
-  
+
   (define (create-file id)
     (define (req file)
       (format "(file \"/bard/wilma/pphothil/superopt/modular-optimizer3/~a\")" file))
@@ -132,7 +134,8 @@
                   #:need-filter [need-filter #f]
                   #:dir [dir "output"] 
                   #:cores [cores 12]
-                  #:time-limit [time-limit 36000])
+                  #:time-limit [time-limit 3600])
+  (pretty-display `(optimize))
   (define code-org 
     (if is-file
         (if is-llvm
@@ -140,9 +143,11 @@
             (ast-from-file input))
         input))
 
-  (if need-filter
-      (optimize-filter code-org live-out synthesize dir cores time-limit)
-      (optimize-inner code-org live-out synthesize dir cores time-limit)))
+  (if (> (vector-length code-org) 2)
+      (if need-filter
+          (optimize-filter code-org live-out synthesize dir cores time-limit)
+          (optimize-inner code-org live-out synthesize dir cores time-limit))
+      code-org))
 
 ;; (optimize "vpe/programs/ntt.ll"
 ;;           (list 2 3 7 8 26 27 28)
