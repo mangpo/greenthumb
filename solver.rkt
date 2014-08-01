@@ -71,6 +71,7 @@
 
   ;; Construct cnstr-inputs.
   (define cnstr-inputs (list))
+  (define first-solve #t)
   (define (loop [extra #t] [count n])
     (define (assert-extra-and-interpret)
       ;; Assert that the solution has to be different.
@@ -78,6 +79,7 @@
       (interpret-spec spec start-state assumption))
     (define sol (solve (assert-extra-and-interpret)))
     (define restrict-pairs (list))
+    (set! first-solve #f)
     (for ([pair (solution->list sol)])
          ;; Filter only the ones that matter.
          (when (hash-has-key? (car inputs) (car pair))
@@ -89,11 +91,14 @@
                  (and extra (ormap (lambda (x) (not (equal? (car x) (cdr x)))) restrict-pairs))
                  (sub1 count)))))
 
-  (with-handlers* ([exn:fail? 
-                    (lambda (e)
-                      (unless (equal? (exn-message e) "solve: no satisfying execution found")
-                              (pretty-display "no more!")
-                              (raise e)))])
+  (with-handlers* 
+   ([exn:fail? 
+     (lambda (e)
+       (if  (equal? (exn-message e) "solve: no satisfying execution found")
+            (if first-solve
+                (raise (format "Cannot construct valid inputs.\n1) Try increasing memory size when calling (set-machine-config).\n2) Some operation in interpret.rkt might not be legal for Rosette's symbolic object."))
+                (when debug (pretty-display "no more!")))
+            (raise e)))])
    (loop))
 
   (set! cnstr-inputs (list->vector (reverse cnstr-inputs)))

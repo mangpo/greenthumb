@@ -30,13 +30,13 @@
   (init-operand-ranges)
   ;; Generate testcases
   (when debug 
-        (pretty-display ">>> Phase 1: genenrate input states"))
+        (pretty-display ">>> Phase 1: generate input states"))
   (define inputs (generate-input-states ntests spec assumption))
 
   (when debug
         (for ([i inputs])
              (display-state i))
-        (pretty-display ">>> Phase 2: genenrate output states"))
+        (pretty-display ">>> Phase 2: generate output states"))
   (define outputs (map (lambda (x) (interpret spec x)) inputs))
   (when debug
         (for ([i outputs])
