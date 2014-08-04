@@ -25,7 +25,7 @@
   
 ;;;;;;;;;;;;;;;;;;;;; Functions ;;;;;;;;;;;;;;;;;;
 (define (stochastic-optimize spec constraint 
-                             syn-mode name time-limit
+                             syn-mode name time-limit size
                              #:assume [assumption (no-assumption)])
   (init-operand-ranges)
   ;; Generate testcases
@@ -43,16 +43,13 @@
              (display-state i)))
 
   ;; MCMC sampling
-  (define sketch (random-insts (vector-length spec)))
-  (when debug
-        (pretty-display ">>> Phase 3: stochastic search")
-        (pretty-display "sketch:")
-        (print-struct sketch))
+  (define-syntax-rule (get-sketch) 
+    (random-insts (if size size (vector-length spec))))
   (define stat (new stat% 
                     [best-correct-program spec] 
                     [best-correct-cost (performance-cost spec)]
                     [name name]))
-  (mcmc-main spec (if syn-mode sketch spec) 
+  (mcmc-main spec (if syn-mode (get-sketch) spec) 
              inputs outputs constraint assumption stat time-limit)
   )
 
@@ -176,6 +173,9 @@
 (define (mcmc-main target init inputs outputs constraint assumption 
                    stat time-limit)
   (pretty-display ">>> start MCMC sampling")
+  (pretty-display ">>> Phase 3: stochastic search")
+  (pretty-display "start-program:")
+  (print-struct init)
   (define syn-mode #t)
 
   (define (cost-one-input program input output)
