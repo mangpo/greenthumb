@@ -288,7 +288,8 @@
           ;; Adjust cost due to new counterexample
           (when (> (length inputs) n-inputs)
                 (when debug (display (format "Adjust proposal cost from ~a " proposal-cost)))
-                (set! proposal-cost (sub1 (+ proposal-cost (cost-one-input proposal (car inputs) (car outputs)))))
+                (set! proposal-cost 
+                      (sub1 (+ proposal-cost (cost-one-input proposal (car inputs) (car outputs)))))
                 (when debug (pretty-display (format "to ~a." proposal-cost)))
                 )
           (iter (if (cdr cost-correct) (remove-nops proposal) proposal) 

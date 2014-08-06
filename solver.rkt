@@ -227,6 +227,7 @@
 
 (define (counterexample spec program constraint
                      #:assume [assumption (no-assumption)])
+  (when debug (pretty-display "program-eq? START"))
   (current-solver (new kodkod%))
   (configure [bitwidth bit])
   (define start-state (default-state (sym-input)))
