@@ -16,11 +16,12 @@
                         vld1! vld2! ;vld3! vld4!
                         vext 
                         vmlal
+                        vmla
                         vmov
                         vand))
 
 ;; string
-(define type-id (vector "8" "16" "s16" "none"))
+(define type-id '#(i s u))
 
 (define-syntax-rule (make-vec n init)
   (let ([vec (make-vector n)])

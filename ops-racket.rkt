@@ -20,7 +20,7 @@
       (let ([unsigned-x (bitwise-and x (sub1 (arithmetic-shift 1 bit)))])
         (>> unsigned-x y))))
 
-(define (finitize num) 
+(define (finitize num [bit bit]) 
   (let* ([mask (arithmetic-shift -1 bit)]
          [masked (bitwise-and (bitwise-not mask) num)])
     (if (bitwise-bit-set? masked (- bit 1))

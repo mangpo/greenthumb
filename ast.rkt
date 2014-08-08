@@ -2,7 +2,7 @@
 
 (provide (all-defined-out))
 
-(struct instruction (op args type))
+(struct instruction (op args byte type)) ;; machine-dependent
 (struct block (body org info))
 ;; info may include output constraint and # of recv data depending on arch
 (struct call (name))
@@ -22,12 +22,14 @@
 ;; no type
 (define-syntax inst
   (syntax-rules ()
-    ((inst a b) (instruction a b #f))
-    ((inst a b c) (instruction a b c))))
+    ((inst a b) (instruction a b #f #f))
+    ((inst a b c) (instruction a b c #f))
+    ((inst a b c d) (instruction a b c d))))
 
 (define-syntax-rule (inst? x) (instruction? x))
 (define-syntax-rule (inst-op x) (instruction-op x))
 (define-syntax-rule (inst-type x) (instruction-type x))
+(define-syntax-rule (inst-byte x) (instruction-byte x))
 (define-syntax-rule (inst-args x) (instruction-args x))
 
 ;; Traverse a given program AST recursively until (base? program) is true.

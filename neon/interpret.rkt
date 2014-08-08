@@ -1,9 +1,61 @@
 #lang s-exp rosette
 
-(require "../ast.rkt"
+(require "../ast.rkt" "../ops.rkt"
          "machine.rkt")
 
 (provide interpret)
+
+;; vector -> number
+(define (bytes->number vec)
+  (foldr (lambda (x res) (+ (<< res 8) x)) 0 (vector->list vec)))
+
+;; number -> list
+(define (number->bytes num len)
+  (for/list ([i len])
+    (let ([x (bitwise-and num #xff)])
+      (set! num (>> num 8))
+      x)))
+
+;; vector to list
+(define (bytes->elements vec byte)
+  (for/list ([i (quotient (vector-length vec) byte)])
+    (bytes->number (vector-copy vec (* i byte) (* (add1 i) byte)))))
+
+;; list to vector
+(define (elements->bytes lst byte)
+  (list->vector
+   (flatten
+    (for/list ([x lst]) (number->bytes x byte)))))
+
+
+;; (define (finite-bit val byte type)
+;;   (bitwise-and val (sub1 (arithmetic-shift 1 (* byte 8)))))
+
+(define (sign-extend val byte type)
+  (if (= type (vector-member `u type-id))
+      val
+      (finitize val (* 8 byte))))
+
+(define (saturate val byte type)
+  (cond
+   [(= type (vector-member `s type-id))
+    (define bound (arithmetic-shift 1 (sub1 (* byte 8))))
+    (if (>= val bound) 
+        (sub1 bound)
+        (if (< val (- bound)) 
+            (- bound)
+            val))
+    ]
+   [(= type (vector-member `u type-id))
+    (define bound (<< 1 (* byte 8)))
+    (if (>= val bound)
+        (sub1 bound)
+        (if (< val 0)
+            0
+            val))
+    ]
+   ))
+  
 
 (define (interpret program state [policy #f])
   (define dregs (vector-copy (progstate-dregs state))) ;; 8-bit unit
@@ -12,6 +64,7 @@
 
   (define (interpret-step x)
     (define op (inst-op x))
+    (define byte (inst-byte x))
     (define type (inst-type x))
     (define args (inst-args x))
 
@@ -29,15 +82,12 @@
       (let ([bytes (if (< id nregs-d) 8 16)]
             [my-id (if (< id nregs-d) id (- id nregs-d))])
         (let ([base (* my-id bytes)])
-          (pretty-display `(base ,base))
           (vector-copy! dregs base val))))
-      
 
     (define (load stride update)
       (define dest (vector-ref args 0))
       (define n (car dest))
       (define dest-regs (cdr dest)) ;; TODO: check validity
-      (define type-byte (quotient (string->number (vector-ref type-id type)) 8))
       
       (define dest-index-list
         (for/list ([i n])
@@ -56,11 +106,11 @@
       (pretty-display `(dest-index-stride ,dest-index-stride))
 
       (define indexes (list))
-      (for* ([iter (quotient (length (vector-ref dest-index-stride 0)) type-byte)]
+      (for* ([iter (quotient (length (vector-ref dest-index-stride 0)) byte)]
              [lst-id stride])
             (let ([lst (vector-ref dest-index-stride lst-id)])
-              (set! indexes (append indexes (take lst type-byte)))
-              (vector-set! dest-index-stride lst-id (drop lst type-byte))))
+              (set! indexes (append indexes (take lst byte)))
+              (vector-set! dest-index-stride lst-id (drop lst byte))))
 
       (define r-id (vector-ref args 1))
       (define mem-addr (vector-ref rregs r-id)) ;; check alignment
@@ -89,23 +139,54 @@
             memory (+ mem-addr (* 8 i)) (+ mem-addr (* 8 (add1 i)))))
       (when update (vector-set! rregs r-id (+ mem-addr (* n 8)))))
       
-
-    (define (vext)
-      ;; Dd, Dn, Dm, imm | Qd, Qn, Qm, imm
+    (define (nnn f arg-type)
       (define d (vector-ref args 0))
       (define n (vector-ref args 1))
       (define m (vector-ref args 2))
-      (define imm (vector-ref args 3)) ;; TODO: check imm
-      (unless (or (and (< d nregs-d) (< m nregs-d) (< n nregs-d))
-                  (and (>= d nregs-d) (>= m nregs-d) (>= n nregs-d)))
-              (raise "vext: operands mismatch."))
+      (cond
+       [(= arg-type 0) ;; normal
+        (unless (or (and (< d nregs-d) (< n nregs-d) (< m nregs-d))
+                    (and (>= d nregs-d) (>= n nregs-d) (>= m nregs-d)))
+                (raise "Normal: operands mismatch."))]
+       [(= arg-type 1) ;; long
+        (unless (and (>= d nregs-d) (< n nregs-d) (< m nregs-d))
+                (raise "Long: operands mismatch."))]
+       [(= arg-type 2) ;; wide
+        (unless (and (>= d nregs-d) (>= n nregs-d) (< m nregs-d))
+                (raise "Wide: operands mismatch."))])
+       
       (define vn (get-dreg n))
       (define vm (get-dreg m))
-      (define type-byte (quotient (string->number (vector-ref type-id type)) 8))
-      (define shift (* imm type-byte))
-      
-      (define vd (vector-append (vector-drop vn shift) (vector-take vm shift)))
-      (set-dreg! d vd))
+      (set-dreg! d (f d vn vm)))
+
+    (define (ext d vn vm)
+      (define imm (vector-ref args 3))
+      (define shift (* imm byte))
+      (vector-append (vector-drop vn shift) (vector-take vm shift)))
+
+    (define (mla d vn vm)
+      (define ed (bytes->elements (get-dreg d) byte)) ;; list
+      (define en (bytes->elements vn byte))
+      (define em (bytes->elements vm byte))
+      (define res
+        (for/list ([num-d ed]
+                   [num-n en]
+                   [num-m em])
+                  (+ num-d (* num-n num-m))))
+      (elements->bytes res byte))
+
+    (define (mlal d vn vm)
+      (define ed (bytes->elements (get-dreg d) (* 2 byte))) ;; list
+      (define en (bytes->elements vn byte))
+      (define em (bytes->elements vm byte))
+      (pretty-display `(mlal ,ed))
+      (define res
+        (for/list ([num-d ed]
+                   [num-n en]
+                   [num-m em])
+          (+ num-d (* (sign-extend num-n byte type) 
+                      (sign-extend num-m byte type)))))
+      (elements->bytes res (* 2 byte)))
     
     (cond
      [(inst-eq? `vld1)  (load1 #f)]
@@ -113,7 +194,11 @@
      [(inst-eq? `vld2)  (load 2 #f)]
      [(inst-eq? `vld2!) (load 2 #t)]
 
-     [(inst-eq? `vext)  (vext)]))
+     [(inst-eq? `vext)  (nnn ext 0)]
+     [(inst-eq? `vmla)  (nnn mla 0)]
+     [(inst-eq? `vmlal) (nnn mlal 1)]
+
+     ))
   
   (for ([x program])
        (interpret-step x))

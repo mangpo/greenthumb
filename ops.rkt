@@ -3,7 +3,7 @@
 (require "vpe/machine.rkt")
 (provide (all-defined-out))
 
-(define (finitize num) 
+(define (finitize num [bit bit]) 
   (match (coerce num number?)
          [(? sym? v) v]
          [v (let* ([mask (arithmetic-shift -1 bit)]
