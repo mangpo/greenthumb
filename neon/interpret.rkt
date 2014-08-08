@@ -6,23 +6,26 @@
 (provide interpret)
 
 ;; vector -> number
-(define (bytes->number vec)
+(define-syntax-rule (bytes->number vec)
   (foldr (lambda (x res) (+ (<< res 8) x)) 0 (vector->list vec)))
 
 ;; number -> list
-(define (number->bytes num len)
+(define-syntax-rule (number->bytes num len)
   (for/list ([i len])
     (let ([x (bitwise-and num #xff)])
       (set! num (>> num 8))
       x)))
 
 ;; vector to list
-(define (bytes->elements vec byte)
+(define-syntax-rule (bytes->elements vec byte)
   (for/list ([i (quotient (vector-length vec) byte)])
-    (bytes->number (vector-copy vec (* i byte) (* (add1 i) byte)))))
+    (bytes->element vec byte i)))
+
+(define-syntax-rule (bytes->element vec byte i)
+  (bytes->number (vector-copy vec (* i byte) (* (add1 i) byte))))
 
 ;; list to vector
-(define (elements->bytes lst byte)
+(define-syntax-rule (elements->bytes lst byte)
   (list->vector
    (flatten
     (for/list ([x lst]) (number->bytes x byte)))))
@@ -139,7 +142,7 @@
             memory (+ mem-addr (* 8 i)) (+ mem-addr (* 8 (add1 i)))))
       (when update (vector-set! rregs r-id (+ mem-addr (* n 8)))))
       
-    (define (nnn f arg-type)
+    (define (nnn arg-type f)
       (define d (vector-ref args 0))
       (define n (vector-ref args 1))
       (define m (vector-ref args 2))
@@ -164,29 +167,43 @@
       (define shift (* imm byte))
       (vector-append (vector-drop vn shift) (vector-take vm shift)))
 
-    (define (mla d vn vm)
-      (define ed (bytes->elements (get-dreg d) byte)) ;; list
+    (define (mul/mla/mls-scalar d vn vm f dest-byte adjust)
+      (define ed (bytes->elements (get-dreg d) (dest-byte byte))) ;; list
       (define en (bytes->elements vn byte))
-      (define em (bytes->elements vm byte))
+      (define num-m (bytes->element vm byte (vector-ref args 3)))
       (define res
         (for/list ([num-d ed]
-                   [num-n en]
-                   [num-m em])
-                  (+ num-d (* num-n num-m))))
-      (elements->bytes res byte))
+                   [num-n en])
+                  (f num-d (adjust num-n) (adjust num-m))
+                  (+ num-d (* (adjust num-n) (adjust num-m)))))
+      (elements->bytes res (dest-byte byte)))
 
-    (define (mlal d vn vm)
-      (define ed (bytes->elements (get-dreg d) (* 2 byte))) ;; list
+    (define (mul/mla/mls-vector d vn vm f dest-byte adjust)
+      (define ed (bytes->elements (get-dreg d) (dest-byte byte))) ;; list
       (define en (bytes->elements vn byte))
       (define em (bytes->elements vm byte))
-      (pretty-display `(mlal ,ed))
       (define res
         (for/list ([num-d ed]
                    [num-n en]
                    [num-m em])
-          (+ num-d (* (sign-extend num-n byte type) 
-                      (sign-extend num-m byte type)))))
-      (elements->bytes res (* 2 byte)))
+                  (f num-d (adjust num-n) (adjust num-m))
+                  (+ num-d (* (adjust num-n) (adjust num-m)))))
+      (elements->bytes res (dest-byte byte)))
+
+    (define (mul/mla/mls d vn vm g long)
+      (let ([f (if (= (vector-length args) 3) 
+                   mul/mla/mls-vector
+                   mul/mla/mls-scalar)])
+        (if long 
+            (f d vn vm g
+               (lambda (x) (* 2 x)) 
+               (lambda (x) (sign-extend x byte type)))
+            (f d vn vm g identity identity))))
+
+    (define (mla d vn vm)
+      (mul/mla/mls d vn vm (lambda (d n m) (+ d (* n m))) #f))
+    (define (mlal d vn vm)
+      (mul/mla/mls d vn vm (lambda (d n m) (+ d (* n m))) #t))
     
     (cond
      [(inst-eq? `vld1)  (load1 #f)]
@@ -194,9 +211,9 @@
      [(inst-eq? `vld2)  (load 2 #f)]
      [(inst-eq? `vld2!) (load 2 #t)]
 
-     [(inst-eq? `vext)  (nnn ext 0)]
-     [(inst-eq? `vmla)  (nnn mla 0)]
-     [(inst-eq? `vmlal) (nnn mlal 1)]
+     [(inst-eq? `vext)  (nnn 0 ext)]
+     [(inst-eq? `vmla)  (nnn 0 mla)]
+     [(inst-eq? `vmlal) (nnn 1 mlal)]
 
      ))
   

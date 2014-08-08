@@ -4,7 +4,7 @@
 
 (define code
 (ast-from-string "
-vmla.i32 d0, d2, d4
+vmlal.s32 q0, d2, d4[1]
 "))
 
 (define encoded-code (encode code #f))
@@ -15,8 +15,8 @@ vmla.i32 d0, d2, d4
 ;(define state (struct-copy progstate (default-state (random 10)) [rregs (vector 0 0 0 0)]))
 (define state (progstate 
                (vector 
-                219 137 151 253 247 37 138 73 
-                112 171 90 27 41 246 116 61
+                136 252 67 183 250 159 172 175 
+                223 61 189 44 110 222 125 46 
                 145 230 19 80 13 177 36 55 
                 0 0 0 0 0 0 0 0 
                 31 144 175 242 76 202 214 199)
