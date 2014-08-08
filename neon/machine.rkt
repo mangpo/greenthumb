@@ -14,10 +14,10 @@
 ;; symbol
 (define inst-id '#(vld1 vld2 ;vld3 vld4
                         vld1! vld2! ;vld3! vld4!
-                        vext 
-                        vmlal
-                        vmla
-                        vmov
+                        vexti 
+                        vmla vmlal
+                        vmov vmovi vmovl vmovn vqmovn
+                        vmvn vmvni
                         vand))
 
 ;; string

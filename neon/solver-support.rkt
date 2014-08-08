@@ -3,8 +3,6 @@
 (require "../ast.rkt" "machine.rkt")
 (provide encode)
 
-;; type-id
-
 (define (encode code mem-map)
 
   (define (encode-arg x)
@@ -12,13 +10,11 @@
     (if (vector? x)
         (cons (vector-length x) (vector-map encode-arg x))
         (let ([type (substring x 0 1)])
-          (if (member type (list "d" "q" "r"))
+          (if (member type (list "d" "q" "r" "#"))
               (let ([num (string->number (substring x 1))])
                 (cond
-                 [(equal? type "d") num]
                  [(equal? type "q") (+ nregs-d num)]
-                 [(equal? type "r") num]
-                 [else              (raise (format "illegal operand ~a" x))]))
+                 [else num]))
               (string->number x)))))
 
   (define (sym-op)

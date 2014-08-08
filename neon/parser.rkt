@@ -61,7 +61,7 @@
     (arg  ((WORD) $1)
 	  ((DQUOTE words DQUOTE) (string-append "\"" $2 "\""))
 	  ((NUM) $1)
-          ((HASH NUM) $2)
+          ((HASH NUM) (string-append "#" $2))
           ((LCBRACK args RCBRACK) (list->vector $2)) ;; list inside list
           ((LSQBRACK args RSQBRACK) $2) ;; list inside list
           ;((LSQBRACK WORD RSQBRACK !) (update $2))
@@ -71,8 +71,8 @@
     (args ((arg) (list $1))
 	  ((arg COMMA args) (cons $1 $3)))
     
-    (opcode-type ((WORD) (cons $1 #f))
-                 ((DOT WORD) (cons (string-append "." $2) #f))
+    (opcode-type ((WORD) (list $1 #f #f))
+                 ((DOT WORD) (list (string-append "." $2) #f #f))
                  ((WORD DOT WORD)
                   (if (string->number (substring $3 0 1))
                       (list $1 $3 #f)
@@ -80,7 +80,10 @@
                  ((WORD DOT NUM) (list $1 $3 #f)))
 
     (instruction ((opcode-type args)
-                  (inst (first $1) 
+                  (inst (if (and (string? (last $2))
+                                 (equal? (substring (last $2) 0 1) "#"))
+                            (string-append (first $1) "i")
+                            (first $1))
                         (list->vector (flatten $2)) 
                         (second $1)
                         (third $1)))
@@ -106,6 +109,7 @@
             ((LABEL inst-list) (label $1 (block (list->vector $2) #f #f) #f)))
     
     (chunks ((chunk) (list $1))
+
 	    ((chunk chunks) (cons $1 $2)))
 
     (code   ((inst-list chunks) (cons (label #f (block (list->vector $1) #f #f) #f)
