@@ -48,9 +48,10 @@
     (define args (inst-args x))
 
     (define dest-byte byte)
-    (define adjust identity)
+    (define 1-byte byte)
+    (define adjust (lambda (x bytes) x))
 
-    (define (sign-extend val)
+    (define (sign-extend val byte)
       (if (= type (vector-member `u type-id))
           val
           (finitize val (* 8 byte))))
@@ -85,6 +86,12 @@
       (set! dest-byte (quotient byte 2))
       (set! adjust sign-extend)
       )
+
+    (define (wide)
+      (set! dest-byte (* 2 byte))
+      (set! 1-byte (* 2 byte))
+      (set! adjust sign-extend))
+      
 
     ;; Access registers
     (define (get-dreg id)
@@ -164,8 +171,12 @@
         (long)
         (unless (and (>= d nregs-d) (< n nregs-d) (< m nregs-d))
                 (raise "Long: operands mismatch."))]
-       [(= arg-type 2) ;; wide
-        (long)
+       [(= arg-type 2) ;; narrow
+        (narrow)
+        (unless (and (< d nregs-d) (>= n nregs-d) (>= m nregs-d))
+                (raise "Long: operands mismatch."))]
+       [(= arg-type 3) ;; wide
+        (wide)
         (unless (and (>= d nregs-d) (>= n nregs-d) (< m nregs-d))
                 (raise "Wide: operands mismatch."))])
        
@@ -229,34 +240,31 @@
       (define shift (* imm byte))
       (vector-append (vector-drop vn shift) (vector-take vm shift)))
 
-    ;; mov, mvn
-    (define (r:notype vn g)
-      (for/vector ([num-n vn]) (g (adjust num-n))))
+    (define (x:notype vn g)
+      (for/vector ([num-n vn]) (g num-n)))
 
-    (define (r vn g)
+    (define (xn vn g)
       (define en (bytes->elements vn byte))
       (define res (for/list ([num-n en]) 
-                            (g (adjust num-n))))
+                            (g (adjust num-n 1-byte))))
       (elements->bytes res dest-byte))
 
-    ;; and, bic, eor, orn, orr
-    (define (r-r:notype vn vm f)
-      (for/list ([num-n vn]
+    (define (x-x:notype vn vm f)
+      (for/vector ([num-n vn]
                  [num-m vm])
                 (f num-n num-m)))
 
-    ;; mul, mla, mls
-    (define (r-r-r-i vd vn vm f)
+    (define (xd-xn-xm-i vd vn vm f)
       (define ed (bytes->elements vd dest-byte)) ;; list
       (define en (bytes->elements vn byte))
       (define num-m (bytes->element vm byte (vector-ref args 3)))
       (define res
         (for/list ([num-d ed]
                    [num-n en])
-                  (f num-d (adjust num-n) (adjust num-m))))
+                  (f num-d (adjust num-n 1-byte) (adjust num-m byte))))
       (elements->bytes res dest-byte))
 
-    (define (r-r-r vd vn vm f)
+    (define (xd-xn-xm vd vn vm f)
       (define ed (bytes->elements vd dest-byte)) ;; list
       (define en (bytes->elements vn byte))
       (define em (bytes->elements vm byte))
@@ -264,22 +272,22 @@
         (for/list ([num-d ed]
                    [num-n en]
                    [num-m em])
-                  (f num-d (adjust num-n) (adjust num-m))))
+                  (f num-d (adjust num-n 1-byte) (adjust num-m byte))))
       (elements->bytes res dest-byte))
 
     (define (mla vd vn vm)
       (let ([f (if (= (vector-length args) 3) 
-                   r-r-r
-                   r-r-r-i)])
+                   xd-xn-xm
+                   xd-xn-xm-i)])
         (f vd vn vm (lambda (d n m) (+ d (* n m))))))
 
 
-    (define (mov-simple vn) (r:notype vn identity))
-    (define (mvn-simple vn) (r:notype vn (lambda (x) (bitwise-xor x #xff))))
-    (define (mov vn)   (r vn identity))
-    (define (qmov vn)  (r vn saturate))
+    (define (mov-simple vn) (x:notype vn identity))
+    (define (mvn-simple vn) (x:notype vn (lambda (x) (bitwise-xor x #xff))))
+    (define (mov vn)   (xn vn identity))
+    (define (qmov vn)  (xn vn saturate))
 
-    (define (vand vn vm)  (r-r:notype vn vm bitwise-and))
+    (define (vand vn vm)  (x-x:notype vn vm bitwise-and))
 
     (define-syntax-rule (inst-eq? x) (= op (vector-member x inst-id)))
     (define-syntax-rule (type-eq? x) (= type (vector-member x inst-type)))

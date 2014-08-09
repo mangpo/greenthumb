@@ -18,7 +18,7 @@
                         vmla vmlal
                         vmov vmovi vmovl vmovn vqmovn
                         vmvn vmvni
-                        vand))
+                        vand vandi))
 
 ;; string
 (define type-id '#(i s u))

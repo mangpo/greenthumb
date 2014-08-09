@@ -11,7 +11,8 @@ VMLAL.s16 q0, d3, d2[0]
 VMLAL.S16 q0, d5, d2[1] ; 1 cycle (DP)
  VMLAL.S16 q0, d6, d2[2] ; 1 cycle (DP)
  VMLAL.S16 q0, d7, d2[3] ; 1 cycle (DP)
-"))
+vandi d9, 3
+")) ;; TODO debug
 
 (define encoded-code (encode code #f))
 
@@ -29,8 +30,8 @@ VMLAL.S16 q0, d5, d2[1] ; 1 cycle (DP)
                 0 0 0 0 0 0 0 0
                 0 0 0 0 0 0 0 0
                 0 0 0 0 0 0 0 0
-                0 0 0 0 0 0 0 0
-                0 0 0 0 0 0 0 0
+                255 255 255 255 255 255 255 255
+                27 1 0 0 0 0 0 0
                 )
                (make-vector nregs-r 0) (make-vector (* nmems 8) 0)))
 (display-state state)
