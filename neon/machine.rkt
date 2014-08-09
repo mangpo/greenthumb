@@ -7,7 +7,7 @@
 (struct progstate (dregs rregs memory))
 
 (define bit 64)
-(define nregs-d 5)
+(define nregs-d 10)
 (define nregs-r 4)
 (define nmems 4)
 
