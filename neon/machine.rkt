@@ -4,8 +4,9 @@
          inst-id type-id
          (all-defined-out))
 
-(struct progstate (dregs rregs memory))
+(struct progstate (dregs rregs memory cost))
 
+(define debug #f)
 (define bit 64)
 (define nregs-d 10)
 (define nregs-r 4)
@@ -34,8 +35,34 @@
     ((default-state init)
      (progstate (make-vec (* 8 nregs-d) init) 
                 (make-vec nregs-r init) 
-                (make-vec (* 8 nmems) init)))))
+                (make-vec (* 8 nmems) init)
+                0))
 
+    ((default-state init [dreg (a b) ...] [rreg (c d) ...] [mem (e f) ...])
+     (let* ([state (default-state init)]
+            [dregs (progstate-dregs state)]
+            [rregs (progstate-rregs state)]
+            [memory (progstate-memory state)])
+       (vector-set! dregs a b)
+       ...
+       (vector-set! rregs c d)
+       ...
+       (vector-set! memory e f)
+       ...
+       state))))
+
+;; Macros to create output state constraint
+(define-syntax constraint
+  (syntax-rules (all none dreg rreg mem mem-all)
+    ((constraint all) (default-state #t))
+
+    ((constraint none) (default-state #f))
+
+    ((constraint [dreg d ...] [rreg r ...] [mem-all])
+     (let ([state (default-state #f [dreg (d #t) ...] [rreg (r #t) ...] [mem])])
+       (pretty-display "hi")
+       (struct-copy progstate state [memory (make-vector nmems #t)])))
+    ))
 
 (define (display-state s)
   (pretty-display "DREGS:")
@@ -57,3 +84,7 @@
        )
   (newline)
   )
+
+;; Macros to create input state assumption
+(define-syntax-rule (no-assumption)
+  #f)

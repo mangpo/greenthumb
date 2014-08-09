@@ -75,7 +75,7 @@
                 val))
         ]
        [else
-        (raise (format "Saturate only works with type signed (s) or unsigned (u), but ~a is given." (vector-ref type-id type)))]
+        (assert #f (format "Saturate only works with type signed (s) or unsigned (u), but ~a is given." (vector-ref type-id type)))]
        ))
 
     (define (long)
@@ -150,11 +150,11 @@
       (define r-id (vector-ref args 1))
       (define mem-addr (vector-ref rregs r-id)) ;; check alignment
 
-      (for ([d-reg dest-regs]
-            [i n])
-           (vector-copy! 
-            dregs (* 8 d-reg) 
-            memory (+ mem-addr (* 8 i)) (+ mem-addr (* 8 (add1 i)))))
+      (for ([i (in-range n)])
+           (let ([d-reg (vector-ref dest-regs i)])
+             (vector-copy! 
+              dregs (* 8 d-reg) 
+              memory (+ mem-addr (* 8 i)) (+ mem-addr (* 8 (add1 i))))))
       (when update (vector-set! rregs r-id (+ mem-addr (* n 8)))))
       
     ;; Operand patterns
@@ -166,19 +166,19 @@
        [(= arg-type 0) ;; normal
         (unless (or (and (< d nregs-d) (< n nregs-d) (< m nregs-d))
                     (and (>= d nregs-d) (>= n nregs-d) (>= m nregs-d)))
-                (raise "Normal: operands mismatch."))]
+                (assert #f "Normal: operands mismatch."))]
        [(= arg-type 1) ;; long
         (long)
         (unless (and (>= d nregs-d) (< n nregs-d) (< m nregs-d))
-                (raise "Long: operands mismatch."))]
+                (assert #f "Long: operands mismatch."))]
        [(= arg-type 2) ;; narrow
         (narrow)
         (unless (and (< d nregs-d) (>= n nregs-d) (>= m nregs-d))
-                (raise "Long: operands mismatch."))]
+                (assert #f "Long: operands mismatch."))]
        [(= arg-type 3) ;; wide
         (wide)
         (unless (and (>= d nregs-d) (>= n nregs-d) (< m nregs-d))
-                (raise "Wide: operands mismatch."))])
+                (assert #f "Wide: operands mismatch."))])
        
       (define vn (get-dreg n))
       (define vm (get-dreg m))
@@ -212,15 +212,15 @@
        [(= arg-type 0) ;; normal
         (unless (or (and (< d nregs-d) (< n nregs-d))
                     (and (>= d nregs-d) (>= n nregs-d)))
-                (raise "Normal: operands mismatch."))]
+                (assert #f "Normal: operands mismatch."))]
        [(= arg-type 1) ;; long
         (long)
         (unless (and (>= d nregs-d) (< n nregs-d))
-                (raise "Long: operands mismatch."))]
+                (assert #f "Long: operands mismatch."))]
        [(= arg-type 2) ;; narrow
         (narrow)
         (unless (and (< d nregs-d) (>= n nregs-d))
-                (raise "Narrow: operands mismatch."))]
+                (assert #f "Narrow: operands mismatch."))]
        )
        
       (define vn (get-dreg n))
@@ -318,4 +318,4 @@
   
   (for ([x program])
        (interpret-step x))
-  (progstate dregs rregs memory))
+  (progstate dregs rregs memory 0))

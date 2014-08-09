@@ -2,6 +2,7 @@
 
 (require "parser.rkt" "print.rkt" "machine.rkt" "solver-support.rkt" "interpret.rkt")
 
+#|
 (define code
 (ast-from-string "
 VEXT.16 d5, d3, d4, #1
@@ -12,7 +13,10 @@ VMLAL.S16 q0, d5, d2[1] ; 1 cycle (DP)
  VMLAL.S16 q0, d6, d2[2] ; 1 cycle (DP)
  VMLAL.S16 q0, d7, d2[3] ; 1 cycle (DP)
 vandi d9, 3
-")) ;; TODO debug
+"))|#
+
+(define code
+  (ast-from-string "?"))
 
 (define encoded-code (encode code #f))
 

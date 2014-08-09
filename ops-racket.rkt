@@ -1,6 +1,6 @@
 #lang racket
 
-(require "vpe/machine.rkt")
+(require "neon/machine.rkt")
 (provide (all-defined-out))
 
 (define-syntax-rule (<< x y)
@@ -27,5 +27,9 @@
         (bitwise-ior mask masked)  
         masked)))
 
-(define (assert x)
-  (unless x (raise "assert fail")))
+(define-syntax assert
+  (syntax-rules ()
+    ((assert x) 
+     (unless x (raise "assert fail")))
+    ((assert x y) 
+     (unless x (raise (format "assert fail :~a" y))))))
