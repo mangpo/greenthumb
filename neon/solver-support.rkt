@@ -1,8 +1,19 @@
 #lang s-exp rosette
 
 (require "../ast.rkt" "machine.rkt")
-(provide encode evaluate-state
+(provide get-sym-vars encode decode evaluate-state
          assume assert-output)
+
+(define (get-sym-vars state)
+  (define lst (list))
+  (define-syntax-rule (add x)
+    (when (sym? x)
+          (set! lst (cons x lst))))
+
+  (for ([x (progstate-dregs state)]) (add x))
+  (for ([x (progstate-rregs state)]) (add x))
+  (for ([x (progstate-memory state)]) (add x))
+  lst)
 
 (define (evaluate-state state sol)
   (define dregs (vector-copy (progstate-dregs state)))
@@ -86,6 +97,13 @@
   (traverse code inst? encode-inst))
 
 
+(define (decode code model)
+  (define (decode-inst x)
+    (inst (vector-ref inst-id (evaluate (inst-op x) model))
+	  (vector-map (lambda (a) (evaluate a model)) (inst-args x))))
+
+  (traverse code inst? decode-inst))
+
 (define (assert-output state1 state2 constraint cost)
   (when debug (pretty-display "start assert-output"))
   (define dregs (progstate-dregs constraint))
@@ -123,5 +141,11 @@
 
 ;; Default: no assumption
 (define (assume state assumption)
+  (define dregs (progstate-dregs state))
+  (define rregs (progstate-rregs state))
+  (define memory (progstate-memory state))
+  (for ([x dregs]) (assert (and (>= x 0) (< x 256))))
+  (for ([x rregs]) (assert (and (>= x 0) (< x 256))))
+  (for ([x memory]) (assert (and (>= x 0) (< x 256))))
   (when assumption
 	(raise "No support for assumption")))

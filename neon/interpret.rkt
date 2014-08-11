@@ -94,11 +94,24 @@
       
 
     ;; Access registers
+    ;; (define (get-dreg id)
+    ;;   (let ([bytes (if (< id nregs-d) 8 16)]
+    ;;         [my-id (if (< id nregs-d) id (- id nregs-d))])
+    ;;     (let ([base (* my-id bytes)])
+    ;;       (pretty-display `(get-dreg ,base ,bytes))
+    ;;       (vector-copy dregs base (+ base bytes)))))
+
     (define (get-dreg id)
-      (let ([bytes (if (< id nregs-d) 8 16)]
-            [my-id (if (< id nregs-d) id (- id nregs-d))])
-        (let ([base (* my-id bytes)])
-          (vector-copy dregs base (+ base bytes)))))
+      (let* ([bytes 8]
+             [my-id id]
+             [base (* my-id bytes)])
+      (vector-copy dregs base (+ base bytes))))
+
+    (define (get-qreg id)
+      (let* ([bytes 16]
+             [my-id (- id nregs-d)]
+             [base (* my-id bytes)])
+      (vector-copy dregs base (+ base bytes))))
 
     (define (set-dreg! id val)
       (let ([bytes (if (< id nregs-d) 8 16)]
@@ -162,8 +175,23 @@
       (define d (vector-ref args 0))
       (define n (vector-ref args 1))
       (define m (vector-ref args 2))
+      ;; (define vn #f)
+      ;; (define vm #f)
+      (pretty-display `(nnn ,f ,arg-type ,d ,n ,m))
+      ;(define-values (vn vm vd)
       (cond
+       ;; [(= arg-type 0) ;; normal
+       ;;  (cond 
+       ;;   [(and (< d nregs-d) (< n nregs-d) (< m nregs-d))
+       ;;    (values (get-dreg n) (get-dreg m) (and rmw (get-dreg d)))]
+       ;;   [(and (>= d nregs-d) (>= n nregs-d) (>= m nregs-d))
+       ;;    (values (get-qreg n) (get-qreg m) (and rmw (get-qreg d)))]
+       ;;   [else
+       ;;    (assert #f "Normal: operands mismatch.")])
+       ;;  ;(pretty-display `(here0 ,f))
+       ;;  ]
        [(= arg-type 0) ;; normal
+        (long)
         (unless (or (and (< d nregs-d) (< n nregs-d) (< m nregs-d))
                     (and (>= d nregs-d) (>= n nregs-d) (>= m nregs-d)))
                 (assert #f "Normal: operands mismatch."))]
@@ -180,8 +208,10 @@
         (unless (and (>= d nregs-d) (>= n nregs-d) (< m nregs-d))
                 (assert #f "Wide: operands mismatch."))])
        
+      (pretty-display `(here1 ,f))
       (define vn (get-dreg n))
       (define vm (get-dreg m))
+      (pretty-display `(here2 ,f))
       ;; Read modify write
       (if rmw
           (set-dreg! d (f (get-dreg d) vn vm))
@@ -236,8 +266,10 @@
 
     ;; exti
     (define (ext vn vm)
+      (pretty-display `(ext ,vn ,vm))
       (define imm (vector-ref args 3))
       (define shift (* imm byte))
+      ;(pretty-display `(ext ,vn ,vm ,shift))
       (vector-append (vector-drop vn shift) (vector-take vm shift)))
 
     (define (x:notype vn g)
@@ -293,26 +325,26 @@
     (define-syntax-rule (type-eq? x) (= type (vector-member x inst-type)))
 
     (cond
-     [(inst-eq? `vld1)  (load1 #f)]
-     [(inst-eq? `vld1!) (load1 #t)]
-     [(inst-eq? `vld2)  (load 2 #f)]
-     [(inst-eq? `vld2!) (load 2 #t)]
+     ;; [(inst-eq? `vld1)  (pretty-display "vld1") (load1 #f)]
+     ;; [(inst-eq? `vld1!) (pretty-display "vld1!") (load1 #t)]
+     ;; [(inst-eq? `vld2)  (load 2 #f)]
+     ;; [(inst-eq? `vld2!) (load 2 #t)]
 
-     [(inst-eq? `vexti) (nnn 0 ext)]
-     [(inst-eq? `vmla)  (nnn 0 mla #t)]
-     [(inst-eq? `vmlal) (nnn 1 mla #t)]
+     [(inst-eq? `vexti) (pretty-display "vexti") (nnn 0 ext)]
+     ;; [(inst-eq? `vmla)  (nnn 0 mla #t)]
+     ;; [(inst-eq? `vmlal) (nnn 1 mla #t)]
 
-     [(inst-eq? `vmov)   (nn 0 mov-simple)]
-     [(inst-eq? `vmovi)  (ni 0 mov-simple)] ;; TODO: constraint on constant
-     [(inst-eq? `vmvn)   (nn 0 mvn-simple)]
-     [(inst-eq? `vmvni)  (ni 0 mvn-simple)] ;; TODO: constraint on constant
-     [(inst-eq? `vmovl)  (nn 1 mov)]
-     [(inst-eq? `vmovn)  (nn 2 mov)]
-     [(inst-eq? `vqmovn) (nn 2 qmov)]
-     ;[(inst-eq? `vqmovun) (nn 2 qmov)]
+     ;; [(inst-eq? `vmov)   (nn 0 mov-simple)]
+     ;; [(inst-eq? `vmovi)  (ni 0 mov-simple)] ;; TODO: constraint on constant
+     ;; [(inst-eq? `vmvn)   (nn 0 mvn-simple)]
+     ;; [(inst-eq? `vmvni)  (ni 0 mvn-simple)] ;; TODO: constraint on constant
+     ;; [(inst-eq? `vmovl)  (nn 1 mov)]
+     ;; [(inst-eq? `vmovn)  (nn 2 mov)]
+     ;; [(inst-eq? `vqmovn) (nn 2 qmov)]
+     ;; ;[(inst-eq? `vqmovun) (nn 2 qmov)]
 
-     [(inst-eq? `vand)   (nnn 0 vand)]
-     [(inst-eq? `vandi)  (ni 0 vand #t)]
+     ;; [(inst-eq? `vand)   (nnn 0 vand)]
+     ;; [(inst-eq? `vandi)  (pretty-display "vandi") (ni 0 vand #t)]
 
      ))
   

@@ -20,3 +20,26 @@
                     (vector-ref src (+ src-start i))))
   ;(pretty-display `(res ,dest))
   )
+
+(define (vector-copy vec [start 0] [end (vector-length vec)])
+  (pretty-display `(vector-copy ,start ,end ,(- end start)))
+    ;; (let* ([len (- end start)]
+    ;;      [new-vec (make-vector len)])
+    ;; (pretty-display `(len ,len ,new-vec))
+    ;; (for ([i (in-range len)])
+    ;;      (pretty-display `(vector-copy ,i))
+    ;;      (vector-set! new-vec i (vector-ref vec (+ start i))))
+    ;; new-vec)
+
+  (let ([len (- end start)])
+    (for ([i (in-range len)])
+         (pretty-display `(vector-copy ,i))
+         (vector-ref vec (+ start i))))
+
+  (define ret
+  (let ([len (- end start)])
+    (for/list ([i (in-range len)])
+                (vector-ref vec (+ start i)))))
+  (pretty-display `(vector-copy-res ,ret))
+  (list->vector ret)
+  )

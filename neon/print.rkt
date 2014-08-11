@@ -13,12 +13,12 @@
 
    [(inst? x)
     (define op (inst-op x))
-    (pretty-display (format "~a(inst ~a ~a ~a)" indent 
+    (pretty-display (format "~a(inst ~a ~a ~a ~a)" indent 
                             ;; (if (number? op)
                             ;;     (vector-ref inst-id (inst-op x))
                             ;;     op)
                             op
-                            (inst-type x) (inst-args x)))]
+                            (inst-type x) (inst-byte x) (inst-args x)))]
 
    [(block? x)
     (print-struct (block-body x) indent)]

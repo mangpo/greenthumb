@@ -7,7 +7,7 @@
 (struct progstate (dregs rregs memory cost))
 
 (define debug #f)
-(define bit 64)
+(define bit 32)
 (define nregs-d 10)
 (define nregs-r 4)
 (define nmems 4)
@@ -59,9 +59,17 @@
     ((constraint none) (default-state #f))
 
     ((constraint [dreg d ...] [rreg r ...] [mem-all])
-     (let ([state (default-state #f [dreg (d #t) ...] [rreg (r #t) ...] [mem])])
-       (pretty-display "hi")
-       (struct-copy progstate state [memory (make-vector nmems #t)])))
+     (let* ([state (progstate (make-vec (* 8 nregs-d) #f) 
+                              (make-vec nregs-r #f) 
+                              (make-vec (* 8 nmems) #t)
+                              0)]
+            [dregs (progstate-dregs state)]
+            [rregs (progstate-rregs state)])
+       (for ([i 8]) (vector-set! dregs (+ (* 8 d) i) #t))
+       ...
+       (vector-set! rregs r #t)
+       ...
+       state))
     ))
 
 (define (display-state s)
