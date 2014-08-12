@@ -14,16 +14,14 @@
 
 (define (vector-copy! dest dest-start src 
                       [src-start 0] [src-end (vector-length src)])
-  ;(pretty-display `(vector-copy! ,dest-start ,dest))
   (for ([i (in-range (- src-end src-start))])
        (vector-set! dest (+ dest-start i)
                     (vector-ref src (+ src-start i))))
-  ;(pretty-display `(res ,dest))
   )
 
 ;; TODO: do we need this?
 (define (vector-copy-len vec start len)
-  (pretty-display `(vector-copy ,start ,len))
+  ;(pretty-display `(vector-copy ,start ,len))
   (for/vector ([i len]) (vector-ref vec (+ start i))))
   
 

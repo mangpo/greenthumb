@@ -73,6 +73,11 @@
     (assert (and (>= type 0) (< type (vector-length type-id))))
     type)
 
+  (define (sym-const)
+    (define-symbolic* const number?)
+    (assert (and (>= const -16) (<= const 16)))
+    const)
+
   (define (first-arg op)
     (define ld-st
       (ormap (lambda (x) (= op (vector-member x inst-id))) '(vld1 vld2 vld1! vld2!)))
@@ -89,7 +94,7 @@
                    (vector-member (string->symbol (string-downcase (inst-type x))) type-id)))
         (let ([op (sym-op)])
           (inst op
-                (vector (first-arg op) (sym-arg) (sym-arg) (sym-arg))
+                (vector (first-arg op) (sym-arg) (sym-arg) (sym-const))
                 (sym-byte)
                 (sym-type))
         )))

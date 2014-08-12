@@ -17,8 +17,8 @@
                             ;; (if (number? op)
                             ;;     (vector-ref inst-id (inst-op x))
                             ;;     op)
-                            op
-                            (inst-type x) (inst-byte x) (inst-args x)))]
+                            op (inst-args x)
+                            (inst-byte x) (inst-type x)))]
 
    [(block? x)
     (print-struct (block-body x) indent)]

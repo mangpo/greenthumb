@@ -10,12 +10,22 @@
 
 (define (sym-const)
   (define-symbolic* const number?)
-  (assert (and (>= const 1) (<= const 8)))
+  (assert (and (>= const -16) (<= const 16)))
   const)
+
+ (define (sym-byte)
+    (define-symbolic* byte number?)
+    (assert (and (>= byte 1) (<= byte 8)))
+    byte)
+
+  (define (sym-type)
+    (define-symbolic* type number?)
+    (assert (and (>= type 0) (< type (vector-length type-id))))
+    type)
 
 (define code
 (ast-from-string "
-VEXT.16 d5, d3, d4, #1
+VMOV d0, d4
 ")) ;; TODO debug
 
 
@@ -27,10 +37,9 @@ VEXT.16 d5, d3, d4, #1
 (define encoded-code (encode code #f))
 (define encoded-sketch (encode sketch #f))
 (define encoded-sketch2 
-  (vector (inst (vector-member `vld2 inst-id) 
-                (vector (cons (sym-arg) (vector (sym-arg) (sym-arg) (sym-arg) (sym-arg)))
-                        (sym-arg) (sym-arg) (sym-arg))
-                (sym-const) #f)))
+  (vector (inst (vector-member `vmlal inst-id) 
+                (vector 10 3 2 (sym-arg))
+                (sym-byte) (sym-type))))
 
 ;(counterexample encoded-code encoded-sketch (constraint [dreg 5] [rreg] [mem-all]))
-(superoptimize encoded-code encoded-sketch (constraint [dreg 5 6] [rreg 2] [mem-all]))
+(superoptimize encoded-code encoded-sketch (constraint [dreg 0 1] [rreg 1] [mem-all]))
