@@ -2,21 +2,13 @@
 
 (require "parser.rkt" "print.rkt" "machine.rkt" "solver-support.rkt" "interpret.rkt")
 
-#|
 (define code
 (ast-from-string "
-VEXT.16 d5, d3, d4, #1
-VEXT.16 d6, d3, d4, #2
-VEXT.16 d7, d3, d4, #3
-VMLAL.s16 q0, d3, d2[0]
-VMLAL.S16 q0, d5, d2[1] ; 1 cycle (DP)
- VMLAL.S16 q0, d6, d2[2] ; 1 cycle (DP)
- VMLAL.S16 q0, d7, d2[3] ; 1 cycle (DP)
-vandi d9, 3
-"))|#
+vld2.32 {d0, d1, d2, d3} ,[r0]
+"))
 
-(define code
-  (ast-from-string "?"))
+;(define code
+;  (ast-from-string "?"))
 
 (define encoded-code (encode code #f))
 
@@ -37,6 +29,8 @@ vandi d9, 3
                 255 255 255 255 255 255 255 255
                 27 1 0 0 0 0 0 0
                 )
-               (make-vector nregs-r 0) (make-vector (* nmems 8) 0)))
+               (vector 0 0 0 0)
+               (list->vector (range (* 8 nmems)))
+               0))
 (display-state state)
 (display-state (interpret encoded-code state))

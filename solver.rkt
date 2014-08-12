@@ -197,7 +197,7 @@
     ;; (display-state sketch-state)
     ;; (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
     ;; (pretty-display (get-sym-vars start-state))
-    ;;(pretty-display "check output")
+    (pretty-display "check output")
     (assert-output spec-state sketch-state constraint cost))
   
   ;; Collect input variables and contruct their init values.

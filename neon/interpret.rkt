@@ -21,6 +21,7 @@
   (for/list ([i (quotient (vector-length vec) byte)])
     (bytes->element vec byte i)))
 
+;; TODO: might need fix
 (define-syntax-rule (bytes->element vec byte i)
   (bytes->number (vector-copy vec (* i byte) (* (add1 i) byte))))
 
@@ -34,7 +35,11 @@
 ;; (define (finite-bit val byte type)
 ;;   (bitwise-and val (sub1 (arithmetic-shift 1 (* byte 8)))))
 
+(define-syntax-rule (is-d? x) 
+  (and (>= x 0) (< x nregs-d)))
   
+(define-syntax-rule (is-q? x) 
+  (and (>= x nregs-d) (< x (+ nregs-d (quotient nregs-d 2)))))
 
 (define (interpret program state [policy #f])
   (define dregs (vector-copy (progstate-dregs state))) ;; 8-bit unit
@@ -94,53 +99,55 @@
       
 
     ;; Access registers
-    ;; (define (get-dreg id)
-    ;;   (let ([bytes (if (< id nregs-d) 8 16)]
-    ;;         [my-id (if (< id nregs-d) id (- id nregs-d))])
-    ;;     (let ([base (* my-id bytes)])
-    ;;       (pretty-display `(get-dreg ,base ,bytes))
-    ;;       (vector-copy dregs base (+ base bytes)))))
-
     (define (get-dreg id)
       (let* ([bytes 8]
              [my-id id]
              [base (* my-id bytes)])
-      (vector-copy dregs base (+ base bytes))))
-
+        (vector-copy-len dregs base bytes)))
+    
     (define (get-qreg id)
+      (define ret
       (let* ([bytes 16]
              [my-id (- id nregs-d)]
              [base (* my-id bytes)])
-      (vector-copy dregs base (+ base bytes))))
+        (vector-copy-len dregs base bytes)))
+      (pretty-display `(get-qreg return))
+      ret)
 
     (define (set-dreg! id val)
-      (let ([bytes (if (< id nregs-d) 8 16)]
-            [my-id (if (< id nregs-d) id (- id nregs-d))])
+      (let* ([bytes 8]
+            [my-id id]
+            [base (* my-id bytes)])
+        (vector-copy! dregs base val)))
+
+    (define (set-qreg! id val)
+      (let ([bytes 16]
+            [my-id (- id nregs-d)])
         (let ([base (* my-id bytes)])
           (vector-copy! dregs base val))))
 
     ;; Load
-    (define (load stride update)
+    (define (load-old stride update)
       (define dest (vector-ref args 0))
       (define n (car dest))
       (define dest-regs (cdr dest)) ;; TODO: check validity
       
       (define dest-index-list
-        (for/list ([i n])
+        (for/list ([i (range n)])
                   (map (lambda (x) (+ x (* 8 (vector-ref dest-regs i))))
                        (range 8))))
 
       (define dest-index-stride (make-vector stride (list)))
-      (for* ([iter (quotient n stride)]
-             [i stride])
+      (for* ([iter (in-range (quotient n stride))]
+             [i (in-range stride)])
             (let ([lst (car dest-index-list)])
               (set! dest-index-list (cdr dest-index-list))
               (vector-set! dest-index-stride i
                            (append (vector-ref dest-index-stride i) lst))))
 
       (define indexes (list))
-      (for* ([iter (quotient (length (vector-ref dest-index-stride 0)) byte)]
-             [lst-id stride])
+      (for* ([iter (in-range (quotient (length (vector-ref dest-index-stride 0)) byte))]
+             [lst-id (in-range stride)])
             (let ([lst (vector-ref dest-index-stride lst-id)])
               (set! indexes (append indexes (take lst byte)))
               (vector-set! dest-index-stride lst-id (drop lst byte))))
@@ -148,11 +155,74 @@
       (define r-id (vector-ref args 1))
       (define mem-addr (vector-ref rregs r-id)) ;; check alignment
       
-      (for ([i (* n 8)]
+      (for ([i (in-range (* n 8))]
             [reg-addr indexes]) ;; reverse indexes here
            (vector-set! dregs reg-addr (vector-ref memory (+ mem-addr i))))
 
       (when update (vector-set! rregs r-id (+ mem-addr (* n 8)))))
+
+    (define (load-wrong stride update)
+      (define dest (vector-ref args 0))
+      (define n (car dest))
+      (define dest-regs (cdr dest)) ;; TODO: check validity
+
+      (define r-id (vector-ref args 1))
+      (define mem-addr (vector-ref rregs r-id)) ;; check alignment
+      
+      (define indexes 
+        (for/vector ([reg dest-regs] [i 4])
+                    (and (< i n) (* reg 8))))
+      
+      (for ([stride-i (quotient 8 stride)])
+           (for ([index indexes]
+                 [i 4])
+                (when index
+                      (for ([iter stride])
+                           (vector-set! dregs index (vector-ref memory mem-addr))
+                           (set! mem-addr (add1 mem-addr))
+                           (set! index (add1 index)))
+                      (vector-set! indexes i index))))
+      (when update (vector-set! rregs r-id mem-addr)))
+
+    (define (load-unit dest-regs start skip stride mem-addr byte)
+      (define indexes 
+        (for/vector ([i stride]) (* 8 (vector-ref dest-regs (+ (* i skip) start)))))
+      (for ([i (quotient 8 byte)])
+           (for ([j stride]
+                 [index indexes])
+             (for ([k byte])
+                  (vector-set! dregs index (vector-ref memory mem-addr))
+                  (set! mem-addr (add1 mem-addr))
+                  (set! index (add1 index)))
+             (vector-set! indexes j index)))
+      mem-addr)
+
+    (define (load-byte stride update byte)
+      (define dest (vector-ref args 0))
+      (define n (car dest))
+      (define dest-regs (cdr dest)) ;; TODO: check validity
+      (define r-id (vector-ref args 1))
+      (define mem-addr (vector-ref rregs r-id))
+      (define skip (quotient n stride))
+      
+      (set! mem-addr (load-unit dest-regs 0 skip stride mem-addr byte))
+      (when (< stride n) 
+            (set! mem-addr (load-unit dest-regs 1 skip stride mem-addr byte)))
+      (when (< (* 2 stride) n) 
+            (set! mem-addr (load-unit dest-regs 2 skip stride mem-addr byte)))
+      (when (< (* 3 stride) n) 
+            (set! mem-addr (load-unit dest-regs 3 skip stride mem-addr byte)))
+
+      (when update (vector-set! rregs r-id mem-addr)))
+
+    (define (load stride update)
+      (cond
+       [(= byte 1) (load-byte stride update 1)]
+       [(= byte 2) (load-byte stride update 2)]
+       [(= byte 3) (load-byte stride update 3)]
+       [(= byte 4) (load-byte stride update 4)]
+       [(= byte 8) (load-byte stride update 8)]
+       [else (assert #f "vld: invalid data type")]))
 
     ;; Special case for vld1 (no stride)
     (define (load1 update)
@@ -175,102 +245,110 @@
       (define d (vector-ref args 0))
       (define n (vector-ref args 1))
       (define m (vector-ref args 2))
-      ;; (define vn #f)
-      ;; (define vm #f)
       (pretty-display `(nnn ,f ,arg-type ,d ,n ,m))
-      ;(define-values (vn vm vd)
       (cond
-       ;; [(= arg-type 0) ;; normal
-       ;;  (cond 
-       ;;   [(and (< d nregs-d) (< n nregs-d) (< m nregs-d))
-       ;;    (values (get-dreg n) (get-dreg m) (and rmw (get-dreg d)))]
-       ;;   [(and (>= d nregs-d) (>= n nregs-d) (>= m nregs-d))
-       ;;    (values (get-qreg n) (get-qreg m) (and rmw (get-qreg d)))]
-       ;;   [else
-       ;;    (assert #f "Normal: operands mismatch.")])
-       ;;  ;(pretty-display `(here0 ,f))
-       ;;  ]
        [(= arg-type 0) ;; normal
-        (long)
-        (unless (or (and (< d nregs-d) (< n nregs-d) (< m nregs-d))
-                    (and (>= d nregs-d) (>= n nregs-d) (>= m nregs-d)))
-                (assert #f "Normal: operands mismatch."))]
+        (pretty-display "TYPE 0000000000000000000000000000")
+        (cond 
+         [(and (is-d? d) (is-d? n) (is-d? m))
+          (let ([vn (get-dreg n)]
+                [vm (get-dreg m)]
+                [vd (and rmw (get-dreg d))])
+            (pretty-display "TYPE 0: get regs")
+            (set-dreg! d (f vd vn vm)))
+          ]
+         [(and (is-q? d) (is-q? n) (is-q? m))
+          (let ([vn (get-qreg n)]
+                [vm (get-qreg m)]
+                [vd (and rmw (get-qreg d))])
+              (set-qreg! d (f vd vn vm)))
+          ]
+         [else
+          (assert #f "Normal: operands mismatch.")])
+        ;(pretty-display `(here0 ,f))
+        ]
        [(= arg-type 1) ;; long
+        (pretty-display "TYPE 1111111111111111111111111111")
         (long)
-        (unless (and (>= d nregs-d) (< n nregs-d) (< m nregs-d))
-                (assert #f "Long: operands mismatch."))]
+        (if (and (is-q? d) (is-d? n) (is-d? m))
+            (let ([vn (get-dreg n)]
+                  [vm (get-dreg m)]
+                  [vd (and rmw ((get-qreg d)))])
+              (set-qreg! d (f vd vn vm)))
+            (assert #f "Long: operands mismatch."))]
        [(= arg-type 2) ;; narrow
+        (pretty-display "TYPE 222222222222222222222222222")
         (narrow)
-        (unless (and (< d nregs-d) (>= n nregs-d) (>= m nregs-d))
-                (assert #f "Long: operands mismatch."))]
+        (if (and (is-d? d) (is-q? n) (is-q? m))
+            (let ([vn (get-qreg n)]
+                  [vm (get-qreg m)]
+                  [vd (and rmw (get-dreg d))])
+              (set-dreg! d (f vd vn vm)))
+            (assert #f "Long: operands mismatch."))]
        [(= arg-type 3) ;; wide
+        (pretty-display "TYPE 333333333333333333333333")
         (wide)
-        (unless (and (>= d nregs-d) (>= n nregs-d) (< m nregs-d))
-                (assert #f "Wide: operands mismatch."))])
-       
-      (pretty-display `(here1 ,f))
-      (define vn (get-dreg n))
-      (define vm (get-dreg m))
-      (pretty-display `(here2 ,f))
-      ;; Read modify write
-      (if rmw
-          (set-dreg! d (f (get-dreg d) vn vm))
-          (set-dreg! d (f vn vm))))
+        (if (and (is-q? d) (is-q? n) (is-d? m))
+            (let ([vn (get-qreg n)]
+                  [vm (get-dreg m)]
+                  [vd (and rmw (get-qreg d))])
+              (set-qreg! d (f vd vn vm)))
+            (assert #f "Wide: operands mismatch."))])
+      )
 
-    ;; (define (nni arg-type f)
-    ;;   (define d (vector-ref args 0))
-    ;;   (define n (vector-ref args 1))
-    ;;   (define i (vector-ref args 2))
-    ;;   (cond
-    ;;    [(= arg-type 0) ;; normal
-    ;;     (unless (or (and (< d nregs-d) (< n nregs-d))
-    ;;                 (and (>= d nregs-d) (>= n nregs-d)))
-    ;;             (raise "Normal: operands mismatch."))]
-    ;;    [(= arg-type 1) ;; long
-    ;;     (long)
-    ;;     (unless (and (>= d nregs-d) (< n nregs-d))
-    ;;             (raise "Long: operands mismatch."))])
-       
-    ;;   (define vn (get-dreg n))
-    ;;   (define vm (number->bytes i (if (< d nregs-d) 8 16)))
-    ;;   (set-dreg! d (f vn vm)))
-
-    (define (nn arg-type f)
+    (define (nn arg-type f [rmw #f])
       (define d (vector-ref args 0))
       (define n (vector-ref args 1))
       (cond
        [(= arg-type 0) ;; normal
-        (unless (or (and (< d nregs-d) (< n nregs-d))
-                    (and (>= d nregs-d) (>= n nregs-d)))
-                (assert #f "Normal: operands mismatch."))]
+        (cond
+         [(and (is-d? d) (is-d? n))
+          (let ([vn (get-dreg n)]
+                [vd (and rmw (get-dreg d))])
+              (set-dreg! d (f vd vn)))]
+         [(and (is-q? d) (is-q? n))
+          (let ([vn (get-qreg n)]
+                [vd (and rmw (get-qreg d))])
+              (set-qreg! d (f vd vn)))]
+         [else
+          (assert #f "Normal: operands mismatch.")])]
        [(= arg-type 1) ;; long
         (long)
-        (unless (and (>= d nregs-d) (< n nregs-d))
-                (assert #f "Long: operands mismatch."))]
+        (if (and (is-q? d) (is-d? n))
+            (let ([vn (get-dreg n)]
+                  [vd (and rmw (get-qreg d))])
+              (set-qreg! d (f vd vn)))
+            (assert #f "Long: operands mismatch."))]
        [(= arg-type 2) ;; narrow
         (narrow)
-        (unless (and (< d nregs-d) (>= n nregs-d))
-                (assert #f "Narrow: operands mismatch."))]
-       )
-       
-      (define vn (get-dreg n))
-      (set-dreg! d (f vn)))
+        (if (and (is-d? d) (is-q? n))
+            (let ([vn (get-qreg n)]
+                  [vd (and rmw (get-dreg d))])
+              (set-dreg! d (f vd vn)))
+            (assert #f "Narrow: operands mismatch."))]
+       ))
 
     (define (ni arg-type f [rmw #f])
       (define d (vector-ref args 0))
       (define i (vector-ref args 1))
-      (define vn (number->bytes i (if (< d nregs-d) 8 16)))
-      (if rmw
-          (set-dreg! d (f (get-dreg d) vn))
-          (set-dreg! d (f vn))))
+      (if (is-d? d)
+          (let ([vd (and rmw (get-dreg d))])
+            (set-dreg! d (f vd (number->bytes i 8))))
+          (let ([vd (and rmw (get-qreg d))])
+            (set-qreg! d (f vd (number->bytes i 16))))))
 
     ;; exti
-    (define (ext vn vm)
+    (define (ext vd vn vm)
       (pretty-display `(ext ,vn ,vm))
       (define imm (vector-ref args 3))
+      (pretty-display `(imm ,imm))
       (define shift (* imm byte))
-      ;(pretty-display `(ext ,vn ,vm ,shift))
-      (vector-append (vector-drop vn shift) (vector-take vm shift)))
+      (pretty-display `(shift ,shift))
+      (pretty-display `(len ,(vector-length vn) ,(vector-length vm) ,shift))
+      ;(define ret (vector-append (vector-drop vn shift) (vector-take vm shift)))
+      (define ret (vector-extract vn vm shift))
+      (pretty-display `(ext-ret ,ret))
+      ret)
 
     (define (x:notype vn g)
       (for/vector ([num-n vn]) (g num-n)))
@@ -314,21 +392,21 @@
         (f vd vn vm (lambda (d n m) (+ d (* n m))))))
 
 
-    (define (mov-simple vn) (x:notype vn identity))
-    (define (mvn-simple vn) (x:notype vn (lambda (x) (bitwise-xor x #xff))))
-    (define (mov vn)   (xn vn identity))
-    (define (qmov vn)  (xn vn saturate))
+    (define (mov-simple vd vn) (x:notype vn identity))
+    (define (mvn-simple vd vn) (x:notype vn (lambda (x) (bitwise-xor x #xff))))
+    (define (mov vd vn)   (xn vn identity))
+    (define (qmov vd vn)  (xn vn saturate))
 
-    (define (vand vn vm)  (x-x:notype vn vm bitwise-and))
+    (define (vand vd vn vm)  (x-x:notype vn vm bitwise-and))
 
     (define-syntax-rule (inst-eq? x) (= op (vector-member x inst-id)))
     (define-syntax-rule (type-eq? x) (= type (vector-member x inst-type)))
 
     (cond
-     ;; [(inst-eq? `vld1)  (pretty-display "vld1") (load1 #f)]
-     ;; [(inst-eq? `vld1!) (pretty-display "vld1!") (load1 #t)]
-     ;; [(inst-eq? `vld2)  (load 2 #f)]
-     ;; [(inst-eq? `vld2!) (load 2 #t)]
+     [(inst-eq? `vld1)  (pretty-display "vld1") (load1 #f)]
+     [(inst-eq? `vld1!) (pretty-display "vld1!") (load1 #t)]
+     [(inst-eq? `vld2)  (load 2 #f)]
+     [(inst-eq? `vld2!) (load 2 #t)]
 
      [(inst-eq? `vexti) (pretty-display "vexti") (nnn 0 ext)]
      ;; [(inst-eq? `vmla)  (nnn 0 mla #t)]

@@ -100,7 +100,9 @@
 (define (decode code model)
   (define (decode-inst x)
     (inst (vector-ref inst-id (evaluate (inst-op x) model))
-	  (vector-map (lambda (a) (evaluate a model)) (inst-args x))))
+	  (vector-map (lambda (a) (evaluate a model)) (inst-args x))
+          (evaluate (inst-byte x) model)
+          (evaluate (inst-type x) model)))
 
   (traverse code inst? decode-inst))
 
