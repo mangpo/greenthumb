@@ -31,6 +31,8 @@
 (define-syntax-rule (inst-type x) (instruction-type x))
 (define-syntax-rule (inst-byte x) (instruction-byte x))
 (define-syntax-rule (inst-args x) (instruction-args x))
+(define-syntax-rule (inst-copy x [a b])
+  (struct-copy instruction x [a b]))
 
 ;; Traverse a given program AST recursively until (base? program) is true.
 ;; Then apply base-apply to program.
@@ -144,3 +146,23 @@
     (cond [out  (thread-receive)]
           [else (break-thread t)
                 (raise (thread-receive))])))
+
+(define (random-from-vec vec)
+  (vector-ref vec (random (vector-length vec))))
+
+(define (random-from-list-ex lst ex)
+  (let ([new-lst (remove ex lst)])
+    (if (empty? new-lst)
+        ex
+        (list-ref new-lst (random (length new-lst))))))
+
+(define (random-from-vec-ex vec ex)
+  (define len (vector-length vec))
+  (define (inner)
+    (define sample (vector-ref vec (random len)))
+    (if (eq? sample ex)
+        (inner)
+        sample))
+  (if (= len 1)
+      (vector-ref vec 0)
+      (inner)))

@@ -87,11 +87,23 @@
 
   (define (encode-inst x)
     (if (inst-op x)
-        (inst (vector-member (string->symbol (string-downcase (inst-op x))) inst-id)
-              (vector-map encode-arg (inst-args x))
-              (and (inst-byte x) (quotient (string->number (inst-byte x)) 8))
-              (and (inst-type x)
-                   (vector-member (string->symbol (string-downcase (inst-type x))) type-id)))
+        ;; Concrete instruction
+        (let* ([op (string-downcase (inst-op x))]
+               [args (inst-args x)]
+               [last-arg (vector-ref args (sub1 (vector-length args)))])
+          (cond
+           [(string->number last-arg)
+            (set! op (string-append op "i"))]
+           [(and (regexp-match #rx"vld" op) (= (vector-length args) 3))
+            (set! op (string-append op "+offset"))])
+          (inst (vector-member (string->symbol op) inst-id)
+                (vector-map encode-arg args)
+                (and (inst-byte x) 
+                     (quotient (string->number (inst-byte x)) 8))
+                (and (inst-type x) 
+                     (vector-member 
+                      (string->symbol (string-downcase (inst-type x))) type-id))))
+        ;; Hole
         (let ([op (sym-op)])
           (inst op
                 (vector (first-arg op) (sym-arg) (sym-arg) (sym-const))

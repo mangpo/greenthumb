@@ -341,9 +341,10 @@
          (elements->bytes res (d-byte byte)))))
 
     (define (mla vd vn vm)
-      (if (or (= (vector-length args) 3) (< (vector-ref args 3) 0))
-          (xd-xn-xm vd vn vm (lambda (d n m) (+ d (* n m))))
-          (xd-xn-xm-i vd vn vm (lambda (d n m) (+ d (* n m))))))
+      (xd-xn-xm vd vn vm (lambda (d n m) (+ d (* n m)))))
+
+    (define (mlai vd vn vm)
+      (xd-xn-xm-i vd vn vm (lambda (d n m) (+ d (* n m)))))
 
 
     (define (mov-simple vd vn) (x:notype vn identity))
@@ -357,14 +358,18 @@
     (define-syntax-rule (type-eq? x) (= type (vector-member x inst-type)))
 
     (cond
-     [(inst-eq? `vld1)  (load1 #f)]
-     [(inst-eq? `vld1!) (load1 #t)]
-     [(inst-eq? `vld2)  (load 2 #f)]
-     [(inst-eq? `vld2!) (load 2 #t)]
+     [(inst-eq? `nop) (void)]
 
-     [(inst-eq? `vexti) (nnn 0 ext)]
-     [(inst-eq? `vmla)  (nnn 0 mla #t)]
-     [(inst-eq? `vmlal) (nnn 1 mla #t)]
+     [(inst-eq? `vld1)   (load1 #f)]
+     [(inst-eq? `vld1!)  (load1 #t)]
+     [(inst-eq? `vld2)   (load 2 #f)]
+     [(inst-eq? `vld2!)  (load 2 #t)]
+
+     [(inst-eq? `vexti)  (nnn 0 ext)]
+     [(inst-eq? `vmla)   (nnn 0 mla #t)]
+     [(inst-eq? `vmlai)  (nnn 0 mlai #t)]
+     [(inst-eq? `vmlal)  (nnn 1 mla #t)]
+     [(inst-eq? `vmlali) (nnn 1 mlai #t)]
 
      [(inst-eq? `vmov)   (nn 0 mov-simple)]
      [(inst-eq? `vmovi)  (ni 0 mov-simple)] ;; TODO: constraint on constant
@@ -377,6 +382,7 @@
 
      [(inst-eq? `vand)   (nnn 0 vand)]
      [(inst-eq? `vandi)  (ni 0 vand #t)]
+     
 
      ))
   

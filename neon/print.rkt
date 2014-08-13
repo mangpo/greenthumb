@@ -4,6 +4,9 @@
 
 (provide (all-defined-out))
 
+(define (print-syntax x [indent ""])
+  (print-struct x indent))
+
 (define (print-struct x [indent ""])
   (define (inc ind) (string-append ind " "))
   (cond

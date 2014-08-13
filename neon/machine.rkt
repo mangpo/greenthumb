@@ -1,28 +1,48 @@
 #lang racket
 
 (provide bit nregs-d nregs-r
-         inst-id type-id
+         inst-id type-id get-class-id
+         default-state constraint
          (all-defined-out))
 
 (struct progstate (dregs rregs memory cost))
 
-(define debug #f)
+(define debug #t)
 (define bit 32)
 (define nregs-d 10)
 (define nregs-r 4)
 (define nmems 4)
 
-;; symbol
-(define inst-id '#(vld1 vld2 ;vld3 vld4
-                        vld1! vld2! ;vld3! vld4!
-                        vexti 
-                        vmla vmlal
-                        vmov vmovi vmovl vmovn vqmovn
-                        vmvn vmvni
-                        vand vandi))
+(define inst-id '#(nop
+                   vld1 vld2 ;vld3 vld4
+                   vld1! vld2! ;vld3! vld4!
+                   vexti 
+                   vmla vmlai vmlal vmlali
+                   vmov vmovi ;vmovl vmovn vqmovn
+                   ;vmvn vmvni
+                   vand vandi))
 
-;; string
-(define type-id '#(i s u))
+(define type-id '#(s u i))
+
+;; TODO: move to stochastic-support
+(define classes
+  (vector '(vld1 vld1!)
+          '(vld2 vld2!)
+          ;; '(vmla vand)
+          ;; '(vmlai vexti)
+          ;; '(vmlal)
+          ;; '(vmlali)
+          ;; '(vmov)
+          '(vmovi vandi)))
+
+(define classes-len (vector-length classes))
+
+(define (get-class-id x)
+  (define id #f)
+  (for ([i (in-range classes-len)])
+       (when (member x (vector-ref classes i))
+             (set! id i)))
+  id)
 
 (define-syntax-rule (make-vec n init)
   (let ([vec (make-vector n)])

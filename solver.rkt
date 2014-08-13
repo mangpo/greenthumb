@@ -59,6 +59,9 @@
 ;;   (solve-until-valid config))
 
 (define (generate-inputs-inner n spec start-state assumption)
+  ;; (pretty-display `(generate-inputs-inner ,n ,assumption))
+  ;; (print-struct spec)
+  ;; (display-state start-state)
   (current-solver (new kodkod%))
   (configure [bitwidth bit] [loop-bound 20])
   (define const-range 
@@ -203,6 +206,7 @@
   ;; Collect input variables and contruct their init values.
   (define-values (sym-vars inputs)
     (generate-inputs-inner 2 spec start-state assumption))
+  ;;(pretty-display `(inputs ,inputs))
 
   (define model 
     (timeout

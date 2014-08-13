@@ -4,7 +4,7 @@
 
 (define code
 (ast-from-string "
-VMLAL.S16 q0, d3, d2
+vld1 {d0}, [r0]
 "))
 
 ;(define code

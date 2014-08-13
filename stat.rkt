@@ -1,6 +1,6 @@
 #lang racket
 
-(require "vpe/print.rkt")
+(require "neon/print.rkt")
 (provide stat% print-stat-all create-stat-from-file)
 
 (define name-stat '#(opcode operand swap inst nop))

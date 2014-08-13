@@ -25,7 +25,7 @@
 
 (define code
 (ast-from-string "
-VMOV d0, d4
+vld1 {d0}, [r0]
 ")) ;; TODO debug
 
 
@@ -41,5 +41,7 @@ VMOV d0, d4
                 (vector 10 3 2 (sym-arg))
                 (sym-byte) (sym-type))))
 
+(define t (current-seconds))
 ;(counterexample encoded-code encoded-sketch (constraint [dreg 5] [rreg] [mem-all]))
-(superoptimize encoded-code encoded-sketch (constraint [dreg 0 1] [rreg 1] [mem-all]))
+(superoptimize encoded-code encoded-sketch (constraint [dreg 0 1 5] [rreg] [mem-all]))
+(pretty-display `(time ,(- (current-seconds) t)))
