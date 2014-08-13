@@ -5,11 +5,13 @@
          correctness-cost performance-cost
          get-arg-ranges nop-id
          random-instruction
-         get-mutate-type mutate-operand-specific mutate-other mutate-dist)
+         get-mutate-type mutate-operand-specific mutate-other 
+         stat-mutations)
 
 
 (define mutate-dist 
   #hash((opcode . 1) (operand . 1) (swap . 0) (instruction . 1) (byte . 1) (type . 1)))
+(define stat-mutations '#(opcode operand swap inst byte type nop))
 
 (define nop-id (vector-member `nop inst-id))
 
@@ -171,6 +173,7 @@
     (define new-type (if (= type 0) 1 0)) ;; 0 = s, 1 = u
     (define new-entry (inst-copy entry [type new-type]))
     (vector-set! new-p index new-entry)
+    (send stat inc-propose `type)
     new-p]
    [else (raise (format "mutate-type: undefined for ~a " opcode-name))]))
 
@@ -182,6 +185,7 @@
   (define new-byte (random-from-list-ex (list 1 2 4 8) byte))
   (define new-entry (inst-copy entry [byte new-byte]))
   (vector-set! new-p index new-entry)
+  (send stat inc-propose `byte)
   new-p)
 
 (define (mutate-other index entry p stat type)

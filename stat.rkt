@@ -1,16 +1,16 @@
 #lang racket
 
-(require "neon/print.rkt")
+(require "neon/print.rkt" "neon/stochastic-support.rkt")
 (provide stat% print-stat-all create-stat-from-file)
 
-(define name-stat '#(opcode operand swap inst nop))
-(define n (vector-length name-stat))
 (define-syntax-rule (ratio x y) (~r (exact->inexact (/ x y)) #:precision 6))
+
+(define n (vector-length stat-mutations))
 
 (define stat%
   (class object%
 
-    (init-field best-correct-program best-correct-cost 
+    (init-field best-correct-program best-correct-cost
                 [start-time (current-seconds)]
                 [time #f]
                 [propose-stat (make-vector n 0)]
@@ -30,7 +30,6 @@
                 [check-time 0]
                 [validate-time 0]
                 [mutate-time 0]
-                ;[mutations #f]
                 )
            
     (super-new)
@@ -42,8 +41,10 @@
             ))
 
     (define/public (inc-propose x)
-      (vector-set! propose-stat x (add1 (vector-ref propose-stat x)))
-      (set! current-mutate x))
+      (define index (vector-member x stat-mutations))
+      (vector-set! propose-stat index 
+                   (add1 (vector-ref propose-stat index)))
+      (set! current-mutate index))
 
     (define/public (inc-accept)
       (set! accept-count (add1 accept-count))
@@ -110,10 +111,11 @@
       (newline)
       (define proposed (foldl + 0 (vector->list propose-stat)))
       (define accepted (foldl + 0 (vector->list accept-stat)))
+
       (pretty-display (format "Mutate\tProposed\t\tAccepted\t\tAccepted/Proposed"))
-      (for ([i 5])
+      (for ([i n])
            (pretty-display (format "~a\t~a\t~a\t~a" 
-                                   (vector-ref name-stat i)
+                                   (vector-ref stat-mutations i)
                                    (exact->inexact (/ (vector-ref propose-stat i) proposed))
                                    (exact->inexact (/ (vector-ref accept-stat i) proposed))
                                    (if (> (vector-ref propose-stat i) 0)
@@ -240,40 +242,33 @@
       (define tokens (string-split line))
       ;(pretty-display `(tokens ,tokens))
 
-      (define-syntax pattern
-        (syntax-rules (single array)
-          ((pattern [single (a b) ...] [array (c d) ...])
-           (cond
-            [(< (length tokens) 2) #f]
-            
-            [(regexp-match a (car tokens)) (set! b (string->number (second tokens)))]
-            ...
-
-            [(regexp-match c (car tokens)) 
-             (vector-set! propose-stat d (string->number (list-ref tokens 1)))
-             (vector-set! accept-stat d (string->number (list-ref tokens 2)))]
-            ...
-            ))))
-
-      (pattern [single (#rx"elapsed-time" time)
-                       (#rx"mutate-time" mutate-time)
-                       (#rx"simulate-time" simulate-time)
-                       (#rx"check-time" check-time)
-                       (#rx"validate-time" validate-time)
-                       (#rx"iterations:" iter-count)
-                       (#rx"validate-count:" validate-count)
-                       (#rx"correct-count:" correct-count)
-                       (#rx"misalign-count:" misalign-count)
-                       (#rx"accept-count:" accept-count)
-                       (#rx"accept-higher-count:" accept-higher-count)
-                       (#rx"best-cost" best-cost)
-                       (#rx"best-correct-cost" best-correct-cost)
-                       (#rx"best-correct-time" best-correct-time)]
-               [array (#rx"opcode" 0)
-                      (#rx"operand" 1)
-                      (#rx"swap" 2)
-                      (#rx"inst" 3)
-                      (#rx"nop" 4)])
+      (define-syntax-rule (pattern (a b) ...)
+        (cond
+         [(< (length tokens) 2) #f]
+         
+         [(regexp-match a (car tokens)) (set! b (string->number (second tokens)))]
+         ...
+         
+         [(vector-member (string->symbol (car tokens)) stat-mutations)
+          (let ([index (vector-member (string->symbol (car tokens)) stat-mutations)])
+            (vector-set! propose-stat index (string->number (list-ref tokens 1)))
+            (vector-set! accept-stat index (string->number (list-ref tokens 2))))]
+         ))
+  
+      (pattern (#rx"elapsed-time" time)
+               (#rx"mutate-time" mutate-time)
+               (#rx"simulate-time" simulate-time)
+               (#rx"check-time" check-time)
+               (#rx"validate-time" validate-time)
+               (#rx"iterations:" iter-count)
+               (#rx"validate-count:" validate-count)
+               (#rx"correct-count:" correct-count)
+               (#rx"misalign-count:" misalign-count)
+               (#rx"accept-count:" accept-count)
+               (#rx"accept-higher-count:" accept-higher-count)
+               (#rx"best-cost" best-cost)
+               (#rx"best-correct-cost" best-correct-cost)
+               (#rx"best-correct-time" best-correct-time))
 
       (parse)))
  

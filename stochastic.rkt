@@ -46,7 +46,6 @@
   (define-syntax-rule (get-sketch) 
     (random-insts (if size size (vector-length spec))))
   (define stat (new stat% 
-                    [mutations (hash-keys mutate-dist)]
                     [best-correct-program spec] 
                     [best-correct-cost (performance-cost spec)]
                     [name name]))
@@ -71,7 +70,7 @@
         (pretty-display (format " --> swap = ~a" index2)))
   (vector-set! new-p index (vector-ref new-p index2))
   (vector-set! new-p index2 entry)
-  (send stat inc-propose 2)
+  (send stat inc-propose `swap)
   new-p)
 
 ;; Generic across architectures
@@ -92,7 +91,7 @@
     (when debug
           (pretty-display (format " --> new = ~a ~a" new-opcode-name new-opcode-id)))
     (vector-set! new-p index (inst-copy entry [op new-opcode-id]))
-    (send stat inc-propose 0)
+    (send stat inc-propose `opcode)
     new-p]
 
    [else (mutate p stat)]))
@@ -118,7 +117,7 @@
           (pretty-display (format " --> new = [~a]->~a)" change new-val)))
     (vector-set! args change new-val)
     (vector-set! new-p index (inst-copy entry [args args]))
-    (send stat inc-propose 1)
+    (send stat inc-propose `operand)
     new-p]
 
    [else (mutate p stat)]))
@@ -129,9 +128,9 @@
   (define opcode-name (vector-ref inst-id opcode-id))
   (define new-opcode-id
     (if (and (not (equal? opcode-id nop-id)) (< (random) nop-mass))
-        (begin (send stat inc-propose 4) 
+        (begin (send stat inc-propose `nop) 
                nop-id)
-        (begin (send stat inc-propose 3) 
+        (begin (send stat inc-propose `inst) 
                (random-from-list-ex (range (vector-length inst-id)) opcode-id))))
   (when debug
         (pretty-display (format " >> mutate instruction ~a" (vector-ref inst-id new-opcode-id))))
