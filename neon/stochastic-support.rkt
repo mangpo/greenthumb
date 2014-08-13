@@ -5,7 +5,7 @@
          correctness-cost performance-cost
          get-arg-ranges nop-id
          random-instruction
-         get-mutate-type mutate-operand-specific mutate-other)
+         get-mutate-type mutate-operand-specific mutate-other mutate-dist)
 
 
 (define mutate-dist 
@@ -139,6 +139,7 @@
     (inst opcode-id args byte type-id)]))
 
 (define (mutate-operand-specific opcode-name args index)
+  (when debug `(mutate-operand-specific ,opcode-name ,args ,index))
   ;; TODO: redundant
   (define (random-from-list-ex lst ex)
     (let ([new-lst (remove ex lst)])
@@ -152,8 +153,9 @@
     (define ld-regs (cdr dest))
     (define first-reg (vector-ref ld-regs 0))
     (define distance (- (vector-ref ld-regs (sub1 len)) first-reg))
+    (when debug (pretty-display `(pick-first-reg ,nregs-d ,distance)))
     (define new-first-reg 
-      (random-from-list-ex (range (- len distance)) first-reg))
+      (random-from-list-ex (range (- nregs-d distance)) first-reg))
     (define diff (- new-first-reg first-reg))
     (cons len (for/vector ([reg ld-regs]) (+ reg diff)))
     ]

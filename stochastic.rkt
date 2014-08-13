@@ -46,6 +46,7 @@
   (define-syntax-rule (get-sketch) 
     (random-insts (if size size (vector-length spec))))
   (define stat (new stat% 
+                    [mutations (hash-keys mutate-dist)]
                     [best-correct-program spec] 
                     [best-correct-cost (performance-cost spec)]
                     [name name]))
@@ -327,12 +328,9 @@
 
   ;; Main loop
   (define (iter current current-cost)
-    (pretty-display `(iter begin))
     (send stat inc-iter)
     (define t1 (current-milliseconds))
-    (pretty-display `(mutate begin))
     (define proposal (mutate current stat))
-    (pretty-display `(mutate end))
     (define t2 (current-milliseconds))
     (send stat mutate (- t2 t1))
     (when debug
@@ -345,9 +343,7 @@
           )
     (define n-inputs (length inputs))
     (define okay-cost (accept-cost current-cost))
-    (pretty-display `(simulate begin))
     (define cost-correct (cost-all-inputs proposal okay-cost))
-    (pretty-display `(simulate end))
     (define proposal-cost (car cost-correct))
     (when debug
           (pretty-display (format "current cost: ~a" current-cost))
