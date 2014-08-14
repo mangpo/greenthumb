@@ -1,8 +1,8 @@
 #lang racket
 
 (require "stat.rkt" "solver.rkt"
-         "vpe/llvm-parser.rkt" "vpe/parser.rkt"
-         "vpe/machine.rkt" "vpe/compress.rkt" "vpe/print.rkt")
+         "neon/parser.rkt"
+         "neon/machine.rkt" "neon/compress.rkt" "neon/print.rkt")
 (provide optimize)
 
 (define (optimize-inner code-org live-out-org synthesize dir cores time-limit size)
@@ -11,7 +11,7 @@
   (system (format "rm ~a*" path))
   
   (pretty-display ">>> select code:")
-  (print-syntax code-org #:LR #f)
+  (print-syntax code-org #:print-reg #f)
   (pretty-display (format ">>> live-out-org: ~a" live-out-org))
 
   ;; Use the fewest number of registers possible.
@@ -20,7 +20,7 @@
   ;; machine-info from compress-reg-space is only accurate for reg but not memory. This will adjust the rest of the machine info.
   (set! machine-info (proper-machine-config code machine-info))
   (pretty-display ">>> compressed-code:")
-  (print-syntax code #:LR #f)
+  (print-syntax code #:print-reg #f)
   (pretty-display (format ">>> machine-info: ~a" machine-info))
   (pretty-display (format ">>> live-out: ~a" live-out))
 
@@ -31,15 +31,15 @@
       (string-join 
        (map req 
             '(ast.rkt stochastic.rkt 
-                      vpe/parser.rkt vpe/machine.rkt vpe/print.rkt 
-                      vpe/solver-support.rkt))))
+                      neon/parser.rkt neon/machine.rkt neon/print.rkt 
+                      neon/solver-support.rkt))))
     (with-output-to-file #:exists 'truncate (format "~a-~a.rkt" path id)
       (thunk
        (pretty-display (format "#lang racket"))
        (pretty-display (format "(require ~a)" require-files))
        (pretty-display (set-machine-config-string machine-info))
        (pretty-display (format "(define code (ast-from-string \""))
-       (print-syntax code #:LR #f)
+       (print-syntax code #:print-reg #f)
        (pretty-display "\"))")
        (pretty-display (format "(define encoded-code (encode code #f))"))
        (pretty-display (format "(stochastic-optimize encoded-code ~a ~a \"~a-~a\" ~a ~a)" 
@@ -105,7 +105,7 @@
   (define output-code (ast-from-file (format "~a-~a.best" path id)))
   (if output-code
       (let ([decompressed-code (decompress-reg-space output-code map-back)])
-        (print-syntax decompressed-code #:LR #f)
+        (print-syntax decompressed-code #:print-reg #f)
         decompressed-code)
       code-org)
   )
@@ -128,21 +128,13 @@
 ;;   1) parsed AST, 2) .s file, 3) LLVM IR file
 ;; live-out: live-out info in custom format--- for vpe, a list of live registers
 ;;   synthesize: #t = synthesize mode, #f = optimize mode
-(define (optimize input live-out synthesize 
-                  #:is-file [is-file #t] 
-                  #:is-llvm [is-llvm #f]
+(define (optimize code-org live-out synthesize 
                   #:need-filter [need-filter #f]
                   #:dir [dir "output"] 
                   #:cores [cores 12]
                   #:time-limit [time-limit 3600]
                   #:size [size #f])
   (pretty-display `(optimize))
-  (define code-org 
-    (if is-file
-        (if is-llvm
-            (ast-from-file-llvm input)
-            (ast-from-file input))
-        input))
 
   (if (> (vector-length code-org) 2)
       (if need-filter
@@ -150,9 +142,6 @@
           (optimize-inner code-org live-out synthesize dir cores time-limit size))
       code-org))
 
-;; (optimize "vpe/programs/ntt.ll"
-;;           (list 2 3 7 8 26 27 28)
-;;           #f #:dir "output" #:cores 12)
           
 
 

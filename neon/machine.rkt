@@ -2,7 +2,11 @@
 
 (provide bit nregs-d nregs-r
          inst-id type-id get-class-id
-         default-state constraint
+         default-state constraint 
+         config-adjust config-exceed-limit?
+         ;; get rid of the ones below
+         output-constraint-string
+         set-machine-config set-machine-config-string
          (all-defined-out))
 
 (struct progstate (dregs rregs memory cost))
@@ -12,6 +16,31 @@
 (define nregs-d 10)
 (define nregs-r 4)
 (define nmems 4)
+
+;; info: (list nregs nmem)
+(define (set-machine-config info)
+  (set! nregs-d (first info))
+  (set! nregs-r (second info))
+  (set! nmems (third info)))
+
+;; info: (list nregs nmem)
+(define (set-machine-config-string info)
+  (format "(set-machine-config (list ~a ~a ~a))" (first info) (second info) (third info)))
+
+(define (config-adjust info)
+  ;; Double the memory size
+  (list (first info) (second info) (* 2 (third info))))
+
+(define (config-exceed-limit? info)
+  ;; Memory size > 1000
+  (> (third info) 1000))
+
+;; live-out: a list of live registers, same format is the output of (select-code) and (combine-live-out)
+;; output: output constraint corresponding to live-out in string. When executing, the expression is evaluated to a progstate with #t and #f indicating which entries are constrainted (live).
+(define (output-constraint-string live-out)
+  (define live-regs-d-str (string-join (map number->string (first live-out))))
+  (define live-regs-r-str (string-join (map number->string (second live-out))))
+  (format "(constraint [dreg ~a] [rreg ~a] [mem-all])" live-regs-d-str live-regs-r-str))
 
 (define inst-id '#(nop
                    vld1 vld2 ;vld3 vld4

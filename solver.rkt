@@ -12,7 +12,7 @@
 (require rosette/solver/kodkod/kodkod)
 
 (provide superoptimize 
-         ;proper-machine-config
+         proper-machine-config
 	 ;; optimize 
          ;; linear-search binary-search 
          ;; optimize-cost
@@ -33,30 +33,30 @@
   res
   )
 
-;; ;; code: non-encoded code
-;; ;; config: machine config
-;; (define (proper-machine-config code config)
-;;   (define encoded-code (encode code #f))
-;;   (define (solve-until-valid config)
-;;     (set-machine-config config)
-;;     (current-solver (new kodkod%))
-;;     (configure [bitwidth bit] [loop-bound 20])
-;;     (define state (default-state (sym-input)))
-;;     (with-handlers* 
-;;      ([exn:fail? 
-;;        (lambda (e)
-;;          (if  (equal? (exn-message e) "solve: no satisfying execution found")
-;;               (let ([new-config (config-adjust config)])
-;;                 (if (config-exceed-limit? new-config)
-;;                     (raise "Cannot find inputs to the program for the memory size < 1000.
-;; 1) Try increasing memory size when calling (set-machine-config).
-;; 2) Some operation in interpret.rkt might not be legal for Rosette's symbolic object.")
-;;                     (solve-until-valid new-config)))
-;;               (raise e)))])
-;;      (solve (interpret encoded-code state))
-;;      config))
+;; code: non-encoded code
+;; config: machine config
+(define (proper-machine-config code config)
+  (define encoded-code (encode code #f))
+  (define (solve-until-valid config)
+    (set-machine-config config)
+    (current-solver (new kodkod%))
+    (configure [bitwidth bit] [loop-bound 20])
+    (define state (default-state (sym-input)))
+    (with-handlers* 
+     ([exn:fail? 
+       (lambda (e)
+         (if  (equal? (exn-message e) "solve: no satisfying execution found")
+              (let ([new-config (config-adjust config)])
+                (if (config-exceed-limit? new-config)
+                    (raise "Cannot find inputs to the program for the memory size < 1000.
+1) Try increasing memory size when calling (set-machine-config).
+2) Some operation in interpret.rkt might not be legal for Rosette's symbolic object.")
+                    (solve-until-valid new-config)))
+              (raise e)))])
+     (solve (interpret encoded-code state))
+     config))
 
-;;   (solve-until-valid config))
+  (solve-until-valid config))
 
 (define (generate-inputs-inner n spec start-state assumption)
   ;; (pretty-display `(generate-inputs-inner ,n ,assumption))

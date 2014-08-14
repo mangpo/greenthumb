@@ -122,6 +122,7 @@
           (evaluate (inst-type x) model)))
 
   (traverse code inst? decode-inst))
+  
 
 (define (assert-output state1 state2 constraint cost)
   (when debug (pretty-display "start assert-output"))
