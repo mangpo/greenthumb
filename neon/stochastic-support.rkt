@@ -61,7 +61,7 @@
         (vector dreg-range dreg-range dreg-range)
         (vector qreg-range qreg-range qreg-range))]
    
-   [(member opcode-name '(vmlai vexti))
+   [(member opcode-name '(vmla# vext#))
     (define byte (inst-byte entry))
     (define index-range (list->vector (range (quotient 8 byte))))
     (if (< (vector-ref args 0) nregs-d)
@@ -71,14 +71,14 @@
    [(member opcode-name '(vmlal))
     (vector qreg-range dreg-range dreg-range)]
    
-   [(member opcode-name '(vmlali))
+   [(member opcode-name '(vmlal#))
     (define byte (inst-byte entry))
     (define index-range (list->vector (range (quotient 8 byte))))
     (vector qreg-range dreg-range dreg-range index-range)]))
 
 (define (random-type-from-op opcode-name)
   (cond
-   [(member opcode-name '(vmla vmlai vmlal vmlali)) (random 2)]
+   [(member opcode-name '(vmla vmla# vmlal vmlal#)) (random 2)]
    [else #f]))
 
 (define (random-instruction [opcode-id (random (vector-length inst-id))])
@@ -167,7 +167,7 @@
   (define opcode-id (inst-op entry))
   (define opcode-name (vector-ref inst-id opcode-id))
   (cond
-   [(member opcode-name '(vmla vmlai vmlal vmlali))
+   [(member opcode-name '(vmla vmla# vmlal vmlal#))
     (define new-p (vector-copy p))
     (define type (inst-type entry))
     (define new-type (if (= type 0) 1 0)) ;; 0 = s, 1 = u
@@ -207,10 +207,10 @@
     (when (member opcode-name '(vld1 vld1! vld2 vld2! vmovi vandi))
           (set! mutations (cons `opcode mutations)))
     ;; byte
-    (when (member opcode-name '(vld2 vld2! vmla vmlai vmlal vmlali vexti))
+    (when (member opcode-name '(vld2 vld2! vmla vmla# vmlal vmlal# vext#))
           (set! mutations (cons `byte mutations)))
     ;; type
-    (when (member opcode-name '(vmla vmlai vmlal vmlali))
+    (when (member opcode-name '(vmla vmla# vmlal vmlal#))
           (set! mutations (cons `type mutations))))
 
   (pretty-display `(mutations ,mutations))

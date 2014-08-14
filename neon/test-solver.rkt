@@ -25,23 +25,26 @@
 
 (define code
 (ast-from-string "
-vld1 {d0}, [r0]
+vmlal.s16 q0, d3, d2[0]
 ")) ;; TODO debug
 
 
 (define sketch
 (ast-from-string "
-?
+vmlal.u16 q0, d3, d2[0]
 "))
 
-(define encoded-code (encode code #f))
-(define encoded-sketch (encode sketch #f))
+(define encoded-code (encode code))
+(define encoded-sketch (encode sketch))
 (define encoded-sketch2 
   (vector (inst (vector-member `vmlal inst-id) 
                 (vector 10 3 2 (sym-arg))
                 (sym-byte) (sym-type))))
 
+(print-struct encoded-code)
+(print-struct encoded-sketch)
+
 (define t (current-seconds))
-;(counterexample encoded-code encoded-sketch (constraint [dreg 5] [rreg] [mem-all]))
-(superoptimize encoded-code encoded-sketch (constraint [dreg 0 1 5] [rreg] [mem-all]))
+(counterexample encoded-code encoded-sketch (constraint [dreg 0 1] [rreg] [mem-all]))
+;(superoptimize encoded-code encoded-sketch (constraint [dreg 0 1 5] [rreg] [mem-all]))
 (pretty-display `(time ,(- (current-seconds) t)))

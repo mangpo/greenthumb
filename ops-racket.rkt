@@ -21,11 +21,11 @@
         (>> unsigned-x y))))
 
 (define (finitize num [bit bit]) 
-  (let* ([mask (arithmetic-shift -1 bit)]
+  (let* ([mask (<< -1 bit)]
          [masked (bitwise-and (bitwise-not mask) num)])
-    (if (bitwise-bit-set? masked (- bit 1))
-        (bitwise-ior mask masked)  
-        masked)))
+    (if (= (bitwise-and masked (arithmetic-shift 1 (sub1 bit))) 0)
+        masked
+        (bitwise-ior mask masked))))
 
 (define-syntax assert
   (syntax-rules ()

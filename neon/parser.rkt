@@ -80,15 +80,15 @@
                  ((WORD DOT NUM) (list $1 $3 #f)))
 
     (instruction ((opcode-type args)
-                  (inst (first $1)
-                        (list->vector (flatten $2)) 
-                        (second $1)
-                        (third $1)))
+                  (new-inst (first $1)
+                            (list->vector (flatten $2)) 
+                            (second $1)
+                            (third $1)))
                  ((opcode-type args !)
-                  (inst (string-append (first $1) "!") 
-                        (list->vector (flatten $2)) 
-                        (second $1)
-                        (third $1)))
+                  (new-inst (string-append (first $1) "!") 
+                            (list->vector (flatten $2)) 
+                            (second $1)
+                            (third $1)))
                  
 		 ((NOP)       (inst "nop" (vector)))
 		 ((TEXT)      (inst ".text" (vector)))
@@ -115,6 +115,18 @@
             )
 
     )))
+
+(define (new-inst op args byte type)
+  (set! op (string-downcase op))
+  (define last-arg (vector-ref args (sub1 (vector-length args))))
+  
+  (cond
+   [(string->number last-arg)
+    (set! op (string-append op "#"))]
+   [(and (regexp-match #rx"vld" op) (= (vector-length args) 3))
+    (set! op (string-append op "+offset"))])
+  
+  (inst op args byte type))
 
 (define (lex-this lexer input)
   (lambda ()

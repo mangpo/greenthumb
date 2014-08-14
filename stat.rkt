@@ -75,7 +75,7 @@
         (thunk
          ;; (pretty-display (format "best-correct-cost: ~a" best-correct-cost))
          ;; (pretty-display (format "best-correct-time: ~a" best-correct-time))
-         (print-syntax best-correct-program))))
+         (print-syntax (decode best-correct-program)))))
 
     (define/public (simulate x) (set! simulate-time (+ simulate-time x)))
     (define/public (check x)    (set! check-time (+ check-time x)))

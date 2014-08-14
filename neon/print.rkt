@@ -2,7 +2,82 @@
 
 (require "../ast.rkt" "machine.rkt")
 
-(provide (all-defined-out))
+(provide print-struct print-syntax
+         encode encode-inst
+         decode decode-inst
+         (all-defined-out))
+
+(define (encode-arg x)
+  ;; 32 d, 16 q, 16 r, #constrant, {d0,d1}, {d0-d3}
+  (if (vector? x)
+      (cons (vector-length x) (vector-map encode-arg x))
+      (let ([type (substring x 0 1)])
+        (if (member type (list "d" "q" "r" "#"))
+            (let ([num (string->number (substring x 1))])
+              (cond
+               [(equal? type "q") (+ nregs-d num)]
+               [else num]))
+            (string->number x)))))
+
+(define (encode-inst x)
+  (inst (vector-member (string->symbol (inst-op x)) inst-id)
+        (vector-map encode-arg (inst-args x))
+        (and (inst-byte x) 
+             (quotient (string->number (inst-byte x)) 8))
+        (and (inst-type x) 
+             (vector-member 
+              (string->symbol (string-downcase (inst-type x))) type-id))))
+
+(define (encode code)
+  (for/vector ([i code]) (encode-inst i)))
+
+(define (decode-inst x)
+  (define opcode (vector-ref inst-id (inst-op x)))
+  (define args (inst-args x))
+  (define byte (inst-byte x))
+  (define type (inst-type x))
+  
+  (define-syntax-rule (make-inst type byte x ...)
+    (make-inst-main type byte (list x ...)))
+  
+  (define (make-inst-main type byte fs)
+    (define new-args (for/vector ([f fs] [arg args]) (f arg)))
+    (inst (symbol->string opcode) new-args byte type))
+  
+  (define (dreg x) (if (< x nregs-d) (format "d~a" x) (format "q~a" (- x nregs-d))))
+  (define (rreg x) (format "r~a" x))
+  (define (imm x) (number->string x))
+  (define (load-dregs x) (vector-map dreg (vector-take (cdr x) (car x))))
+  
+  (cond
+   [(member opcode '(nop))
+    (inst "nop" (vector) #f #f)]
+   
+   [(member opcode '(vld1 vld2))
+    (make-inst #f byte load-dregs rreg)]
+   
+   [(member opcode '(vld1! vld2!))
+    (make-inst #f byte load-dregs rreg)]
+   
+   [(member opcode '(vmovi vandi))
+    (make-inst #f #f dreg imm)] ;; TODO: they do have type & byte
+   
+   [(member opcode '(vmov))
+    (make-inst #f #f dreg dreg)]
+   
+   [(member opcode '(vmla vmlal vand))
+    (make-inst type byte dreg dreg dreg)]
+   
+   [(member opcode '(vmla# vmlal#))
+    (make-inst type byte dreg dreg dreg imm)]
+   
+   [(member opcode '(vext#))
+    (make-inst #f byte dreg dreg dreg imm)]
+   
+   [else (raise (format "decode-inst: undefined for ~a" opcode))]))
+
+(define (decode code)
+  (for/vector ([i code]) (decode-inst i)))
 
 (define (print-struct x [indent ""])
   (define (inc ind) (string-append ind " "))
@@ -41,92 +116,59 @@
       (substring opcode 0 pos)
       opcode))
 
-(define (print-syntax x [indent ""] #:print-reg [print-reg #t])
-  (define dreg
-    (if print-reg
-        (lambda (x) (if (< x nregs-d)
-                        (format "d~a" x)
-                        (format "q~a" (quotient x 2))))
-        identity))
-  (define load-dregs
-    (lambda (x)
-      (let ([regs (if (pair? x) 
-                      (take (vector->list (cdr x)) (car x))
-                      (vector->list x))])
-        (format "{~a}" (string-join (map dreg regs) ", ")))))
-  (define rreg
-    (if print-reg
-        (lambda (x) (format "r~a" x))
-        identity))
-  (define load-rreg (lambda (x) (format "[~a]" (rreg x))))
-  (define imm (lambda (x) (format "#~a" x)))
-
+(define (print-syntax x [indent ""])
+  (define (opcode-syntax op)
+    (define pos (sub1 (string-length op)))
+    (if (or (equal? (substring op pos) "!")
+            (equal? (substring op pos) "#"))
+        (substring op 0 pos)
+        op))
+    
   (define (inc ind) (string-append ind " "))
   (define (f x indent)
     (cond
      [(inst? x)
-      (define op (inst-op x))
+      (define opcode (string->symbol (inst-op x)))
       (define args (inst-args x))
       (define byte (inst-byte x))
       (define type (inst-type x))
-      (define opcode (if (number? op) 
-                         (vector-ref inst-id op)
-                         (string->symbol op)))
-      
-      (display (format "~a~a " indent (syntax-opcode (symbol->string opcode))))
 
-      (define (print-inst-main formats [with ""])
-        ;; (if byte
-        ;;     (begin
-        ;;       (display ".")
-        ;;       (cond
-        ;;        [(number? type) (display (vector-ref type-id type))]
-        ;;        [(string? type) (display type)])
-        ;;       (cond
-        ;;        [(number? byte) (display (* 8 byte))]
-        ;;        [(string? byte) (display byte)])
-        ;;       )
-        ;;     (display " "))
-        (define lst
-          (for/list ([format formats]
-                     [arg args])
-                    (format arg)))
-        (display (string-join lst ", "))
-        (display with)
-        (newline))
-
-      (define-syntax print-args
-        (syntax-rules (with)
-          ((print-args x ... [with a])
-           (print-inst-main (list x ...) a))
-          ((print-args x ...) (print-inst-main (list x ...)))))
+      (display (format "~a~a" indent (opcode-syntax (inst-op x))))
+      (when byte
+            (display ".")
+            (cond
+             [(number? type) (display (vector-ref type-id type))]
+             [(string? type) (display type)])
+            (cond
+             [(number? byte) (display (* 8 byte))]
+             [(string? byte) (display byte)]))
+      (display " ")
 
       (cond
-       [(member opcode '(nop)) (newline)]
+       [(member opcode '(vld1 vld2 vld1! vld2!))
+        (display (format "{~a} , [~a]"
+                         (string-join (vector->list (vector-ref args 0)) ", ")
+                         (vector-ref args 1)))
+        (when (member opcode '(vld1! vld2!))
+              (display "!"))]
 
-       [(member opcode '(vld1 vld2))
-        (print-args load-dregs load-rreg)]
+       [(member opcode '(vmovi vandi vext#))
+        (define last-pos (sub1 (vector-length args)))
+        (display 
+         (format "~a, #~a"
+                 (string-join (take (vector->list args) last-pos) ", ")
+                 (vector-ref args last-pos)))]
 
-       [(member opcode '(vld1! vld2!))
-        (print-args load-dregs load-rreg [with "!"])]
-
-       [(member opcode '(vmovi vandi))
-        (print-args dreg imm)]
-
-       [(member opcode '(vmov))
-        (print-args dreg dreg)]
-
-       [(member opcode '(vmla vmlal vand))
-        (print-args dreg dreg dreg)]
-
-       [(member opcode '(vmlai vmlali))
-        (print-args dreg dreg dreg 
-                    [with (format "[~a]" (vector-ref args 3))])]
-
-       [(member opcode '(vexti))
-        (print-args dreg dreg dreg imm)]
+       [(member opcode '(vmla# vmlal#))
+        (define last-pos (sub1 (vector-length args)))
+        (display 
+         (format "~a[~a]"
+                 (string-join (take (vector->list args) last-pos) ", ")
+                 (vector-ref args last-pos)))]
        
-       [else (raise (format "print-syntax: undefined fro ~a" opcode))])
+       [else 
+        (display (string-join (vector->list args) ", "))])
+      (newline)
       ]
      
      [(or (list? x) (vector? x))

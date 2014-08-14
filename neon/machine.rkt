@@ -45,8 +45,8 @@
 (define inst-id '#(nop
                    vld1 vld2 ;vld3 vld4
                    vld1! vld2! ;vld3! vld4!
-                   vexti 
-                   vmla vmlai vmlal vmlali
+                   vext#
+                   vmla vmla# vmlal vmlal#
                    vmov vmovi ;vmovl vmovn vqmovn
                    ;vmvn vmvni
                    vand vandi))
@@ -58,9 +58,9 @@
   (vector '(vld1 vld1!)
           '(vld2 vld2!)
           ;; '(vmla vand)
-          ;; '(vmlai vexti)
+          ;; '(vmla# vext#)
           ;; '(vmlal)
-          ;; '(vmlali)
+          ;; '(vmlal#)
           ;; '(vmov)
           '(vmovi vandi)))
 

@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
-(require "../ast.rkt" "machine.rkt")
-(provide get-sym-vars encode decode evaluate-state
+(require "../ast.rkt" "machine.rkt" "print.rkt")
+(provide get-sym-vars encode-sym decode-sym evaluate-state
          assume assert-output)
 
 (define (get-sym-vars state)
@@ -39,19 +39,7 @@
 
   (progstate dregs rregs memory cost))
 
-(define (encode code mem-map)
-
-  (define (encode-arg x)
-    ;; 32 d, 16 q, 16 r, #constrant, {d0,d1}, {d0-d3}
-    (if (vector? x)
-        (cons (vector-length x) (vector-map encode-arg x))
-        (let ([type (substring x 0 1)])
-          (if (member type (list "d" "q" "r" "#"))
-              (let ([num (string->number (substring x 1))])
-                (cond
-                 [(equal? type "q") (+ nregs-d num)]
-                 [else num]))
-              (string->number x)))))
+(define (encode-sym code mem-map)
 
   (define (sym-op)
     (define-symbolic* op number?)
@@ -85,24 +73,10 @@
         (cons (sym-arg) (vector (sym-arg) (sym-arg) (sym-arg) (sym-arg)))
         (sym-arg)))
 
-  (define (encode-inst x)
+  (define (encode-inst-sym x)
     (if (inst-op x)
         ;; Concrete instruction
-        (let* ([op (string-downcase (inst-op x))]
-               [args (inst-args x)]
-               [last-arg (vector-ref args (sub1 (vector-length args)))])
-          (cond
-           [(string->number last-arg)
-            (set! op (string-append op "i"))]
-           [(and (regexp-match #rx"vld" op) (= (vector-length args) 3))
-            (set! op (string-append op "+offset"))])
-          (inst (vector-member (string->symbol op) inst-id)
-                (vector-map encode-arg args)
-                (and (inst-byte x) 
-                     (quotient (string->number (inst-byte x)) 8))
-                (and (inst-type x) 
-                     (vector-member 
-                      (string->symbol (string-downcase (inst-type x))) type-id))))
+        (encode-inst x)
         ;; Hole
         (let ([op (sym-op)])
           (inst op
@@ -111,18 +85,18 @@
                 (sym-type))
         )))
 
-  (traverse code inst? encode-inst))
-
-
-(define (decode code model)
-  (define (decode-inst x)
-    (inst (vector-ref inst-id (evaluate (inst-op x) model))
-	  (vector-map (lambda (a) (evaluate a model)) (inst-args x))
-          (evaluate (inst-byte x) model)
-          (evaluate (inst-type x) model)))
-
-  (traverse code inst? decode-inst))
+  (traverse code inst? encode-inst-sym))
   
+
+(define (decode-sym code model)
+  (define (decode-inst-sym x)
+    (decode-inst
+     (inst (evaluate (inst-op x) model)
+           (vector-map (lambda (a) (evaluate a model)) (inst-args x))
+           (evaluate (inst-byte x) model)
+           (evaluate (inst-type x) model))))
+
+  (traverse code inst? decode-inst-sym))
 
 (define (assert-output state1 state2 constraint cost)
   (when debug (pretty-display "start assert-output"))

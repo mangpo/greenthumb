@@ -11,7 +11,7 @@
   (system (format "rm ~a*" path))
   
   (pretty-display ">>> select code:")
-  (print-syntax code-org #:print-reg #f)
+  (print-syntax code-org)
   (pretty-display (format ">>> live-out-org: ~a" live-out-org))
 
   ;; Use the fewest number of registers possible.
@@ -20,7 +20,7 @@
   ;; machine-info from compress-reg-space is only accurate for reg but not memory. This will adjust the rest of the machine info.
   (set! machine-info (proper-machine-config code machine-info))
   (pretty-display ">>> compressed-code:")
-  (print-syntax code #:print-reg #f)
+  (print-syntax code)
   (pretty-display (format ">>> machine-info: ~a" machine-info))
   (pretty-display (format ">>> live-out: ~a" live-out))
 
@@ -39,9 +39,9 @@
        (pretty-display (format "(require ~a)" require-files))
        (pretty-display (set-machine-config-string machine-info))
        (pretty-display (format "(define code (ast-from-string \""))
-       (print-syntax code #:print-reg #f)
+       (print-syntax code)
        (pretty-display "\"))")
-       (pretty-display (format "(define encoded-code (encode code #f))"))
+       (pretty-display (format "(define encoded-code (encode code))"))
        (pretty-display (format "(stochastic-optimize encoded-code ~a ~a \"~a-~a\" ~a ~a)" 
                                (output-constraint-string live-out)
                                synthesize path id time-limit size))
@@ -105,7 +105,7 @@
   (define output-code (ast-from-file (format "~a-~a.best" path id)))
   (if output-code
       (let ([decompressed-code (decompress-reg-space output-code map-back)])
-        (print-syntax decompressed-code #:print-reg #f)
+        (print-syntax decompressed-code)
         decompressed-code)
       code-org)
   )

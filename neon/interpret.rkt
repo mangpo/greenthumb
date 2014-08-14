@@ -69,6 +69,7 @@
     (define adjust (lambda (x bytes) x))
 
     (define (sign-extend val byte)
+      ;(pretty-display `(sign-extend ,type ,(vector-member `u type-id) ,val))
       (if (= type (vector-member `u type-id))
           val
           (finitize val (* 8 byte))))
@@ -310,7 +311,7 @@
                   (f num-n num-m)))
 
     (define (xd-xn-xm-i vd vn vm f)
-      ;;(pretty-display `(xd-xn-xm-i))
+      ;(pretty-display `(xd-xn-xm-i))
       (byte-guard
        byte
        (lambda (byte)
@@ -323,7 +324,7 @@
            (for/list ([num-d ed]
                       [num-n en])
                      (f num-d (adjust num-n (n-byte byte)) (adjust num-m byte))))
-         ;;(pretty-display `(xd-xn-xm-i-res ,res))
+         ;(pretty-display `(xd-xn-xm-i-res ,res))
          (elements->bytes res (d-byte byte)))))
 
     (define (xd-xn-xm vd vn vm f)
@@ -365,11 +366,11 @@
      [(inst-eq? `vld2)   (load 2 #f)]
      [(inst-eq? `vld2!)  (load 2 #t)]
 
-     [(inst-eq? `vexti)  (nnn 0 ext)]
+     [(inst-eq? `vext#)  (nnn 0 ext)]
      [(inst-eq? `vmla)   (nnn 0 mla #t)]
-     [(inst-eq? `vmlai)  (nnn 0 mlai #t)]
+     [(inst-eq? `vmla#)  (nnn 0 mlai #t)]
      [(inst-eq? `vmlal)  (nnn 1 mla #t)]
-     [(inst-eq? `vmlali) (nnn 1 mlai #t)]
+     [(inst-eq? `vmlal#) (nnn 1 mlai #t)]
 
      [(inst-eq? `vmov)   (nn 0 mov-simple)]
      [(inst-eq? `vmovi)  (ni 0 mov-simple)] ;; TODO: constraint on constant
