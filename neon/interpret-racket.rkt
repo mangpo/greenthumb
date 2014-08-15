@@ -1,6 +1,6 @@
-#lang s-exp rosette
+#lang racket
 
-(require "../ast.rkt" "../ops.rkt"
+(require "../ast.rkt" "../ops-racket.rkt"
          "machine.rkt")
 
 (provide interpret)

@@ -10,7 +10,7 @@
 
 
 (define mutate-dist 
-  #hash((opcode . 1) (operand . 1) (swap . 0) (instruction . 1) (byte . 1) (type . 1)))
+  #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1) (byte . 1) (type . 1)))
 (define stat-mutations '#(opcode operand swap inst byte type nop))
 
 (define nop-id (vector-member `nop inst-id))
@@ -198,9 +198,7 @@
 (define (get-mutate-type opcode-name)
   (define mutations '(instruction swap))
   
-  (pretty-display `(get-mutate-type ,opcode-name))
   (unless (equal? opcode-name `nop)
-          (pretty-display `(not-nop ,opcode-name))
     ;; operand
     (set! mutations (cons `operand mutations))
     ;; opcode
@@ -213,7 +211,7 @@
     (when (member opcode-name '(vmla vmla# vmlal vmlal#))
           (set! mutations (cons `type mutations))))
 
-  (pretty-display `(mutations ,mutations))
+  (when debug (pretty-display `(mutations ,mutations)))
   (define sum 0)
   (define prop (map (lambda (x) 
                       (let ([v (hash-ref mutate-dist x)])

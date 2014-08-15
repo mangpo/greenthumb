@@ -25,13 +25,31 @@
 
 (define code
 (ast-from-string "
-vmlal.s16 q0, d3, d2[0]
+ VLD1.16 {d4}, [r2]! ; 2 cycles (LSBP)
+ VLD1.16 {d2}, [r1]! ; 2 cycles (LSBP)
+ VEXT.16 d5, d3, d4, #1 ; 1 cycle (LSBP)
+ VEXT.16 d6, d3, d4, #2 ; 1 cycle (LSBP)
+ VEXT.16 d7, d3, d4, #3 ; 1 cycle (LSBP)
+ VMLAL.S16 q0, d3, d2[0] ; 1 cycle (DP)
+ VMLAL.S16 q0, d5, d2[1] ; 1 cycle (DP)
+ VMLAL.S16 q0, d6, d2[2] ; 1 cycle (DP)
+ VMLAL.S16 q0, d7, d2[3] ; 1 cycle (DP)
+ VMOV d3, d4 ; 1 cycle (LSBP)
 ")) ;; TODO debug
 
 
 (define sketch
 (ast-from-string "
-vmlal.u16 q0, d3, d2[0]
+ VLD1.16 {d4}, [r2]! ; 2 cycles (LSBP)
+ VLD1.16 {d2}, [r1]! ; 2 cycles (LSBP)
+ VEXT.16 d5, d3, d4, #1 ; 1 cycle (LSBP)
+ VEXT.16 d6, d3, d4, #2 ; 1 cycle (LSBP)
+ VEXT.16 d7, d3, d4, #3 ; 1 cycle (LSBP)
+ VMLAL.S16 q0, d3, d2[0] ; 1 cycle (DP)
+ VMLAL.S16 q0, d5, d2[1] ; 1 cycle (DP)
+ VMLAL.S16 q0, d6, d2[2] ; 1 cycle (DP)
+ VMLAL.S16 q0, d7, d2[3] ; 1 cycle (DP)
+ vand d3, d4, d4 ; 1 cycle (LSBP)
 "))
 
 (define encoded-code (encode code))
@@ -45,6 +63,7 @@ vmlal.u16 q0, d3, d2[0]
 (print-struct encoded-sketch)
 
 (define t (current-seconds))
-(counterexample encoded-code encoded-sketch (constraint [dreg 0 1] [rreg] [mem-all]))
+(define x (counterexample encoded-code encoded-sketch 
+                          (constraint [dreg 0 1 3] [rreg 1 2] [mem-all])))
 ;(superoptimize encoded-code encoded-sketch (constraint [dreg 0 1 5] [rreg] [mem-all]))
 (pretty-display `(time ,(- (current-seconds) t)))

@@ -5,7 +5,7 @@
  "ast.rkt" "solver.rkt" "stat.rkt"
  ;; ISA dependent
  "neon/machine.rkt" "neon/print.rkt"
- "neon/interpret.rkt" "neon/stochastic-support.rkt"
+ "neon/interpret-racket.rkt" "neon/stochastic-support.rkt"
  )
 
 (provide stochastic-optimize)
@@ -313,7 +313,6 @@
                  (pretty-display "candidate:")
                  (print-struct program)
                  (send stat update-best-correct program total-cost)
-                 (pretty-display "here 1")
                  )
            (if (or (<= total-cost okay-cost) change-mode) 
                 ;; return (correctness-cost . correct)
@@ -342,7 +341,9 @@
           )
     (define n-inputs (length inputs))
     (define okay-cost (accept-cost current-cost))
+    (when debug (pretty-display ">>> start simulate"))
     (define cost-correct (cost-all-inputs proposal okay-cost))
+    (when debug (pretty-display ">>> finish simulate"))
     (define proposal-cost (car cost-correct))
     (when debug
           (pretty-display (format "current cost: ~a" current-cost))

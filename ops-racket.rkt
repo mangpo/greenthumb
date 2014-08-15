@@ -30,6 +30,30 @@
 (define-syntax assert
   (syntax-rules ()
     ((assert x) 
-     (unless x (raise "assert fail")))
+     (unless x 
+       (raise (exn "racket: assert fail" (current-continuation-marks)))))
     ((assert x y) 
-     (unless x (raise (format "assert fail :~a" y))))))
+     (unless x 
+       (raise (exn (format "racket: assert fail: ~a" y) (current-continuation-marks)))))))
+
+
+;; TODO: do we need this?
+(define (vector-copy-len vec start len)
+  ;(pretty-display `(vector-copy ,start ,len))
+  (for/vector ([i len]) (vector-ref vec (+ start i))))
+  
+
+(define (vector-extract a b shift)
+  ;(pretty-display `(vector-extract ,a ,b ,shift))
+  (define len (vector-length a))
+  (define pos (- len shift))
+  (define vec (make-vector len))
+  (for ([i (in-range pos)])
+       ;(pretty-display `(first ,i ,(+ shift i)))
+       (vector-set! vec i (vector-ref a (+ shift i))))
+  (for ([i (in-range shift)])
+       ;(pretty-display `(second ,(+ pos i) ,i))
+       (vector-set! vec (+ pos i) (vector-ref b i)))
+  ;(pretty-display `(vector-extract-ret ,vec))
+  vec)
+       

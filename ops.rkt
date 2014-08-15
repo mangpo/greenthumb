@@ -33,11 +33,16 @@
   
 
 (define (vector-extract a b shift)
+  ;(pretty-display `(vector-extract ,a ,b ,shift))
   (define len (vector-length a))
+  (define pos (- len shift))
   (define vec (make-vector len))
-  (for ([i (in-range (- len shift))])
+  (for ([i (in-range pos)])
+       ;(pretty-display `(first ,i ,(+ shift i)))
        (vector-set! vec i (vector-ref a (+ shift i))))
   (for ([i (in-range shift)])
-       (vector-set! vec (+ shift i) (vector-ref b i)))
+       ;(pretty-display `(second ,(+ pos i) ,i))
+       (vector-set! vec (+ pos i) (vector-ref b i)))
+  ;(pretty-display `(vector-extract-ret ,vec))
   vec)
        

@@ -11,7 +11,7 @@
 
 (struct progstate (dregs rregs memory cost))
 
-(define debug #t)
+(define debug #f)
 (define bit 32)
 (define nregs-d 10)
 (define nregs-r 4)
