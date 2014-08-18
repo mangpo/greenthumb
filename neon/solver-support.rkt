@@ -7,7 +7,7 @@
 (define (get-sym-vars state)
   (define lst (list))
   (define-syntax-rule (add x)
-    (when (sym? x)
+    (when (term? x)
           (set! lst (cons x lst))))
 
   (for ([x (progstate-dregs state)]) (add x))
@@ -23,7 +23,7 @@
 
   (define-syntax-rule (eval x model)
     (let ([ans (evaluate x model)])
-      (if (sym? ans) 0 ans)))
+      (if (term? ans) 0 ans)))
   
   (for ([i (vector-length dregs)]
         [dreg dregs])
@@ -39,7 +39,7 @@
 
   (progstate dregs rregs memory cost))
 
-(define (encode-sym code mem-map)
+(define (encode-sym code)
 
   (define (sym-op)
     (define-symbolic* op number?)

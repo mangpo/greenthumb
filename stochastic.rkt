@@ -14,12 +14,7 @@
 (define w-error 9999)
 (define beta 1)
 
-(define opcode-mass 0.35)
-(define operand-mass 0.35)
-(define swap-mass 0.15)
-(define inst-mass 0.15)
 (define nop-mass 0.8)
-
 (define ntests 16)
   
   
