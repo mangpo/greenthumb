@@ -49,7 +49,7 @@
  VMLAL.S16 q0, d5, d2[1] ; 1 cycle (DP)
  VMLAL.S16 q0, d6, d2[2] ; 1 cycle (DP)
  VMLAL.S16 q0, d7, d2[3] ; 1 cycle (DP)
-?
+ vand d3, d4, d4 ; 1 cycle (LSBP)
 "))
 
 (define encoded-code (encode code))
@@ -63,7 +63,7 @@
 (print-struct encoded-sketch)
 
 (define t (current-seconds))
-;(define x (counterexample encoded-code encoded-sketch 
-;                          (constraint [dreg 0 1 3] [rreg 1 2] [mem-all])))
-(superoptimize encoded-code encoded-sketch (constraint [dreg 0 1 3] [rreg] [mem-all]))
+(define x (counterexample encoded-code encoded-sketch 
+                          (constraint [dreg 0 1 3] [rreg 1 2] [mem-all])))
+;(superoptimize encoded-code encoded-sketch (constraint [dreg 0 1 3] [rreg] [mem-all]))
 (pretty-display `(time ,(- (current-seconds) t)))

@@ -172,6 +172,7 @@
 
   ;(current-solver (new z3%))
   (current-solver (new kodkod%))
+  (clear-asserts)
   (configure [bitwidth bit] [loop-bound 20])
   (define start-state (default-state (sym-input)))
   (define spec-state #f)
@@ -276,8 +277,7 @@
     ;; (pretty-display "check output")
     ;; (pretty-display constraint)
     (assert-output spec-state program-state 
-                   (struct-copy progstate constraint)
-                   #f))
+                   (struct-copy progstate constraint)))
 
   (with-handlers* ([exn:fail? 
                     (lambda (e)
