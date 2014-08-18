@@ -19,7 +19,6 @@
   (define dregs (vector-copy (progstate-dregs state)))
   (define rregs (vector-copy (progstate-rregs state)))
   (define memory (vector-copy (progstate-memory state)))
-  (define cost (progstate-cost state))
 
   (define-syntax-rule (eval x model)
     (let ([ans (evaluate x model)])
@@ -37,7 +36,7 @@
         [mem memory])
        (vector-set! memory i (eval mem sol)))
 
-  (progstate dregs rregs memory cost))
+  (progstate dregs rregs memory))
 
 (define (encode-sym code)
 
@@ -98,7 +97,7 @@
 
   (traverse code inst? decode-inst-sym))
 
-(define (assert-output state1 state2 constraint cost)
+(define (assert-output state1 state2 constraint)
   (when debug (pretty-display "start assert-output"))
   (define dregs (progstate-dregs constraint))
   (define rregs (progstate-rregs constraint))
@@ -107,12 +106,10 @@
   (define dregs1 (progstate-dregs state1))
   (define rregs1 (progstate-rregs state1))
   (define memory1 (progstate-memory state1))
-  (define cost1 (progstate-cost state1))
 
   (define dregs2 (progstate-dregs state2))
   (define rregs2 (progstate-rregs state2))
   (define memory2 (progstate-memory state2))
-  (define cost2 (progstate-cost state2))
   
   (for ([d dregs]
 	[d1 dregs1]
@@ -129,7 +126,6 @@
 	[m2 memory2])
        (when m (assert (equal? m1 m2))))
 
-  (when cost (assert (< cost2 cost 1)))
   (when debug (pretty-display "end assert-output"))
   )
 

@@ -108,7 +108,8 @@
     (define (assert-extra-and-interpret)
       ;; Assert that the solution has to be different.
       (assert extra)
-      (interpret-spec spec start-state assumption))
+      (interpret-spec spec start-state assumption)
+      )
     (define sol (solve (assert-extra-and-interpret)))
     (define restrict-pairs (list))
     (set! first-solve #f)
@@ -175,6 +176,8 @@
   (define start-state (default-state (sym-input)))
   (define spec-state #f)
   (define sketch-state #f)
+  (define spec-cost #f)
+  (define sketch-cost #f)
 
   ;; (pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
   ;; (display-state start-state)
@@ -202,7 +205,11 @@
     ;; (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
     ;; (pretty-display (get-sym-vars start-state))
     (pretty-display "check output")
-    (assert-output spec-state sketch-state constraint cost))
+    (set! spec-cost (performance-cost spec))
+    (set! sketch-cost (performance-cost sketch))
+    (when cost (assert (< sketch-cost spec-cost)))
+    (assert-output spec-state sketch-state constraint)
+    )
   
   ;; Collect input variables and contruct their init values.
   (define-values (sym-vars inputs)
@@ -221,12 +228,12 @@
     )
 
   (define final-program (decode-sym sketch model))
-  (define final-cost (evaluate (progstate-cost sketch-state) model))
+  (define final-cost (evaluate sketch-cost model))
 
   (pretty-display ">>> superoptimize-output")
   (print-struct final-program)
   (pretty-display (format "limit cost = ~a" cost))
-  (pretty-display (format "old cost = ~a" (progstate-cost spec-state)))
+  (pretty-display (format "old cost = ~a" spec-cost))
   (pretty-display (format "new cost = ~a" final-cost))
   (pretty-display "=====================================")
   (clear-asserts)
@@ -269,7 +276,7 @@
     ;; (pretty-display "check output")
     ;; (pretty-display constraint)
     (assert-output spec-state program-state 
-                   (struct-copy progstate constraint [cost #f])
+                   (struct-copy progstate constraint)
                    #f))
 
   (with-handlers* ([exn:fail? 

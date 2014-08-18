@@ -3,7 +3,7 @@
 (require "../ast.rkt" "../ops-racket.rkt"
          "machine.rkt")
 
-(provide interpret)
+(provide interpret performance-cost)
 
 (define-syntax-rule (byte-guard byte lam)
   (cond
@@ -390,4 +390,11 @@
   
   (for ([x program])
        (interpret-step x))
-  (progstate dregs rregs memory 0))
+  (progstate dregs rregs memory))
+
+(define (performance-cost code)
+  (define cost 0)
+  (for ([x code])
+    (unless (= (inst-op x) (vector-member `nop inst-id))
+            (set! cost (add1 cost))))
+  cost)

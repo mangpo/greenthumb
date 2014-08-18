@@ -2,7 +2,7 @@
 
 (require "../ast.rkt" "machine.rkt")
 (provide init-operand-ranges 
-         correctness-cost performance-cost
+         correctness-cost 
          get-arg-ranges nop-id
          random-instruction
          get-mutate-type mutate-operand-specific mutate-other 
@@ -247,12 +247,10 @@
   (define dregs1 (progstate-dregs state1))
   (define rregs1 (progstate-rregs state1))
   (define memory1 (progstate-memory state1))
-  (define cost1 (progstate-cost state1))
 
   (define dregs2 (progstate-dregs state2))
   (define rregs2 (progstate-rregs state2))
   (define memory2 (progstate-memory state2))
-  (define cost2 (progstate-cost state2))
 
   (define correctness 0)
   (for ([x dregs]
@@ -271,7 +269,4 @@
        (when x (set! correctness (+ correctness (diff-cost x1 x2)))))
 
   correctness)
-
-(define (performance-cost code)
-  (vector-length code))
 

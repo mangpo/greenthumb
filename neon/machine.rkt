@@ -9,7 +9,7 @@
          set-machine-config set-machine-config-string
          (all-defined-out))
 
-(struct progstate (dregs rregs memory cost))
+(struct progstate (dregs rregs memory))
 
 (define debug #f)
 (define bit 32)
@@ -84,8 +84,7 @@
     ((default-state init)
      (progstate (make-vec (* 8 nregs-d) init) 
                 (make-vec nregs-r init) 
-                (make-vec (* 8 nmems) init)
-                0))
+                (make-vec (* 8 nmems) init)))
 
     ((default-state init [dreg (a b) ...] [rreg (c d) ...] [mem (e f) ...])
      (let* ([state (default-state init)]
@@ -110,8 +109,7 @@
     ((constraint [dreg d ...] [rreg r ...] [mem-all])
      (let* ([state (progstate (make-vec (* 8 nregs-d) #f) 
                               (make-vec nregs-r #f) 
-                              (make-vec (* 8 nmems) #t)
-                              0)]
+                              (make-vec (* 8 nmems) #t))]
             [dregs (progstate-dregs state)]
             [rregs (progstate-rregs state)])
        (for ([i 8]) (vector-set! dregs (+ (* 8 d) i) #t))
