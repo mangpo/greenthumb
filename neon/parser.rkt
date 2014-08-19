@@ -3,7 +3,7 @@
 (require parser-tools/lex
          (prefix-in re- parser-tools/lex-sre)
          parser-tools/yacc
-	 "../parser-common.rkt" "../ast.rkt" "print.rkt")
+	 "../parser-common.rkt" "../ast.rkt" "neon-ast.rkt")
 
 (provide ast-from-file ast-from-string
          liveness-from-file)
@@ -90,9 +90,9 @@
                             (second $1)
                             (third $1)))
                  
-		 ((NOP)       (inst "nop" (vector)))
-		 ((TEXT)      (inst ".text" (vector)))
-		 ((HOLE)      (inst #f #f)))
+		 ((NOP)       (neon-inst "nop" (vector) #f #f))
+		 ((TEXT)      (neon-inst ".text" (vector) #f #f))
+		 ((HOLE)      (neon-inst #f #f #f #f)))
     (inst-list   (() (list))
 	         ((instruction inst-list) (cons $1 $2)))
 
@@ -126,7 +126,7 @@
    [(and (regexp-match #rx"vld" op) (= (vector-length args) 3))
     (set! op (string-append op "+offset"))])
   
-  (inst op args byte type))
+  (neon-inst op args byte type))
 
 (define (lex-this lexer input)
   (lambda ()

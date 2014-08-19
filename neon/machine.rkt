@@ -3,11 +3,13 @@
 (provide bit nregs-d nregs-r
          inst-id type-id get-class-id
          default-state constraint 
-         config-adjust config-exceed-limit?
+         adjust-config config-exceed-limit?
          ;; get rid of the ones below
          output-constraint-string
-         set-machine-config set-machine-config-string
+         set-config set-machine-config-string
          (all-defined-out))
+
+;; TODO: get-state
 
 (struct progstate (dregs rregs memory))
 
@@ -18,7 +20,7 @@
 (define nmems 4)
 
 ;; info: (list nregs nmem)
-(define (set-machine-config info)
+(define (set-config info)
   (set! nregs-d (first info))
   (set! nregs-r (second info))
   (set! nmems (third info)))
@@ -27,7 +29,7 @@
 (define (set-machine-config-string info)
   (format "(set-machine-config (list ~a ~a ~a))" (first info) (second info) (third info)))
 
-(define (config-adjust info)
+(define (adjust-config info)
   ;; Double the memory size
   (list (first info) (second info) (* 2 (third info))))
 

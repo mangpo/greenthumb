@@ -1,9 +1,13 @@
 #lang s-exp rosette
 
-(require "neon/machine.rkt")
+(require (only-in rosette [<< sym/<<] [>>> sym/>>>]))
+
 (provide (all-defined-out))
 
-;; (define (finitize num [bit bit]) 
+(define-syntax-rule (<< x y bit) (sym/<< x y))
+(define-syntax-rule (>>> x y bit) (sym/>>> x y))
+
+;; (define (finitize num bit)
 ;;   (match (coerce num number?)
 ;;          [(? sym? v) v]
 ;;          [v (let* ([mask (arithmetic-shift -1 bit)]
@@ -12,8 +16,8 @@
 ;;                   (bitwise-ior mask masked)  
 ;;                   masked))]))
 
-(define (finitize num [bit bit]) 
-  (let* ([mask (<< -1 bit)]
+(define (finitize num bit)
+  (let* ([mask (sym/<< -1 bit)]
          [masked (bitwise-and (bitwise-not mask) num)])
     (if (= (bitwise-and masked (arithmetic-shift 1 (sub1 bit))) 0)
         masked

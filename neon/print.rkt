@@ -20,7 +20,7 @@
             (string->number x)))))
 
 (define (encode-inst x)
-  (inst (vector-member (string->symbol (inst-op x)) inst-id)
+  (inst (vector-member (string->symbol (inst-op x)) inst-id))
         (vector-map encode-arg (inst-args x))
         (and (inst-byte x) 
              (quotient (string->number (inst-byte x)) 8))

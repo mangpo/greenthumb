@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
-(require "../ast.rkt" "../ops.rkt"
-         "machine.rkt")
+(require "../ast.rkt" "../ops.rkt" 
+         "neon-ast.rkt" "neon-machine.rkt")
 
 (provide interpret performance-cost)
 
