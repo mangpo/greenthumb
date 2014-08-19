@@ -38,7 +38,7 @@
       (when byte
         (display ".")
         (when type (display type))
-        (when byte (display (display byte))))
+        (when byte (display byte)))
       (display " ")
 
       (cond

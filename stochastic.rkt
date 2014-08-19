@@ -15,7 +15,8 @@
               get-mutate-type mutate-operand-specific mutate-other)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
-    (init-field machine solver printer
+    (init-field machine printer
+                [solver #f]
                 [simulator #f]
                 [stat #f]
                 [mutate-dist 

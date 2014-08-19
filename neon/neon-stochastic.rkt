@@ -2,14 +2,15 @@
 
 (require "../stochastic.rkt"
          "../ast.rkt" "neon-ast.rkt"
-         "../machine.rkt" "neon-machine.rkt" "neon-simulator-racket.rkt")
+         "../machine.rkt" "neon-machine.rkt" 
+         "neon-simulator-racket.rkt" "neon-solver.rkt")
 
 (provide neon-stochastic%)
 
 (define neon-stochastic%
   (class stochastic%
     (super-new)
-    (inherit-field machine simulator stat mutate-dist)
+    (inherit-field machine printer solver simulator stat mutate-dist)
     (override correctness-cost 
               get-arg-ranges 
               inst-copy-with-op inst-copy-with-args
@@ -18,6 +19,7 @@
 
     (set! mutate-dist 
       #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1) (byte . 1) (type . 1)))
+    (set! solver (new neon-solver% [machine machine] [printer printer]))
     (set! simulator (new neon-simulator-racket% [machine machine]))
 
     (define inst-id (get-field inst-id machine))

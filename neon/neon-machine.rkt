@@ -61,7 +61,7 @@
   (class machine%
     (super-new)
     (inherit-field bit inst-id classes classes-len perline)
-    (override set-config set-machine-config-string
+    (override set-config get-config set-config-string
               adjust-config config-exceed-limit?
               get-state display-state
               output-constraint-string)
@@ -93,18 +93,21 @@
     (set! ninsts (vector-length inst-id))
     (set! ntypes (vector-length type-id))
 
+    (define (get-config)
+      (list nregs-d nregs-r nmems))
+
     ;; TODO
     ;; info: (list nregs nmem)
     (define (set-config info)
       (set! nregs-d (first info))
       (set! nregs-r (second info))
-      (set! nmems (third info)))
+      (set! nmems (third info))
+      )
 
     ;; TODO
     ;; info: (list nregs nmem)
-    (define (set-machine-config-string machine-var info)
-      (format "(send ~a set-config (list ~a ~a ~a))" 
-              machine-var (first info) (second info) (third info)))
+    (define (set-config-string info)
+      (format "(list ~a ~a ~a)" (first info) (second info) (third info)))
 
     (define (adjust-config info)
       ;; Double the memory size

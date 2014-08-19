@@ -6,8 +6,7 @@
 
 (define machine (new neon-machine%)) ;; TODO set-config
 (define printer (new neon-printer% [machine machine]))
-(define solver (new neon-solver% [machine machine] [printer printer]))
-(define stochastic (new neon-stochastic% [machine machine] [printer printer] [solver solver]))
+(define stochastic (new neon-stochastic% [machine machine] [printer printer]))
 
 (define code
 (ast-from-string "
