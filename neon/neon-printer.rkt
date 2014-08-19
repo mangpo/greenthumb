@@ -8,9 +8,12 @@
 (define neon-printer%
   (class printer%
     (super-new)
-    (init-field machine [nregs-d (get-field nregs-d machine)])
+    (inherit-field report-mutations)
+    (init-field machine)
     (override print-struct-inst print-syntax-inst
               encode-inst decode-inst)
+    (set! report-mutations (vector-append report-mutations '#(byte type)))
+    (define nregs-d (get-field nregs-d machine))
 
     (define (print-struct-inst x [indent ""])
       (define op (inst-op x))

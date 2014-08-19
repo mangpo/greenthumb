@@ -1,16 +1,16 @@
 #lang racket
 
-(require "neon/print.rkt" "neon/stochastic-support.rkt")
+(require "printer.rkt")
 (provide stat% print-stat-all create-stat-from-file)
 
 (define-syntax-rule (ratio x y) (~r (exact->inexact (/ x y)) #:precision 6))
 
-(define n (vector-length stat-mutations))
-
 (define stat%
   (class object%
 
-    (init-field best-correct-program best-correct-cost
+    (init-field printer best-correct-program best-correct-cost
+                [stat-mutations (get-field report-mutations printer)]
+                [n (vector-length stat-mutations)]
                 [start-time (current-seconds)]
                 [time #f]
                 [propose-stat (make-vector n 0)]
@@ -75,7 +75,7 @@
         (thunk
          ;; (pretty-display (format "best-correct-cost: ~a" best-correct-cost))
          ;; (pretty-display (format "best-correct-time: ~a" best-correct-time))
-         (print-syntax (decode best-correct-program)))))
+         (send printer print-syntax (send printer decode best-correct-program)))))
 
     (define/public (simulate x) (set! simulate-time (+ simulate-time x)))
     (define/public (check x)    (set! check-time (+ check-time x)))
@@ -132,7 +132,9 @@
     )
     ))
 
-(define (print-stat-all stat-list)
+(define (print-stat-all stat-list printer)
+  (define stat-mutations (get-field report-mutations printer))
+  (define n (vector-length stat-mutations))
   (define-syntax-rule (reduce+ field)
     (foldl + 0 (map (lambda (x) (get-field field x)) stat-list)))
 
@@ -192,6 +194,7 @@
 
 
   (define stat (new stat%
+                    [printer printer]
                     [time (quotient time (length stat-list))]
                     [mutate-time (ratio (/ mutate-time 1000) time)]
                     [simulate-time (ratio (/ simulate-time 1000) time)]
@@ -212,8 +215,11 @@
   (send stat print-stat)
   best-correct-id)
 
-(define (create-stat-from-file file)
+(define (create-stat-from-file file printer)
   (define in-port (open-input-file file))
+  
+  (define stat-mutations (get-field report-mutations printer))
+  (define n (vector-length stat-mutations))
 
   (define id #f)
   (define time #f)
@@ -280,6 +286,7 @@
   ;; (pretty-display `(misalign-count ,misalign-count))
 
   (new stat% 
+       [printer printer]
        [time time]
        [mutate-time mutate-time]
        [simulate-time simulate-time]

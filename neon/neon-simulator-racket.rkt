@@ -3,9 +3,9 @@
 (require "../simulator.rkt" "../ops-racket.rkt" 
          "../ast.rkt" "neon-ast.rkt"
          "neon-machine.rkt")
-(provide neon-simulator%)
+(provide neon-simulator-racket%)
 
-(define neon-simulator%
+(define neon-simulator-racket%
   (class simulator%
     (super-new)
     (init-field machine 

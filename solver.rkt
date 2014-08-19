@@ -1,11 +1,6 @@
 #lang s-exp rosette
 
-(require 
- ;; ISA independent
- "ast.rkt" ;; "liveness.rkt"
- ;; ISA dependent
- "simulator.rkt" "machine.rkt" "printer.rkt" ;; "GA/compress.rkt"
- )
+(require  "ast.rkt" "machine.rkt" "printer.rkt")
 
 (require rosette/solver/z3/z3)
 (require rosette/solver/kodkod/kodkod)
@@ -15,7 +10,9 @@
 (define solver%
   (class object%
     (super-new)
-    (init-field machine simulator printer [bit (get-field bit machine)])
+    (init-field machine printer 
+                [simulator #f] 
+                [bit (get-field bit machine)])
     (abstract get-sym-vars evaluate-state
               encode-sym decode-sym
               assume assert-output)

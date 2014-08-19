@@ -63,7 +63,7 @@
     (inherit-field bit inst-id classes classes-len perline)
     (override set-config set-machine-config-string
               adjust-config config-exceed-limit?
-              get-state 
+              get-state display-state
               output-constraint-string)
 
     (set! bit 32)
@@ -86,12 +86,14 @@
     (set! perline 8)
     (set! classes-len (vector-length classes))
 
-    (init-field [nregs-d 10] [nregs-r 4] [nmems 4] [type-id '#(s u i)]
-                [ninsts (vector-length inst-id)]
-                [ntypes (vector-length type-id)]
-                )
+    (init-field [nregs-d 10] [nregs-r 4] [nmems 4]
+                [ninsts #f] [ntypes #f])
 
+    (define type-id '#(s u i))
+    (set! ninsts (vector-length inst-id))
+    (set! ntypes (vector-length type-id))
 
+    ;; TODO
     ;; info: (list nregs nmem)
     (define (set-config info)
       (set! nregs-d (first info))

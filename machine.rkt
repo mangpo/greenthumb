@@ -9,7 +9,7 @@
     (super-new)
     (init-field [bit #f] [inst-id #f] [classes #f] [classes-len #f] [perline 8])
     (abstract set-config set-machine-config-string
-              get-state 
+              get-state display-state
               adjust-config config-exceed-limit?
               output-constraint-string)
     (public get-class-id print-line no-assumption)

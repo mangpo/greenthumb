@@ -2,16 +2,18 @@
 
 (require "../solver.rkt"
          "../ast.rkt" "neon-ast.rkt" 
-         "../machine.rkt" "neon-machine.rkt")
+         "../machine.rkt" "neon-machine.rkt" "neon-simulator-rosette.rkt")
 (provide neon-solver%)
 
 (define neon-solver%
   (class solver%
     (super-new)
-    (inherit-field printer machine)
+    (inherit-field printer machine simulator)
     (override get-sym-vars evaluate-state
               encode-sym decode-sym
               assume assert-output)
+
+    (set! simulator (new neon-simulator-rosette% [machine machine]))
 
     (define (get-sym-vars state)
       (define lst (list))
@@ -50,6 +52,7 @@
     (define (encode-sym code)
 
       (define (sym-op)
+        (pretty-display `(sym-op ,(get-field ninsts machine)))
         (define-symbolic* op number?)
         (assert (and (>= op 0) (< op (get-field ninsts machine))))
         op)
@@ -65,6 +68,7 @@
       
 
       (define (sym-type)
+        (pretty-display `(sym-const ,(get-field ntypes machine)))
         (define-symbolic* type number?)
         (assert (and (>= type 0) (< type (get-field ntypes machine))))
         type)
@@ -82,6 +86,7 @@
             (sym-arg)))
 
       (define (encode-inst-sym x)
+        (pretty-display `(encode-inst-sym ,(inst-op x)))
         (if (inst-op x)
             ;; Concrete instruction
             (send printer encode-inst x)

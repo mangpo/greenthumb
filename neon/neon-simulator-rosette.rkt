@@ -3,21 +3,30 @@
 (require "../simulator.rkt" "../ops-rosette.rkt" 
          "../ast.rkt" "neon-ast.rkt"
          "neon-machine.rkt")
-(provide neon-simulator%)
+(provide neon-simulator-rosette%)
 
-(define neon-simulator%
+(define neon-simulator-rosette%
   (class simulator%
     (super-new)
     (init-field machine 
-                [bit (get-field bit machine)]
-                [nregs-d (get-field nregs-d machine)]
-                [nregs-r (get-field nregs-r machine)]
-                [nmems (get-field nmems machine)]
-                [type-u-id (send machine get-type-id `u)]
-                [type-s-id (send machine get-type-id `s)]
-                [nop-id (send machine get-inst-id `nop)]
+                ;; [bit (get-field bit machine)]
+                ;; [nregs-d (get-field nregs-d machine)]
+                ;; [nregs-r (get-field nregs-r machine)]
+                ;; [nmems (get-field nmems machine)]
+                ;; [type-u-id (send machine get-type-id `u)]
+                ;; [type-s-id (send machine get-type-id `s)]
+                ;; [nop-id (send machine get-inst-id `nop)]
                 )
     (override interpret performance-cost)
+        
+    (define bit (get-field bit machine))
+    (define nregs-d (get-field nregs-d machine))
+    (define nregs-r (get-field nregs-r machine))
+    (define nmems (get-field nmems machine))
+    (define type-u-id (send machine get-type-id `u))
+    (define type-s-id (send machine get-type-id `s))
+    (define nop-id (send machine get-inst-id `nop))
+
 
     (define-syntax-rule (byte-guard byte lam)
       (cond

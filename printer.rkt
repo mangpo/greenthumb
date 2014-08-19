@@ -7,6 +7,7 @@
 (define printer%
   (class object%
     (super-new)
+    (init-field [report-mutations '#(opcode operand swap inst nop)])
     (public encode decode print-struct print-syntax)
     (abstract print-struct-inst print-syntax-inst
               encode-inst decode-inst)

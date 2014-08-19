@@ -1,8 +1,7 @@
 #lang s-exp rosette
 
-(require "neon-solver.rkt" "neon-machine.rkt" "neon-printer.rkt" "neon-simulator-rosette.rkt"
-         "../ast.rkt" "neon-ast.rkt"
-         "parser.rkt" )
+(require "neon-solver.rkt" "neon-machine.rkt" "neon-printer.rkt"
+         "parser.rkt")
 
 #|
 (define (sym-arg)
@@ -27,8 +26,7 @@
 
 (define machine (new neon-machine%))
 (define printer (new neon-printer% [machine machine]))
-(define simulator (new neon-simulator% [machine machine]))
-(define solver (new neon-solver% [machine machine] [printer printer] [simulator simulator]))
+(define solver (new neon-solver% [machine machine] [printer printer]))
 
 (define code
 (ast-from-string "
