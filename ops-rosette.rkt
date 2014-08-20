@@ -23,9 +23,11 @@
         masked
         (bitwise-ior mask masked))))
 
+;; This function is very memory expensive in Rosette
 (define (vector-copy! dest dest-start src 
                       [src-start 0] [src-end (vector-length src)])
   (for ([i (in-range (- src-end src-start))])
+       ;;(pretty-display `(copy-* ,(quotient (current-memory-use) 1000)))
        (vector-set! dest (+ dest-start i)
                     (vector-ref src (+ src-start i))))
   )
