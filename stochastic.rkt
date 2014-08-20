@@ -7,12 +7,10 @@
 (define stochastic%
   (class object%
     (super-new)
-    (public superoptimize)
-    (abstract correctness-cost 
-              get-arg-ranges
-              inst-copy-with-op inst-copy-with-args
-              random-instruction
-              get-mutate-type mutate-operand-specific mutate-other)
+    (public superoptimize inst-copy-with-op inst-copy-with-args
+            get-mutations mutate-operand-specific mutate-other
+            random-instruction)
+    (abstract correctness-cost get-arg-ranges)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
     (init-field machine printer
@@ -34,6 +32,9 @@
   
   
 ;;;;;;;;;;;;;;;;;;;;; Functions ;;;;;;;;;;;;;;;;;;
+    (define (inst-copy-with-op x op) (struct-copy inst x [op op]))
+    (define (inst-copy-with-args x args) (struct-copy inst x [args args]))
+
     (define (superoptimize spec constraint 
                            syn-mode name time-limit size
                            #:assume [assumption (send machine no-assumption)])
@@ -148,6 +149,49 @@
       (define new-entry (random-instruction new-opcode-id))
       (vector-set! new-p index new-entry)
       new-p)
+    
+    (define (random-instruction [opcode-id (random (vector-length inst-id))])
+      (define opcode-name (vector-ref inst-id opcode-id))
+      (define args (random-args-from-op opcode-name))
+      (inst opcode-id args))
+    
+    (define (random-args-from-op opcode-name)
+      (define ranges (get-arg-ranges opcode-name #f))
+      (when debug (pretty-display (format " --> ranges ~a" ranges)))
+      (for/vector ([i (vector-length ranges)])
+                (random-from-vec (vector-ref ranges i))))
+    
+    (define (mutate-operand-specific opcode-name args index)
+      (raise "mutate-operand-specific: unimplemented"))
+
+    (define (mutate-other index entry p stat type)
+      (raise "mutate-other: unimplemented"))
+
+    (define (get-mutations opcode-name)
+      (define mutations '(instruction swap))
+      (unless (equal? opcode-name `nop)
+              (set! mutations (cons `opcode mutations))
+              (set! mutations (cons `operand mutations)))
+      mutations)
+
+    (define (get-mutate-type opcode-name)
+      (define mutations (get-mutations opcode-name))
+      
+      ;; TODO: redundant
+      (when debug (pretty-display `(mutations ,mutations)))
+      (define sum 0)
+      (define prop (map (lambda (x) 
+                          (let ([v (hash-ref mutate-dist x)])
+                            (set! sum (+ sum v))
+                            sum))
+                        mutations))
+      (set! prop (map (lambda (x) (exact->inexact (/ x sum))) prop))
+      (define rand (random))
+      (define (loop name-list prop-list)
+        (if (<= rand (car prop-list))
+            (car name-list)
+            (loop (cdr name-list) (cdr prop-list))))
+      (loop mutations prop))
 
     (define (mutate p)
       (define vec-len (vector-length p))
@@ -308,7 +352,7 @@
 
       (with-handlers 
        ([exn:break? (lambda (e) (send stat print-stat-to-file))])
-                     
+       
        (timeout time-limit
                 (iter init (car (cost-all-inputs init (arithmetic-shift 1 32)))))
        )

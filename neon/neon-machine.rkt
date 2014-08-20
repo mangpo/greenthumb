@@ -61,6 +61,7 @@
   (class machine%
     (super-new)
     (inherit-field bit inst-id classes classes-len perline)
+    (inherit print-line)
     (override set-config get-config set-config-string
               adjust-config config-exceed-limit?
               get-state display-state
@@ -137,28 +138,8 @@
       (pretty-display "MEMORY:")
       (print-line (progstate-memory s)))
 
-    (define (print-line v)
-      (define count 0)
-      (for ([i v])
-           (when (= count 8)
-                 (newline)
-                 (set! count 0))
-           (display i)
-           (display " ")
-           (set! count (add1 count))
-           )
-      (newline)
-      )
-
-    ;; Macros to create input state assumption
     (define (no-assumption)
       #f)
-
-    (define/public (get-inst-id opcode)
-      (vector-member opcode inst-id))
-
-    (define/public (get-inst-name id)
-      (vector-ref inst-id id))
 
     (define/public (get-type-id type)
       (vector-member type type-id))

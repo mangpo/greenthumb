@@ -9,6 +9,7 @@
   (class solver%
     (super-new)
     (inherit-field printer machine simulator)
+    (inherit sym-op sym-arg)
     (override get-sym-vars evaluate-state
               encode-sym decode-sym
               assume assert-output)
@@ -51,21 +52,10 @@
 
     (define (encode-sym code)
 
-      (define (sym-op)
-        (pretty-display `(sym-op ,(get-field ninsts machine)))
-        (define-symbolic* op number?)
-        (assert (and (>= op 0) (< op (get-field ninsts machine))))
-        op)
-
-      (define (sym-arg)
-        (define-symbolic* arg number?)
-        arg)
-
       (define (sym-byte)
         (define-symbolic* byte number?)
         (assert (and (>= byte 1) (<= byte 8)))
         byte)
-      
 
       (define (sym-type)
         (pretty-display `(sym-const ,(get-field ntypes machine)))

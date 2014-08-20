@@ -8,8 +8,7 @@
 (define neon-printer%
   (class printer%
     (super-new)
-    (inherit-field report-mutations)
-    (init-field machine)
+    (inherit-field machine report-mutations)
     (override print-struct-inst print-syntax-inst
               encode-inst decode-inst)
     (set! report-mutations (vector-append report-mutations '#(byte type)))

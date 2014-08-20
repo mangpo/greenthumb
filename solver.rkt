@@ -17,21 +17,33 @@
               encode-sym decode-sym
               assume assert-output)
     (public proper-machine-config generate-input-states
-            superoptimize counterexample)
+            superoptimize counterexample
+            sym-op sym-arg)
 
     (define-syntax-rule (print-struct x) (send printer print-struct x))
     (define-syntax-rule (display-state x) (send machine display-state x))
+
+    (define ninsts (vector-length (get-field inst-id machine)))
 
     (define (sym-input)
       (define-symbolic* input number?)
       input
       )
 
+    (define (sym-op)
+      (define-symbolic* op number?)
+      (assert (and (>= op 0) (< op ninsts)))
+      op)
+    
+    (define (sym-arg)
+      (define-symbolic* arg number?)
+      arg)
+
     (define (interpret-spec spec start-state assumption)
       (assume start-state assumption)
-      ;; (pretty-display "interpret spec")
+      ;;(pretty-display "interpret spec")
       (define res (send simulator interpret spec start-state))
-      ;; (pretty-display "done interpret spec")
+      ;;(pretty-display "done interpret spec")
       res
       )
     
@@ -61,7 +73,7 @@
       (solve-until-valid config))
     
     (define (generate-inputs-inner n spec start-state assumption)
-      ;; (pretty-display `(generate-inputs-inner ,n ,assumption))
+      (pretty-display `(generate-inputs-inner ,n ,assumption))
       ;; (print-struct spec)
       ;; (display-state start-state)
       (current-solver (new kodkod%))
@@ -101,7 +113,10 @@
                      (vector-ref const-range (random const-range-len))))))
       
       (define inputs (append input-zero input-random input-random-const))
-      
+      (when debug
+            (pretty-display "Test simulate with symbolic inputs...")
+            (interpret-spec spec start-state assumption)
+            (pretty-display "Passed!"))
       ;; Construct cnstr-inputs.
       (define cnstr-inputs (list))
       (define first-solve #t)

@@ -15,7 +15,7 @@
               get-arg-ranges 
               inst-copy-with-op inst-copy-with-args
               random-instruction
-              get-mutate-type mutate-operand-specific mutate-other)
+              get-mutations mutate-operand-specific mutate-other)
 
     (set! mutate-dist 
       #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1) (byte . 1) (type . 1)))
@@ -200,8 +200,7 @@
        [(equal? type `byte) (mutate-byte index entry p)]
        [else (raise (format "mutate-other: undefined mutate ~a" type))]))
 
-    ;; TODO: pre-build the table
-    (define (get-mutate-type opcode-name)
+    (define (get-mutations opcode-name)
       (define mutations '(instruction swap))
       
       (unless (equal? opcode-name `nop)
@@ -216,21 +215,7 @@
               ;; type
               (when (member opcode-name '(vmla vmla# vmlal vmlal#))
                     (set! mutations (cons `type mutations))))
-
-      (when debug (pretty-display `(mutations ,mutations)))
-      (define sum 0)
-      (define prop (map (lambda (x) 
-                          (let ([v (hash-ref mutate-dist x)])
-                            (set! sum (+ sum v))
-                            sum))
-                        mutations))
-      (set! prop (map (lambda (x) (exact->inexact (/ x sum))) prop))
-      (define rand (random))
-      (define (loop name-list prop-list)
-        (if (<= rand (car prop-list))
-            (car name-list)
-            (loop (cdr name-list) (cdr prop-list))))
-      (loop mutations prop))
+      mutations)
 
     (define (correctness-cost state1 state2 constraint)
       (define (diff-cost x y)

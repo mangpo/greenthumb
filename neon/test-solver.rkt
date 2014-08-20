@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "neon-solver.rkt" "neon-machine.rkt" "neon-printer.rkt"
-         "parser.rkt")
+         "neon-parser.rkt")
 
 #|
 (define (sym-arg)
@@ -24,12 +24,13 @@
   (assert (and (>= type 0) (< type (vector-length type-id))))
   type)|#
 
+(define parser (new neon-parser%))
 (define machine (new neon-machine%))
 (define printer (new neon-printer% [machine machine]))
 (define solver (new neon-solver% [machine machine] [printer printer]))
 
 (define code
-(ast-from-string "
+(send parser ast-from-string "
  VLD1.16 {d4}, [r2]! ; 2 cycles (LSBP)
  VLD1.16 {d2}, [r1]! ; 2 cycles (LSBP)
  VEXT.16 d5, d3, d4, #1 ; 1 cycle (LSBP)

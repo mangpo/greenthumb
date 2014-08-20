@@ -8,15 +8,7 @@
 (define neon-simulator-rosette%
   (class simulator%
     (super-new)
-    (init-field machine 
-                ;; [bit (get-field bit machine)]
-                ;; [nregs-d (get-field nregs-d machine)]
-                ;; [nregs-r (get-field nregs-r machine)]
-                ;; [nmems (get-field nmems machine)]
-                ;; [type-u-id (send machine get-type-id `u)]
-                ;; [type-s-id (send machine get-type-id `s)]
-                ;; [nop-id (send machine get-inst-id `nop)]
-                )
+    (init-field machine)
     (override interpret performance-cost)
         
     (define bit (get-field bit machine))

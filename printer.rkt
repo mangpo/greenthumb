@@ -7,16 +7,28 @@
 (define printer%
   (class object%
     (super-new)
-    (init-field [report-mutations '#(opcode operand swap inst nop)])
-    (public encode decode print-struct print-syntax)
-    (abstract print-struct-inst print-syntax-inst
-              encode-inst decode-inst)
+    (init-field machine [report-mutations '#(opcode operand swap inst nop)])
+    (public encode decode 
+            print-struct print-struct-inst
+            print-syntax print-syntax-inst)
+    (abstract encode-inst decode-inst)
 
     (define (encode code)
       (for/vector ([i code]) (encode-inst i)))
 
     (define (decode code)
       (for/vector ([i code]) (decode-inst i)))
+
+    (define (print-struct-inst x [indent ""])
+      (pretty-display (format "~a(inst ~a ~a)" 
+                              indent (inst-op x) (inst-args x))))
+
+    (define (print-syntax-inst x [indent ""])
+      (pretty-display 
+       (format "~a~a ~a" 
+               indent (inst-op x)
+               (string-join (vector->list (inst-args x)) ", "))))
+      
 
     (define (print-struct x [indent ""])
       (define (inc ind) (string-append ind " "))

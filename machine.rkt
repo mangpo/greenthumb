@@ -12,7 +12,14 @@
               get-state display-state
               adjust-config config-exceed-limit?
               output-constraint-string)
-    (public get-class-id print-line no-assumption)
+    (public get-class-id print-line no-assumption
+            get-inst-id get-inst-name)
+
+    (define (get-inst-id opcode)
+      (vector-member opcode inst-id))
+
+    (define (get-inst-name id)
+      (vector-ref inst-id id))
 
     (define (no-assumption) #f)
 
