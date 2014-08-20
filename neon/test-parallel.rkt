@@ -1,15 +1,8 @@
 #lang racket
 
-(require "../parallel.rkt" "../compress.rkt"
-         "neon-parser.rkt" "neon-meta.rkt" "neon-machine.rkt" "neon-printer.rkt"  "neon-solver.rkt" "neon-solver.rkt")
+(require "main.rkt" "neon-parser.rkt")
 
 (define parser (new neon-parser%))
-(define meta (new neon-meta%))
-(define machine (new neon-machine%))
-(define printer (new neon-printer% [machine machine]))
-(define compress (new compress% [machine machine]))
-(define solver (new neon-solver% [machine machine] [printer printer]))
-(define parallel (new parallel% [meta meta] [parser parser] [machine machine] [printer printer] [compress compress] [solver solver]))
 
 (define code
 (send parser ast-from-string "
@@ -30,4 +23,4 @@
  VMLAL.S16 q0, d7, d2[3] ; 1 cycle (DP)
  VMOV d9, d4 ; 1 cycle (LSBP)|#
 
-(send parallel optimize code (list (list 0 1 3) (list 1 2)) #t #:time-limit 30 #:cores 6)
+(optimize code (list (list 0 1 3) (list 1 2)) #t #:time-limit 30 #:cores 6)

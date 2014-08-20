@@ -4,6 +4,7 @@
 
 (provide neon-machine% (all-defined-out))
 
+;; Machine state (intput/output representaiton)
 (struct progstate (dregs rregs memory))
 
 (define-syntax-rule (build-vector n init)
@@ -12,6 +13,8 @@
 	 (vector-set! vec i (init)))
     vec))
 
+;; Use withing neon
+;; Macro to create symbolic, random, or predefined machine state
 (define-syntax default-state
   (syntax-rules (rreg dreg mem)
     ((default-state machine init)
@@ -36,6 +39,7 @@
 (define (lam-t) #t)
 (define (lam-f) #f)
 
+;; Use withing neon
 ;; Macros to create output state constraint
 (define-syntax constraint
   (syntax-rules (all none dreg rreg mem mem-all)
@@ -67,6 +71,7 @@
               get-state display-state
               output-constraint-string)
 
+    ;; Initize common fields for neon
     (set! bit 32)
     (set! inst-id '#(nop
                      vld1 vld2 ;vld3 vld4
@@ -87,6 +92,7 @@
     (set! perline 8)
     (set! classes-len (vector-length classes))
 
+    ;; Neon-only fields
     (init-field [nregs-d 10] [nregs-r 4] [nmems 4]
                 [ninsts #f] [ntypes #f])
 
