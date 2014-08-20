@@ -10,8 +10,7 @@
   (class object%
     (super-new)
     (init-field [asm-parser #f] [asm-lexer #f])
-    (public ast-from-string ast-from-file
-            liveness-from-file)
+    (public ast-from-string ast-from-file)
     
     (define (lex-this input)
       (lambda ()
@@ -31,21 +30,6 @@
            (let ((input (open-input-file file)))
              (port-count-lines! input)
              (ast input))))
-
-    (define (liveness-from-file file)
-      (define in-port (open-input-file file))
-      (define liveness-map (make-hash))
-      (define (parse)
-        (define line (read-line in-port))
-        (unless (equal? eof line)
-                (define pos (cdar (regexp-match-positions #rx":" line)))
-                (when pos
-                      (define live-regs (map (lambda (x) (string->number (string-trim x)))
-                                             (string-split (substring line pos) ",")))
-                      (hash-set! liveness-map (substring line 0 pos) live-regs))
-                (parse)))
-      (parse)
-      liveness-map)
 
     ))
 

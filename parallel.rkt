@@ -22,6 +22,7 @@
       ;; Use the fewest number of registers possible.
       (define-values (code live-out map-back machine-info) 
         (send compress compress-reg-space code-org live-out-org))
+
       ;; machine-info from compress-reg-space is only accurate for reg but not memory. This will adjust the rest of the machine info.
       (set! machine-info (send solver proper-machine-config code machine-info))
       (pretty-display ">>> compressed-code:")
@@ -42,6 +43,7 @@
            (pretty-display (format "(send machine set-config ~a)"
                                    (send machine set-config-string machine-info)))
            (pretty-display (format "(define printer (new ~a [machine machine]))" (send meta get-class-name "printer")))
+           ;; TODO: can substitute with solver
            (pretty-display (format "(define stochastic (new ~a [machine machine] [printer printer]))" (send meta get-class-name "stochastic")))
            (pretty-display (format "(define parser (new ~a))" (send meta get-class-name "parser")))
            (pretty-display "(define code (send parser ast-from-string \"")
