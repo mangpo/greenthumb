@@ -247,6 +247,7 @@
       (pretty-display (format "new cost = ~a" final-cost))
       (pretty-display "=====================================")
       (clear-asserts)
+      (clear-terms!)
       (values final-program final-cost)
       )
 
@@ -297,6 +298,7 @@
        ([exn:fail? 
          (lambda (e)
            (when debug (pretty-display "program-eq? SAME"))
+           (clear-terms!)
            (if (equal? (exn-message e) "verify: no counterexample found")
                #f
                (raise e)))])
@@ -306,6 +308,7 @@
            ;; (pretty-display model)
            ;; (display-state state)
            ;; (raise "done")
+           (clear-terms!)
            state)
          )))
     

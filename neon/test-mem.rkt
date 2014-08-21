@@ -29,5 +29,6 @@ VMLAL.S16 q0, d3, d2[0]
   (pretty-display `(mem ,(quotient (current-memory-use) 1000)))
   (let ([state (default-state machine sym-input)])
     (send simulator interpret encoded-code state))
+  (clear-terms!)
 )
 (pretty-display `(time ,(- (current-seconds) t)))

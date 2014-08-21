@@ -23,4 +23,4 @@
  VMLAL.S16 q0, d7, d2[3] ; 1 cycle (DP)
  VMOV d9, d4 ; 1 cycle (LSBP)|#
 
-(optimize code (list (list 0 1 3) (list 1 2)) #t #:time-limit 30 #:cores 6)
+(optimize code (list (list 0 1 3) (list 1 2)) #t #:time-limit 3600 #:cores 6)
