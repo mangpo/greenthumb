@@ -39,6 +39,7 @@ VMLAL.S16 q0, d3, d2[0]
   ;; (let ([state (default-state machine input)])
   ;;   (send simulator-racket interpret encoded-code state))
   (clear-asserts)
+  (clear-terms!)
 
   (loop))
 (loop)
