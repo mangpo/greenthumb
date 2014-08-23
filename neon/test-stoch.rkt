@@ -13,6 +13,11 @@
 (send parser ast-from-string "
 vmov d4, d9
 vmov d4, d9
+vmov d4, d9
+vmov d4, d9
+vmov d4, d9
+vmov d4, d9
+vmov d4, d9
 vmla.s16 d3, d0, d1[2]
 "))
 
@@ -20,5 +25,5 @@ vmla.s16 d3, d0, d1[2]
 (send printer print-struct encoded-code)
 
 (send stochastic superoptimize encoded-code 
-      (constraint machine [dreg 0 1 3] [rreg] [mem-all]) 
+      (constraint machine [dreg 3] [rreg] [mem-all]) 
       #t "output/driver-0" 60 #f)

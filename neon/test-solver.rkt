@@ -31,14 +31,27 @@
 
 (define code
 (send parser ast-from-string "
-vmov d0, d4
-vmov d3, d0
+ VMLAL.S16 q0, d3, d2[0] ; 1 cycle (DP)
+ VEXT.16 d5, d3, d4, #1 ; 1 cycle (LSBP)
+ VMLAL.S16 q0, d5, d2[1] ; 1 cycle (DP)
+ VEXT.16 d6, d3, d4, #2 ; 1 cycle (LSBP)
+ VMLAL.S16 q0, d6, d2[2] ; 1 cycle (DP)
+ VEXT.16 d7, d3, d4, #3 ; 1 cycle (LSBP)
+ VMLAL.S16 q0, d7, d2[3] ; 1 cycle (DP)
+ VMOV d3, d4 ; 1 cycle (LSBP)
 ")) ;; TODO debug
 
 
 (define sketch
 (send parser ast-from-string "
-?
+ VMLAL.S16 q0, d3, d2[0] ; 1 cycle (DP)
+ VEXT.16 d5, d3, d4, #1 ; 1 cycle (LSBP)
+ VEXT.16 d6, d3, d4, #2 ; 1 cycle (LSBP)
+ VEXT.16 d7, d3, d4, #3 ; 1 cycle (LSBP)
+ VMLAL.S16 q0, d5, d2[1] ; 1 cycle (DP)
+ VMLAL.S16 q0, d6, d2[2] ; 1 cycle (DP)
+ VMLAL.S16 q0, d7, d2[3] ; 1 cycle (DP)
+ VMOV d3, d4 ; 1 cycle (LSBP)
 "))
 
 (define encoded-code (send printer encode code))
@@ -55,5 +68,5 @@ vmov d3, d0
 ;(define x (send solver counterexample encoded-code encoded-sketch 
 ;                (constraint machine [dreg 0 1 3] [rreg 1 2] [mem-all])))
 (send solver superoptimize encoded-code encoded-sketch 
-      (constraint machine [dreg 3] [rreg] [mem-all]) #t)
+      (constraint machine [dreg 0 1 3] [rreg] [mem-all]) #t)
 (pretty-display `(time ,(- (current-seconds) t)))

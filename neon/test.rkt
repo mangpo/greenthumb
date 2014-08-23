@@ -10,7 +10,14 @@
 
 (define code
 (send parser ast-from-string "
-vext.16 d3, d0, d1, #1
+ VMLAL.S16 q0, d3, d2[0] ; 1 cycle (DP)
+ VEXT.16 d5, d3, d4, #1 ; 1 cycle (LSBP)
+ VMLAL.S16 q0, d5, d2[1] ; 1 cycle (DP)
+ VEXT.16 d6, d3, d4, #2 ; 1 cycle (LSBP)
+ VMLAL.S16 q0, d6, d2[2] ; 1 cycle (DP)
+ VEXT.16 d7, d3, d4, #3 ; 1 cycle (LSBP)
+ VMLAL.S16 q0, d7, d2[3] ; 1 cycle (DP)
+ VMOV d3, d4 ; 1 cycle (LSBP)
 "))
 
 (define code2

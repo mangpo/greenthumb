@@ -218,17 +218,31 @@
       mutations)
 
     (define (correctness-cost state1 state2 constraint)
-      (define (diff-cost x y)
+      (define (diff-cost-8 x y)
         (define (pop-count a)
-          (define count 0)
-          (define mask 1)
-          (for ([i 8])
-               (when (> (bitwise-and a mask) 0) (set! count (add1 count)))
-               (set! mask (* mask 2)))
-          count)
+          (set! a (- a (bitwise-and (arithmetic-shift a -1) #x55)))
+          ;;(pretty-display a)
+          (set! a (+ (bitwise-and a #x33)
+                     (bitwise-and (arithmetic-shift a -2) #x33)))
+          ;;(pretty-display a)
+          (bitwise-and (+ a (arithmetic-shift a -4)) #x0f))
 
         (pop-count (bitwise-xor (bitwise-and x #xff)
                                 (bitwise-and y #xff))))
+
+      (define (diff-cost-32 x y)
+        (define (pop-count a)
+          (set! a (- a (bitwise-and (arithmetic-shift a -1) #x55555555)))
+          ;;(pretty-display a)
+          (set! a (+ (bitwise-and a #x33333333)
+                     (bitwise-and (arithmetic-shift a -2) #x33333333)))
+          ;;(pretty-display a)
+          (set! a (bitwise-and (+ a (arithmetic-shift a -4)) #x0f0f0f0f))
+          (set! a (+ a (arithmetic-shift a -8)))
+          (set! a (+ a (arithmetic-shift a -16)))
+          (bitwise-and a #x3f))
+
+        (pop-count (bitwise-xor x y)))
 
       
       (define dregs (progstate-dregs constraint))
@@ -244,20 +258,45 @@
       (define memory2 (progstate-memory state2))
 
       (define correctness 0)
-      (for ([x dregs]
-            [x1 dregs1]
-            [x2 dregs2])
-           (when x (set! correctness (+ correctness (diff-cost x1 x2)))))
+      ;; (for ([x dregs]
+      ;;       [x1 dregs1]
+      ;;       [x2 dregs2])
+      ;;      (when x (set! correctness (+ correctness (diff-cost x1 x2)))))
 
-      (for ([x rregs]
-            [x1 rregs1]
-            [x2 rregs2])
-           (when x (set! correctness (+ correctness (diff-cost x1 x2)))))
+      ;; (for ([x rregs]
+      ;;       [x1 rregs1]
+      ;;       [x2 rregs2])
+      ;;      (when x (set! correctness (+ correctness (diff-cost x1 x2)))))
 
-      (for ([x memory]
-            [x1 memory1]
-            [x2 memory2])
-           (when x (set! correctness (+ correctness (diff-cost x1 x2)))))
+      ;; (for ([x memory]
+      ;;       [x1 memory1]
+      ;;       [x2 memory2])
+      ;;      (when x (set! correctness (+ correctness (diff-cost x1 x2)))))
+      
+      (define (32bit x index)
+        (bitwise-ior 
+         (bitwise-and (vector-ref x index) #xff)
+         (arithmetic-shift (bitwise-and (vector-ref x (+ index 1)) #xff) 8)
+         (arithmetic-shift (bitwise-and (vector-ref x (+ index 2)) #xff) 16)
+         (arithmetic-shift (bitwise-and (vector-ref x (+ index 3)) #xff) 24)))
+
+      (define (count-vector-32 vec vec1 vec2)
+        (for ([i (quotient (vector-length vec) 4)])
+             (let ([index (* i 4)])
+               (when (vector-ref vec index) 
+                     (set! correctness 
+                           (+ correctness 
+                              (diff-cost-32 (32bit vec1 index) (32bit vec2 index))))))))
+
+      (define (count-vector-8 vec vec1 vec2)
+        (for ([x vec]
+              [x1 vec1]
+              [x2 vec2])
+             (when x (set! correctness (+ correctness (diff-cost-8 x1 x2))))))
+
+      (count-vector-32 dregs dregs1 dregs2)
+      (count-vector-8  rregs rregs1 rregs2)
+      (count-vector-32 memory memory1 memory2)    
 
       correctness)
 
