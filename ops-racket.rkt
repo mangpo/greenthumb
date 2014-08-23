@@ -35,6 +35,11 @@
      (unless x 
        (raise (exn (format "racket: assert fail: ~a" y) (current-continuation-marks)))))))
 
+(define-syntax-rule (for/all ([a b] ...) expr)
+  (let ([a b] ...) expr))
+     
+(define-syntax-rule (for*/all ([a b] ...) expr)
+  (let* ([a b] ...) expr))
 
 ;; TODO: do we need this?
 (define (vector-copy-len vec start len)

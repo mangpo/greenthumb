@@ -58,7 +58,7 @@
         byte)
 
       (define (sym-type)
-        (pretty-display `(sym-const ,(get-field ntypes machine)))
+        ;;(pretty-display `(sym-const ,(get-field ntypes machine)))
         (define-symbolic* type number?)
         (assert (and (>= type 0) (< type (get-field ntypes machine))))
         type)

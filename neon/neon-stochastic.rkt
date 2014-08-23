@@ -52,7 +52,7 @@
        [(member opcode-name '(vld1 vld1! vld2 vld2!)) 
         (vector #f rreg-range)]
 
-       [(member opcode-name '(vmovi vandi)) ;; TODO: different const-range for mvni
+       [(member opcode-name '(vmov# vand#)) ;; TODO: different const-range for mvni
         (if (< (vector-ref args 0) nregs-d)
             (vector dreg-range const-range)
             (vector qreg-range const-range))]
@@ -67,7 +67,7 @@
             (vector dreg-range dreg-range dreg-range)
             (vector qreg-range qreg-range qreg-range))]
        
-       [(member opcode-name '(vmla# vext#))
+       [(member opcode-name '(vmla@ vext#))
         (define byte (inst-byte entry))
         (define index-range (list->vector (range (quotient 8 byte))))
         (if (< (vector-ref args 0) nregs-d)
@@ -77,14 +77,14 @@
        [(member opcode-name '(vmlal))
         (vector qreg-range dreg-range dreg-range)]
        
-       [(member opcode-name '(vmlal#))
+       [(member opcode-name '(vmlal@))
         (define byte (inst-byte entry))
         (define index-range (list->vector (range (quotient 8 byte))))
         (vector qreg-range dreg-range dreg-range index-range)]))
 
     (define (random-type-from-op opcode-name)
       (cond
-       [(member opcode-name '(vmla vmla# vmlal vmlal#)) (random 2)]
+       [(member opcode-name '(vmla vmla@ vmlal vmlal@)) (random 2)]
        [else #f]))
 
     (define (random-instruction [opcode-id (random (vector-length inst-id))])
@@ -104,7 +104,7 @@
            [(<= prop 0.75) 2]
            [(<= prop 0.875) 3]
            [else 4]))
-        (define skip (random 2))
+        (define skip (add1 (random 2)))
         (define distance (* (sub1 n) skip))
         (define first-reg (random (- nregs-d distance)))
         (define ld-regs (for/vector ([i n]) (+ first-reg (* i skip))))
@@ -173,7 +173,7 @@
       (define opcode-id (inst-op entry))
       (define opcode-name (vector-ref inst-id opcode-id))
       (cond
-       [(member opcode-name '(vmla vmla# vmlal vmlal#))
+       [(member opcode-name '(vmla vmla@ vmlal vmlal@))
         (define new-p (vector-copy p))
         (define type (inst-type entry))
         (define new-type (if (= type 0) 1 0)) ;; 0 = s, 1 = u
@@ -188,7 +188,7 @@
       (define opcode-name (vector-ref inst-id opcode-id))
       (define new-p (vector-copy p))
       (define byte (inst-byte entry))
-      (define new-byte (random-from-list-ex (list 1 2 4 8) byte))
+      (define new-byte (random-from-list-ex (list 1 2 4) byte)) ;; TODO no 64 bit
       (define new-entry (struct-copy neon-inst entry [byte new-byte]))
       (vector-set! new-p index new-entry)
       (send stat inc-propose `byte)
@@ -210,10 +210,10 @@
               (when (member opcode-name '(vld1 vld1! vld2 vld2! vmovi vandi))
                     (set! mutations (cons `opcode mutations)))
               ;; byte
-              (when (member opcode-name '(vld2 vld2! vmla vmla# vmlal vmlal# vext#))
+              (when (member opcode-name '(vld2 vld2! vmla vmla@ vmlal vmlal@ vext#))
                     (set! mutations (cons `byte mutations)))
               ;; type
-              (when (member opcode-name '(vmla vmla# vmlal vmlal#))
+              (when (member opcode-name '(vmla vmla@ vmlal vmlal@))
                     (set! mutations (cons `type mutations))))
       mutations)
 

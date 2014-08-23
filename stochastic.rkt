@@ -216,7 +216,7 @@
       (pretty-display ">>> start MCMC sampling")
       (pretty-display ">>> Phase 3: stochastic search")
       (pretty-display "start-program:")
-      (print-struct init)
+      (send printer print-struct init)
       (define syn-mode #t)
 
       (define (cost-one-input program input output)
@@ -237,14 +237,30 @@
            )))
       
       (define (cost-all-inputs program okay-cost)
-        (define correct 0)
+        ;; (define correct 0)
         (define change-mode #f)
-        (for ([input inputs]
-              [output outputs])
-             (when correct
-                   (set! correct (+ correct (cost-one-input program input output)))
-                   (when (> correct okay-cost)
-                         (set! correct #f))))
+        ;; (for ([input inputs]
+        ;;       [output outputs])
+        ;;      (when correct
+        ;;            (set! correct (+ correct (cost-one-input program input output)))
+        ;;            (when (> correct okay-cost)
+        ;;                  (set! correct #f))))
+
+        (define (loop correct inputs outputs)
+          (when debug (pretty-display `(correct ,correct)))
+          (cond
+           [(> correct okay-cost) #f]
+           [(empty? inputs) correct]
+           [else
+            (loop
+             (+ correct (cost-one-input program (car inputs) (car outputs)))
+             (cdr inputs) (cdr outputs))]
+           ))
+
+        (define correct
+          (and (send simulator is-valid? program)
+               (loop 0 inputs outputs)))
+        (when debug (pretty-display `(final-correct ,correct)))
 
         (define ce #f)
         (when (equal? correct 0)
@@ -354,7 +370,11 @@
        ([exn:break? (lambda (e) (send stat print-stat-to-file))])
        
        (timeout time-limit
-                (iter init (car (cost-all-inputs init (arithmetic-shift 1 32)))))
+                (iter init 
+                      ;; cost-all-inputs can return #f if program is invalid
+                      (or (car (cost-all-inputs init (arithmetic-shift 1 31)))
+                          (arithmetic-shift 1 31))
+                      ))
        )
       )
     ))

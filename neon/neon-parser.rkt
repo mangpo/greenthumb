@@ -64,7 +64,7 @@
         (arg  ((WORD) $1)
               ((DQUOTE words DQUOTE) (string-append "\"" $2 "\""))
               ((NUM) $1)
-              ((HASH NUM) $2) ;;(string-append "#" $2))
+              ((HASH NUM) (string-append "#" $2))
               ((LCBRACK args RCBRACK) (list->vector $2)) ;; list inside list
               ((LSQBRACK args RSQBRACK) $2) ;; list inside list
               ((WORD LSQBRACK NUM RSQBRACK) (list $1 $3))
@@ -123,8 +123,11 @@
       (define last-arg (vector-ref args (sub1 (vector-length args))))
       
       (cond
-       [(string->number last-arg)
+       [(equal? (substring last-arg 0 1) "#")
+        (vector-set! args (sub1 (vector-length args)) (substring last-arg 1))
         (set! op (string-append op "#"))]
+       [(string->number last-arg)
+        (set! op (string-append op "@"))]
        [(and (regexp-match #rx"vld" op) (= (vector-length args) 3))
         (set! op (string-append op "+offset"))])
       

@@ -2,7 +2,8 @@
 
 (require "../simulator.rkt" "../ops-rosette.rkt" 
          "../ast.rkt" "neon-ast.rkt"
-         "neon-machine.rkt")
+         "neon-machine.rkt"
+         "schedule.rkt")
 (provide neon-simulator-rosette%)
 
 (define neon-simulator-rosette%
@@ -18,7 +19,7 @@
     (define type-u-id (send machine get-type-id `u))
     (define type-s-id (send machine get-type-id `s))
     (define nop-id (send machine get-inst-id `nop))
-
+    (define schedule-info (init-schedule-info machine))
 
     (define-syntax-rule (byte-guard byte lam)
       (cond
@@ -54,10 +55,10 @@
        (flatten
         (for/list ([x lst]) (number->bytes x byte)))))
 
-    (define-syntax-rule (is-d? x) 
+    (define (is-d? x) 
       (and (>= x 0) (< x nregs-d)))
     
-    (define-syntax-rule (is-q? x) 
+    (define (is-q? x) 
       (and (>= x nregs-d) (< x (+ nregs-d (quotient nregs-d 2)))))
     
     (define (interpret code state [policy #f])
@@ -380,22 +381,23 @@
 
          [(inst-eq? `vext#)  (nnn 0 ext)]
          [(inst-eq? `vmla)   (nnn 0 mla #t)]
-         [(inst-eq? `vmla#)  (nnn 0 mlai #t)]
+         [(inst-eq? `vmla@)  (nnn 0 mlai #t)]
          [(inst-eq? `vmlal)  (nnn 1 mla #t)]
-         [(inst-eq? `vmlal#) (nnn 1 mlai #t)]
+         [(inst-eq? `vmlal@) (nnn 1 mlai #t)]
 
          [(inst-eq? `vmov)   (nn 0 mov-simple)]
-         [(inst-eq? `vmovi)  (ni 0 mov-simple)] ;; TODO: constraint on constant
+         ;; [(inst-eq? `vmov@)  (nni 0 mov-simple)]
+         [(inst-eq? `vmov#)  (ni 0 mov-simple)]
          ;; [(inst-eq? `vmvn)   (nn 0 mvn-simple)]
-         ;; [(inst-eq? `vmvni)  (ni 0 mvn-simple)] ;; TODO: constraint on constant
+         ;; [(inst-eq? `vmvn#)  (ni 0 mvn-simple)] ;; TODO: constraint on constant
          ;; [(inst-eq? `vmovl)  (nn 1 mov)]
          ;; [(inst-eq? `vmovn)  (nn 2 mov)]
          ;; [(inst-eq? `vqmovn) (nn 2 qmov)]
          ;; ;[(inst-eq? `vqmovun) (nn 2 qmov)]
 
          [(inst-eq? `vand)   (nnn 0 vand)]
-         [(inst-eq? `vandi)  (ni 0 vand #t)]
-         
+         [(inst-eq? `vand#)  (ni 0 vand #t)]
+         [else (assert #f (format "interpret: undefined for ~a" x))]
 
          ))
       
@@ -405,11 +407,168 @@
       (progstate dregs rregs memory))
     
     
-    (define (performance-cost code)
+    (define (performance-cost0 code)
       (define cost 0)
       (for ([x code])
            (unless (= (inst-op x) nop-id)
                    (set! cost (add1 cost))))
       cost)
+
+    (define debug #f)
+
+    (define (performance-cost code)
+      (when debug (pretty-display `(performance-cost)))
+      ;; Units' availability
+      (define units (make-vector 2 0))
+      ;; Registers' availability
+      (define dregs (make-vector nregs-d 0))
+      ;; Registers' fast-forwarding information
+      (define forwarding (make-vector nregs-d 0))
+
+      (define (approximate entry)
+        ;; (sche-info pipeline# issue-cycle latency fast-forward)
+        ;; fast-forward is only for mla, mull of the same type and size
+        (define schd (get-schedule-info entry))
+        (define unit #f)
+        (define t-issue #f)
+        (define t-latency #f)
+        (define forward-from #f)
+        (define forward-to #f)
+   
+        (for/all ([s schd])
+          (begin
+            (set! unit (schd-info-unit s))
+            (set! t-issue (schd-info-issue s))
+            (set! t-latency (schd-info-latency s))
+            (set! forward-from (schd-info-from s))
+            (set! forward-to (schd-info-to s))))
+
+        ;; There are 2 types of units for neon. 
+        ;; 1) Load, store, bit-permute
+        ;; 2) ALU
+        (define other-unit (if (= unit 0) 1 0))
+        ;; Can start execute when the
+        ;; 1) same unit is done issuing the previous instruction, and
+        ;; 2) on the last cycle of the previous instruction of the other unit
+        (define start-issue (max (vector-ref units unit) 
+                                 (sub1 (vector-ref units other-unit))))
+        ;; Finish issue and start executing at
+        (define finish-issue (+ start-issue t-issue))
+
+        ;; Check data dependency
+        (define defs-uses (get-defs-uses entry))
+        (define defs (car defs-uses))
+        (define uses (cdr defs-uses))
+        (when debug (pretty-display `(def-use ,defs ,uses ,dregs)))
+        (define exec
+          (foldl 
+           (lambda (x res) 
+             ;; Fast-forwarding has to match forwarding-path, type, and size
+             (if (and forward-from 
+                      (equal? 
+                       (list forward-from (neon-inst-type entry) (neon-inst-byte entry))
+                       (vector-ref forwarding x)))
+                 res ;; no stall if fast-forwarding
+                 (max res (vector-ref dregs x))))
+           finish-issue uses))
+
+        (when debug
+              (pretty-display `(performance ,start-issue ,finish-issue ,exec ,t-latency)))
+        (define latency (+ exec t-latency))
+        ;; Fast-forwarding has to match forwarding-path, type, and size
+        (define forward-type 
+          (and forward-to (list forward-to (neon-inst-type entry) (neon-inst-byte entry))))
+        (vector-set! units unit exec)
+        (for/all ([ds defs])
+          (for ([def ds])
+               (vector-set! dregs def latency)
+               (vector-set! forwarding def forward-type)))
+          
+        )
+
+      (for ([x code]) (approximate x))
+      (foldl (lambda (x res) (max res (vector-ref dregs x)))
+             0 (range nregs-d)))
     
+    (define (get-schedule-info x)
+      (define args (inst-args x))
+      (define byte (inst-byte x))
+      (define (match ref my)
+        (cond
+         [(procedure? ref) (ref my)]
+         [ref (equal? ref my)]
+         [else #t] ;; If ref = #f, then return #t
+         ))
+
+      (define (find-match-schedule info-list)
+        (define key (caar info-list))
+        (define val (cdar info-list))
+        (for*/all ([k key]
+                   [v val])
+            (if (and (match (inst-args k) args)
+                     (match (inst-byte k) byte))
+                v
+                (find-match-schedule (cdr info-list)))))
+      
+      (define info (vector-ref schedule-info (inst-op x)))
+      (if (list? info)
+          (find-match-schedule info)
+          (cdr info)))
+
+    ;; Return (values defs-list uses-list)
+    (define (get-defs-uses x)
+      (define op (inst-op x))
+      (define args (inst-args x))
+      (define-syntax-rule (inst-eq? x) (= op (send machine get-inst-id x)))
+
+      (define (dregs reg)
+        (if (is-d? reg) 
+            (list reg)
+            (let ([id (* (- reg nregs-d) 2)])
+              (list id (add1 id)))))
+        
+
+      (define (get-dregs index)
+        ;;(pretty-display `(get-dregs ,index))
+        (let ([reg (vector-ref args index)])
+          (dregs reg)))
+
+      (define (d) (cons (get-dregs 0) (list)))
+      (define (d*) 
+        (let ([len-vec (vector-ref args 0)])
+          (cons (flatten 
+                 (map dregs 
+                      (vector->list (vector-take (cdr len-vec) (car len-vec)))))
+                (list))))
+      (define (du) (cons (get-dregs 0) (get-dregs 1)))
+      (define (duu) 
+        (cons (get-dregs 0)
+              (append (get-dregs 1) (get-dregs 2))))
+      (define (buu) 
+        (cons (get-dregs 0)
+              (append (get-dregs 0) (get-dregs 1) (get-dregs 2))))
+
+      ;; d = def, u = use, b = both, d* = def vector (e.g. vld1 {d0,d1}, [r0])
+      (cond
+       [(inst-eq? `nop)   (cons (list) (list))]
+       [(inst-eq? `vld1)  (d*)]
+       [(inst-eq? `vld1!) (d*)]
+       [(inst-eq? `vld2)  (d*)]
+       [(inst-eq? `vld2!) (d*)]
+
+       [(inst-eq? `vext#)  (duu)]
+       [(inst-eq? `vmla)   (buu)]
+       [(inst-eq? `vmla@)  (buu)]
+       [(inst-eq? `vmlal)  (buu)]
+       [(inst-eq? `vmlal@) (buu)]
+
+       [(inst-eq? `vmov)  (du)]
+       ;;[(inst-eq? `vmov@) (du)]
+       [(inst-eq? `vmov#) (d)]
+
+       [(inst-eq? `vand)  (duu)]
+       [(inst-eq? `vand#) (du)]
+       [else (pretty-display "else") (assert #f (format "get-defs-uses: undefined for ~a" x))]
+       ))
+                         
     ))

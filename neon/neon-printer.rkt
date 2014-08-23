@@ -23,7 +23,9 @@
     (define (opcode-syntax op)
       (define pos (sub1 (string-length op)))
       (if (or (equal? (substring op pos) "!")
-              (equal? (substring op pos) "#"))
+              (equal? (substring op pos) "#")
+              (equal? (substring op pos) "@")
+              )
           (substring op 0 pos)
           op))
     
@@ -48,14 +50,14 @@
         (when (member opcode '(vld1! vld2!))
               (display "!"))]
 
-       [(member opcode '(vmovi vandi vext#))
+       [(member opcode '(vmov# vand# vext#))
         (define last-pos (sub1 (vector-length args)))
         (display 
          (format "~a, #~a"
                  (string-join (take (vector->list args) last-pos) ", ")
                  (vector-ref args last-pos)))]
 
-       [(member opcode '(vmla# vmlal#))
+       [(member opcode '(vmla@ vmlal@))
         (define last-pos (sub1 (vector-length args)))
         (display 
          (format "~a[~a]"
@@ -127,10 +129,13 @@
        [(member opcode '(vmov))
         (make-inst #f #f dreg dreg)]
        
+       [(member opcode '(vmov#))
+        (make-inst #f #f dreg imm)]
+       
        [(member opcode '(vmla vmlal vand))
         (make-inst type byte dreg dreg dreg)]
        
-       [(member opcode '(vmla# vmlal#))
+       [(member opcode '(vmla@ vmlal@))
         (make-inst type byte dreg dreg dreg imm)]
        
        [(member opcode '(vext#))

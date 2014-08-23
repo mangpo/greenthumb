@@ -1,22 +1,30 @@
 #lang racket
 
-(require "parser.rkt" "print.rkt" "machine.rkt" "solver-support.rkt" "interpret.rkt")
+(require "neon-parser.rkt" "neon-printer.rkt" "neon-machine.rkt" "neon-simulator-rosette.rkt" "neon-solver.rkt")
+
+(define parser (new neon-parser%))
+(define machine (new neon-machine%))
+(define printer (new neon-printer% [machine machine]))
+(define simulator (new neon-simulator-rosette% [machine machine]))
+(define solver (new neon-solver% [machine machine] [printer printer]))
 
 (define code
-(ast-from-string "
- VEXT.16 d0, d1, d2, #1 ; 1 cycle (LSBP)
+(send parser ast-from-string "
+vext.16 d3, d0, d1, #1
 "))
 
-;(define code
-;  (ast-from-string "?"))
+(define code2
+  (send parser ast-from-string "? ? ?"))
 
-(define encoded-code (encode code))
+(define encoded-code (send printer encode code))
+(define encoded-code2 (send solver encode-sym code2))
 
-(print-struct code)
-(print-struct encoded-code)
+;(print-struct code)
+;(print-struct encoded-code)
 
 ;(define state (struct-copy progstate (default-state (random 10)) [rregs (vector 0 0 0 0)]))
 ;(define state (default-state 0))
+#|
 (define state (progstate 
                (vector 
                 0 0 0 0 0 0 0 0
@@ -32,6 +40,6 @@
                 )
                (make-vector nregs-r 0)
                (list->vector (range (* 8 nmems)))
-               0))
-(display-state state)
-(display-state (interpret encoded-code state))
+               0))|#
+;(display-state state)
+(send simulator performance-cost encoded-code)

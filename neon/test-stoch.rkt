@@ -11,14 +11,14 @@
 
 (define code
 (send parser ast-from-string "
-vld1 {d9}, [r0]
-vld1 {d9}, [r0]
-VMLAL.S16 q0, d3, d2[0] 
+vmov d4, d9
+vmov d4, d9
+vmla.s16 d3, d0, d1[2]
 "))
 
 (define encoded-code (send printer encode code))
 (send printer print-struct encoded-code)
 
 (send stochastic superoptimize encoded-code 
-      (constraint machine [dreg 0 1] [rreg] [mem-all])
-      #t "foo" 3600 1)
+      (constraint machine [dreg 0 1 3] [rreg] [mem-all]) 
+      #t "output/driver-0" 60 #f)
