@@ -13,13 +13,12 @@
     (override interpret performance-cost is-valid?)
         
     (define bit (get-field bit machine))
-    (define nregs-d (get-field nregs-d machine))
-    (define nregs-r (get-field nregs-r machine))
-    (define nmems (get-field nmems machine))
     (define type-u-id (send machine get-type-id `u))
     (define type-s-id (send machine get-type-id `s))
     (define nop-id (send machine get-inst-id `nop))
     (define schedule-info (init-schedule-info machine))
+
+    (define-syntax-rule (nregs-d) (send machine get-nregs-d))
 
     (define-syntax-rule (byte-guard byte lam)
       (cond
@@ -56,10 +55,10 @@
         (for/list ([x lst]) (number->bytes x byte)))))
 
     (define (is-d? x) 
-      (and (>= x 0) (< x nregs-d)))
+      (and (>= x 0) (< x (nregs-d))))
     
     (define (is-q? x) 
-      (and (>= x nregs-d) (< x (+ nregs-d (quotient nregs-d 2)))))
+      (and (>= x (nregs-d)) (< x (+ (nregs-d) (quotient (nregs-d) 2)))))
 
     (define (is-valid? code)
       ;; If not valid, this will throw error.
@@ -82,7 +81,7 @@
         (define byte (inst-byte x))
         (define type (inst-type x))
         (define args (inst-args x))
-        ;;(pretty-display `(interpret-step ,(send machine get-inst-name op)))
+        (when debug (pretty-display `(interpret-step ,op)))
         
         (define d-byte identity)
         (define n-byte identity)
@@ -90,13 +89,13 @@
         
         (define (sign-extend val byte)
           ;;(pretty-display `(sign-extend ,type ,(vector-member `u type-id) ,val))
-          (if (= type type-u-id)
-              val
-              (finitize val (* 8 byte))))
+          (if (equal? type type-s-id)
+              (finitize val (* 8 byte))
+              val))
         
         (define (saturate val)
           (cond
-           [(= type type-s-id)
+           [(equal? type type-s-id)
             (define bound (arithmetic-shift 1 (sub1 (* (d-byte byte) 8))))
             (if (>= val bound) 
                 (sub1 bound)
@@ -104,7 +103,7 @@
                     (- bound)
                     val))
             ]
-           [(= type type-u-id)
+           [else ;(equal? type type-u-id)
             (define bound (<< 1 (* (d-byte byte) 8) bit))
             (if (>= val bound)
                 (sub1 bound)
@@ -112,10 +111,13 @@
                     0
                     val))
             ]
-           [else
-            (assert #f (format "Saturate only works with type signed (s) or unsigned (u), but ~a is given." 
-                               (send machine get-type-name type)))]
+           ;; [else
+           ;;  (assert #f (format "Saturate only works with type signed (s) or unsigned (u), but ~a is given." 
+           ;;                     (send machine get-type-name type)))]
            ))
+
+        (define (sign-unsign)
+          (set! adjust sign-extend))
         
         (define (long)
           (set! d-byte (lambda (x) (* x 2)))
@@ -134,32 +136,32 @@
         
         ;; Access registers
         (define (get-dreg id)
-          ;;(pretty-display `(get-dreg ,id))
+          (when debug (pretty-display `(get-dreg ,id)))
           (let* ([bytes 8]
                  [my-id id]
                  [base (* my-id bytes)])
             (vector-copy-len dregs base bytes)))
     
         (define (get-qreg id)
-          ;;(pretty-display `(get-qreg ,id))
+          (when debug (pretty-display `(get-qreg ,id)))
           (define ret
             (let* ([bytes 16]
-                   [my-id (- id nregs-d)]
+                   [my-id (- id (nregs-d))]
                    [base (* my-id bytes)])
               (vector-copy-len dregs base bytes)))
           ret)
         
         (define (set-dreg! id val)
-          ;;(pretty-display `(set-dreg! ,id))
+          (when debug (pretty-display `(set-dreg! ,id)))
           (let* ([bytes 8]
                  [my-id id]
                  [base (* my-id bytes)])
             (vector-copy! dregs base val)))
         
         (define (set-qreg! id val)
-          ;;(pretty-display `(set-qreg! ,id))
+          (when debug (pretty-display `(set-qreg! ,id)))
           (let ([bytes 16]
-                [my-id (- id nregs-d)])
+                [my-id (- id (nregs-d))])
             (let ([base (* my-id bytes)])
               (vector-copy! dregs base val)))
           )
@@ -179,6 +181,7 @@
           mem-addr)
         
         (define (load stride update)
+          (when debug `(load ,stride ,update))
           (define dest (vector-ref args 0))
           (define n (car dest))
           (define dest-regs (cdr dest)) ;; TODO: check validity
@@ -197,8 +200,70 @@
              (when (< (* 3 stride) n) 
                    (set! mem-addr (load-unit dest-regs 3 skip stride mem-addr byte)))))
           
-          (when update (vector-set! rregs r-id mem-addr)))
+          (when update (vector-set! rregs r-id mem-addr))
+          (when debug `(load done)))
+
+        (define (bitpermute f)
+          (define d (vector-ref args 0))
+          (define m (vector-ref args 1))
+          (define dreg? (is-d? d))
+          (define len (if dreg? 8 16))
+          (if (is-d? d)
+              (f 8 (* 8 d) (* 8 m))
+              (f 16 (* 16 (- d (nregs-d))) (* 16 (- m (nregs-d))))))
         
+        (define (transpose len index-d index-m)
+          (byte-guard
+           byte
+           (lambda (byte)
+             (define skip (* byte 2))
+             (when debug (pretty-display `(transpose ,len ,byte)))
+             (for ([i (quotient len skip)])
+                  (let* ([index (* i skip)]
+                         [unit-m (vector-copy-len dregs (+ index-m index) byte)]
+                         [unit-d (vector-copy-len dregs (+ index-d index byte) byte)])
+                    (vector-copy! dregs (+ index-m index) unit-d)
+                    (vector-copy! dregs (+ index-d index byte) unit-m))))
+           ))
+        
+        (define (zip len index-d index-m)
+          (byte-guard
+           byte
+           (lambda (byte)
+             (define res (make-vector (* 2 len)))
+             (for* ([i (quotient len byte)]
+                    [j byte])
+                  (vector-set! res (+ (* 2 i byte) j)
+                               (vector-ref dregs (+ index-d (* i byte) j)))
+                  (vector-set! res (+ (* 2 i byte) byte j)
+                               (vector-ref dregs (+ index-m (* i byte) j))))
+
+             (vector-copy! dregs index-d res 0 len)
+             (vector-copy! dregs index-m res len (* 2 len)))
+           ))
+        
+        (define (unzip len index-d index-m)
+          (byte-guard
+           byte
+           (lambda (byte)
+             (define half (quotient len 2))
+             (define res-d (make-vector len))
+             (define res-m (make-vector len))
+             (for* ([i (quotient half byte)]
+                    [j byte])
+                   (vector-set! res-d (+ (* i byte) j)
+                                (vector-ref dregs (+ index-d j (* 2 i byte))))
+                   (vector-set! res-d (+ half (* i byte) j)
+                                (vector-ref dregs (+ index-m j (* 2 i byte))))
+                   (vector-set! res-m (+ (* i byte) j)
+                                (vector-ref dregs (+ index-d byte j (* 2 i byte))))
+                   (vector-set! res-m (+ half (* i byte) j)
+                                (vector-ref dregs (+ index-m byte j (* 2 i byte)))))
+             (vector-copy! dregs index-d res-d)
+             (vector-copy! dregs index-m res-m))
+           ))
+               
+
         ;; Special case for vld1 (no stride)
         (define (load1 update)
           (define dest (vector-ref args 0))
@@ -213,17 +278,19 @@
                  (vector-copy! 
                   dregs (* 8 d-reg) 
                   memory (+ mem-addr (* 8 i)) (+ mem-addr (* 8 (add1 i))))))
-          (when update (vector-set! rregs r-id (+ mem-addr (* n 8)))))
+          (when update (vector-set! rregs r-id (+ mem-addr (* n 8))))
+          )
         
         ;; Operand patterns
         (define (nnn arg-type f [rmw #f])
           (define d (vector-ref args 0))
           (define n (vector-ref args 1))
           (define m (vector-ref args 2))
-          ;;(pretty-display `(nnn ,f ,arg-type ,d ,n ,m))
+          (when debug (pretty-display `(nnn ,f ,arg-type ,d ,n ,m)))
           (cond
-           [(= arg-type 0) ;; normal
-            ;;(pretty-display "TYPE 0000000000000000000000000000")
+           [(<= arg-type 0) ;; normal
+            ;; (pretty-display "TYPE 0000000000000000000000000000")
+            (when (= arg-type -1) (sign-unsign))
             (cond 
              [(and (is-d? d) (is-d? n) (is-d? m))
               (let ([vn (get-dreg n)]
@@ -274,7 +341,8 @@
           (define d (vector-ref args 0))
           (define n (vector-ref args 1))
           (cond
-           [(= arg-type 0) ;; normal
+           [(<= arg-type 0) ;; normal
+            (when (= arg-type -1) (sign-unsign))
             (cond
              [(and (is-d? d) (is-d? n))
               (let ([vn (get-dreg n)]
@@ -311,13 +379,18 @@
               (let ([vd (and rmw (get-qreg d))])
                 (set-qreg! d (f vd (number->bytes i 16))))))
 
-        ;; exti
+        ;; vext
         (define (ext vd vn vm)
           ;;(pretty-display `(ext ,vn ,vm))
           (define imm (vector-ref args 3))
           (define shift (* imm byte))
           (vector-extract vn vm shift))
 
+        ;; x corresponds to one argument.
+        ;; x alone = ignore type
+        ;; xd = arg 0, xn = arg 1, xm = arg 2
+        ;; i = index (e.g. vmla d0, d1, d2[1])
+        ;; # = immediate (e.g. vshr d0, d1, #1)
         (define (x:notype vn g)
           (for/vector ([num-n vn]) (g num-n)))
 
@@ -330,10 +403,36 @@
                                    (g (adjust num-n (n-byte byte)))))
              (elements->bytes res (d-byte byte)))))
 
+        (define (xn-# vn g)
+          (byte-guard
+           byte
+           (lambda (byte)
+             (when debug (pretty-display `(xn-# ,vn ,g)))
+             (define en (bytes->elements vn byte))
+             (define res (for/list ([num-n en]) 
+                                   (g (adjust num-n (n-byte byte))
+                                      (adjust (vector-ref args 2) byte))))
+             (when debug (pretty-display `(xn-#-res ,res)))
+             (elements->bytes res (d-byte byte)))))
+          
+
         (define (x-x:notype vn vm f)
           (for/vector ([num-n vn]
                        [num-m vm])
                       (f num-n num-m)))
+
+        (define (xn-xm vn vm f)
+          (when debug (pretty-display `(xd-xn-xm ,vn ,vm)))
+          (byte-guard
+           byte
+           (lambda (byte)
+             (define en (bytes->elements vn (n-byte byte)))
+             (define em (bytes->elements vm byte))
+             (define res
+               (for/list ([num-n en]
+                          [num-m em])
+                         (f (adjust num-n (n-byte byte)) (adjust num-m byte))))
+             (elements->bytes res (d-byte byte)))))
 
         (define (xd-xn-xm-i vd vn vm f)
           (byte-guard
@@ -352,6 +451,7 @@
              (elements->bytes res (d-byte byte)))))
 
         (define (xd-xn-xm vd vn vm f)
+          (when debug (pretty-display `(xd-xn-xm ,vd ,vn ,vm)))
           (byte-guard
            byte
            (lambda (byte)
@@ -377,10 +477,22 @@
         (define (mov vd vn)   (xn vn identity))
         (define (qmov vd vn)  (xn vn saturate))
 
-        (define (vand vd vn vm)  (x-x:notype vn vm bitwise-and))
+        (define (vand vd vn vm) (x-x:notype vn vm bitwise-and))
+        (define (vadd vd vn vm) 
+          (xn-xm vn vm +))
+        (define (vhadd vd vn vm)  
+          (xn-xm vn vm (lambda (n m) (>> (+ n m) 1))))
+        (define (vsub vd vn vm) 
+          (xn-xm vn vm -))
+        (define (vhsub vd vn vm)  
+          (xn-xm vn vm (lambda (n m) (>> (- n m) 1))))
+        (define (vshl vd vn vm)  
+          (xn-xm vn vm (lambda (n m) (<< n m (* byte 8)))))
+        (define (vshr vd vn)
+          (xn-# vn (lambda (n i) (>> n i))))
 
-        (define-syntax-rule (inst-eq? x) (= op (send machine get-inst-id x)))
-        (define-syntax-rule (type-eq? x) (= type (send machine get-type-id x)))
+        (define-syntax-rule (inst-eq? x) (equal? op (send machine get-inst-id x)))
+        (define-syntax-rule (type-eq? x) (equal? type (send machine get-type-id x)))
 
         (cond
          [(inst-eq? `nop) (void)]
@@ -391,13 +503,17 @@
          [(inst-eq? `vld2!)  (load 2 #t)]
 
          [(inst-eq? `vext#)  (nnn 0 ext)]
+         [(inst-eq? `vtrn)  (bitpermute transpose)]
+         [(inst-eq? `vzip)  (bitpermute zip)]
+         [(inst-eq? `vuzp)  (bitpermute unzip)]
+
+
          [(inst-eq? `vmla)   (nnn 0 mla #t)]
          [(inst-eq? `vmla@)  (nnn 0 mlai #t)]
          [(inst-eq? `vmlal)  (nnn 1 mla #t)]
          [(inst-eq? `vmlal@) (nnn 1 mlai #t)]
 
          [(inst-eq? `vmov)   (nn 0 mov-simple)]
-         ;; [(inst-eq? `vmov@)  (nni 0 mov-simple)]
          [(inst-eq? `vmov#)  (ni 0 mov-simple)]
          ;; [(inst-eq? `vmvn)   (nn 0 mvn-simple)]
          ;; [(inst-eq? `vmvn#)  (ni 0 mvn-simple)] ;; TODO: constraint on constant
@@ -408,6 +524,14 @@
 
          [(inst-eq? `vand)   (nnn 0 vand)]
          [(inst-eq? `vand#)  (ni 0 vand #t)]
+
+         [(inst-eq? `vadd)   (nnn 0 vadd)]
+         [(inst-eq? `vhadd)  (nnn -1 vhadd)]
+         [(inst-eq? `vsub)   (nnn 0 vsub)]
+         [(inst-eq? `vhsub)  (nnn -1 vhsub)]
+
+         [(inst-eq? `vshr#)  (nn -1 vshr)]
+
          [else (assert #f (format "interpret: undefined for ~a" x))]
 
          ))
@@ -415,8 +539,11 @@
       (for ([x code])
            (interpret-step x))
 
+      (when debug (pretty-display "done interpret"))
+
       (progstate dregs rregs memory))
     
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;; performance ;;;;;;;;;;;;;;;;;;;;;;;;;;;
     
     (define (performance-cost0 code)
       (define cost 0)
@@ -428,16 +555,16 @@
     (define debug #f)
 
     (define (performance-cost code)
-      (when debug (pretty-display `(performance-cost)))
+      (when #t (pretty-display `(performance-cost)))
       ;; Units' availability
       (define units (make-vector 2 0))
       ;; Registers' availability
-      (define dregs (make-vector nregs-d 0))
+      (define dregs (make-vector (nregs-d) 0))
       ;; Registers' fast-forwarding information
-      (define forwarding (make-vector nregs-d 0))
+      (define forwarding (make-vector (nregs-d) 0))
 
       (define (approximate entry)
-        (when debug (pretty-display `(approximate ,(inst-op entry) ,(inst-args entry) ,(inst-type entry) ,(inst-byte entry))))
+        (when #t (pretty-display `(approximate ,(inst-op entry) ,(inst-args entry) ,(inst-type entry) ,(inst-byte entry))))
         ;; (sche-info pipeline# issue-cycle latency fast-forward)
         ;; fast-forward is only for mla, mull of the same type and size
         (define schd (get-schedule-info entry))
@@ -500,7 +627,7 @@
 
       (for ([x code]) (approximate x))
       (foldl (lambda (x res) (max res (vector-ref dregs x)))
-             0 (range nregs-d)))
+             0 (range (nregs-d))))
     
     (define (get-schedule-info x)
       (define args (inst-args x))
@@ -531,12 +658,11 @@
     (define (get-defs-uses x)
       (define op (inst-op x))
       (define args (inst-args x))
-      (define-syntax-rule (inst-eq? x) (= op (send machine get-inst-id x)))
 
       (define (dregs reg)
         (if (is-d? reg) 
             (list reg)
-            (let ([id (* (- reg nregs-d) 2)])
+            (let ([id (* (- reg (nregs-d)) 2)])
               (list id (add1 id)))))
         
 
@@ -553,6 +679,9 @@
                       (vector->list (vector-take (cdr len-vec) (car len-vec)))))
                 (list))))
       (define (du) (cons (get-dregs 0) (get-dregs 1)))
+      (define (bb)
+        (cons (append (get-dregs 0) (get-dregs 1))
+              (append (get-dregs 0) (get-dregs 1))))
       (define (duu) 
         (cons (get-dregs 0)
               (append (get-dregs 1) (get-dregs 2))))
@@ -560,6 +689,7 @@
         (cons (get-dregs 0)
               (append (get-dregs 0) (get-dregs 1) (get-dregs 2))))
 
+      (define-syntax-rule (inst-eq? x) (equal? op (send machine get-inst-id x)))
       ;; d = def, u = use, b = both, d* = def vector (e.g. vld1 {d0,d1}, [r0])
       (cond
        [(inst-eq? `nop)   (cons (list) (list))]
@@ -567,8 +697,12 @@
        [(inst-eq? `vld1!) (d*)]
        [(inst-eq? `vld2)  (d*)]
        [(inst-eq? `vld2!) (d*)]
-
        [(inst-eq? `vext#)  (duu)]
+       [(inst-eq? `vtrn)   (bb)]
+       [(inst-eq? `vzip)   (bb)]
+       [(inst-eq? `vuzp)   (bb)]
+
+
        [(inst-eq? `vmla)   (buu)]
        [(inst-eq? `vmla@)  (buu)]
        [(inst-eq? `vmlal)  (buu)]
@@ -580,7 +714,14 @@
 
        [(inst-eq? `vand)  (duu)]
        [(inst-eq? `vand#) (du)]
-       [else (pretty-display "else") (assert #f (format "get-defs-uses: undefined for ~a" x))]
+
+       [(inst-eq? `vadd)  (duu)]
+       [(inst-eq? `vsub)  (duu)]
+       [(inst-eq? `vhadd) (duu)]
+       [(inst-eq? `vhsub) (duu)]
+       [(inst-eq? `vshr#) (duu)]
+       
+       [else (assert #f (format "get-defs-uses: undefined for ~a" x))]
        ))
                          
     ))

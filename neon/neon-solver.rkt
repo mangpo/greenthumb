@@ -70,7 +70,7 @@
 
       (define (first-arg op)
         (define ld-st
-          (ormap (lambda (x) (= op (send machine get-inst-id x))) '(vld1 vld2 vld1! vld2!)))
+          (ormap (lambda (x) (equal? op (send machine get-inst-id x))) '(vld1 vld2 vld1! vld2!)))
         (if ld-st
             (cons (sym-arg) (vector (sym-arg) (sym-arg) (sym-arg) (sym-arg)))
             (sym-arg)))

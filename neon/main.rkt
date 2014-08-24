@@ -2,7 +2,7 @@
 
 (require "../parallel.rkt" 
          "neon-parser.rkt" "neon-meta.rkt" "neon-machine.rkt" 
-         "neon-printer.rkt" "../compress.rkt" "neon-solver.rkt")
+         "neon-printer.rkt" "neon-compress.rkt" "neon-solver.rkt")
 
 (provide optimize)
 
@@ -17,7 +17,7 @@
   (define meta (new neon-meta%))
   (define machine (new neon-machine%))
   (define printer (new neon-printer% [machine machine]))
-  (define compress (new compress% [machine machine]))
+  (define compress (new neon-compress% [machine machine]))
   (define solver (new neon-solver% [machine machine] [printer printer]))
   (define parallel (new parallel% [meta meta] [parser parser] [machine machine] 
                         [printer printer] [compress compress] [solver solver]))

@@ -18,9 +18,9 @@
 (define-syntax default-state
   (syntax-rules (rreg dreg mem)
     ((default-state machine init)
-     (progstate (build-vector (* 8 (get-field nregs-d machine)) init) 
-                (build-vector (get-field nregs-r machine) init) 
-                (build-vector (* 8 (get-field nmems machine)) init)))
+     (progstate (build-vector (* 8 (send machine get-nregs-d)) init) 
+                (build-vector (send machine get-nregs-r) init) 
+                (build-vector (* 8 (send machine get-nmems)) init)))
 
     ((default-state machine init 
        [dreg (a b) ...] [rreg (c d) ...] [mem (e f) ...])
@@ -49,9 +49,9 @@
 
     ((constraint machine [dreg d ...] [rreg r ...] [mem-all])
      (let* ([state (progstate 
-                    (build-vector (* 8 (get-field nregs-d machine)) lam-f)
-                    (build-vector (get-field nregs-r machine) lam-f) 
-                    (build-vector (* 8 (get-field nmems machine)) lam-t))]
+                    (build-vector (* 8 (send machine get-nregs-d)) lam-f)
+                    (build-vector (send machine get-nregs-r) lam-f) 
+                    (build-vector (* 8 (send machine get-nmems)) lam-t))]
             [dregs (progstate-dregs state)]
             [rregs (progstate-rregs state)])
        (for ([i 8]) (vector-set! dregs (+ (* 8 d) i) #t))
@@ -74,27 +74,37 @@
     ;; Initize common fields for neon
     (set! bit 32)
     (set! inst-id '#(nop
-                     vld1 vld2 ;vld3 vld4
-                     vld1! vld2! ;vld3! vld4!
-                     vext#
-                     vmla vmla@ vmlal vmlal@
+                     ;; vld1 vld2 ;vld3 vld4
+                     ;; vld1! vld2! ;vld3! vld4!
+                     vext# vtrn vzip vuzp
+
+                     ;; vmla vmla@ vmlal vmlal@
                      vmov vmov# ;vmovl vmovn vqmovn
                      ;;vmvn vmvn#
-                     vand vand#))
+                     vand vand#
+                     vadd vsub
+                     vhadd vhsub
+                     vshr#
+                     ))
     (set! classes (vector '(vld1 vld1!)
                         '(vld2 vld2!)
-                        ;; '(vmla vand)
-                        ;; '(vmla# vext#)
-                        ;; '(vmlal)
-                        ;; '(vmlal@)
-                        ;; '(vmov)
-                        '(vmov# vand#)))
+                        '(vmla vadd vsub vhadd vhsub vand)
+                        '(vmov vtrn vzip vuzp)
+                        '(vmov# vand#))) ;; vshr#, vext#, vmla@, vmlal@
     (set! perline 8)
     (set! classes-len (vector-length classes))
 
     ;; Neon-only fields
-    (init-field [nregs-d 10] [nregs-r 4] [nmems 4]
-                [ninsts #f] [ntypes #f])
+    (init-field [ninsts #f] [ntypes #f])
+
+    ;; private field
+    (define nregs-d 10)
+    (define nregs-r 4)
+    (define nmems 4)
+
+    (define/public (get-nregs-d) nregs-d)
+    (define/public (get-nregs-r) nregs-r)
+    (define/public (get-nmems) nmems)
 
     (define type-id '#(s u i))
     (set! ninsts (vector-length inst-id))

@@ -9,7 +9,7 @@
     (super-new)
     (public superoptimize inst-copy-with-op inst-copy-with-args
             get-mutations mutate-operand-specific mutate-other
-            random-instruction)
+            random-instruction print-mutation-info)
     (abstract correctness-cost get-arg-ranges)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
@@ -30,6 +30,9 @@
     (define inst-id (get-field inst-id machine))
     (define classes (get-field classes machine))
   
+    (define (print-mutation-info)
+      (for ([op inst-id])
+           (pretty-display `(opcode ,op ,(get-mutations op)))))
   
 ;;;;;;;;;;;;;;;;;;;;; Functions ;;;;;;;;;;;;;;;;;;
     (define (inst-copy-with-op x op) (struct-copy inst x [op op]))
@@ -224,7 +227,7 @@
          ([exn:break? (lambda (e) (raise e))]
           [exn? (lambda (e) 
                   (when debug (pretty-display "Error!"))
-                  w-error)])
+                  #f)])
          (let* ([t1 (current-milliseconds)]
                 [program-out (send simulator interpret program input)]
                 [t2 (current-milliseconds)]
@@ -252,9 +255,10 @@
            [(> correct okay-cost) #f]
            [(empty? inputs) correct]
            [else
-            (loop
-             (+ correct (cost-one-input program (car inputs) (car outputs)))
-             (cdr inputs) (cdr outputs))]
+            (let ([cost (cost-one-input program (car inputs) (car outputs))])
+              (if cost 
+                  (loop (+ correct cost) (cdr inputs) (cdr outputs))
+                  w-error))]
            ))
 
         (define correct
@@ -372,8 +376,8 @@
        (timeout time-limit
                 (iter init 
                       ;; cost-all-inputs can return #f if program is invalid
-                      (or (car (cost-all-inputs init (arithmetic-shift 1 31)))
-                          (arithmetic-shift 1 31))
+                      (or (car (cost-all-inputs init w-error))
+                          w-error)
                       ))
        )
       )

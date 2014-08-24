@@ -12,7 +12,7 @@
     (override print-struct-inst print-syntax-inst
               encode-inst decode-inst)
     (set! report-mutations (vector-append report-mutations '#(byte type)))
-    (define nregs-d (get-field nregs-d machine))
+    (define nregs-d (send machine get-nregs-d))
 
     (define (print-struct-inst x [indent ""])
       (define op (inst-op x))
@@ -50,7 +50,7 @@
         (when (member opcode '(vld1! vld2!))
               (display "!"))]
 
-       [(member opcode '(vmov# vand# vext#))
+       [(member opcode '(vmov# vand# vext# vshr#))
         (define last-pos (sub1 (vector-length args)))
         (display 
          (format "~a, #~a"
@@ -95,8 +95,8 @@
       (define opcode (send machine get-inst-name (inst-op x)))
       ;;(pretty-display `(decode-inst ,opcode))
       (define args (inst-args x))
-      (define byte (inst-byte x))
-      (define type (inst-type x))
+      (define byte (or (inst-byte x) 1)) ;; default = 8 bit
+      (define type (or (inst-type x) 1)) ;; default = unsigned
       
       (define-syntax-rule (make-inst type byte x ...)
         (make-inst-main type byte (list x ...)))
@@ -123,23 +123,29 @@
        [(member opcode '(vld1! vld2!))
         (make-inst #f byte load-dregs rreg)]
        
-       [(member opcode '(vmovi vandi))
-        (make-inst #f #f dreg imm)] ;; TODO: they do have type & byte
-       
-       [(member opcode '(vmov))
+       [(member opcode '(vmov vtrn vzip vuzp))
         (make-inst #f #f dreg dreg)]
        
-       [(member opcode '(vmov#))
+       [(member opcode '(vmov# vand#))
         (make-inst #f #f dreg imm)]
        
-       [(member opcode '(vmla vmlal vand))
+       [(member opcode '(vmla vadd vsub))
+        (make-inst 3 byte dreg dreg dreg)]
+       
+       [(member opcode '(vmlal vhadd vhsub))
         (make-inst type byte dreg dreg dreg)]
+       
+       [(member opcode '(vand))
+        (make-inst #f #f dreg dreg dreg)]
        
        [(member opcode '(vmla@ vmlal@))
         (make-inst type byte dreg dreg dreg imm)]
        
        [(member opcode '(vext#))
         (make-inst #f byte dreg dreg dreg imm)]
+       
+       [(member opcode '(vshr#))
+        (make-inst type byte dreg dreg imm)]
        
        [else (raise (format "decode-inst: undefined for ~a" opcode))]))
 

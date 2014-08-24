@@ -23,9 +23,9 @@
     (set! simulator (new neon-simulator-racket% [machine machine]))
 
     (define inst-id (get-field inst-id machine))
-    (define nregs-d (get-field nregs-d machine))
-    (define nregs-r (get-field nregs-r machine))
-    (define nmems (get-field nmems machine))
+    (define nregs-d (send machine get-nregs-d))
+    (define nregs-r (send machine get-nregs-r))
+    (define nmems (send machine get-nmems))
     
     (define dreg-range (list->vector (range nregs-d)))
     (define qreg-range (list->vector (range nregs-d (+ nregs-d (quotient nregs-d 2)))))
@@ -57,12 +57,12 @@
             (vector dreg-range const-range)
             (vector qreg-range const-range))]
 
-       [(member opcode-name '(vmov))
+       [(member opcode-name '(vmov vtrn vzip vuzp))
         (if (< (vector-ref args 0) nregs-d)
             (vector dreg-range dreg-range)
             (vector qreg-range qreg-range))]
 
-       [(member opcode-name '(vmla vand))
+       [(member opcode-name '(vmla vand vadd vsub vhadd vhsub))
         (if (< (vector-ref args 0) nregs-d)
             (vector dreg-range dreg-range dreg-range)
             (vector qreg-range qreg-range qreg-range))]
@@ -80,11 +80,18 @@
        [(member opcode-name '(vmlal@))
         (define byte (inst-byte entry))
         (define index-range (list->vector (range (quotient 8 byte))))
-        (vector qreg-range dreg-range dreg-range index-range)]))
+        (vector qreg-range dreg-range dreg-range index-range)]
+
+       [(member opcode-name '(vshr#))
+        (if (< (vector-ref args 0) nregs-d)
+            (vector dreg-range dreg-range const-range)
+            (vector qreg-range qreg-range const-range))]
+
+       ))
 
     (define (random-type-from-op opcode-name)
       (cond
-       [(member opcode-name '(vmla vmla@ vmlal vmlal@)) (random 2)]
+       [(member opcode-name '(vmla vmla@ vmlal vmlal@ vhadd vhsub vshr#)) (random 2)]
        [else #f]))
 
     (define (random-instruction [opcode-id (random (vector-length inst-id))])
@@ -172,16 +179,13 @@
     (define (mutate-type index entry p)
       (define opcode-id (inst-op entry))
       (define opcode-name (vector-ref inst-id opcode-id))
-      (cond
-       [(member opcode-name '(vmla vmla@ vmlal vmlal@))
-        (define new-p (vector-copy p))
-        (define type (inst-type entry))
-        (define new-type (if (= type 0) 1 0)) ;; 0 = s, 1 = u
-        (define new-entry (struct-copy neon-inst entry [type new-type]))
-        (vector-set! new-p index new-entry)
-        (send stat inc-propose `type)
-        new-p]
-       [else (raise (format "mutate-type: undefined for ~a " opcode-name))]))
+      (define new-p (vector-copy p))
+      (define type (inst-type entry))
+      (define new-type (if (equal? type 0) 1 0)) ;; 0 = s, 1 = u
+      (define new-entry (struct-copy neon-inst entry [type new-type]))
+      (vector-set! new-p index new-entry)
+      (send stat inc-propose `type)
+      new-p)
 
     (define (mutate-byte index entry p)
       (define opcode-id (inst-op entry))
@@ -207,13 +211,13 @@
               ;; operand
               (set! mutations (cons `operand mutations))
               ;; opcode
-              (when (member opcode-name '(vld1 vld1! vld2 vld2! vmovi vandi))
+              (when (send machine get-class-id opcode-name)
                     (set! mutations (cons `opcode mutations)))
               ;; byte
-              (when (member opcode-name '(vld2 vld2! vmla vmla@ vmlal vmlal@ vext#))
+              (when (member opcode-name '(vld2 vld2! vmla vmla@ vmlal vmlal@ vadd vsub vhadd vhsub vshr# vext# vtrn vzip vuzp))
                     (set! mutations (cons `byte mutations)))
               ;; type
-              (when (member opcode-name '(vmla vmla@ vmlal vmlal@))
+              (when (member opcode-name '(vmla vmla@ vmlal vmlal@ vhadd vhsub vshr#))
                     (set! mutations (cons `type mutations))))
       mutations)
 

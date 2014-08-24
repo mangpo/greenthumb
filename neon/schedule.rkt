@@ -21,6 +21,13 @@
    (cons (neon-inst `vext# `d #f #f) (schd-info `lsbp 1 2 #f #f))
    (cons (neon-inst `vext# `q #f #f) (schd-info `lsbp 2 2 #f #f))
 
+   (cons (neon-inst `vtrn `d #f #f) (schd-info `lsbp 1 2 #f #f))
+   (cons (neon-inst `vtrn `q #f #f) (schd-info `lsbp 2 2 #f #f))
+   (cons (neon-inst `vzip `d #f #f) (schd-info `lsbp 1 2 #f #f))
+   (cons (neon-inst `vzip `q #f #f) (schd-info `lsbp 3 2 #f #f))
+   (cons (neon-inst `vuzp `d #f #f) (schd-info `lsbp 1 2 #f #f))
+   (cons (neon-inst `vuzp `q #f #f) (schd-info `lsbp 3 2 #f #f))
+
    (cons (neon-inst `vmla `d 8 #f) (schd-info `alu 1 5 1 1))
    (cons (neon-inst `vmla `d 16 #f) (schd-info `alu 1 5 1 1))
    (cons (neon-inst `vmla `d 32 #f) (schd-info `alu 2 5 1 1))
@@ -46,12 +53,19 @@
 
    (cons (neon-inst `vand #f #f #f) (schd-info `alu 1 2 #f #f))
    (cons (neon-inst `vand# #f #f #f) (schd-info `alu 1 2 #f #f))
+   
+   (cons (neon-inst `vadd #f #f #f) (schd-info `alu 1 2 #f #f))
+   (cons (neon-inst `vsub #f #f #f) (schd-info `alu 1 3 #f #f))
+   (cons (neon-inst `vhadd #f #f #f) (schd-info `alu 1 3 #f #f))
+   (cons (neon-inst `vhsub #f #f #f) (schd-info `alu 1 4 #f #f))
+
+   (cons (neon-inst `vshr# #f #f #f) (schd-info `alu 1 3 #f #f))
    ))     
  
 ;; Construct schedule-info table (vector) from schdule in schedule.rkt file
 (define (init-schedule-info machine)
   (define ninsts (get-field ninsts machine))
-  (define nregs-d (get-field nregs-d machine))
+  (define nregs-d (send machine get-nregs-d))
   (define schedule-info (make-vector ninsts (list)))
 
   (define (is-d? args) 
@@ -68,23 +82,24 @@
 
     ;; Represent neon-inst using numbers so that solver can reason about it
     (define opcode-id (send machine get-inst-id (inst-op key)))
-    (define args (inst-args key))
-    (define byte (inst-byte key))
-    (define new-key (neon-inst opcode-id
-                               (and args (if (equal? args `d) is-d? is-q?))
-                               (and byte (quotient byte 8))
-                               #f))
-
-    ;; Represent schd-info using numbers so that solver can reason about it
-    (define unit (schd-info-unit val))
-    (define new-val (schd-info (if (equal? unit `lsbp) 0 1)
-                               (schd-info-issue val)
-                               (schd-info-latency val)
-                               (schd-info-from val)
-                               (schd-info-to val)))
-
-    (vector-set! schedule-info opcode-id
-                 (cons (cons new-key new-val) (vector-ref schedule-info opcode-id))))
+    (when opcode-id
+      (define args (inst-args key))
+      (define byte (inst-byte key))
+      (define new-key (neon-inst opcode-id
+                                 (and args (if (equal? args `d) is-d? is-q?))
+                                 (and byte (quotient byte 8))
+                                 #f))
+      
+      ;; Represent schd-info using numbers so that solver can reason about it
+      (define unit (schd-info-unit val))
+      (define new-val (schd-info (if (equal? unit `lsbp) 0 1)
+                                 (schd-info-issue val)
+                                 (schd-info-latency val)
+                                 (schd-info-from val)
+                                 (schd-info-to val)))
+      
+      (vector-set! schedule-info opcode-id
+                   (cons (cons new-key new-val) (vector-ref schedule-info opcode-id)))))
 
   ;; Main loop
   (for ([schd schedule])
