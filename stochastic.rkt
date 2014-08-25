@@ -22,7 +22,7 @@
     ;; Notice that  we use 'inst' for stat report (stat-mutations) and 'instruction' for actual muation (mutate-dist)
 
     (define w-error 9999)
-    (define beta 0.2)
+    (define beta 0.3) ;0.01
     (define nop-mass 0.8)
     (define ntests 16)
     
@@ -100,11 +100,11 @@
             (pretty-display (format " --> class = ~a" class)))
       (cond
        [class
-        (define new-opcode-name (random-from-list-ex class opcode-name))
-        (define new-opcode-id (vector-member new-opcode-name inst-id))
+        (set! class (remove* (list #f) (map (lambda (x) (send machine get-inst-id x)) class)))
+        (define new-opcode-id (random-from-list-ex class opcode-id))
         (define new-p (vector-copy p))
         (when debug
-              (pretty-display (format " --> new = ~a ~a" new-opcode-name new-opcode-id)))
+              (pretty-display (format " --> new = ~a ~a" (send machine get-inst-name new-opcode-id) new-opcode-id)))
         (vector-set! new-p index (inst-copy-with-op entry new-opcode-id))
         (send stat inc-propose `opcode)
         new-p]
