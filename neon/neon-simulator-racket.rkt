@@ -672,6 +672,7 @@
           (dregs reg)))
 
       (define (d) (cons (get-dregs 0) (list)))
+      (define (b) (cons (get-dregs 0) (get-dregs 0)))
       (define (d*) 
         (let ([len-vec (vector-ref args 0)])
           (cons (flatten 
@@ -713,13 +714,13 @@
        [(inst-eq? `vmov#) (d)]
 
        [(inst-eq? `vand)  (duu)]
-       [(inst-eq? `vand#) (du)]
+       [(inst-eq? `vand#) (b)]
 
        [(inst-eq? `vadd)  (duu)]
        [(inst-eq? `vsub)  (duu)]
        [(inst-eq? `vhadd) (duu)]
        [(inst-eq? `vhsub) (duu)]
-       [(inst-eq? `vshr#) (duu)]
+       [(inst-eq? `vshr#) (du)]
        
        [else (assert #f (format "get-defs-uses: undefined for ~a" x))]
        ))
