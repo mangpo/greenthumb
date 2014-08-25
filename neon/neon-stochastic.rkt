@@ -96,7 +96,8 @@
 
     (define (random-instruction [opcode-id (random (vector-length inst-id))])
       (define opcode-name (vector-ref inst-id opcode-id))
-      (define byte (arithmetic-shift 1 (random 4)))
+      ;;(define byte (arithmetic-shift 1 (random 4)))
+      (define byte (if (= (random 2) 0) 2 4)) ;; TODO, no 8 or 64 bit
       (define type-id (random-type-from-op opcode-name))
       (cond
        [(member opcode-name '(nop)) (neon-inst opcode-id (vector) byte type-id)]
@@ -192,7 +193,7 @@
       (define opcode-name (vector-ref inst-id opcode-id))
       (define new-p (vector-copy p))
       (define byte (inst-byte entry))
-      (define new-byte (random-from-list-ex (list 1 2 4) byte)) ;; TODO no 64 bit
+      (define new-byte (random-from-list-ex (list 2 4) byte)) ;; TODO no 64 bit
       (define new-entry (struct-copy neon-inst entry [byte new-byte]))
       (vector-set! new-p index new-entry)
       (send stat inc-propose `byte)

@@ -64,7 +64,7 @@
 (define neon-machine%
   (class machine%
     (super-new)
-    (inherit-field bit inst-id classes classes-len perline)
+    (inherit-field bit random-input-bit inst-id classes classes-len perline)
     (inherit print-line)
     (override set-config get-config set-config-string
               adjust-config config-exceed-limit?
@@ -73,6 +73,7 @@
 
     ;; Initize common fields for neon
     (set! bit 32)
+    (set! random-input-bit 8)
     (set! inst-id '#(nop
                      ;; vld1 vld2 ;vld3 vld4
                      ;; vld1! vld2! ;vld3! vld4!

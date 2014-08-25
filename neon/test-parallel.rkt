@@ -23,4 +23,4 @@ vtrn.32	q9, q11
 "))
 
 (optimize code (list (list 0 1 2 3 4 5 6 7 16 17 18 19 20 21 22 23) (list)) 
-          #t #:time-limit 60 #:cores 12)
+          #t #:time-limit 54000 #:cores 12)

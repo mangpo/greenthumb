@@ -7,7 +7,7 @@
 (define machine%
   (class object%
     (super-new)
-    (init-field [bit #f] [inst-id #f] [classes #f] [classes-len #f] [perline 8])
+    (init-field [bit #f] [random-input-bit #f] [inst-id #f] [classes #f] [classes-len #f] [perline 8])
     (abstract set-config get-config set-config-string
               get-state display-state
               adjust-config config-exceed-limit?
