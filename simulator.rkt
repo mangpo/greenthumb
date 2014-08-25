@@ -7,4 +7,7 @@
   (class object%
     (super-new)
     (abstract interpret performance-cost)
+    (public is-valid?)
+
+    (define (is-valid? code) #t)
     ))

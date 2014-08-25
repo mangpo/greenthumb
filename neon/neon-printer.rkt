@@ -12,7 +12,7 @@
     (override print-struct-inst print-syntax-inst
               encode-inst decode-inst)
     (set! report-mutations (vector-append report-mutations '#(byte type)))
-    (define nregs-d (get-field nregs-d machine))
+    (define nregs-d (send machine get-nregs-d))
 
     (define (print-struct-inst x [indent ""])
       (define op (inst-op x))
@@ -23,7 +23,9 @@
     (define (opcode-syntax op)
       (define pos (sub1 (string-length op)))
       (if (or (equal? (substring op pos) "!")
-              (equal? (substring op pos) "#"))
+              (equal? (substring op pos) "#")
+              (equal? (substring op pos) "@")
+              )
           (substring op 0 pos)
           op))
     
@@ -41,21 +43,21 @@
       (display " ")
 
       (cond
-       [(member opcode '(vld1 vld2 vld1! vld2!))
+       [(member opcode '(vld1 vld2 vld1! vld2! vst1 vst1! vst2 vst2!))
         (display (format "{~a} , [~a]"
                          (string-join (vector->list (vector-ref args 0)) ", ")
                          (vector-ref args 1)))
-        (when (member opcode '(vld1! vld2!))
+        (when (member opcode '(vld1! vld2! vst1! vst2!))
               (display "!"))]
 
-       [(member opcode '(vmovi vandi vext#))
+       [(member opcode '(vmov# vand# vext# vshr#))
         (define last-pos (sub1 (vector-length args)))
         (display 
          (format "~a, #~a"
                  (string-join (take (vector->list args) last-pos) ", ")
                  (vector-ref args last-pos)))]
 
-       [(member opcode '(vmla# vmlal#))
+       [(member opcode '(vmla@ vmlal@))
         (define last-pos (sub1 (vector-length args)))
         (display 
          (format "~a[~a]"
@@ -93,8 +95,8 @@
       (define opcode (send machine get-inst-name (inst-op x)))
       ;;(pretty-display `(decode-inst ,opcode))
       (define args (inst-args x))
-      (define byte (inst-byte x))
-      (define type (inst-type x))
+      (define byte (or (inst-byte x) 1)) ;; default = 8 bit
+      (define type (or (inst-type x) 1)) ;; default = unsigned
       
       (define-syntax-rule (make-inst type byte x ...)
         (make-inst-main type byte (list x ...)))
@@ -108,33 +110,42 @@
       
       (define (dreg x) (if (< x nregs-d) (format "d~a" x) (format "q~a" (- x nregs-d))))
       (define (rreg x) (format "r~a" x))
-      (define (imm x) (number->string x))
+      (define (imm x) (number->string (bitwise-and x #xffffffff)))
       (define (load-dregs x) (vector-map dreg (vector-take (cdr x) (car x))))
       
       (cond
        [(member opcode '(nop))
         (neon-inst "nop" (vector) #f #f)]
        
-       [(member opcode '(vld1 vld2))
+       [(member opcode '(vld1 vld1! vld2 vld2! vst1 vst1! vst2 vst2!))
         (make-inst #f byte load-dregs rreg)]
-       
-       [(member opcode '(vld1! vld2!))
-        (make-inst #f byte load-dregs rreg)]
-       
-       [(member opcode '(vmovi vandi))
-        (make-inst #f #f dreg imm)] ;; TODO: they do have type & byte
        
        [(member opcode '(vmov))
         (make-inst #f #f dreg dreg)]
        
-       [(member opcode '(vmla vmlal vand))
+       [(member opcode '(vtrn vzip vuzp))
+        (make-inst #f byte dreg dreg)]
+       
+       [(member opcode '(vmov# vand#))
+        (make-inst #f #f dreg imm)]
+       
+       [(member opcode '(vmla vadd vsub))
+        (make-inst 2 byte dreg dreg dreg)]
+       
+       [(member opcode '(vmlal vhadd vhsub))
         (make-inst type byte dreg dreg dreg)]
        
-       [(member opcode '(vmla# vmlal#))
+       [(member opcode '(vand))
+        (make-inst #f #f dreg dreg dreg)]
+       
+       [(member opcode '(vmla@ vmlal@))
         (make-inst type byte dreg dreg dreg imm)]
        
        [(member opcode '(vext#))
         (make-inst #f byte dreg dreg dreg imm)]
+       
+       [(member opcode '(vshr#))
+        (make-inst type byte dreg dreg imm)]
        
        [else (raise (format "decode-inst: undefined for ~a" opcode))]))
 

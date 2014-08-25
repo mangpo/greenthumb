@@ -9,7 +9,7 @@
     (super-new)
     (public superoptimize inst-copy-with-op inst-copy-with-args
             get-mutations mutate-operand-specific mutate-other
-            random-instruction)
+            random-instruction print-mutation-info)
     (abstract correctness-cost get-arg-ranges)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
@@ -22,7 +22,7 @@
     ;; Notice that  we use 'inst' for stat report (stat-mutations) and 'instruction' for actual muation (mutate-dist)
 
     (define w-error 9999)
-    (define beta 1)
+    (define beta 0.3) ;0.01
     (define nop-mass 0.8)
     (define ntests 16)
     
@@ -30,6 +30,9 @@
     (define inst-id (get-field inst-id machine))
     (define classes (get-field classes machine))
   
+    (define (print-mutation-info)
+      (for ([op inst-id])
+           (pretty-display `(opcode ,op ,(get-mutations op)))))
   
 ;;;;;;;;;;;;;;;;;;;;; Functions ;;;;;;;;;;;;;;;;;;
     (define (inst-copy-with-op x op) (struct-copy inst x [op op]))
@@ -97,11 +100,11 @@
             (pretty-display (format " --> class = ~a" class)))
       (cond
        [class
-        (define new-opcode-name (random-from-list-ex class opcode-name))
-        (define new-opcode-id (vector-member new-opcode-name inst-id))
+        (set! class (remove* (list #f) (map (lambda (x) (send machine get-inst-id x)) class)))
+        (define new-opcode-id (random-from-list-ex class opcode-id))
         (define new-p (vector-copy p))
         (when debug
-              (pretty-display (format " --> new = ~a ~a" new-opcode-name new-opcode-id)))
+              (pretty-display (format " --> new = ~a ~a" (send machine get-inst-name new-opcode-id) new-opcode-id)))
         (vector-set! new-p index (inst-copy-with-op entry new-opcode-id))
         (send stat inc-propose `opcode)
         new-p]
@@ -216,7 +219,7 @@
       (pretty-display ">>> start MCMC sampling")
       (pretty-display ">>> Phase 3: stochastic search")
       (pretty-display "start-program:")
-      (print-struct init)
+      (send printer print-struct init)
       (define syn-mode #t)
 
       (define (cost-one-input program input output)
@@ -224,7 +227,7 @@
          ([exn:break? (lambda (e) (raise e))]
           [exn? (lambda (e) 
                   (when debug (pretty-display "Error!"))
-                  w-error)])
+                  #f)])
          (let* ([t1 (current-milliseconds)]
                 [program-out (send simulator interpret program input)]
                 [t2 (current-milliseconds)]
@@ -237,14 +240,31 @@
            )))
       
       (define (cost-all-inputs program okay-cost)
-        (define correct 0)
+        ;; (define correct 0)
         (define change-mode #f)
-        (for ([input inputs]
-              [output outputs])
-             (when correct
-                   (set! correct (+ correct (cost-one-input program input output)))
-                   (when (> correct okay-cost)
-                         (set! correct #f))))
+        ;; (for ([input inputs]
+        ;;       [output outputs])
+        ;;      (when correct
+        ;;            (set! correct (+ correct (cost-one-input program input output)))
+        ;;            (when (> correct okay-cost)
+        ;;                  (set! correct #f))))
+
+        (define (loop correct inputs outputs)
+          (when debug (pretty-display `(correct ,correct)))
+          (cond
+           [(> correct okay-cost) #f]
+           [(empty? inputs) correct]
+           [else
+            (let ([cost (cost-one-input program (car inputs) (car outputs))])
+              (if cost 
+                  (loop (+ correct cost) (cdr inputs) (cdr outputs))
+                  w-error))]
+           ))
+
+        (define correct
+          (and (send simulator is-valid? program)
+               (loop 0 inputs outputs)))
+        (when debug (pretty-display `(final-correct ,correct)))
 
         (define ce #f)
         (when (equal? correct 0)
@@ -354,7 +374,11 @@
        ([exn:break? (lambda (e) (send stat print-stat-to-file))])
        
        (timeout time-limit
-                (iter init (car (cost-all-inputs init (arithmetic-shift 1 32)))))
+                (iter init 
+                      ;; cost-all-inputs can return #f if program is invalid
+                      (or (car (cost-all-inputs init w-error))
+                          w-error)
+                      ))
        )
       )
     ))

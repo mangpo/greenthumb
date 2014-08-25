@@ -12,13 +12,15 @@
     (super-new)
     (init-field machine printer 
                 [simulator #f] 
-                [bit (get-field bit machine)])
+                [bit (get-field bit machine)]
+                [random-input-bit (get-field random-input-bit machine)])
     (abstract get-sym-vars evaluate-state
               encode-sym decode-sym
               assume assert-output)
     (public proper-machine-config generate-input-states
             superoptimize counterexample
-            sym-op sym-arg)
+            sym-op sym-arg
+            assume-relax)
 
     (define-syntax-rule (print-struct x) (send printer print-struct x))
     (define-syntax-rule (display-state x) (send machine display-state x))
@@ -39,6 +41,9 @@
       (define-symbolic* arg number?)
       arg)
 
+    (define (assume-relax state asssumption)
+      (assume state assumption))
+
     (define (interpret-spec spec start-state assumption)
       (assume start-state assumption)
       ;;(pretty-display "interpret spec")
@@ -46,6 +51,9 @@
       ;;(pretty-display "done interpret spec")
       res
       )
+
+    (define (interpret spec start-state)
+      (send simulator interpret spec start-state))
     
     ;; code: non-encoded concrete code
     ;; config: machine config
@@ -80,8 +88,8 @@
       (configure [bitwidth bit] [loop-bound 20])
       (define const-range 
         (list->vector
-         (cons (- (arithmetic-shift 1 (sub1 bit)))
-               (for/list ([i (sub1 bit)]) (arithmetic-shift 1 i)))))
+         (cons (- (arithmetic-shift 1 (sub1 random-input-bit)))
+               (for/list ([i (sub1 random-input-bit)]) (arithmetic-shift 1 i)))))
       (define const-range-len (vector-length const-range))
       
       (define (generate-one-input random-f)
@@ -100,7 +108,8 @@
       (define input-random
         (for/list ([i m])
                   (generate-one-input 
-                   (lambda () (let ([rand (random (min 4294967087 (<< 1 bit)))])
+                   (lambda () (let ([rand (random (min 4294967087 
+                                                       (<< 1 random-input-bit)))])
                                 (if (>= rand (<< 1 (sub1 bit)))
                                     (- rand (<< 1 bit))
                                     rand))))))
@@ -115,7 +124,8 @@
       (define inputs (append input-zero input-random input-random-const))
       (when debug
             (pretty-display "Test simulate with symbolic inputs...")
-            (interpret-spec spec start-state assumption)
+            (assume-relax start-state assumption)
+            (interpret spec start-state)
             (pretty-display "Passed!"))
       ;; Construct cnstr-inputs.
       (define cnstr-inputs (list))
@@ -124,7 +134,8 @@
         (define (assert-extra-and-interpret)
           ;; Assert that the solution has to be different.
           (assert extra)
-          (interpret-spec spec start-state assumption)
+          (assume-relax start-state assumption)
+          (interpret spec start-state)
           )
         (define sol (solve (assert-extra-and-interpret)))
         (define restrict-pairs (list))
@@ -224,6 +235,13 @@
       (define-values (sym-vars inputs)
         (generate-inputs-inner 2 spec start-state assumption))
       ;;(pretty-display `(inputs ,inputs))
+
+      ;; (when debug
+      ;;       (pretty-display "Test calculate performance-cost with symbolic instructions...")
+      ;;       (send simulator performance-cost sketch)
+      ;;       (pretty-display "Test simulate with symbolic instructions...")
+      ;;       (send simulator interpret sketch start-state)
+      ;;       (pretty-display "Passed!"))
       
       (define model 
         (timeout
@@ -247,6 +265,7 @@
       (pretty-display (format "new cost = ~a" final-cost))
       (pretty-display "=====================================")
       (clear-asserts)
+      (clear-terms!)
       (values final-program final-cost)
       )
 
@@ -297,6 +316,7 @@
        ([exn:fail? 
          (lambda (e)
            (when debug (pretty-display "program-eq? SAME"))
+           (clear-terms!)
            (if (equal? (exn-message e) "verify: no counterexample found")
                #f
                (raise e)))])
@@ -306,6 +326,7 @@
            ;; (pretty-display model)
            ;; (display-state state)
            ;; (raise "done")
+           (clear-terms!)
            state)
          )))
     

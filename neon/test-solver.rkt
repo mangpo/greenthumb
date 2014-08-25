@@ -1,9 +1,13 @@
 #lang s-exp rosette
 
 (require "neon-solver.rkt" "neon-machine.rkt" "neon-printer.rkt"
-         "neon-parser.rkt")
+         "neon-parser.rkt" "neon-ast.rkt")
 
-#|
+(define (sym-len)
+  (define-symbolic* arg number?)
+  (assert (and (>= arg 1) (>= arg 4)))
+  arg)
+
 (define (sym-arg)
   (define-symbolic* arg number?)
   ;(assert (>= arg 0))
@@ -19,7 +23,7 @@
   (assert (and (>= byte 1) (<= byte 8)))
   byte)
 
-(define (sym-type)
+#|(define (sym-type)
   (define-symbolic* type number?)
   (assert (and (>= type 0) (< type (vector-length type-id))))
   type)|#
@@ -31,46 +35,29 @@
 
 (define code
 (send parser ast-from-string "
- VLD1.16 {d4}, [r2]! ; 2 cycles (LSBP)
- VLD1.16 {d2}, [r1]! ; 2 cycles (LSBP)
- VEXT.16 d5, d3, d4, #1 ; 1 cycle (LSBP)
- VEXT.16 d6, d3, d4, #2 ; 1 cycle (LSBP)
- VEXT.16 d7, d3, d4, #3 ; 1 cycle (LSBP)
- VMLAL.S16 q0, d3, d2[0] ; 1 cycle (DP)
- VMLAL.S16 q0, d5, d2[1] ; 1 cycle (DP)
- VMLAL.S16 q0, d6, d2[2] ; 1 cycle (DP)
- VMLAL.S16 q0, d7, d2[3] ; 1 cycle (DP)
- VMOV d3, d4 ; 1 cycle (LSBP)
-")) ;; TODO debug
+vtrn.16 d0, d1
+")) ;; vmlal.s16 q0, d2, d3[1]
 
 
 (define sketch
-(ast-from-string "
- VLD1.16 {d4}, [r2]! ; 2 cycles (LSBP)
- VLD1.16 {d2}, [r1]! ; 2 cycles (LSBP)
- VEXT.16 d5, d3, d4, #1 ; 1 cycle (LSBP)
- VEXT.16 d6, d3, d4, #2 ; 1 cycle (LSBP)
- VEXT.16 d7, d3, d4, #3 ; 1 cycle (LSBP)
- VMLAL.S16 q0, d3, d2[0] ; 1 cycle (DP)
- VMLAL.S16 q0, d5, d2[1] ; 1 cycle (DP)
- VMLAL.S16 q0, d6, d2[2] ; 1 cycle (DP)
- VMLAL.S16 q0, d7, d2[3] ; 1 cycle (DP)
- ?
+(send parser ast-from-string "
+?
 "))
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send solver encode-sym sketch))
-#|(define encoded-sketch2 
-  (vector (inst (vector-member `vmlal inst-id) 
-                (vector 10 3 2 (sym-arg))
-                (sym-byte) (sym-type))))|#
+(define encoded-sketch2 
+  (vector (neon-inst (send machine get-inst-id `vtrn)
+                     (vector (sym-arg) (sym-arg))
+                     (sym-byte) #f)))
 
 (send printer print-struct encoded-code)
 (send printer print-struct encoded-sketch)
+(send printer print-struct encoded-sketch2)
 
 (define t (current-seconds))
 ;(define x (send solver counterexample encoded-code encoded-sketch 
 ;                (constraint machine [dreg 0 1 3] [rreg 1 2] [mem-all])))
 (send solver superoptimize encoded-code encoded-sketch 
-      (constraint machine [dreg 0 1 3] [rreg] [mem-all]))
+      (constraint machine [dreg 0 1] [rreg 0] [mem-all]) #f)
 (pretty-display `(time ,(- (current-seconds) t)))

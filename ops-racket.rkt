@@ -35,11 +35,20 @@
      (unless x 
        (raise (exn (format "racket: assert fail: ~a" y) (current-continuation-marks)))))))
 
+(define-syntax-rule (for/all ([a b] ...) expr)
+  (let ([a b] ...) expr))
+     
+(define-syntax-rule (for*/all ([a b] ...) expr)
+  (let* ([a b] ...) expr))
 
 ;; TODO: do we need this?
 (define (vector-copy-len vec start len)
   ;(pretty-display `(vector-copy ,start ,len))
   (for/vector ([i len]) (vector-ref vec (+ start i))))
+
+(define (vector-copy-len! dest dest-start src 
+                          src-start len)
+  (vector-copy! dest dest-start src src-start (+ src-start len))) 
   
 
 (define (vector-extract a b shift)

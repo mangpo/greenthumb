@@ -12,7 +12,8 @@
     (inherit sym-op sym-arg)
     (override get-sym-vars evaluate-state
               encode-sym decode-sym
-              assume assert-output)
+              assume assert-output
+              assume-relax)
 
     (set! simulator (new neon-simulator-rosette% [machine machine]))
 
@@ -38,7 +39,7 @@
       
       (for ([i (vector-length dregs)]
             [dreg dregs])
-           (vector-set! dregs i (eval dreg sol)))
+           (vector-set! dregs i (bitwise-and #xff (eval dreg sol))))
       
       (for ([i (vector-length rregs)]
             [rreg rregs])
@@ -46,7 +47,7 @@
       
       (for ([i (vector-length memory)]
             [mem memory])
-           (vector-set! memory i (eval mem sol)))
+           (vector-set! memory i (bitwise-and #xff (eval mem sol))))
 
       (progstate dregs rregs memory))
 
@@ -58,7 +59,7 @@
         byte)
 
       (define (sym-type)
-        (pretty-display `(sym-const ,(get-field ntypes machine)))
+        ;;(pretty-display `(sym-const ,(get-field ntypes machine)))
         (define-symbolic* type number?)
         (assert (and (>= type 0) (< type (get-field ntypes machine))))
         type)
@@ -70,7 +71,7 @@
 
       (define (first-arg op)
         (define ld-st
-          (ormap (lambda (x) (= op (send machine get-inst-id x))) '(vld1 vld2 vld1! vld2!)))
+          (ormap (lambda (x) (equal? op (send machine get-inst-id x))) '(vld1 vld2 vld1! vld2! vst1 vst1! vst2 vst2!)))
         (if ld-st
             (cons (sym-arg) (vector (sym-arg) (sym-arg) (sym-arg) (sym-arg)))
             (sym-arg)))
@@ -145,6 +146,11 @@
       (for ([x memory]) (assert (and (>= x 0) (< x 256))))
       (when assumption
             (raise "No support for assumption")))
+
+    (define (assume-relax state assumption)
+      (when assumption
+            (raise "No support for assumption")))
+      
 
     ))
     

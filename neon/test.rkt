@@ -1,37 +1,65 @@
 #lang racket
 
-(require "parser.rkt" "print.rkt" "machine.rkt" "solver-support.rkt" "interpret.rkt")
+(require "neon-parser.rkt" "neon-printer.rkt" "neon-machine.rkt" 
+         "neon-simulator-rosette.rkt" "neon-solver.rkt")
+
+(define parser (new neon-parser%))
+(define machine (new neon-machine%))
+(send machine set-config (list 24 1 2))
+(define printer (new neon-printer% [machine machine]))
+(define simulator (new neon-simulator-rosette% [machine machine]))
+(define solver (new neon-solver% [machine machine] [printer printer]))
 
 (define code
-(ast-from-string "
- VEXT.16 d0, d1, d2, #1 ; 1 cycle (LSBP)
+(send parser ast-from-string "
+vst1 {d0,d1}, [r0]!
 "))
 
-;(define code
-;  (ast-from-string "?"))
+(define code2
+  (send parser ast-from-string "?"))
 
-(define encoded-code (encode code))
+(define encoded-code (send printer encode code))
+(define encoded-code2 (send solver encode-sym code2))
 
-(print-struct code)
-(print-struct encoded-code)
+(send printer print-struct encoded-code)
+
+;(print-struct code)
+;(print-struct encoded-code)
 
 ;(define state (struct-copy progstate (default-state (random 10)) [rregs (vector 0 0 0 0)]))
 ;(define state (default-state 0))
+
 (define state (progstate 
                (vector 
+                93 155 84 222 91 252 99 139
+                33 19 86 101 42 106 10 72
+                182 137 12 130 109 180 107 62
+                214 104 221 239 48 121 20 223
+                159 63 144 153 216 32 109 213
+                140 83 173 255 10 43 247 144
+                237 235 204 49 19 151 30 124
+                250 210 75 117 220 199 189 3
                 0 0 0 0 0 0 0 0
-                0 1 2 3 4 5 6 7
-                8 9 11 22 33 44 55 66
-                225 77 15 108 0 0 0 0
-                170 50 212 200 49 61 2 26
                 0 0 0 0 0 0 0 0
                 0 0 0 0 0 0 0 0
                 0 0 0 0 0 0 0 0
-                255 255 255 255 255 255 255 255
-                27 1 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
+                0 0 0 0 0 0 0 0
                 )
-               (make-vector nregs-r 0)
-               (list->vector (range (* 8 nmems)))
-               0))
-(display-state state)
-(display-state (interpret encoded-code state))
+               (make-vector (send machine get-nregs-r) 0)
+               (list->vector (range (* 8 (send machine get-nmems))))))
+;(display-state state)
+;(send simulator performance-cost encoded-code)
+(send machine display-state 
+      (send simulator interpret encoded-code state)
+      )
