@@ -26,4 +26,11 @@
                      (vector (sym-arg) (sym-arg) (sym-arg) (sym-arg))
                      (sym-byte) #f))
 
-(send simulator get-schedule-info x) 
+(define x-concrete (neon-inst 13
+                     (vector 0 1 2)
+                     2 2))
+
+;; Non-terminating
+(send simulator get-schedule-info x)
+;; Terminating of x is concrete
+;; (send simulator get-schedule-info x-concrete)
