@@ -36,4 +36,4 @@ vtrn.32	q9, q11
 (send stochastic superoptimize encoded-code 
       (constraint machine [dreg 0 1 2 3 4 5 6 7 16 17 18 19 20 21 22 23] 
                   [rreg] [mem-all]) 
-      #t "output/driver-0" 60 #f)
+      #f "output/driver-0" 60 #f)

@@ -32,7 +32,7 @@
 
       (define (create-file id)
         (define (req file)
-          (format "(file \"/bard/wilma/pphothil/superopt/modular-optimizer2/~a\")" (send meta required-module file)))
+          (format "(file \"/bard/wilma/pphothil/superopt/modular-optimizer3/~a\")" (send meta required-module file)))
         (define required-files
           (string-join (map req '(parser machine printer stochastic))))
         (with-output-to-file #:exists 'truncate (format "~a-~a.rkt" path id)

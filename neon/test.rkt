@@ -5,27 +5,14 @@
 
 (define parser (new neon-parser%))
 (define machine (new neon-machine%))
-(send machine set-config (list 24 1 1))
+(send machine set-config (list 24 1 2))
 (define printer (new neon-printer% [machine machine]))
 (define simulator (new neon-simulator-rosette% [machine machine]))
 (define solver (new neon-solver% [machine machine] [printer printer]))
 
 (define code
 (send parser ast-from-string "
-vhadd.s16	q4, q0, q2
-vhsub.s16	q5, q0, q2
-vhadd.s16	q6, q1, q3
-vhsub.s16	q7, q1, q3
-vhsub.s16	q10, q4, q6
-vhadd.s16	q8, q4, q6 
-vhadd.s16	d18, d10, d15
-vhsub.s16	d19, d11, d14
-vhsub.s16	d22, d10, d15
-vhadd.s16	d23, d11, d14
-vtrn.16	q8, q9
-vtrn.16	q10, q11
-vtrn.32	q8, q10
-vtrn.32	q9, q11
+vst1 {d0,d1}, [r0]!
 "))
 
 (define code2

@@ -167,20 +167,22 @@
           )
         
         ;; Load
-        (define (load-unit dest-regs start skip stride mem-addr byte)
+        (define (load/store-unit dest-regs start skip stride mem-addr byte load?)
           (define indexes 
             (for/vector ([i stride]) (* 8 (vector-ref dest-regs (+ (* i skip) start)))))
           (for ([i (quotient 8 byte)])
                (for ([j stride]
                      [index indexes])
                     (for ([k byte])
-                         (vector-set! dregs index (vector-ref memory mem-addr))
+                         (if load?
+                             (vector-set! dregs index (vector-ref memory mem-addr))
+                             (vector-set! memory mem-addr (vector-ref dregs index)))
                          (set! mem-addr (add1 mem-addr))
                          (set! index (add1 index)))
                     (vector-set! indexes j index)))
           mem-addr)
         
-        (define (load stride update)
+        (define (load/store stride update load?)
           (when debug `(load ,stride ,update))
           (define dest (vector-ref args 0))
           (define n (car dest))
@@ -192,13 +194,13 @@
           (byte-guard 
            byte 
            (lambda (byte)
-             (set! mem-addr (load-unit dest-regs 0 skip stride mem-addr byte))
+             (set! mem-addr (load/store-unit dest-regs 0 skip stride mem-addr byte load?))
              (when (< stride n) 
-                   (set! mem-addr (load-unit dest-regs 1 skip stride mem-addr byte)))
+                   (set! mem-addr (load/store-unit dest-regs 1 skip stride mem-addr byte load?)))
              (when (< (* 2 stride) n) 
-                   (set! mem-addr (load-unit dest-regs 2 skip stride mem-addr byte)))
+                   (set! mem-addr (load/store-unit dest-regs 2 skip stride mem-addr byte load?)))
              (when (< (* 3 stride) n) 
-                   (set! mem-addr (load-unit dest-regs 3 skip stride mem-addr byte)))))
+                   (set! mem-addr (load/store-unit dest-regs 3 skip stride mem-addr byte load?)))))
           
           (when update (vector-set! rregs r-id mem-addr))
           (when debug `(load done)))
@@ -265,7 +267,7 @@
                
 
         ;; Special case for vld1 (no stride)
-        (define (load1 update)
+        (define (load/store1 update load?)
           (define dest (vector-ref args 0))
           (define n (car dest))
           (define dest-regs (cdr dest)) ;; TODO: check validity
@@ -275,9 +277,14 @@
           
           (for ([i (in-range n)])
                (let ([d-reg (vector-ref dest-regs i)])
-                 (vector-copy! 
-                  dregs (* 8 d-reg) 
-                  memory (+ mem-addr (* 8 i)) (+ mem-addr (* 8 (add1 i))))))
+                 (if load?
+                     (vector-copy-len! 
+                      dregs (* 8 d-reg) 
+                      memory (+ mem-addr (* 8 i)) 8)
+                     (vector-copy-len!
+                      memory (+ mem-addr (* 8 i))
+                      dregs (* 8 d-reg) 8))
+                 ))
           (when update (vector-set! rregs r-id (+ mem-addr (* n 8))))
           )
         
@@ -497,10 +504,15 @@
         (cond
          [(inst-eq? `nop) (void)]
 
-         [(inst-eq? `vld1)   (load1 #f)]
-         [(inst-eq? `vld1!)  (load1 #t)]
-         [(inst-eq? `vld2)   (load 2 #f)]
-         [(inst-eq? `vld2!)  (load 2 #t)]
+         [(inst-eq? `vld1)   (load/store1 #f #t)]
+         [(inst-eq? `vld1!)  (load/store1 #t #t)]
+         [(inst-eq? `vld2)   (load/store 2 #f #t)]
+         [(inst-eq? `vld2!)  (load/store 2 #t #t)]
+
+         [(inst-eq? `vst1)   (load/store1 #f #f)]
+         [(inst-eq? `vst1!)  (load/store1 #t #f)]
+         [(inst-eq? `vst2)   (load/store 2 #f #f)]
+         [(inst-eq? `vst2!)  (load/store 2 #t #f)]
 
          [(inst-eq? `vext#)  (nnn 0 ext)]
          [(inst-eq? `vtrn)  (bitpermute transpose)]
@@ -555,7 +567,7 @@
     (define debug #f)
 
     (define (performance-cost code)
-      (when #t (pretty-display `(performance-cost)))
+      (when debug (pretty-display `(performance-cost)))
       ;; Units' availability
       (define units (make-vector 2 0))
       ;; Registers' availability
@@ -564,7 +576,7 @@
       (define forwarding (make-vector (nregs-d) 0))
 
       (define (approximate entry)
-        (when #t (pretty-display `(approximate ,(inst-op entry) ,(inst-args entry) ,(inst-type entry) ,(inst-byte entry))))
+        (when debug (pretty-display `(approximate ,(inst-op entry) ,(inst-args entry) ,(inst-type entry) ,(inst-byte entry))))
         ;; (sche-info pipeline# issue-cycle latency fast-forward)
         ;; fast-forward is only for mla, mull of the same type and size
         (define schd (get-schedule-info entry))
@@ -672,6 +684,7 @@
           (dregs reg)))
 
       (define (d) (cons (get-dregs 0) (list)))
+      (define (b) (cons (get-dregs 0) (get-dregs 0)))
       (define (d*) 
         (let ([len-vec (vector-ref args 0)])
           (cons (flatten 
@@ -689,37 +702,23 @@
         (cons (get-dregs 0)
               (append (get-dregs 0) (get-dregs 1) (get-dregs 2))))
 
-      (define-syntax-rule (inst-eq? x) (equal? op (send machine get-inst-id x)))
+      ;;(define-syntax-rule (inst-eq? x) (equal? op (send machine get-inst-id x)))
+      (define-syntax-rule (inst-eq? lst)
+        (ormap (lambda (x) (equal? op (send machine get-inst-id x))) lst))
       ;; d = def, u = use, b = both, d* = def vector (e.g. vld1 {d0,d1}, [r0])
       (cond
-       [(inst-eq? `nop)   (cons (list) (list))]
-       [(inst-eq? `vld1)  (d*)]
-       [(inst-eq? `vld1!) (d*)]
-       [(inst-eq? `vld2)  (d*)]
-       [(inst-eq? `vld2!) (d*)]
-       [(inst-eq? `vext#)  (duu)]
-       [(inst-eq? `vtrn)   (bb)]
-       [(inst-eq? `vzip)   (bb)]
-       [(inst-eq? `vuzp)   (bb)]
+       [(inst-eq? '(nop))   (cons (list) (list))]
+       [(inst-eq? '(vld1 vld1! vld2 vld2! vst1 vst1! vst2 vst2!))  (d*)]
+       [(inst-eq? '(vext#))  (duu)]
+       [(inst-eq? '(vtrn vzip vuzp))   (bb)]
 
+       [(inst-eq? '(vmla vmla@ vmlal vmlal@))   (buu)]
+       [(inst-eq? '(vmov vshr#))  (du)]
+       ;;[(inst-eq? '(vmov@)) (du)]
+       [(inst-eq? '(vmov#)) (d)]
+       [(inst-eq? '(vand#)) (b)]
 
-       [(inst-eq? `vmla)   (buu)]
-       [(inst-eq? `vmla@)  (buu)]
-       [(inst-eq? `vmlal)  (buu)]
-       [(inst-eq? `vmlal@) (buu)]
-
-       [(inst-eq? `vmov)  (du)]
-       ;;[(inst-eq? `vmov@) (du)]
-       [(inst-eq? `vmov#) (d)]
-
-       [(inst-eq? `vand)  (duu)]
-       [(inst-eq? `vand#) (du)]
-
-       [(inst-eq? `vadd)  (duu)]
-       [(inst-eq? `vsub)  (duu)]
-       [(inst-eq? `vhadd) (duu)]
-       [(inst-eq? `vhsub) (duu)]
-       [(inst-eq? `vshr#) (duu)]
+       [(inst-eq? '(vand vadd vsub vhadd vhsub))  (duu)]
        
        [else (assert #f (format "get-defs-uses: undefined for ~a" x))]
        ))

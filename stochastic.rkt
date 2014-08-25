@@ -22,7 +22,7 @@
     ;; Notice that  we use 'inst' for stat report (stat-mutations) and 'instruction' for actual muation (mutate-dist)
 
     (define w-error 9999)
-    (define beta 1)
+    (define beta 0.2)
     (define nop-mass 0.8)
     (define ntests 16)
     
