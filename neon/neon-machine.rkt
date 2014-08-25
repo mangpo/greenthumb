@@ -75,13 +75,13 @@
     (set! bit 32)
     (set! random-input-bit 8)
     (set! inst-id '#(nop
-                     ;; vld1 vld2 ;vld3 vld4
-                     ;; vld1! vld2! ;vld3! vld4!
-                     ;; vst1 vst2
-                     ;; vst1! vst2!
+                     vld1 vld2 ;vld3 vld4
+                     vld1! vld2! ;vld3! vld4!
+                     vst1 vst2
+                     vst1! vst2!
                      vext# vtrn vzip vuzp
 
-                     ;; vmla vmla@ vmlal vmlal@
+                     vmla vmla@ vmlal vmlal@
                      vmov vmov# ;vmovl vmovn vqmovn
                      ;;vmvn vmvn#
                      vand vand#

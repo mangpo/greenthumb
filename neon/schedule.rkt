@@ -90,7 +90,7 @@
       (define args (inst-args key))
       (define byte (inst-byte key))
       (define new-key (neon-inst opcode-id
-                                 (and args (if (equal? args `d) is-d? is-q?))
+                                 args
                                  (and byte (quotient byte 8))
                                  #f))
       

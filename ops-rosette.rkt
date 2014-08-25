@@ -36,10 +36,10 @@
 
 
 ;; This function is very memory expensive in Rosette
-(define (vector-copy-len! dest dest-start src 
-                          src-start len)
+(define (vector-copy-len! dest dest-start 
+                          src src-start len)
   (for ([i (in-range len)])
-       ;;(pretty-display `(copy-* ,(quotient (current-memory-use) 1000)))
+       ;;(pretty-display `(copy-* ,i))
        (vector-set! dest (+ dest-start i)
                     (vector-ref src (+ src-start i))))
   )

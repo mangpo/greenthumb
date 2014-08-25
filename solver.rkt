@@ -235,6 +235,13 @@
       (define-values (sym-vars inputs)
         (generate-inputs-inner 2 spec start-state assumption))
       ;;(pretty-display `(inputs ,inputs))
+
+      ;; (when debug
+      ;;       (pretty-display "Test calculate performance-cost with symbolic instructions...")
+      ;;       (send simulator performance-cost sketch)
+      ;;       (pretty-display "Test simulate with symbolic instructions...")
+      ;;       (send simulator interpret sketch start-state)
+      ;;       (pretty-display "Passed!"))
       
       (define model 
         (timeout

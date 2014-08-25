@@ -1,9 +1,13 @@
 #lang s-exp rosette
 
 (require "neon-solver.rkt" "neon-machine.rkt" "neon-printer.rkt"
-         "neon-parser.rkt")
+         "neon-parser.rkt" "neon-ast.rkt")
 
-#|
+(define (sym-len)
+  (define-symbolic* arg number?)
+  (assert (and (>= arg 1) (>= arg 4)))
+  arg)
+
 (define (sym-arg)
   (define-symbolic* arg number?)
   ;(assert (>= arg 0))
@@ -19,7 +23,7 @@
   (assert (and (>= byte 1) (<= byte 8)))
   byte)
 
-(define (sym-type)
+#|(define (sym-type)
   (define-symbolic* type number?)
   (assert (and (>= type 0) (< type (vector-length type-id))))
   type)|#
@@ -31,10 +35,8 @@
 
 (define code
 (send parser ast-from-string "
-vhadd.s16	q4, q0, q2
-vhadd.s16	q4, q0, q2
-vld1 {d0}, [r0]!
-")) ;; TODO debug
+vtrn.16 d0, d1
+")) ;; vmlal.s16 q0, d2, d3[1]
 
 
 (define sketch
@@ -44,13 +46,14 @@ vld1 {d0}, [r0]!
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send solver encode-sym sketch))
-#|(define encoded-sketch2 
-  (vector (inst (vector-member `vmlal inst-id) 
-                (vector 10 3 2 (sym-arg))
-                (sym-byte) (sym-type))))|#
+(define encoded-sketch2 
+  (vector (neon-inst (send machine get-inst-id `vtrn)
+                     (vector (sym-arg) (sym-arg))
+                     (sym-byte) #f)))
 
 (send printer print-struct encoded-code)
 (send printer print-struct encoded-sketch)
+(send printer print-struct encoded-sketch2)
 
 (define t (current-seconds))
 ;(define x (send solver counterexample encoded-code encoded-sketch 
