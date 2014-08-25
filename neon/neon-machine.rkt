@@ -76,6 +76,8 @@
     (set! inst-id '#(nop
                      ;; vld1 vld2 ;vld3 vld4
                      ;; vld1! vld2! ;vld3! vld4!
+                     ;; vst1 vst2
+                     ;; vst1! vst2!
                      vext# vtrn vzip vuzp
 
                      ;; vmla vmla@ vmlal vmlal@
@@ -86,8 +88,8 @@
                      vhadd vhsub
                      vshr#
                      ))
-    (set! classes (vector '(vld1 vld1!)
-                        '(vld2 vld2!)
+    (set! classes (vector '(vld1 vld1! vst1 vst1!)
+                        '(vld2 vld2! vst2 vst2!)
                         '(vmla vadd vsub vhadd vhsub vand)
                         '(vmov vtrn vzip vuzp)
                         '(vmov# vand#))) ;; vshr#, vext#, vmla@, vmlal@

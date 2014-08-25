@@ -49,7 +49,7 @@
        [(member opcode-name '(nop))
         (vector)]
 
-       [(member opcode-name '(vld1 vld1! vld2 vld2!)) 
+       [(member opcode-name '(vld1 vld1! vld2 vld2! vst1 vst1! vst2 vst2!)) 
         (vector #f rreg-range)]
 
        [(member opcode-name '(vmov# vand#)) ;; TODO: different const-range for mvni
@@ -101,7 +101,7 @@
       (cond
        [(member opcode-name '(nop)) (neon-inst opcode-id (vector) byte type-id)]
 
-       [(member opcode-name '(vld1 vld1!))
+       [(member opcode-name '(vld1 vld1! vst1 vst1!))
         (define ranges
           (get-arg-ranges opcode-name (neon-inst opcode-id #f byte type-id)))
         (define prop (random))
@@ -123,7 +123,7 @@
         (neon-inst opcode-id args byte type-id)
         ]
 
-       [(member opcode-name '(vld2 vld2!))
+       [(member opcode-name '(vld2 vld2! vst2 vst2!))
         (define ranges
           (get-arg-ranges opcode-name (neon-inst opcode-id #f byte type-id)))
         (define prop (random))
@@ -162,7 +162,7 @@
               ex
               (list-ref new-lst (random (length new-lst))))))
       (cond
-       [(and (member opcode-name '(vld1 vld1! vld2 vld2!)) (= index 0))
+       [(and (member opcode-name '(vld1 vld1! vld2 vld2! vst1 vst1! vst2 vst2!)) (= index 0))
         (define dest (vector-ref args 0))
         (define len (car dest))
         (define ld-regs (cdr dest))

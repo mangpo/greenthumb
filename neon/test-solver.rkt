@@ -31,14 +31,15 @@
 
 (define code
 (send parser ast-from-string "
-vuzp.16 q0, q1
+vhadd.s16	q4, q0, q2
+vhadd.s16	q4, q0, q2
+vld1 {d0}, [r0]!
 ")) ;; TODO debug
 
 
 (define sketch
 (send parser ast-from-string "
-vmov d4, d5
-vuzp.16 q0, q1
+?
 "))
 
 (define encoded-code (send printer encode code))
@@ -55,5 +56,5 @@ vuzp.16 q0, q1
 ;(define x (send solver counterexample encoded-code encoded-sketch 
 ;                (constraint machine [dreg 0 1 3] [rreg 1 2] [mem-all])))
 (send solver superoptimize encoded-code encoded-sketch 
-      (constraint machine [dreg 0 1 2 3] [rreg] [mem-all]) #f)
+      (constraint machine [dreg 0 1] [rreg 0] [mem-all]) #f)
 (pretty-display `(time ,(- (current-seconds) t)))

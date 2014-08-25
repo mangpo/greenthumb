@@ -17,6 +17,10 @@
    (cons (neon-inst `vld1! #f #f #f) (schd-info `lsbp 2 1 #f #f))
    (cons (neon-inst `vld2 #f #f #f) (schd-info `lsbp 2 1 #f #f))
    (cons (neon-inst `vld2! #f #f #f) (schd-info `lsbp 2 1 #f #f))
+   (cons (neon-inst `vst1 #f #f #f) (schd-info `lsbp 2 1 #f #f))
+   (cons (neon-inst `vst1! #f #f #f) (schd-info `lsbp 2 1 #f #f))
+   (cons (neon-inst `vst2 #f #f #f) (schd-info `lsbp 2 1 #f #f))
+   (cons (neon-inst `vst2! #f #f #f) (schd-info `lsbp 2 1 #f #f))
 
    (cons (neon-inst `vext# `d #f #f) (schd-info `lsbp 1 2 #f #f))
    (cons (neon-inst `vext# `q #f #f) (schd-info `lsbp 2 2 #f #f))

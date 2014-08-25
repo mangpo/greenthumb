@@ -43,11 +43,11 @@
       (display " ")
 
       (cond
-       [(member opcode '(vld1 vld2 vld1! vld2!))
+       [(member opcode '(vld1 vld2 vld1! vld2! vst1 vst1! vst2 vst2!))
         (display (format "{~a} , [~a]"
                          (string-join (vector->list (vector-ref args 0)) ", ")
                          (vector-ref args 1)))
-        (when (member opcode '(vld1! vld2!))
+        (when (member opcode '(vld1! vld2! vst1! vst2!))
               (display "!"))]
 
        [(member opcode '(vmov# vand# vext# vshr#))
@@ -117,10 +117,7 @@
        [(member opcode '(nop))
         (neon-inst "nop" (vector) #f #f)]
        
-       [(member opcode '(vld1 vld2))
-        (make-inst #f byte load-dregs rreg)]
-       
-       [(member opcode '(vld1! vld2!))
+       [(member opcode '(vld1 vld1! vld2 vld2! vst1 vst1! vst2 vst2!))
         (make-inst #f byte load-dregs rreg)]
        
        [(member opcode '(vmov))

@@ -45,6 +45,10 @@
 (define (vector-copy-len vec start len)
   ;(pretty-display `(vector-copy ,start ,len))
   (for/vector ([i len]) (vector-ref vec (+ start i))))
+
+(define (vector-copy-len! dest dest-start src 
+                          src-start len)
+  (vector-copy! dest dest-start src src-start (+ src-start len))) 
   
 
 (define (vector-extract a b shift)

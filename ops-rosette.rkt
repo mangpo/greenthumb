@@ -26,7 +26,19 @@
 ;; This function is very memory expensive in Rosette
 (define (vector-copy! dest dest-start src 
                       [src-start 0] [src-end (vector-length src)])
+  ;;(pretty-display `(vector-copy! ,src-start ,src-end ,(- src-end src-start)))
   (for ([i (in-range (- src-end src-start))])
+       ;;(pretty-display `(copy-* ,(quotient (current-memory-use) 1000)))
+       (vector-set! dest (+ dest-start i)
+                    (vector-ref src (+ src-start i))))
+  )
+
+
+
+;; This function is very memory expensive in Rosette
+(define (vector-copy-len! dest dest-start src 
+                          src-start len)
+  (for ([i (in-range len)])
        ;;(pretty-display `(copy-* ,(quotient (current-memory-use) 1000)))
        (vector-set! dest (+ dest-start i)
                     (vector-ref src (+ src-start i))))
