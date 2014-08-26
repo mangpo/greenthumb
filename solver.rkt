@@ -41,7 +41,7 @@
       (define-symbolic* arg number?)
       arg)
 
-    (define (assume-relax state asssumption)
+    (define (assume-relax state assumption)
       (assume state assumption))
 
     (define (interpret-spec spec start-state assumption)
@@ -61,11 +61,11 @@
       (define encoded-code (encode-sym code))
       (define (solve-until-valid config)
         (send machine set-config config)
-        (current-solver (new kodkod%))
+        ;; (current-solver (new kodkod%))
+        (clear-asserts)
         (configure [bitwidth bit] [loop-bound 20])
         (define state (send machine get-state sym-input))
-        (pretty-display `(config ,config ,(send machine get-nregs-d)))
-        (send simulator interpret encoded-code state)
+
         (with-handlers* 
          ([exn:fail? 
            (lambda (e)
@@ -86,7 +86,8 @@
       (pretty-display `(generate-inputs-inner ,n ,assumption))
       ;; (print-struct spec)
       ;; (display-state start-state)
-      (current-solver (new kodkod%))
+      ;; (current-solver (new kodkod%))
+      (clear-asserts)
       (configure [bitwidth bit] [loop-bound 20])
       (define const-range 
         (list->vector
@@ -200,7 +201,7 @@
       ;; (pretty-display assumption)
       
       ;;(current-solver (new z3%))
-      (current-solver (new kodkod%))
+      ;; (current-solver (new kodkod%))
       (clear-asserts)
       (configure [bitwidth bit] [loop-bound 20])
       (define start-state (send machine get-state sym-input))
@@ -285,7 +286,7 @@
             ;; (pretty-display (format "assumption: ~a" assumption))
             )
       
-      (current-solver (new kodkod%))
+      ;; (current-solver (new kodkod%))
       (clear-asserts)
       (configure [bitwidth bit] [loop-bound 20])
       (define start-state (send machine get-state sym-input))
