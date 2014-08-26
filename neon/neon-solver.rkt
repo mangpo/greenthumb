@@ -77,7 +77,7 @@
             (sym-arg)))
 
       (define (encode-inst-sym x)
-        (pretty-display `(encode-inst-sym ,(inst-op x)))
+        ;; (pretty-display `(encode-inst-sym ,(inst-op x)))
         (if (inst-op x)
             ;; Concrete instruction
             (send printer encode-inst x)

@@ -45,7 +45,7 @@
               live-out
               #f
               (list (max (add1 max-dreg) 4) 
-                    (max (add1 max-rreg) 4)
+                    (max (add1 max-rreg) 1)
                     (if mem 4 1))))
 
     ))

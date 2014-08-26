@@ -7,11 +7,11 @@
 (define code
 (send parser ast-from-string "
 vorr q3, q0, q0
-vld1 {d4,d5}, [r2]
+vld1 {d4,d5}, [r0]
 vmov q1, q4
 vswp d2, d3
 vbsl q3, q1, q2
-vst1.32	{d6,d7}, [r2]
+vst1.32	{d6,d7}, [r0]
 "))
 
 (optimize code (list (list) (list)) 
