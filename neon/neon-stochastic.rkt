@@ -52,17 +52,17 @@
        [(member opcode-name '(vld1 vld1! vld2 vld2! vst1 vst1! vst2 vst2!)) 
         (vector #f rreg-range)]
 
-       [(member opcode-name '(vmov# vand#)) ;; TODO: different const-range for mvni
+       [(member opcode-name '(vmov# vand# vorr#)) ;; TODO: different const-range for mvni
         (if (< (vector-ref args 0) nregs-d)
             (vector dreg-range const-range)
             (vector qreg-range const-range))]
 
-       [(member opcode-name '(vmov vtrn vzip vuzp))
+       [(member opcode-name '(vmov vtrn vzip vuzp vswp))
         (if (< (vector-ref args 0) nregs-d)
             (vector dreg-range dreg-range)
             (vector qreg-range qreg-range))]
 
-       [(member opcode-name '(vmla vand vadd vsub vhadd vhsub))
+       [(member opcode-name '(vmla vand vorr vbsl vadd vsub vhadd vhsub))
         (if (< (vector-ref args 0) nregs-d)
             (vector dreg-range dreg-range dreg-range)
             (vector qreg-range qreg-range qreg-range))]
@@ -110,10 +110,11 @@
         (define n
           (cond
            [(<= prop 0.5) 1]
-           [(<= prop 0.75) 2]
-           [(<= prop 0.875) 3]
-           [else 4]))
-        (define skip (add1 (random 2)))
+           [(<= prop 1) 2]
+           ;;[(<= prop 0.875) 3]
+           ;;[else 4]
+           ))
+        (define skip 1);;(add1 (random 2)))
         (define distance (* (sub1 n) skip))
         (when (>= distance nregs-d)
               (set! skip 1)
@@ -136,7 +137,7 @@
           (cond
            [(<= prop 0.75) 2]
            [else 4]))
-        (define skip (add1 (random 2)))
+        (define skip 1);;(add1 (random 2)))
         (define distance (* (sub1 n) skip))
         (when (>= distance nregs-d)
               (set! skip 1)
@@ -172,6 +173,8 @@
               (list-ref new-lst (random (length new-lst))))))
       (cond
        [(and (member opcode-name '(vld1 vld1! vld2 vld2! vst1 vst1! vst2 vst2!)) (= index 0))
+        ;; TODO: observe vst
+        ;; TODO: need to mutate, skip, and length too
         (define dest (vector-ref args 0))
         (define len (car dest))
         (define ld-regs (cdr dest))
@@ -223,10 +226,10 @@
               (when (send machine get-class-id opcode-name)
                     (set! mutations (cons `opcode mutations)))
               ;; byte
-              (when (member opcode-name '(vld2 vld2! vmla vmla@ vmlal vmlal@ vadd vsub vhadd vhsub vshr# vext# vtrn vzip vuzp))
+              (when (member opcode-name '(vld2 vld2! vst2 vst2! vmla vmla@ vmlal vmlal@ vadd vsub vhadd vhsub vshr# vext# vmov# vand# vorr# vtrn vzip vuzp vswp))
                     (set! mutations (cons `byte mutations)))
               ;; type
-              (when (member opcode-name '(vmla vmla@ vmlal vmlal@ vhadd vhsub vshr#))
+              (when (member opcode-name '(vmlal vmlal@ vhadd vhsub vshr#))
                     (set! mutations (cons `type mutations))))
       mutations)
 

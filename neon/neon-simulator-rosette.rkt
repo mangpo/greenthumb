@@ -302,7 +302,13 @@
              (vector-copy! dregs index-m res-m))
            ))
                
-
+        (define (swap len index-d index-m)
+          ;; (pretty-display `(swap ,index-d ,index-m))
+          (for ([i len])
+               (let ([temp-d (vector-ref dregs (+ index-d i))]
+                     [temp-m (vector-ref dregs (+ index-m i))])
+                 (vector-set! dregs (+ index-d i) temp-m)
+                 (vector-set! dregs (+ index-m i) temp-d))))
         
         ;; Operand patterns
         (define (nnn arg-type f [rmw #f])
@@ -393,14 +399,13 @@
                 (assert #f "Narrow: operands mismatch."))]
            ))
 
-        (define (ni arg-type f [rmw #f])
+        (define (n arg-type f [rmw #f])
           (define d (vector-ref args 0))
-          (define i (vector-ref args 1))
           (if (is-d? d)
               (let ([vd (and rmw (get-dreg d))])
-                (set-dreg! d (f vd (number->bytes i 8))))
+                (set-dreg! d (f vd)))
               (let ([vd (and rmw (get-qreg d))])
-                (set-qreg! d (f vd (number->bytes i 16))))))
+                (set-qreg! d (f vd)))))
 
         ;; vext
         (define (ext vd vn vm)
@@ -413,7 +418,7 @@
         ;; x alone = ignore type
         ;; xd = arg 0, xn = arg 1, xm = arg 2
         ;; i = index (e.g. vmla d0, d1, d2[1])
-        ;; # = immediate (e.g. vshr d0, d1, #1)
+        ;; # = immediate (e.g. vshrd0, d1, #1)
         (define (x:notype vn g)
           (for/vector ([num-n vn]) (g num-n)))
 
@@ -426,7 +431,7 @@
                                    (g (adjust num-n (n-byte byte)))))
              (elements->bytes res (d-byte byte)))))
 
-        (define (xn-# vn g)
+        (define (xn-# vn g index)
           (byte-guard
            byte
            (lambda (byte)
@@ -434,7 +439,7 @@
              (define en (bytes->elements vn byte))
              (define res (for/list ([num-n en]) 
                                    (g (adjust num-n (n-byte byte))
-                                      (adjust (vector-ref args 2) byte))))
+                                      (adjust (vector-ref args index) byte))))
              (when debug (pretty-display `(xn-#-res ,res)))
              (elements->bytes res (d-byte byte)))))
           
@@ -444,8 +449,14 @@
                        [num-m vm])
                       (f num-n num-m)))
 
+        (define (x-x-x:notype xd xn xm f)
+          (for/vector ([num-d xd]
+                       [num-n xn]
+                       [num-m xm])
+                      (f num-d num-n num-m)))
+
         (define (xn-xm vn vm f)
-          (when debug (pretty-display `(xd-xn-xm ,vn ,vm)))
+          (when debug (pretty-display `(xn-xm ,vn ,vm)))
           (byte-guard
            byte
            (lambda (byte)
@@ -498,11 +509,21 @@
         (define (mov-simple vd vn) (x:notype vn identity))
         (define (mvn-simple vd vn) (x:notype vn (lambda (x) (bitwise-xor x #xff))))
         (define (mov vd vn)   (xn vn identity))
+        (define (mov# vd)     (xn-# vd (lambda (d i) i) 1))
         (define (qmov vd vn)  (xn vn saturate))
 
         (define (vand vd vn vm) (x-x:notype vn vm bitwise-and))
-        (define (vadd vd vn vm) 
-          (xn-xm vn vm +))
+        (define (vand# vd)      (xn-# vd bitwise-and 1))
+        (define (vorr vd vn vm) (x-x:notype vn vm bitwise-ior))
+        (define (vorr# vd)      (xn-# vd bitwise-ior 1))
+        (define (vbsl vd vn vm) 
+          (x-x-x:notype
+           vd vn vm
+           (lambda (d n m)
+             (bitwise-ior (bitwise-and d n)
+                          (bitwise-and (bitwise-not d) m)))))
+
+        (define (vadd vd vn vm) (xn-xm vn vm +))
         (define (vhadd vd vn vm)  
           (xn-xm vn vm (lambda (n m) (>> (+ n m) 1))))
         (define (vsub vd vn vm) 
@@ -512,7 +533,7 @@
         (define (vshl vd vn vm)  
           (xn-xm vn vm (lambda (n m) (<< n m (* byte 8)))))
         (define (vshr vd vn)
-          (xn-# vn (lambda (n i) (>> n i))))
+          (xn-# vn (lambda (n i) (>> n i)) 2))
 
         (define-syntax-rule (inst-eq? x) (equal? op (send machine get-inst-id x)))
         (define-syntax-rule (type-eq? x) (equal? type (send machine get-type-id x)))
@@ -534,7 +555,7 @@
          [(inst-eq? `vtrn)  (bitpermute transpose)]
          [(inst-eq? `vzip)  (bitpermute zip)]
          [(inst-eq? `vuzp)  (bitpermute unzip)]
-
+         [(inst-eq? `vswp)  (bitpermute swap)]
 
          [(inst-eq? `vmla)   (nnn 0 mla #t)]
          [(inst-eq? `vmla@)  (nnn 0 mlai #t)]
@@ -542,7 +563,7 @@
          [(inst-eq? `vmlal@) (nnn 1 mlai #t)]
 
          [(inst-eq? `vmov)   (nn 0 mov-simple)]
-         [(inst-eq? `vmov#)  (ni 0 mov-simple)]
+         [(inst-eq? `vmov#)  (n 0 mov# #t)]
          ;; [(inst-eq? `vmvn)   (nn 0 mvn-simple)]
          ;; [(inst-eq? `vmvn#)  (ni 0 mvn-simple)] ;; TODO: constraint on constant
          ;; [(inst-eq? `vmovl)  (nn 1 mov)]
@@ -551,7 +572,10 @@
          ;; ;[(inst-eq? `vqmovun) (nn 2 qmov)]
 
          [(inst-eq? `vand)   (nnn 0 vand)]
-         [(inst-eq? `vand#)  (ni 0 vand #t)]
+         [(inst-eq? `vand#)  (n 0 vand# #t)]
+         [(inst-eq? `vorr)   (nnn 0 vorr)]
+         [(inst-eq? `vorr#)  (n 0 vorr# #t)]
+         [(inst-eq? `vbsl)   (nnn 0 vbsl #t)]
 
          [(inst-eq? `vadd)   (nnn 0 vadd)]
          [(inst-eq? `vhadd)  (nnn -1 vhadd)]
@@ -669,19 +693,29 @@
          ))
 
       (define (find-match-schedule info-list)
-        (define key (caar info-list))
-        (define val (cdar info-list))
-        ;; (pretty-display `(find-match))
-        (for*/all ([k key]
-                   [v val])
-            (if (and (match (inst-args k) args)
-                     (match (inst-byte k) byte))
-                v
-                (find-match-schedule (cdr info-list)))))
+        (for/all ([l info-list])
+          (let ([key (caar l)]
+                [val (cdar l)])
+            ;; (pretty-display `(find-match))
+            (for*/all ([k key]
+                       [v val])
+              (if (and (match (inst-args k) args)
+                       (match (inst-byte k) byte))
+                  v
+                  (find-match-schedule (cdr info-list)))))))
+        ;; (define key (caar info-list))
+        ;; (define val (cdar info-list))
+        ;; ;; (pretty-display `(find-match))
+        ;; (for*/all ([k key]
+        ;;            [v val])
+        ;;     (if (and (match (inst-args k) args)
+        ;;              (match (inst-byte k) byte))
+        ;;         v
+        ;;         (find-match-schedule (cdr info-list)))))
       
       (define info (vector-ref schedule-info (inst-op x)))
       ;; (pretty-display `(schedule-info ,schedule-info))
-      ;; (pretty-display `(info ,info))    
+      ;; (for/all ([i info]) (pretty-display i))
       
                
       (if (list? info)
@@ -733,15 +767,15 @@
        [(inst-eq? '(nop))   (cons (list) (list))]
        [(inst-eq? '(vld1 vld1! vld2 vld2! vst1 vst1! vst2 vst2!))  (d*)]
        [(inst-eq? '(vext#))  (duu)]
-       [(inst-eq? '(vtrn vzip vuzp))   (bb)]
+       [(inst-eq? '(vtrn vzip vuzp vswp))   (bb)]
 
        [(inst-eq? '(vmla vmla@ vmlal vmlal@))   (buu)]
        [(inst-eq? '(vmov vshr#))  (du)]
        ;;[(inst-eq? '(vmov@)) (du)]
        [(inst-eq? '(vmov#)) (d)]
-       [(inst-eq? '(vand#)) (b)]
+       [(inst-eq? '(vand# vorr#)) (b)]
 
-       [(inst-eq? '(vand vadd vsub vhadd vhsub))  (duu)]
+       [(inst-eq? '(vand vorr vbsl vadd vsub vhadd vhsub))  (duu)]
        
        [else (assert #f (format "get-defs-uses: undefined for ~a" x))]
        ))

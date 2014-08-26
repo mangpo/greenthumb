@@ -12,8 +12,11 @@
 
 (define code
 (send parser ast-from-string "
-vst1 {d0} , [r0]
-vst1 {d0} , [r0]
+vld1 {d4,d5}, [r2]
+vorr d2, d9, d9
+vorr d3, d8, d8
+vbsl q0, q1, q2
+vst1.32	{d0,d1}, [r2]
 "))
 
 (define code2
@@ -61,6 +64,5 @@ vst1 {d0} , [r0]
                (list->vector (range (* 8 (send machine get-nmems))))))
 ;(display-state state)
 (send simulator performance-cost encoded-code)
-#|(send machine display-state 
-      (send simulator interpret encoded-code state)
-      )|#
+;(send machine display-state 
+;      (send simulator interpret encoded-code state))

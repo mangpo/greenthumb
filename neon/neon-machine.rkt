@@ -79,21 +79,22 @@
                      vld1! vld2! ;vld3! vld4!
                      vst1 vst2
                      vst1! vst2!
-                     vext# vtrn vzip vuzp
+                     vext# vtrn vzip vuzp vswp
 
                      vmla vmla@ vmlal vmlal@
                      vmov vmov# ;vmovl vmovn vqmovn
                      ;;vmvn vmvn#
-                     vand vand#
+                     vand vand# vorr vorr# vbsl
                      vadd vsub
                      vhadd vhsub
                      vshr#
                      ))
     (set! classes (vector '(vld1 vld1! vst1 vst1!)
                         '(vld2 vld2! vst2 vst2!)
-                        '(vmla vadd vsub vhadd vhsub vand)
-                        '(vmov vtrn vzip vuzp)
-                        '(vmov# vand#))) ;; vshr#, vext#, vmla@, vmlal@
+                        '(vmla vadd vsub vhadd vhsub vand vorr vbsl)
+                        '(vmov vtrn vzip vuzp vswp)
+                        '(vmov# vand# vorr#)
+                        '(vmla@ vext#))) ;; vshr#, vmlal@, vmlal
     (set! perline 8)
     (set! classes-len (vector-length classes))
 

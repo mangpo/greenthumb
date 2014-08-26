@@ -35,13 +35,22 @@
 
 (define code
 (send parser ast-from-string "
-vtrn.16 d0, d1
+vorr q3, q0, q0
+vld1 {d4,d5}, [r2]
+vmov q1, q4
+vswp d2, d3
+vbsl q3, q1, q2
+vst1.32	{d6,d7}, [r2]
 ")) ;; vmlal.s16 q0, d2, d3[1]
 
 
 (define sketch
 (send parser ast-from-string "
-?
+vld1 {d4,d5}, [r2]
+vorr d2, d9, d9
+vorr d3, d8, d8
+vbsl q0, q1, q2
+vst1.32	{d0,d1}, [r2]
 "))
 
 (define encoded-code (send printer encode code))
@@ -56,8 +65,8 @@ vtrn.16 d0, d1
 (send printer print-struct encoded-sketch2)
 
 (define t (current-seconds))
-;(define x (send solver counterexample encoded-code encoded-sketch 
-;                (constraint machine [dreg 0 1 3] [rreg 1 2] [mem-all])))
-(send solver superoptimize encoded-code encoded-sketch 
-      (constraint machine [dreg 0 1] [rreg 0] [mem-all]) #f)
+(define x (send solver counterexample encoded-code encoded-sketch 
+                (constraint machine [dreg] [rreg 1 2] [mem-all])))
+;(send solver superoptimize encoded-code encoded-sketch 
+;      (constraint machine [dreg 0 1] [rreg 0] [mem-all]) #f)
 (pretty-display `(time ,(- (current-seconds) t)))

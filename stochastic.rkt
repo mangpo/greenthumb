@@ -22,7 +22,7 @@
     ;; Notice that  we use 'inst' for stat report (stat-mutations) and 'instruction' for actual muation (mutate-dist)
 
     (define w-error 9999)
-    (define beta 0.3) ;0.01
+    (define beta 1)
     (define nop-mass 0.8)
     (define ntests 16)
     
@@ -43,6 +43,9 @@
                            #:assume [assumption (send machine no-assumption)])
       ;; Generate testcases
       (when debug 
+            (pretty-display ">>> Phase 0: print mutation info")
+            (print-mutation-info)
+            ;;(raise "done")
             (pretty-display ">>> Phase 1: generate input states"))
       (define inputs (send solver generate-input-states ntests spec assumption))
 

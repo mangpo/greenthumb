@@ -123,11 +123,11 @@
        [(member opcode '(vmov))
         (make-inst #f #f dreg dreg)]
        
-       [(member opcode '(vtrn vzip vuzp))
+       [(member opcode '(vtrn vzip vuzp vswp))
         (make-inst #f byte dreg dreg)]
        
-       [(member opcode '(vmov# vand#))
-        (make-inst #f #f dreg imm)]
+       [(member opcode '(vmov# vand# vorr#))
+        (make-inst 2 byte dreg imm)]
        
        [(member opcode '(vmla vadd vsub))
         (make-inst 2 byte dreg dreg dreg)]
@@ -135,7 +135,7 @@
        [(member opcode '(vmlal vhadd vhsub))
         (make-inst type byte dreg dreg dreg)]
        
-       [(member opcode '(vand))
+       [(member opcode '(vand vorr vbsl))
         (make-inst #f #f dreg dreg dreg)]
        
        [(member opcode '(vmla@ vmlal@))

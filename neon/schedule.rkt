@@ -31,6 +31,8 @@
    (cons (neon-inst `vzip `q #f #f) (schd-info `lsbp 3 2 #f #f))
    (cons (neon-inst `vuzp `d #f #f) (schd-info `lsbp 1 2 #f #f))
    (cons (neon-inst `vuzp `q #f #f) (schd-info `lsbp 3 2 #f #f))
+   (cons (neon-inst `vswp `d #f #f) (schd-info `lsbp 1 2 #f #f))
+   (cons (neon-inst `vswp `q #f #f) (schd-info `lsbp 2 2 #f #f))
 
    (cons (neon-inst `vmla `d 8 #f) (schd-info `alu 1 5 1 1))
    (cons (neon-inst `vmla `d 16 #f) (schd-info `alu 1 5 1 1))
@@ -57,6 +59,10 @@
 
    (cons (neon-inst `vand #f #f #f) (schd-info `alu 1 2 #f #f))
    (cons (neon-inst `vand# #f #f #f) (schd-info `alu 1 2 #f #f))
+   (cons (neon-inst `vorr #f #f #f) (schd-info `alu 1 2 #f #f))
+   (cons (neon-inst `vorr# #f #f #f) (schd-info `alu 1 2 #f #f))
+   (cons (neon-inst `vbsl `d #f #f) (schd-info `alu 1 2 #f #f))
+   (cons (neon-inst `vbsl `q #f #f) (schd-info `alu 2 2 #f #f))
    
    (cons (neon-inst `vadd #f #f #f) (schd-info `alu 1 2 #f #f))
    (cons (neon-inst `vsub #f #f #f) (schd-info `alu 1 3 #f #f))
