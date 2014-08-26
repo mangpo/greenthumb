@@ -19,6 +19,12 @@
     (define schedule-info (init-schedule-info machine))
 
     (define-syntax-rule (nregs-d) (send machine get-nregs-d))
+    (define-syntax-rule (guard x val ... lam)
+      (cond
+       [(= x val) (lam val)]
+       ...
+       [else (assert #f "Guard: invalid values.")]))
+      
 
     (define-syntax-rule (byte-guard byte lam)
       (cond
@@ -205,6 +211,37 @@
           (when update (vector-set! rregs r-id mem-addr))
           (when debug `(load done)))
 
+
+        ;; Special case for vld1 (no stride)
+        (define (load/store1 update load?)
+          (when debug (pretty-display `(load/store1 ,update ,load?)))
+          (define dest (vector-ref args 0))
+          (define n (car dest))
+          (define dest-regs (cdr dest)) ;; TODO: check validity
+          
+          (define r-id (vector-ref args 1))
+          (define mem-addr (vector-ref rregs r-id)) ;; check alignment
+          
+          (guard
+           n 1 2 3 4
+           (lambda (n)
+             (for ([i (in-range n)])
+                  ;;(pretty-display `(i ,i))
+                  (let ([d-reg (vector-ref dest-regs i)])
+                    (if load?
+                        (vector-copy-len! 
+                         dregs (* 8 d-reg) 
+                         memory (+ mem-addr (* 8 i)) 8)
+                        (vector-copy-len!
+                         memory (+ mem-addr (* 8 i))
+                         dregs (* 8 d-reg) 8))
+                    ))
+             (when update (vector-set! rregs r-id (+ mem-addr (* n 8))))
+             ))
+          
+          (when debug (pretty-display `(load/store1 done)))
+          )
+
         (define (bitpermute f)
           (define d (vector-ref args 0))
           (define m (vector-ref args 1))
@@ -266,27 +303,6 @@
            ))
                
 
-        ;; Special case for vld1 (no stride)
-        (define (load/store1 update load?)
-          (define dest (vector-ref args 0))
-          (define n (car dest))
-          (define dest-regs (cdr dest)) ;; TODO: check validity
-          
-          (define r-id (vector-ref args 1))
-          (define mem-addr (vector-ref rregs r-id)) ;; check alignment
-          
-          (for ([i (in-range n)])
-               (let ([d-reg (vector-ref dest-regs i)])
-                 (if load?
-                     (vector-copy-len! 
-                      dregs (* 8 d-reg) 
-                      memory (+ mem-addr (* 8 i)) 8)
-                     (vector-copy-len!
-                      memory (+ mem-addr (* 8 i))
-                      dregs (* 8 d-reg) 8))
-                 ))
-          (when update (vector-set! rregs r-id (+ mem-addr (* n 8))))
-          )
         
         ;; Operand patterns
         (define (nnn arg-type f [rmw #f])
@@ -585,7 +601,7 @@
         (define t-latency #f)
         (define forward-from #f)
         (define forward-to #f)
-   
+
         (for/all ([s schd])
           (begin
             (set! unit (schd-info-unit s))
@@ -631,9 +647,9 @@
           (and forward-to (list forward-to (neon-inst-type entry) (neon-inst-byte entry))))
         (vector-set! units unit exec)
         (for/all ([ds defs])
-          (for ([def ds])
-               (vector-set! dregs def latency)
-               (vector-set! forwarding def forward-type)))
+                 (for ([d ds])
+                      (vector-set! dregs d latency)
+                      (vector-set! forwarding d forward-type)))
           
         )
 
@@ -641,12 +657,13 @@
       (foldl (lambda (x res) (max res (vector-ref dregs x)))
              0 (range (nregs-d))))
     
-    (define (get-schedule-info x)
+    (define/public (get-schedule-info x)
       (define args (inst-args x))
       (define byte (inst-byte x))
       (define (match ref my)
         (cond
-         [(procedure? ref) (ref my)]
+         [(equal? ref `d) (is-d? (vector-ref my 0))]
+         [(equal? ref `q) (is-q? (vector-ref my 0))]
          [ref (equal? ref my)]
          [else #t] ;; If ref = #f, then return #t
          ))
@@ -654,6 +671,7 @@
       (define (find-match-schedule info-list)
         (define key (caar info-list))
         (define val (cdar info-list))
+        ;; (pretty-display `(find-match))
         (for*/all ([k key]
                    [v val])
             (if (and (match (inst-args k) args)
@@ -662,9 +680,14 @@
                 (find-match-schedule (cdr info-list)))))
       
       (define info (vector-ref schedule-info (inst-op x)))
+      ;; (pretty-display `(schedule-info ,schedule-info))
+      ;; (pretty-display `(info ,info))    
+      
+               
       (if (list? info)
           (find-match-schedule info)
-          (cdr info)))
+          (cdr info))
+      )
 
     ;; Return (values defs-list uses-list)
     (define (get-defs-uses x)
@@ -687,9 +710,9 @@
       (define (b) (cons (get-dregs 0) (get-dregs 0)))
       (define (d*) 
         (let ([len-vec (vector-ref args 0)])
-          (cons (flatten 
-                 (map dregs 
-                      (vector->list (vector-take (cdr len-vec) (car len-vec)))))
+          (cons (foldl (lambda (x res) (append (dregs x) res)) (list)
+                       (take (vector->list (cdr len-vec)) (car len-vec)))
+                       ;(vector->list (vector-take (cdr len-vec) (car len-vec))))
                 (list))))
       (define (du) (cons (get-dregs 0) (get-dregs 1)))
       (define (bb)

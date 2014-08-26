@@ -95,6 +95,7 @@
        [else #f]))
 
     (define (random-instruction [opcode-id (random (vector-length inst-id))])
+      ;;(pretty-display `(random-instruction ,opcode-id ,(send machine get-inst-name opcode-id)))
       (define opcode-name (vector-ref inst-id opcode-id))
       ;;(define byte (arithmetic-shift 1 (random 4)))
       (define byte (if (= (random 2) 0) 2 4)) ;; TODO, no 8 or 64 bit
@@ -114,6 +115,9 @@
            [else 4]))
         (define skip (add1 (random 2)))
         (define distance (* (sub1 n) skip))
+        (when (>= distance nregs-d)
+              (set! skip 1)
+              (set! distance (sub1 n)))
         (define first-reg (random (- nregs-d distance)))
         (define ld-regs (for/vector ([i n]) (+ first-reg (* i skip))))
         (define args
@@ -132,8 +136,11 @@
           (cond
            [(<= prop 0.75) 2]
            [else 4]))
-        (define skip (random 2))
+        (define skip (add1 (random 2)))
         (define distance (* (sub1 n) skip))
+        (when (>= distance nregs-d)
+              (set! skip 1)
+              (set! distance (sub1 n)))
         (define first-reg (random (- nregs-d distance)))
         (define ld-regs (for/vector ([i n]) (+ first-reg (* i skip))))
         (define args
@@ -149,6 +156,7 @@
         (define ranges
           (get-arg-ranges opcode-name 
                           (neon-inst opcode-id (vector first-arg) byte type-id)))
+        ;;(pretty-display `(ranges ,first-arg ,ranges))
         (define args
           (for/vector ([i (vector-length ranges)])
                       (random-from-vec (vector-ref ranges i))))

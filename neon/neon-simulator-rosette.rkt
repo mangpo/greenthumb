@@ -580,7 +580,7 @@
                    (set! cost (add1 cost))))
       cost)
 
-    (define debug #t)
+    (define debug #f)
 
     (define (performance-cost code)
       (when debug (pretty-display `(performance-cost)))
@@ -671,7 +671,7 @@
       (define (find-match-schedule info-list)
         (define key (caar info-list))
         (define val (cdar info-list))
-        (pretty-display `(find-match))
+        ;; (pretty-display `(find-match))
         (for*/all ([k key]
                    [v val])
             (if (and (match (inst-args k) args)
@@ -680,8 +680,9 @@
                 (find-match-schedule (cdr info-list)))))
       
       (define info (vector-ref schedule-info (inst-op x)))
-      (pretty-display `(schedule-info ,schedule-info))
-      (pretty-display `(info ,info))                
+      ;; (pretty-display `(schedule-info ,schedule-info))
+      ;; (pretty-display `(info ,info))    
+      
                
       (if (list? info)
           (find-match-schedule info)
