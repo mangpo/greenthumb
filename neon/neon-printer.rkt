@@ -12,7 +12,6 @@
     (override print-struct-inst print-syntax-inst
               encode-inst decode-inst)
     (set! report-mutations (vector-append report-mutations '#(byte type)))
-    (define nregs-d (send machine get-nregs-d))
 
     (define (print-struct-inst x [indent ""])
       (define op (inst-op x))
@@ -77,7 +76,7 @@
             (if (member type (list "d" "q" "r" "#"))
                 (let ([num (string->number (substring x 1))])
                   (cond
-                   [(equal? type "q") (+ nregs-d num)]
+                   [(equal? type "q") (+ 32 num)]
                    [else num]))
                 (string->number x)))))
 
@@ -108,7 +107,7 @@
                    (and byte (* byte 8))
                    (and type (send machine get-type-name type))))
       
-      (define (dreg x) (if (< x nregs-d) (format "d~a" x) (format "q~a" (- x nregs-d))))
+      (define (dreg x) (if (< x 32) (format "d~a" x) (format "q~a" (- x 32))))
       (define (rreg x) (format "r~a" x))
       (define (imm x) (number->string (bitwise-and x #xffffffff)))
       (define (load-dregs x) (vector-map dreg (vector-take (cdr x) (car x))))
@@ -120,10 +119,10 @@
        [(member opcode '(vld1 vld1! vld2 vld2! vst1 vst1! vst2 vst2!))
         (make-inst #f byte load-dregs rreg)]
        
-       [(member opcode '(vmov))
+       [(member opcode '(vmov vswp))
         (make-inst #f #f dreg dreg)]
        
-       [(member opcode '(vtrn vzip vuzp vswp))
+       [(member opcode '(vtrn vzip vuzp))
         (make-inst #f byte dreg dreg)]
        
        [(member opcode '(vmov# vand# vorr#))

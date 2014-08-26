@@ -12,11 +12,8 @@
 
 (define code
 (send parser ast-from-string "
-vld1 {d4,d5}, [r2]
-vorr d2, d9, d9
-vorr d3, d8, d8
-vbsl q0, q1, q2
-vst1.32	{d0,d1}, [r2]
+vand d2, d0, d1
+vmov q0, q1
 "))
 
 (define code2

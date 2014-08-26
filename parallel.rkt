@@ -40,6 +40,7 @@
            (pretty-display (format "#lang racket"))
            (pretty-display (format "(require ~a)" required-files))
            (pretty-display (format "(define machine (new ~a))" (send meta get-class-name "machine")))
+           ;; Very important to set-config before perform stochastic search.
            (pretty-display (format "(send machine set-config ~a)"
                                    (send machine set-config-string machine-info)))
            (pretty-display (format "(define printer (new ~a [machine machine]))" (send meta get-class-name "printer")))

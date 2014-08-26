@@ -14,15 +14,15 @@
 
 (define code
 (send parser ast-from-string "
-vst1.32	{d6,d7}, [r2]
-vst1.32	{d6,d7}, [r2]
-vst1.32	{d6,d7}, [r2]
+vorr d0, d1, d2
+vorr d0, d1, d2
+vbsl q3, q1, q2
 "))
 
 (define encoded-code (send printer encode code))
 (send printer print-struct encoded-code)
 
 (send stochastic superoptimize encoded-code 
-      (constraint machine [dreg] 
+      (constraint machine [dreg 6 7] 
                   [rreg] [mem-all]) 
-      #t "output/driver-0" 120 #f)
+      #t "test" 120 #f)

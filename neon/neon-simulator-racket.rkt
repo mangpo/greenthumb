@@ -11,7 +11,7 @@
     (super-new)
     (init-field machine)
     (override interpret performance-cost is-valid?)
-        
+
     (define bit (get-field bit machine))
     (define type-u-id (send machine get-type-id `u))
     (define type-s-id (send machine get-type-id `s))
@@ -60,11 +60,9 @@
        (flatten
         (for/list ([x lst]) (number->bytes x byte)))))
 
-    (define (is-d? x) 
-      (and (>= x 0) (< x (nregs-d))))
+    (define (is-d? x) (and (>= x 0) (< x 32)))
     
-    (define (is-q? x) 
-      (and (>= x (nregs-d)) (< x (+ (nregs-d) (quotient (nregs-d) 2)))))
+    (define (is-q? x) (and (>= x 32) (< x 48)))
 
     (define (is-valid? code)
       ;; If not valid, this will throw error.
@@ -152,7 +150,7 @@
           (when debug (pretty-display `(get-qreg ,id)))
           (define ret
             (let* ([bytes 16]
-                   [my-id (- id (nregs-d))]
+                   [my-id (- id 32)]
                    [base (* my-id bytes)])
               (vector-copy-len dregs base bytes)))
           ret)
@@ -167,7 +165,7 @@
         (define (set-qreg! id val)
           (when debug (pretty-display `(set-qreg! ,id)))
           (let ([bytes 16]
-                [my-id (- id (nregs-d))])
+                [my-id (- id 32)])
             (let ([base (* my-id bytes)])
               (vector-copy! dregs base val)))
           )
@@ -249,7 +247,7 @@
           (define len (if dreg? 8 16))
           (if (is-d? d)
               (f 8 (* 8 d) (* 8 m))
-              (f 16 (* 16 (- d (nregs-d))) (* 16 (- m (nregs-d))))))
+              (f 16 (* 16 (- d 32)) (* 16 (- m 32)))))
         
         (define (transpose len index-d index-m)
           (byte-guard
@@ -315,6 +313,7 @@
           (define d (vector-ref args 0))
           (define n (vector-ref args 1))
           (define m (vector-ref args 2))
+          (pretty-display `(nnn ,d ,n ,m ,(is-q? d) ,(is-q? n) ,(is-q? m)))
           (when debug (pretty-display `(nnn ,f ,arg-type ,d ,n ,m)))
           (cond
            [(<= arg-type 0) ;; normal
@@ -731,7 +730,7 @@
       (define (dregs reg)
         (if (is-d? reg) 
             (list reg)
-            (let ([id (* (- reg (nregs-d)) 2)])
+            (let ([id (* (- reg 32) 2)])
               (list id (add1 id)))))
         
 

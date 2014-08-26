@@ -321,6 +321,7 @@
 
       ;; Main loop
       (define (iter current current-cost)
+        (when debug (pretty-display ">>> iter >>>"))
         (send stat inc-iter)
         (define t1 (current-milliseconds))
         (define proposal (mutate current))
@@ -360,7 +361,9 @@
                           (sub1 (+ proposal-cost (cost-one-input proposal (car inputs) (car outputs)))))
                     (when debug (pretty-display (format "to ~a." proposal-cost)))
                     )
-              (iter (if (cdr cost-correct) (remove-nops proposal) proposal) 
+              (iter (if (cdr cost-correct) 
+                        (remove-nops proposal) 
+                        proposal) 
                     proposal-cost))
             (begin
               ;; Adjust cost due to new counterexample

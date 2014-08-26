@@ -64,6 +64,8 @@
         (current-solver (new kodkod%))
         (configure [bitwidth bit] [loop-bound 20])
         (define state (send machine get-state sym-input))
+        (pretty-display `(config ,config ,(send machine get-nregs-d)))
+        (send simulator interpret encoded-code state)
         (with-handlers* 
          ([exn:fail? 
            (lambda (e)

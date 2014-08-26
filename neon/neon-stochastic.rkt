@@ -28,7 +28,7 @@
     (define nmems (send machine get-nmems))
     
     (define dreg-range (list->vector (range nregs-d)))
-    (define qreg-range (list->vector (range nregs-d (+ nregs-d (quotient nregs-d 2)))))
+    (define qreg-range (list->vector (range 32 (+ 32 (quotient nregs-d 2)))))
     (define rreg-range (list->vector (range nregs-r)))
     (define const-range 
           (list->vector
@@ -165,12 +165,7 @@
 
     (define (mutate-operand-specific opcode-name args index)
       (when debug `(mutate-operand-specific ,opcode-name ,args ,index))
-      ;; TODO: redundant
-      (define (random-from-list-ex lst ex)
-        (let ([new-lst (remove ex lst)])
-          (if (empty? new-lst)
-              ex
-              (list-ref new-lst (random (length new-lst))))))
+
       (cond
        [(and (member opcode-name '(vld1 vld1! vld2 vld2! vst1 vst1! vst2 vst2!)) (= index 0))
         ;; TODO: observe vst
