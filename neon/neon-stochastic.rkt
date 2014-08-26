@@ -18,7 +18,7 @@
               get-mutations mutate-operand-specific mutate-other)
 
     (set! mutate-dist 
-      #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1) (byte . 1) (type . 1)))
+      #hash((opcode . 2) (operand . 2) (swap . 2) (instruction . 2) (byte . 1) (type . 1)))
     (set! solver (new neon-solver% [machine machine] [printer printer]))
     (set! simulator (new neon-simulator-racket% [machine machine]))
 
@@ -168,18 +168,36 @@
 
       (cond
        [(and (member opcode-name '(vld1 vld1! vld2 vld2! vst1 vst1! vst2 vst2!)) (= index 0))
-        ;; TODO: observe vst
         ;; TODO: need to mutate, skip, and length too
+        (define len-pos (random 2))
         (define dest (vector-ref args 0))
         (define len (car dest))
         (define ld-regs (cdr dest))
         (define first-reg (vector-ref ld-regs 0))
-        (define distance (- (vector-ref ld-regs (sub1 len)) first-reg))
-        (when debug (pretty-display `(pick-first-reg ,nregs-d ,distance)))
-        (define new-first-reg 
-          (random-from-list-ex (range (- nregs-d distance)) first-reg))
-        (define diff (- new-first-reg first-reg))
-        (cons len (for/vector ([reg ld-regs]) (+ reg diff)))
+        (define skip 1)
+        (cond
+         [(= len-pos 0) ;; mutate length
+          (define new-len 
+            (if (member opcode-name '(vld1 vld1! vst1 vst1!))
+                (random-from-list-ex (list 1 2) len)
+                (random-from-list-ex (list 2 4) len)))
+          (when debug (pretty-display `(mutate-length ,len ,new-len)))
+          (define new-first-reg
+            (if (< new-len len)
+                (vector-ref ld-regs (random (add1 (- len new-len))))
+                (let ([start (max 0 (- first-reg (* (- new-len len) skip)))]
+                      [end (min (- nregs-d new-len) first-reg)])
+                  (+ start (random (add1 (- end start)))))))
+          (cons new-len (for/vector ([i new-len]) (+ new-first-reg (* i skip))))
+          ]
+         [else ;; mutate position
+          (define distance (- (vector-ref ld-regs (sub1 len)) first-reg))
+          (when debug (pretty-display `(pick-first-reg ,nregs-d ,distance)))
+          (define new-first-reg 
+            (random-from-list-ex (range (- nregs-d distance)) first-reg))
+          (define diff (- new-first-reg first-reg))
+          (cons len (for/vector ([reg ld-regs]) (+ reg diff)))
+          ])
         ]
        [else (raise (format "mutate-operand-specific: undefined for ~a at index ~a." opcode-name index))]))
 

@@ -313,7 +313,6 @@
           (define d (vector-ref args 0))
           (define n (vector-ref args 1))
           (define m (vector-ref args 2))
-          (pretty-display `(nnn ,d ,n ,m ,(is-q? d) ,(is-q? n) ,(is-q? m)))
           (when debug (pretty-display `(nnn ,f ,arg-type ,d ,n ,m)))
           (cond
            [(<= arg-type 0) ;; normal
