@@ -185,15 +185,19 @@
         (generate-inputs-inner n spec start-state assumption))
       (map (lambda (x) (evaluate-state start-state x)) sltns))
 
-    ;; Superoptimize program given
+    ;; Superoptimize program
+    ;; >>> INPUTS >>>
     ;; spec: program specification (naive code)
     ;; sketch: skeleton of the output program
     ;; constraint: constraint on the output state
-    ;; cost: upperbound (exclusive) of the cost of the output program
+    ;; cost: upperbound (exclusive) of the cost of the output program, #f is no upperbound
+    ;; assume-interpret: always true (for now)
+    ;; assume: input assumption
     (define (superoptimize spec sketch constraint 
-                           [cost #f]
+                           #:cost [cost #f]
                            #:assume-interpret [assume-interpret #t]
-                           #:assume [assumption (send machine no-assumption)])
+                           #:assume [assumption (send machine no-assumption)]
+                           #:time-limit [time-limit 3600])
       (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
       ;; (print-struct spec)
       ;; (print-struct sketch)
@@ -248,7 +252,7 @@
       
       (define model 
         (timeout
-         3600
+         time-limit
          (synthesize 
           #:forall sym-vars
           #:init inputs
@@ -272,7 +276,8 @@
       (values final-program final-cost)
       )
 
-
+    ;; Returns a counterexample if spec and program are different.
+    ;; Otherwise, returns false.
     (define (counterexample spec program constraint
                             #:assume [assumption (send machine no-assumption)])
       (when debug 
