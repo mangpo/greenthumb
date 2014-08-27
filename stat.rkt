@@ -100,7 +100,7 @@
       (newline)
       (pretty-display (format "validate-count:\t~a" validate-count))
       (pretty-display (format "correct-count:\t~a" correct-count))
-      (pretty-display (format "misalign-count:\t~a" misalign-count))
+      ;(pretty-display (format "misalign-count:\t~a" misalign-count))
       (newline)
       (pretty-display (format "iterations:\t~a" iter-count))
       (when (> time 0)
@@ -151,7 +151,7 @@
   ;(pretty-display "correct-count")
   (define correct-count (reduce+ correct-count))
   ;(pretty-display "misalign-count")
-  (define misalign-count (reduce+ misalign-count))
+  ;(define misalign-count (reduce+ misalign-count))
   ;(pretty-display "accept-higher-count")
 
   (define accept-higher-count (reduce+ accept-higher-count))
@@ -205,7 +205,7 @@
                     [correct-count (ratio correct-count iter-count)]
                     [accept-count (ratio accept-count iter-count)]
                     [accept-higher-count (ratio accept-higher-count iter-count)]
-                    [misalign-count (ratio misalign-count iter-count)]
+                    ;[misalign-count (ratio misalign-count iter-count)]
                     [propose-stat propose-stat]
                     [accept-stat accept-stat]
                     [best-correct-program #f]
@@ -231,7 +231,7 @@
   (define iter-count #f)
   (define validate-count #f)
   (define correct-count #f)
-  (define misalign-count #f)
+  ;(define misalign-count #f)
   (define accept-count #f)
   (define accept-higher-count #f)
   (define propose-stat (make-vector n))
@@ -269,7 +269,7 @@
                (#rx"iterations:" iter-count)
                (#rx"validate-count:" validate-count)
                (#rx"correct-count:" correct-count)
-               (#rx"misalign-count:" misalign-count)
+               ;(#rx"misalign-count:" misalign-count)
                (#rx"accept-count:" accept-count)
                (#rx"accept-higher-count:" accept-higher-count)
                (#rx"best-cost" best-cost)
@@ -295,7 +295,7 @@
        [iter-count iter-count]
        [validate-count validate-count]
        [correct-count correct-count]
-       [misalign-count misalign-count]
+       ;[misalign-count misalign-count]
        [accept-count accept-count]
        [accept-higher-count accept-higher-count]
        [propose-stat propose-stat]
