@@ -17,14 +17,12 @@
                 [solver #f]
                 [simulator #f]
                 [stat #f]
+                [w-error 9999]
+                [beta 1]
+                [nop-mass 0.8]
+                [ntests 16]
                 [mutate-dist 
                  #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1))])
-    ;; Notice that  we use 'inst' for stat report (stat-mutations) and 'instruction' for actual muation (mutate-dist)
-
-    (define w-error 9999)
-    (define beta 1)
-    (define nop-mass 0.8)
-    (define ntests 16)
     
     (define nop-id (send machine get-inst-id `nop))
     (define inst-id (get-field inst-id machine))
