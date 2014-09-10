@@ -13,7 +13,7 @@
     (abstract correctness-cost get-arg-ranges)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
-    (init-field machine printer
+    (init-field machine printer syn-mode
                 [solver #f]
                 [simulator #f]
                 [stat #f]
@@ -37,7 +37,7 @@
     (define (inst-copy-with-args x args) (struct-copy inst x [args args]))
 
     (define (superoptimize spec constraint 
-                           syn-mode name time-limit size
+                           name time-limit size
                            #:assume [assumption (send machine no-assumption)])
       ;; Generate testcases
       (when debug 

@@ -15,7 +15,7 @@
                 [bit (get-field bit machine)]
                 [random-input-bit (get-field random-input-bit machine)])
     (abstract get-sym-vars evaluate-state
-              encode-sym decode-sym
+              encode-sym decode-sym sym-insts
               assume assert-output)
     (public proper-machine-config generate-input-states
             superoptimize counterexample
@@ -65,6 +65,7 @@
         (clear-asserts)
         (configure [bitwidth bit] [loop-bound 20])
         (define state (send machine get-state sym-input))
+	(send simulator interpret encoded-code state)
 
         (with-handlers* 
          ([exn:fail? 
@@ -185,6 +186,16 @@
         (generate-inputs-inner n spec start-state assumption))
       (map (lambda (x) (evaluate-state start-state x)) sltns))
 
+
+    (define (superoptimize-inc spec constraint name time-limit size
+			   #:assume [assumption (send machine no-assumption)])
+      (synthesize-from-sketch-inc spec 
+			      (sym-insts (if size size (vector-length spec)))
+			      constraint 
+			      (send simulator performance-cost spec)
+			      time-limit name
+			      #:assume assumption))
+
     ;; Superoptimize program
     ;; >>> INPUTS >>>
     ;; spec: program specification (naive code)
@@ -193,29 +204,21 @@
     ;; cost: upperbound (exclusive) of the cost of the output program, #f is no upperbound
     ;; assume-interpret: always true (for now)
     ;; assume: input assumption
-    (define (superoptimize spec sketch constraint 
-                           #:cost [cost #f]
-                           #:assume-interpret [assume-interpret #t]
-                           #:assume [assumption (send machine no-assumption)]
-                           #:time-limit [time-limit 3600])
-      (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
-      ;; (print-struct spec)
-      ;; (print-struct sketch)
-      ;; (pretty-display constraint)
-      ;; (pretty-display assumption)
-      
-      ;;(current-solver (new z3%))
-      ;; (current-solver (new kodkod%))
+    (define (synthesize-from-sketch-inc spec sketch constraint cost time-limit name
+				    #:assume-interpret [assume-interpret #t]
+				    #:assume [assumption (send machine no-assumption)])
+      (pretty-display (format "SUPERPOTIMIZE-INC: assume-interpret = ~a" assume-interpret))
+
+      ;; (current-solver (new z3%))
+      (current-solver (new kodkod-incremental%))
       (clear-asserts)
       (configure [bitwidth bit] [loop-bound 20])
+      (define start-time (current-seconds))
       (define start-state (send machine get-state sym-input))
       (define spec-state #f)
       (define sketch-state #f)
       (define spec-cost #f)
       (define sketch-cost #f)
-      
-      ;; (pretty-display ">>>>>>>>>>> START >>>>>>>>>>>>>")
-      ;; (display-state start-state)
       
       (define (interpret-spec!)
         (pretty-display "========== interpret spec")
@@ -224,24 +227,163 @@
       (define (compare-spec-sketch)
         (pretty-display "=========== interpret sketch")
         (set! sketch-state (send simulator interpret sketch start-state spec-state))
-        
-        ;; (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
-        ;; (display-state spec-state)
-        ;; (pretty-display ">>>>>>>>>>> SKETCH >>>>>>>>>>>>>")
-        ;; (display-state sketch-state)
-        ;; (pretty-display ">>>>>>>>>>> FORALL >>>>>>>>>>>>>")
-        ;; (pretty-display (get-sym-vars start-state))
         (pretty-display "check output")
-        (set! spec-cost (send simulator performance-cost spec))
+        ;; (set! spec-cost (send simulator performance-cost spec))
         (set! sketch-cost (send simulator performance-cost sketch))
-        (when cost (assert (< sketch-cost spec-cost)))
+        (when cost (assert (< sketch-cost cost)))
         (assert-output spec-state sketch-state constraint)
         )
       
       ;; Collect input variables and contruct their init values.
       (define-values (sym-vars inputs)
         (generate-inputs-inner 2 spec start-state assumption))
-      ;;(pretty-display `(inputs ,inputs))
+
+      ;; (when debug
+      ;;       (pretty-display "Test calculate performance-cost with symbolic instructions...")
+      ;;       (send simulator performance-cost sketch)
+      ;;       (pretty-display "Test simulate with symbolic instructions...")
+      ;;       (send simulator interpret sketch start-state)
+      ;;       (pretty-display "Passed!"))
+      
+      (define final-program #f)
+      (define (inner)
+	(define model 
+	  (timeout
+	   time-limit
+	   (synthesize 
+	    #:forall sym-vars
+	    #:init inputs
+	    #:assume (if assume-interpret (interpret-spec!) (assume start-state assumption))
+	    #:guarantee (compare-spec-sketch)
+	    )
+	   )
+	  )
+	
+	(pretty-display ">>> done synthesize")
+	(set! final-program (decode-sym sketch model))
+	(define final-cost (evaluate sketch-cost model))
+	;; Print to file
+	(with-output-to-file #:exists 'truncate (format "~a.stat" name)
+	  (thunk
+	   (pretty-display (format "best-correct-cost:\t~a" final-cost))
+	   (pretty-display (format "best-correct-time:\t~a" 
+				   (- (current-seconds) start-time)))))
+	(with-output-to-file #:exists 'truncate (format "~a.best" name)
+	  (thunk
+	   (send printer print-syntax final-program)))
+	
+	(pretty-display ">>> superoptimize-output")
+	(print-struct final-program)
+	(pretty-display (format "limit cost = ~a" cost))
+	(pretty-display (format "new cost = ~a" final-cost))
+	(pretty-display "=====================================")
+	(when cost 
+	      (set! cost final-cost)
+	      (inner)))
+
+      (with-handlers* 
+       ([exn:fail? 
+	 (lambda (e) 
+	   (clear-asserts)
+	   (clear-terms!)
+	   (if (or (regexp-match #rx"synthesize: synthesis failed" (exn-message e))
+		   (regexp-match #rx"assert: progstate-cost" (exn-message e)))
+	       final-program
+	       (raise e)))]
+	[exn:break? (lambda (e) 
+		      (clear-asserts)
+		      (clear-terms!)
+		      (if final-program
+			  final-program
+			  "timeout"))])
+       (inner)
+       final-program))
+
+    (define (remove-nops code)
+      (list->vector 
+       (filter (lambda (x) (not (equal? (inst-op x) "nop")))
+               (vector->list code))))
+
+    (define (superoptimize spec constraint name time-limit size
+			   #:assume [assumption (send machine no-assumption)])
+      (define sketch (sym-insts (if size size (vector-length spec))))
+      (define start-time (current-seconds))
+      (define final-program #f)
+      (define (inner cost)
+	(define-values (out-program out-cost) 
+	  (synthesize-from-sketch spec sketch constraint cost time-limit
+				  #:assume assumption))
+	;; Print to file
+	(with-output-to-file #:exists 'truncate (format "~a.stat" name)
+	  (thunk
+	   (pretty-display (format "best-correct-cost:\t~a" out-cost))
+	   (pretty-display (format "best-correct-time:\t~a" 
+				   (- (current-seconds) start-time)))))
+	(with-output-to-file #:exists 'truncate (format "~a.best" name)
+	  (thunk
+	   (send printer print-syntax out-program)))
+
+	(set! final-program out-program)
+	(set! sketch (vector-take sketch (vector-length (remove-nops final-program))))
+	(inner out-cost))
+      
+      (with-handlers* 
+       ([exn:fail? 
+	 (lambda (e) 
+	   (clear-terms!)
+	   (if (or (regexp-match #rx"synthesize: synthesis failed" (exn-message e))
+		   (regexp-match #rx"assert: progstate-cost" (exn-message e)))
+	       final-program
+	       (raise e)))]
+	[exn:break? (lambda (e) 
+		      (clear-terms!)
+		      (if final-program
+			   final-program
+			  "timeout"))])
+       (inner (send simulator performance-cost spec))))
+
+    ;; Superoptimize program
+    ;; >>> INPUTS >>>
+    ;; spec: program specification (naive code)
+    ;; sketch: skeleton of the output program
+    ;; constraint: constraint on the output state
+    ;; cost: upperbound (exclusive) of the cost of the output program, #f is no upperbound
+    ;; assume-interpret: always true (for now)
+    ;; assume: input assumption
+    (define (synthesize-from-sketch spec sketch constraint cost time-limit
+				    #:assume-interpret [assume-interpret #t]
+				    #:assume [assumption (send machine no-assumption)])
+      (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
+
+      ;; (current-solver (new z3%))
+      ;; (current-solver (new kodkod%))
+
+      (clear-asserts)
+      (configure [bitwidth bit] [loop-bound 20])
+
+      (define start-state (send machine get-state sym-input))
+      (define spec-state #f)
+      (define sketch-state #f)
+      (define spec-cost #f)
+      (define sketch-cost #f)
+      
+      (define (interpret-spec!)
+        (pretty-display "========== interpret spec")
+        (set! spec-state (interpret-spec spec start-state assumption)))
+      
+      (define (compare-spec-sketch)
+        (pretty-display "=========== interpret sketch")
+        (set! sketch-state (send simulator interpret sketch start-state spec-state))
+        (pretty-display "check output")
+        ;; (set! spec-cost (send simulator performance-cost spec))
+        (set! sketch-cost (send simulator performance-cost sketch))
+        (when cost (assert (< sketch-cost cost)))
+        (assert-output spec-state sketch-state constraint)
+        )
+      
+      ;; Collect input variables and contruct their init values.
+      (define-values (sym-vars inputs)
+        (generate-inputs-inner 2 spec start-state assumption))
 
       ;; (when debug
       ;;       (pretty-display "Test calculate performance-cost with symbolic instructions...")
@@ -268,11 +410,10 @@
       (pretty-display ">>> superoptimize-output")
       (print-struct final-program)
       (pretty-display (format "limit cost = ~a" cost))
-      (pretty-display (format "old cost = ~a" spec-cost))
       (pretty-display (format "new cost = ~a" final-cost))
       (pretty-display "=====================================")
       (clear-asserts)
-      (clear-terms!)
+      ;(clear-terms!)
       (values final-program final-cost)
       )
 

@@ -11,11 +11,14 @@
     (inherit-field printer machine simulator)
     (inherit sym-op sym-arg)
     (override get-sym-vars evaluate-state
-              encode-sym decode-sym
+              encode-sym decode-sym sym-insts
               assume assert-output
               assume-relax)
 
     (set! simulator (new neon-simulator-rosette% [machine machine]))
+
+    (define (sym-insts size)
+      (encode-sym (for/vector ([i size]) (neon-inst #f #f #f #f))))
 
     (define (get-sym-vars state)
       (define lst (list))
