@@ -1,7 +1,7 @@
 #lang racket
 
 (require "printer.rkt")
-(provide stat% print-stat-all create-stat-from-file)
+(provide stat% print-stat-all get-output-id create-stat-from-file)
 
 (define-syntax-rule (ratio x y) (~r (exact->inexact (/ x y)) #:precision 6))
 
@@ -131,6 +131,33 @@
       
     )
     ))
+
+(define (get-output-id stat-list)
+
+  (define best-correct-cost (arithmetic-shift 1 32))
+  (define best-correct-time (arithmetic-shift 1 32))
+  (define best-correct-id #f)
+
+  (for ([stat stat-list]
+        [id (length stat-list)])
+       (when stat
+	     (let ([correct-cost (get-field best-correct-cost stat)]
+		   [correct-time (get-field best-correct-time stat)])
+	       (when (< correct-cost best-correct-cost)
+		     (set! best-correct-cost correct-cost)
+		     (set! best-correct-time correct-time)
+		     (set! best-correct-id id)
+		     )
+	       (when (and (= correct-cost best-correct-cost)
+			  (< correct-time best-correct-time))
+		     (set! best-correct-time correct-time)
+		     (set! best-correct-id id)
+		     ))))
+
+  (pretty-display (format "best-correct-cost:\t~a" best-correct-cost))
+  (pretty-display (format "best-correct-time:\t~a" best-correct-time))
+  best-correct-id)
+  
 
 (define (print-stat-all stat-list printer)
   (define stat-mutations (get-field report-mutations printer))
