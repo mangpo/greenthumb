@@ -14,10 +14,10 @@
     (abstract encode-inst decode-inst)
 
     (define (encode code)
-      (for/vector ([i code]) (encode-inst i)))
+      (traverse code inst? encode-inst))
 
     (define (decode code)
-      (for/vector ([i code]) (decode-inst i)))
+      (traverse code inst? decode-inst))
 
     (define (print-struct-inst x [indent ""])
       (pretty-display (format "~a(inst ~a ~a)" 

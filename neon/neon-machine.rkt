@@ -147,7 +147,7 @@
       (format "(constraint ~a [dreg ~a] [rreg ~a] [mem-all])" 
               machine-var live-regs-d-str live-regs-r-str))
 
-    (define (get-state init)
+    (define (get-state init extra)
       (default-state this init))
 
     (define (display-state s)

@@ -13,3 +13,8 @@
 
 - add fixed sequences
 - reg/stack allocation
+
+
+-----------------
+remove redundant
+- diff-cost

@@ -57,14 +57,14 @@
     
     ;; code: non-encoded concrete code
     ;; config: machine config
-    (define (proper-machine-config code config)
+    (define (proper-machine-config code config [extra #f])
       (define encoded-code (encode-sym code))
       (define (solve-until-valid config)
         (send machine set-config config)
         ;; (current-solver (new kodkod%))
         (clear-asserts)
         (configure [bitwidth bit] [loop-bound 20])
-        (define state (send machine get-state sym-input))
+        (define state (send machine get-state sym-input extra))
 	(send simulator interpret encoded-code state)
 
         (with-handlers* 
@@ -180,18 +180,18 @@
       (values sym-vars 
               (map (lambda (x) (sat (make-immutable-hash (hash->list x)))) inputs)))
 
-    (define (generate-input-states n spec assumption)
-      (define start-state (send machine get-state sym-input))
+    (define (generate-input-states n spec assumption [extra #f])
+      (define start-state (send machine get-state sym-input extra))
       (define-values (sym-vars sltns)
         (generate-inputs-inner n spec start-state assumption))
       (map (lambda (x) (evaluate-state start-state x)) sltns))
 
 
-    (define (superoptimize-inc spec constraint name time-limit size
+    (define (superoptimize-inc spec constraint name time-limit size [extra #f]
 			   #:assume [assumption (send machine no-assumption)])
       (synthesize-from-sketch-inc spec 
 			      (sym-insts (if size size (vector-length spec)))
-			      constraint 
+			      constraint extra
 			      (send simulator performance-cost spec)
 			      time-limit name
 			      #:assume assumption))
@@ -204,7 +204,7 @@
     ;; cost: upperbound (exclusive) of the cost of the output program, #f is no upperbound
     ;; assume-interpret: always true (for now)
     ;; assume: input assumption
-    (define (synthesize-from-sketch-inc spec sketch constraint cost time-limit name
+    (define (synthesize-from-sketch-inc spec sketch constraint extra cost time-limit name
 				    #:assume-interpret [assume-interpret #t]
 				    #:assume [assumption (send machine no-assumption)])
       (pretty-display (format "SUPERPOTIMIZE-INC: assume-interpret = ~a" assume-interpret))
@@ -214,7 +214,7 @@
       (clear-asserts)
       (configure [bitwidth bit] [loop-bound 20])
       (define start-time (current-seconds))
-      (define start-state (send machine get-state sym-input))
+      (define start-state (send machine get-state sym-input extra))
       (define spec-state #f)
       (define sketch-state #f)
       (define spec-cost #f)
@@ -304,14 +304,14 @@
        (filter (lambda (x) (not (equal? (inst-op x) "nop")))
                (vector->list code))))
 
-    (define (superoptimize spec constraint name time-limit size
+    (define (superoptimize spec constraint name time-limit size [extra #f]
 			   #:assume [assumption (send machine no-assumption)])
       (define sketch (sym-insts (if size size (vector-length spec))))
       (define start-time (current-seconds))
       (define final-program #f)
       (define (inner cost)
 	(define-values (out-program out-cost) 
-	  (synthesize-from-sketch spec sketch constraint cost time-limit
+	  (synthesize-from-sketch spec sketch constraint extra cost time-limit
 				  #:assume assumption))
 	;; Print to file
 	(with-output-to-file #:exists 'truncate (format "~a.stat" name)
@@ -350,7 +350,7 @@
     ;; cost: upperbound (exclusive) of the cost of the output program, #f is no upperbound
     ;; assume-interpret: always true (for now)
     ;; assume: input assumption
-    (define (synthesize-from-sketch spec sketch constraint cost time-limit
+    (define (synthesize-from-sketch spec sketch constraint extra cost time-limit
 				    #:assume-interpret [assume-interpret #t]
 				    #:assume [assumption (send machine no-assumption)])
       (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
@@ -361,7 +361,7 @@
       (clear-asserts)
       (configure [bitwidth bit] [loop-bound 20])
 
-      (define start-state (send machine get-state sym-input))
+      (define start-state (send machine get-state sym-input extra))
       (define spec-state #f)
       (define sketch-state #f)
       (define spec-cost #f)
@@ -419,7 +419,7 @@
 
     ;; Returns a counterexample if spec and program are different.
     ;; Otherwise, returns false.
-    (define (counterexample spec program constraint
+    (define (counterexample spec program constraint [extra #f]
                             #:assume [assumption (send machine no-assumption)])
       (when debug 
             (pretty-display (format "program-eq? START bit = ~a" bit))
@@ -435,7 +435,7 @@
       ;; (current-solver (new kodkod%))
       (clear-asserts)
       (configure [bitwidth bit] [loop-bound 20])
-      (define start-state (send machine get-state sym-input))
+      (define start-state (send machine get-state sym-input extra))
       (define spec-state #f)
       (define program-state #f)
       
