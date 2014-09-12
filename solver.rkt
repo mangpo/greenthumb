@@ -18,7 +18,7 @@
               encode-sym decode-sym sym-insts
               assume assert-output)
     (public proper-machine-config generate-input-states
-            superoptimize counterexample
+            superoptimize synthesize-from-sketch counterexample
             sym-op sym-arg
             assume-relax)
 
@@ -84,7 +84,7 @@
       (solve-until-valid config))
     
     (define (generate-inputs-inner n spec start-state assumption)
-      (pretty-display `(generate-inputs-inner ,n ,assumption))
+      (pretty-display `(generate-inputs-inner ,n ,assumption ,random-input-bit))
       ;; (print-struct spec)
       ;; (display-state start-state)
       ;; (current-solver (new kodkod%))
@@ -350,7 +350,9 @@
     ;; cost: upperbound (exclusive) of the cost of the output program, #f is no upperbound
     ;; assume-interpret: always true (for now)
     ;; assume: input assumption
-    (define (synthesize-from-sketch spec sketch constraint extra cost time-limit
+    (define (synthesize-from-sketch spec sketch constraint extra 
+				    [cost #f]
+				    [time-limit 3600]
 				    #:assume-interpret [assume-interpret #t]
 				    #:assume [assumption (send machine no-assumption)])
       (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
@@ -366,6 +368,8 @@
       (define sketch-state #f)
       (define spec-cost #f)
       (define sketch-cost #f)
+      ;; (pretty-display "========= start state")
+      ;; (send machine display-state start-state)
       
       (define (interpret-spec!)
         (pretty-display "========== interpret spec")

@@ -11,7 +11,7 @@
 (define solver (new GA-solver% [machine machine] [printer printer]))
 
 (define code
-(send parser ast-from-string "up a! ! down b! @b 1 2 3"))
+(send parser ast-from-string "push over - push and pop pop and over 65535 or and or"))
 
 (define encoded-code (send printer encode code))
 (send printer print-struct encoded-code)
@@ -19,7 +19,7 @@
 (define (sym-input)
   (define-symbolic* input number?)
   input)
-(define state (default-state machine 1 sym-input))
+(define state (default-state machine 0 (lambda () 0)))
 (send machine display-state state)
 
 (define final-state (send simulator interpret encoded-code state))

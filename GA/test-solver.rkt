@@ -9,14 +9,21 @@
 (define solver (new GA-solver% [machine machine] [printer printer]))
 
 (define code
-(send parser ast-from-string "up a! ! down b! @b 1 2 3"))
+(send parser ast-from-string "a! push a and pop a - and over 65535 or and or"))
 
-
-(define sketch
-(send parser ast-from-string "up a! ! down b! @b 1 2 3"))
-
+(define sketch (send parser ast-from-string "a! over or dup a _ _ _"))
+;(define sketch (send parser ast-from-string "dup push or and pop or"))
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send solver encode-sym sketch))
 
-(send solver counterexample encoded-code encoded-sketch (constraint (data 1) s t) 1)
+#|
+(send solver counterexample encoded-code encoded-sketch 
+      (constraint t)
+      0
+      #:assume (constrain-stack machine '((<= . 65535) (<= . 65535) (<= . 65535))))|#
+
+
+(send solver synthesize-from-sketch encoded-code encoded-sketch
+      (constraint t) 0
+      #:assume (constrain-stack machine '((<= . 65535) (<= . 65535) (<= . 65535))))

@@ -23,6 +23,7 @@
 		     (hash-ref encode-port-dict arg)))))
 
     (define (decode-inst x)
+      (define arg (inst-args x))
       (inst (symbol->string (send machine get-inst-name (inst-op x)))
-	    (number->string (inst-args x))))
+	    (and (number? arg) (number->string arg))))
     ))

@@ -3,7 +3,14 @@
 (require "../simulator.rkt" "../ops-rosette.rkt" 
          "../ast.rkt"
          "../machine.rkt" "GA-machine.rkt")
-(provide GA-simulator-rosette%)
+(provide GA-simulator-rosette% get-stack)
+ 
+(define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
+(define-syntax-rule (modulo+ x y) (if (>= x 8) (- x y) x))
+
+;; Get item i from the stack
+(define (get-stack stack i)
+  (vector-ref (stack-body stack) (modulo- (- (stack-sp stack) i) 8)))
 
 (define GA-simulator-rosette%
   (class simulator%
@@ -35,20 +42,6 @@
 			 (cons limit-p c)))))])) ; can return (cons p c) here, but this is more efficient. 
 					; it is correct because we assert that p == limit-p.
 
-    
-    (define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
-    (define-syntax-rule (modulo+ x y) (if (>= x 8) (- x y) x))
-
-    ;; Pushes a value to the given stack's body.
-    (define (push-stack! stack value)
-      (set-stack-sp! stack (modulo+ (add1 (stack-sp stack)) 8))
-      (vector-set! (stack-body stack) (stack-sp stack) value))
-
-    ;; Pops from the given stack's body.
-    (define (pop-stack! stack)
-      (let ([ret-val (vector-ref (stack-body stack) (stack-sp stack))])
-	(set-stack-sp! stack (modulo- (sub1 (stack-sp stack)) 8))
-	ret-val))
 
     ;; Interpret a given program from a given state.
     ;; code
@@ -64,37 +57,53 @@
       (define r (progstate-r state))
       (define s (progstate-s state))
       (define t (progstate-t state))
-      (define data (stack (stack-sp (progstate-data state))
-			  (vector-copy (stack-body (progstate-data state)))))
-      (define return (stack (stack-sp (progstate-return state))
-			    (vector-copy (stack-body (progstate-return state)))))
+      ;; (define data (stack (stack-sp (progstate-data state))
+      ;; 			  (vector-copy (stack-body (progstate-data state)))))
+      ;; (define return (stack (stack-sp (progstate-return state))
+      ;; 			    (vector-copy (stack-body (progstate-return state)))))
+      (define data-sp (stack-sp (progstate-data state)))
+      (define data-body (vector-copy (stack-body (progstate-data state))))
+      (define return-sp (stack-sp (progstate-return state)))
+      (define return-body (vector-copy (stack-body (progstate-return state))))
       (define memory (vector-copy (progstate-memory state)))
       
       (define recv (progstate-recv state))
       (define comm (progstate-comm state))
 
+      ;; Pushes a value to the given stack's body.
+      (define-syntax-rule (push-stack! x-sp x-body value)
+	(begin
+	  (set! x-sp (modulo+ (add1 x-sp) 8))
+	  (vector-set! x-body x-sp value)))
+
+      ;; Pops from the given stack's body.
+      (define-syntax-rule (pop-stack! x-sp x-body)
+	(let ([ret-val (vector-ref x-body x-sp)])
+	  (set! x-sp (modulo- (sub1 x-sp) 8))
+	  ret-val))
+
       ;; Pushes to the data stack.
       (define (push! value)
-	(push-stack! data s)
+	(push-stack! data-sp data-body s)
 	(set! s t)
 	(set! t value))
       
       ;; Pushes to the return stack.
       (define (r-push! value)
-	(push-stack! return r)
+	(push-stack! return-sp return-body r)
 	(set! r value))
       
       ;; Pops from the data stack.
       (define (pop!)
 	(let ([ret-val t])
 	  (set! t s)
-	  (set! s (pop-stack! data))
+	  (set! s (pop-stack! data-sp data-body))
 	  ret-val))
       
       ;; Pops from the return stack.
       (define (r-pop!)
 	(let ([ret-val r])
-	  (set! r (pop-stack! return))
+	  (set! r (pop-stack! return-sp return-body))
           ret-val))
       
       ;; Define comm-type
@@ -171,8 +180,8 @@
 	 [(inst-eq `!b)   (set-memory! b (pop!))]
 	 [(inst-eq `!)    (set-memory! a (pop!))]
 	 [(inst-eq `+*)   (if (= (bitwise-and #x1 a) 0)
-			      (multiply-step-even!)
-			      (multiply-step-odd!))]
+	 		      (multiply-step-even!)
+	 		      (multiply-step-odd!))]
 	 [(inst-eq `2*)   (set! t (clip (<< t 1 bit)))]
 	 [(inst-eq `2/)   (set! t (>> t 1))] ;; sign shiftx
 	 [(inst-eq `-)    (set! t (bitwise-not t))]
@@ -188,8 +197,8 @@
 	 [(inst-eq `push) (r-push! (pop!))]
 	 [(inst-eq `b!)   (set! b (pop!))]
 	 [(inst-eq `a!)   (set! a (pop!))]
-	 [else (assert #f (format "invalid instruction ~a" inst))]
-	 ))
+	 [else (assert #f (format "invalid instruction ~a" inst))])
+	 )
 
       (define (interpret-struct x)
 	(when debug (pretty-display `(interpret-struct ,x)))
@@ -234,7 +243,10 @@
 	 ))
       
       (interpret-struct code)
-      (progstate a b r s t data return memory recv comm)
+      (progstate a b r s t 
+		 (stack data-sp data-body)
+		 (stack return-sp return-body)
+		 memory recv comm)
       )
 
     (define (performance-cost code)

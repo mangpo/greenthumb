@@ -19,29 +19,15 @@
 
 
 ;;;;;;;;;;;;;; STACK ;;;;;;;;;;;;;;;;;;
-(struct stack (sp body) #:mutable #:transparent)
-
-(define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
-(define-syntax-rule (modulo+ x y) (if (>= x 8) (- x y) x))
-
-;;; Copies the given stack. This keeps mutable vectors from being
-;;; shared between different stacks.
-(define (copy-stack s)
-  (stack (stack-sp s) (vector-copy (stack-body s))))
+(struct stack (sp body))
 
 ;;; Print a circular stack:
 (define (display-stack stack)
+  (define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
+  ;; (pretty-display (format " ~a" stack)))
   (for [(i (in-range 0 8))]
        (display (format " ~a" (vector-ref (stack-body stack)
                                           (modulo- (- (stack-sp stack) i) 8))))))
-
-;;; Get item i from the stack
-(define (get-stack stack i)
-  (vector-ref (stack-body stack) (modulo- (- (stack-sp stack) i) 8)))
-
-;;; Set item i in the stack
-(define (set-stack! stack i x)
-  (vector-set! (stack-body stack) (modulo- (- (stack-sp stack) i) 8) x))
 
 ;;;;;;;;;;;;;; END STACK ;;;;;;;;;;;;;;;;
 
@@ -113,6 +99,22 @@
     ((constraint var ...)        (struct-copy progstate constraint-none [var #t] ...))
     ))
 
+(define (constrain-stack machine precond [state (default-state machine)])
+  (when (list? precond)
+    (for ([assume precond]
+          [i (reverse (range (length precond)))])
+      (cond
+       [(and assume (= i 0)) (set-progstate-t! state assume)]
+       [(and assume (= i 1)) (set-progstate-s! state assume)]
+       [(and assume (< i 10))
+        (let ([body (stack-body (progstate-data state))])
+          (vector-set! body (modulo (- 2 i) 8) assume))]
+
+       [(and assume (<= i 10))
+	(raise "A small function cannot have more than 10 parameters.")]
+       )))
+  state)
+
 (define GA-machine%
   (class machine%
     (super-new)
@@ -125,6 +127,7 @@
 	      no-assumption)
 
     (set! bit 18)
+    (set! random-input-bit 18)
     (set! inst-id '#(nop @p @+ @b @ !p !+ !b ! +* 2* 
 			 2/ - + and or drop dup pop over a 
 			 push b! a!))
