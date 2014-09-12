@@ -10,7 +10,7 @@
     (init-field meta parser machine printer compress solver stochastic?)
     (public optimize)
     
-    (define (optimize-inner code-org live-out-org synthesize dir cores time-limit size)
+    (define (optimize-inner code-org live-out-org synthesize dir cores time-limit size extra-info)
       (define path (format "~a/driver" dir))
       (system (format "mkdir ~a" dir))
       (system (format "rm ~a*" path))
@@ -24,7 +24,7 @@
         (send compress compress-reg-space code-org live-out-org))
 
       ;; machine-info from compress-reg-space is only accurate for reg but not memory. This will adjust the rest of the machine info.
-      (set! machine-info (send solver proper-machine-config code machine-info))
+      (set! machine-info (send solver proper-machine-config code machine-info extra-info))
       (pretty-display ">>> compressed-code:")
       (send printer print-syntax code)
       (pretty-display (format ">>> machine-info: ~a" machine-info))
@@ -57,9 +57,9 @@
            (send printer print-syntax code)
            (pretty-display "\"))")
            (pretty-display (format "(define encoded-code (send printer encode code))"))
-	   (pretty-display (format "(send search superoptimize encoded-code ~a \"~a-~a\" ~a ~a)" 
+	   (pretty-display (format "(send search superoptimize encoded-code ~a \"~a-~a\" ~a ~a ~a)" 
 				   (send machine output-constraint-string "machine" live-out)
-				   path id time-limit size))
+				   path id time-limit size extra-info))
 	       
            ;;(pretty-display "(dump-memory-stats)"
            )))
@@ -151,7 +151,7 @@
 	  code-org)
       )
 
-    (define (optimize-filter code-org live-out synthesize dir cores time-limit size)
+    (define (optimize-filter code-org live-out synthesize dir cores time-limit size extra-info)
       (define-values (pass start stop extra-live-out) (send compress select-code code-org))
       (pretty-display `(select-code ,pass ,start ,stop ,extra-live-out))
       (if pass
@@ -159,7 +159,7 @@
                  (optimize-inner 
                   pass
                   (send compress combine-live-out live-out extra-live-out)
-                  synthesize dir cores time-limit size)])
+                  synthesize dir cores time-limit size extra-info)])
             (send compress combine-code code-org middle-output start stop))
           code-org)
       )
@@ -169,7 +169,8 @@
     ;;   1) parsed AST, 2) .s file, 3) LLVM IR file
     ;; live-out: live-out info in custom format--- for vpe, a list of live registers
     ;;   synthesize: #t = synthesize mode, #f = optimize mode
-    (define (optimize code-org live-out synthesize 
+    (define (optimize code-org live-out synthesize
+                      #:extra-info [extra-info #f]
                       #:need-filter [need-filter #f]
                       #:dir [dir "output"] 
                       #:cores [cores 12]
@@ -177,10 +178,10 @@
                       #:size [size #f])
       (pretty-display `(optimize))
 
-      (if (> (vector-length code-org) 2)
+      (if (> (vector-length code-org) 0)
           (if need-filter
-              (optimize-filter code-org live-out synthesize dir cores time-limit size)
-              (optimize-inner code-org live-out synthesize dir cores time-limit size))
+              (optimize-filter code-org live-out synthesize dir cores time-limit size extra-info)
+              (optimize-inner code-org live-out synthesize dir cores time-limit size extra-info))
           code-org))
 
     ))

@@ -153,7 +153,7 @@
       ;; live-out is something like '((data . 0) (return . 1) memory a)
       (format "(send ~a output-constraint '~a)" machine-var live-out))
 
-    (define (output-constraint lst [extra-data 0] [extra-return 0])
+    (define/public (output-constraint lst [extra-data 0] [extra-return 0])
       (define a #f) 
       (define b #f) 
       (define memory (make-vector nmems #f))

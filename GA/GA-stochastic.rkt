@@ -10,12 +10,13 @@
 (define GA-stochastic%
   (class stochastic%
     (super-new)
-    (inherit-field machine printer solver simulator stat mutate-dist)
-    (override correctness-cost get-arg-ranges 
-	      mutate-operand random-instruction)
+    (inherit-field machine printer solver simulator stat mutate-dist nop-mass)
+    (override get-mutations mutate-operand
+              correctness-cost get-arg-ranges random-instruction)
 
     (set! mutate-dist 
       #hash((operand . 1) (swap . 1) (instruction . 1)))
+    (set! nop-mass 0.4)
     (set! solver (new GA-solver% [machine machine] [printer printer]))
     (set! simulator (new GA-simulator-racket% [machine machine]))
 

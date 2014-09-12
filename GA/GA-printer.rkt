@@ -10,7 +10,7 @@
   (class printer%
     (super-new)
     (inherit-field machine)
-    (override encode-inst decode-inst)
+    (override encode-inst decode-inst print-syntax-inst)
 
     (define encode-port-dict (hash "up" UP "down" DOWN "left" LEFT "right" RIGHT "io" IO))
 
@@ -26,4 +26,10 @@
       (define arg (inst-args x))
       (inst (symbol->string (send machine get-inst-name (inst-op x)))
 	    (and (number? arg) (number->string arg))))
+
+    (define (print-syntax-inst x [indent ""])
+      (if (equal? (inst-op x) "@p") 
+          (display (inst-args x))
+          (display (inst-op x)))
+      (display " "))
     ))

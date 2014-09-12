@@ -8,7 +8,9 @@
   (class object%
     (super-new)
     (public superoptimize inst-copy-with-op inst-copy-with-args
-            get-mutations mutate-operand-specific mutate-other
+            get-mutations 
+            mutate-opcode mutate-operand
+            mutate-operand-specific mutate-other
             random-instruction print-mutation-info)
     (abstract correctness-cost get-arg-ranges)
               
@@ -37,7 +39,7 @@
     (define (inst-copy-with-args x args) (struct-copy inst x [args args]))
 
     (define (superoptimize spec constraint 
-                           name time-limit size
+                           name time-limit size [extra-info #f]
                            #:assume [assumption (send machine no-assumption)])
       ;; Generate testcases
       (when debug 
@@ -45,7 +47,7 @@
             (print-mutation-info)
             ;;(raise "done")
             (pretty-display ">>> Phase 1: generate input states"))
-      (define inputs (send solver generate-input-states ntests spec assumption))
+      (define inputs (send solver generate-input-states ntests spec assumption extra-info))
 
       (when debug
             (for ([i inputs])
@@ -66,7 +68,7 @@
                       [best-correct-cost (send simulator performance-cost spec)]
                       [name name]))
       (mcmc-main spec (if syn-mode (get-sketch) spec) 
-                 inputs outputs constraint assumption time-limit)
+                 inputs outputs constraint assumption time-limit extra-info)
       )
 
     (define (remove-nops code)
@@ -216,7 +218,7 @@
        [else                       (mutate-other index entry p type)]))
     
 
-    (define (mcmc-main target init inputs outputs constraint assumption time-limit)
+    (define (mcmc-main target init inputs outputs constraint assumption time-limit extra-info)
       (pretty-display ">>> start MCMC sampling")
       (pretty-display ">>> Phase 3: stochastic search")
       (pretty-display "start-program:")
@@ -271,7 +273,7 @@
         (when (equal? correct 0)
               (send stat inc-validate)
               (define t1 (current-milliseconds))
-              (set! ce (send solver counterexample target program constraint 
+              (set! ce (send solver counterexample target program constraint extra-info
                              #:assume assumption))
               (if ce 
                   (begin
