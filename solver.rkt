@@ -65,7 +65,7 @@
         (clear-asserts)
         (configure [bitwidth bit] [loop-bound 20])
         (define state (send machine get-state sym-input extra))
-	(send simulator interpret encoded-code state)
+	;;(send simulator interpret encoded-code state)
 
         (with-handlers* 
          ([exn:fail? 

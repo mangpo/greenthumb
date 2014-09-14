@@ -22,6 +22,7 @@
       ;; Use the fewest number of registers possible.
       (define-values (code live-out map-back machine-info) 
         (send compress compress-reg-space code-org live-out-org))
+      (pretty-display (format ">>> machine-info: ~a" machine-info))
 
       ;; machine-info from compress-reg-space is only accurate for reg but not memory. This will adjust the rest of the machine info.
       (set! machine-info (send solver proper-machine-config code machine-info extra-info))
