@@ -21,6 +21,8 @@
     (define bit (get-field bit machine))
     (define inst-id (get-field inst-id machine))
 
+    (define debug #f)
+
     ;; Creates a policy that determines what kind of communication is allowed 
     ;; during interpretation.  The policy is a procedure that takes as input a 
     ;; comm pair and the current comm list.  If the policy allows 

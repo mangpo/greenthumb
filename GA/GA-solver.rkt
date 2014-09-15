@@ -12,7 +12,7 @@
     (inherit sym-op sym-arg)
     (override get-sym-vars evaluate-state
               encode-sym decode-sym sym-insts
-              assume assert-output)
+              assume assume-relax assert-output)
 
     (set! simulator (new GA-simulator-rosette% [machine machine]))
 
@@ -139,6 +139,9 @@
       (check-mem)
       (check-comm)
       )
+
+    (define (assume-relax state constraint)
+      (void))
     
 
     ;; Assert assumption about start-state

@@ -127,7 +127,7 @@
 	      no-assumption)
 
     (set! bit 18)
-    (set! random-input-bit 18)
+    (set! random-input-bit 16)
     (set! inst-id '#(nop @p @+ @b @ !p !+ !b ! +* 2* 
 			 2/ - + and or drop dup pop over a 
 			 push b! a!))
