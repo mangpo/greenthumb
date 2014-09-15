@@ -13,7 +13,8 @@
               adjust-config config-exceed-limit?
               output-constraint-string)
     (public get-class-id print-line no-assumption
-            get-inst-id get-inst-name)
+            get-inst-id get-inst-name
+            output-assume-string)
 
     (define (get-inst-id opcode)
       (vector-member opcode inst-id))
@@ -43,5 +44,8 @@
            )
       (newline)
       )
+
+    (define (output-assume-string machine-var x)
+      x)
 
     ))

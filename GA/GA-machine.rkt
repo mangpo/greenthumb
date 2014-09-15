@@ -123,7 +123,7 @@
     (override set-config get-config set-config-string
               adjust-config config-exceed-limit?
               get-state display-state
-              output-constraint-string
+              output-constraint-string output-assume-string
 	      no-assumption)
 
     (set! bit 18)
@@ -149,6 +149,8 @@
     (define (set-config-string info) info)
     (define (adjust-config info) (* 2 info))
     (define (config-exceed-limit? info) (> info 100))
+    (define (output-assume-string machine-var x)
+      (format "(constrain-stack ~a '~a)" machine-var x))
     (define (output-constraint-string machine-var live-out)
       ;; live-out is something like '((data . 0) (return . 1) memory a)
       (format "(send ~a output-constraint '~a)" machine-var live-out))

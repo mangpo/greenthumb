@@ -10,7 +10,8 @@
     (init-field meta parser machine printer compress solver stochastic?)
     (public optimize)
     
-    (define (optimize-inner code-org live-out-org synthesize dir cores time-limit size extra-info)
+    (define (optimize-inner code-org live-out-org synthesize dir cores time-limit size 
+                            assume extra-info)
       (define path (format "~a/driver" dir))
       (system (format "mkdir ~a" dir))
       (system (format "rm ~a*" path))
@@ -58,9 +59,11 @@
            (send printer print-syntax code)
            (pretty-display "\"))")
            (pretty-display (format "(define encoded-code (send printer encode code))"))
-	   (pretty-display (format "(send search superoptimize encoded-code ~a \"~a-~a\" ~a ~a ~a)" 
+	   (pretty-display (format "(send search superoptimize encoded-code ~a \"~a-~a\" ~a ~a ~a #:assume ~a)" 
 				   (send machine output-constraint-string "machine" live-out)
-				   path id time-limit size extra-info))
+				   path id time-limit size extra-info
+                                   (send machine output-assume-string "machine" assume)
+                                   ))
 	       
            ;;(pretty-display "(dump-memory-stats)"
            )))
@@ -152,7 +155,8 @@
 	  code-org)
       )
 
-    (define (optimize-filter code-org live-out synthesize dir cores time-limit size extra-info)
+    (define (optimize-filter code-org live-out synthesize dir cores time-limit size 
+                             assume extra-info)
       (define-values (pass start stop extra-live-out) (send compress select-code code-org))
       (pretty-display `(select-code ,pass ,start ,stop ,extra-live-out))
       (if pass
@@ -171,6 +175,7 @@
     ;; live-out: live-out info in custom format--- for vpe, a list of live registers
     ;;   synthesize: #t = synthesize mode, #f = optimize mode
     (define (optimize code-org live-out synthesize
+                      #:assume [assume #f]
                       #:extra-info [extra-info #f]
                       #:need-filter [need-filter #f]
                       #:dir [dir "output"] 
@@ -181,8 +186,8 @@
 
       (if (> (vector-length code-org) 0)
           (if need-filter
-              (optimize-filter code-org live-out synthesize dir cores time-limit size extra-info)
-              (optimize-inner code-org live-out synthesize dir cores time-limit size extra-info))
+              (optimize-filter code-org live-out synthesize dir cores time-limit size assume extra-info)
+              (optimize-inner code-org live-out synthesize dir cores time-limit size assume extra-info))
           code-org))
 
     ))

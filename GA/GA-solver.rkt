@@ -171,14 +171,15 @@
 	      (for ([i (in-range 0 (vector-length mem-state))])
 		   (check (vector-ref mem-state i) (vector-ref mem-constraint i)))))
 
-      (check-reg progstate-a)
-      (check-reg progstate-b)
-      (check-reg progstate-r)
-      (check-reg progstate-s)
-      (check-reg progstate-t)
-      (check-stack progstate-data)
-      (check-stack progstate-return)
-      (check-mem)
+      (when constraint
+            (check-reg progstate-a)
+            (check-reg progstate-b)
+            (check-reg progstate-r)
+            (check-reg progstate-s)
+            (check-reg progstate-t)
+            (check-stack progstate-data)
+            (check-stack progstate-return)
+            (check-mem))
       )
       
     ))
