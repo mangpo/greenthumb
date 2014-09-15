@@ -5,15 +5,19 @@
 
 (define parser (new neon-parser%))
 (define machine (new neon-machine%))
-(send machine set-config (list 24 1 2))
+(send machine set-config (list 24 4 4))
 (define printer (new neon-printer% [machine machine]))
 (define simulator (new neon-simulator-rosette% [machine machine]))
 (define solver (new neon-solver% [machine machine] [printer printer]))
 
 (define code
 (send parser ast-from-string "
-vand d2, d0, d1
-vmov q0, q1
+vorr q3, q0, q0
+vld1 {d4,d5}, [r2]
+vmov q1, q4
+vswp d2, d3
+vbsl q3, q1, q2
+vst1.32	{d6,d7}, [r2]
 "))
 
 (define code2
@@ -60,6 +64,6 @@ vmov q0, q1
                (make-vector (send machine get-nregs-r) 0)
                (list->vector (range (* 8 (send machine get-nmems))))))
 ;(display-state state)
-(send simulator performance-cost encoded-code)
-;(send machine display-state 
-;      (send simulator interpret encoded-code state))
+;(send simulator performance-cost encoded-code)
+(send machine display-state 
+      (send simulator interpret encoded-code state))

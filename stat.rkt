@@ -65,7 +65,14 @@
 
     (define/public (update-best program cost)
       (set! best-program program)
-      (set! best-cost cost))
+      (set! best-cost cost)
+
+      (with-output-to-file #:exists 'truncate (format "~a.cand" name)
+        (thunk
+         ;; (pretty-display (format "best-correct-cost: ~a" best-correct-cost))
+         ;; (pretty-display (format "best-correct-time: ~a" best-correct-time))
+         (send printer print-syntax (send printer decode program))))
+      )
 
     (define/public (update-best-correct program cost)
       (set! best-correct-program program)

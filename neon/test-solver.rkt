@@ -65,8 +65,8 @@ vst1.32	{d0,d1}, [r2]
 (send printer print-struct encoded-sketch2)
 
 (define t (current-seconds))
-(define x (send solver counterexample encoded-code encoded-sketch 
-                (constraint machine [dreg] [rreg 1 2] [mem-all])))
-;(send solver superoptimize encoded-code encoded-sketch 
-;      (constraint machine [dreg 0 1] [rreg 0] [mem-all]) #f)
+;(define x (send solver counterexample encoded-code encoded-sketch 
+;                (constraint machine [dreg] [rreg 1 2] [mem-all])))
+(send solver synthesize-from-sketch encoded-code encoded-sketch 
+      (constraint machine [dreg] [rreg] [mem-all]) 9)
 (pretty-display `(time ,(- (current-seconds) t)))

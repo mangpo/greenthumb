@@ -185,12 +185,20 @@
                          (set! index (add1 index)))
                     (vector-set! indexes j index)))
           mem-addr)
+
+        (define (check-load-regs regs)
+          (define size (vector-length regs))
+          (when (> size 1)
+                (define skip (- (vector-ref regs 1) (vector-ref regs 0)))
+                (for ([i (range 2 size)])
+                     (assert (= skip (- (vector-ref regs i) (vector-ref regs (sub1 i))))))))
         
         (define (load/store stride update load?)
           (when debug `(load ,stride ,update))
           (define dest (vector-ref args 0))
           (define n (car dest))
-          (define dest-regs (cdr dest)) ;; TODO: check validity
+          (define dest-regs (cdr dest))
+          (check-load-regs dest-regs)
           (define r-id (vector-ref args 1))
           (define mem-addr (vector-ref rregs r-id))
           (define skip (quotient n stride))
@@ -216,6 +224,7 @@
           (define dest (vector-ref args 0))
           (define n (car dest))
           (define dest-regs (cdr dest)) ;; TODO: check validity
+          (check-load-regs dest-regs)
           
           (define r-id (vector-ref args 1))
           (define mem-addr (vector-ref rregs r-id)) ;; check alignment
@@ -690,35 +699,26 @@
          [else #t] ;; If ref = #f, then return #t
          ))
 
-      (define (find-match-schedule info-list)
-        (for/all ([l info-list])
-          (let ([key (caar l)]
-                [val (cdar l)])
-            ;; (pretty-display `(find-match))
-            (for*/all ([k key]
-                       [v val])
-              (if (and (match (inst-args k) args)
-                       (match (inst-byte k) byte))
-                  v
-                  (find-match-schedule (cdr info-list)))))))
-        ;; (define key (caar info-list))
-        ;; (define val (cdar info-list))
-        ;; ;; (pretty-display `(find-match))
-        ;; (for*/all ([k key]
-        ;;            [v val])
-        ;;     (if (and (match (inst-args k) args)
-        ;;              (match (inst-byte k) byte))
-        ;;         v
-        ;;         (find-match-schedule (cdr info-list)))))
-      
-      (define info (vector-ref schedule-info (inst-op x)))
-      ;; (pretty-display `(schedule-info ,schedule-info))
-      ;; (for/all ([i info]) (pretty-display i))
-      
+      (define (find info-list)
+        ;;(pretty-display `(find ,info-list))
+        (let ([key (caar info-list)]
+              [val (cdar info-list)])
+          (if (and (match (inst-args key) args)
+                   (match (inst-byte key) byte))
+              val
+              (find (cdr info-list)))))
+
+      (define l (vector-length schedule-info))
+      (define (find-match-schedule i)
+        ;;(pretty-display `(find-match-schedule ,i ,(inst-op x)))
+        (if (equal? i (inst-op x))
+            (let ([ele (vector-ref schedule-info i)])
+              (if (list? ele)
+                  (find ele)
+                  ele))
+            (and (< (add1 i) l) (find-match-schedule (add1 i)))))
                
-      (if (list? info)
-          (find-match-schedule info)
-          (cdr info))
+      (find-match-schedule 0)
       )
 
     ;; Return (values defs-list uses-list)
