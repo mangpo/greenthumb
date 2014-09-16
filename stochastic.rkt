@@ -230,7 +230,8 @@
          ([exn:break? (lambda (e) (raise e))]
           [exn? (lambda (e) 
                   (when debug (pretty-display "Error!"))
-                  #f)])
+                  #f)]
+          )
          (let* ([t1 (current-milliseconds)]
                 [program-out (send simulator interpret program input)]
                 [t2 (current-milliseconds)]

@@ -152,7 +152,9 @@
     (define (adjust-config info) (* 2 info))
     (define (config-exceed-limit? info) (> info 100))
     (define (output-assume-string machine-var x)
-      (format "(constrain-stack ~a '~a)" machine-var x))
+      (if x
+          (format "(constrain-stack ~a '~a)" machine-var x)
+          #f))
     (define (output-constraint-string machine-var live-out)
       ;; live-out is something like '((data . 0) (return . 1) memory a)
       (format "(send ~a output-constraint '~a)" machine-var live-out))
