@@ -128,15 +128,17 @@
 
     (set! bit 18)
     (set! random-input-bit 16)
-    (set! inst-id '#(nop @p @+ @b @ !p !+ !b ! +* 2* 
+    (set! inst-id '#(nop @p @+ @b @ !+ !b ! +* 2* 
 			 2/ - + and or drop dup pop over a 
 			 push b! a!))
 
     ;; Instruction classes
     (set! classes 
-          (vector '(@+ @b @ !p !+ !b ! +* 2* 
-		       2/ - + and or drop dup pop over a 
-		       push b! a!)))
+          (vector '(@+ @b @) 
+		  '(!+ !b !)
+		  '(+* 2* 2/ -)
+		  '(+ and or drop push b! a!) 
+		  '(dup pop over a)))
 
     (set! classes-len (vector-length classes))
     (set! perline 8)

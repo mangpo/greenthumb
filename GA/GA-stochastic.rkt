@@ -15,7 +15,7 @@
               correctness-cost get-arg-ranges random-instruction)
 
     (set! mutate-dist 
-      #hash((operand . 1) (swap . 1) (instruction . 1)))
+      #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1)))
     (set! nop-mass 0.4)
     (set! solver (new GA-solver% [machine machine] [printer printer]))
     (set! simulator (new GA-simulator-racket% [machine machine]))
@@ -27,7 +27,7 @@
     (define (get-mutations opcode-name)
       (if (equal? opcode-name `@p) 
 	  '(operand swap instruction)
-	  '(swap instruction)))
+	  '(opcode swap instruction)))
 
     (define const-range 
           (list->vector
