@@ -91,9 +91,8 @@
       (clear-asserts)
       (configure [bitwidth bit] [loop-bound 20])
       (define const-range 
-        (list->vector
-         (cons (- (arithmetic-shift 1 (sub1 random-input-bit)))
-               (for/list ([i (sub1 random-input-bit)]) (arithmetic-shift 1 i)))))
+	;; (- (arithmetic-shift 1 (sub1 random-input-bit)))
+	(for/vector ([i (sub1 random-input-bit)]) (arithmetic-shift 1 i)))
       (define const-range-len (vector-length const-range))
       
       (define (generate-one-input random-f)
