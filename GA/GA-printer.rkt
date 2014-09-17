@@ -9,8 +9,9 @@
 (define GA-printer%
   (class printer%
     (super-new)
-    (inherit-field machine)
+    (inherit-field machine report-mutations)
     (override encode-inst decode-inst print-syntax-inst)
+    (set! report-mutations (vector-append report-mutations '#(rotate)))
 
     (define encode-port-dict (hash "up" UP "down" DOWN "left" LEFT "right" RIGHT "io" IO))
 

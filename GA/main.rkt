@@ -30,9 +30,3 @@
         #:need-filter need-filter #:dir dir #:cores cores 
         #:time-limit time-limit #:size size)
   )
-
-(define parser (new GA-parser%))
-(optimize (send parser ast-from-string "push over - push and pop pop and over 65535 or and or") 
-          '((data . 2) memory)
-          #t #f 0 #:cores 8 #:time-limit 3600 #:size 8
-          #:assume '((<= . 65535) (<= . 65535) (<= . 65535)))

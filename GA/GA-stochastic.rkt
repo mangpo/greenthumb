@@ -11,11 +11,11 @@
   (class stochastic%
     (super-new)
     (inherit-field machine printer solver simulator stat mutate-dist nop-mass)
-    (override get-mutations mutate-operand
+    (override get-mutations mutate-operand mutate-other
               correctness-cost get-arg-ranges random-instruction)
 
     (set! mutate-dist 
-      #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1)))
+      #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1) (rotate . 1)))
     (set! nop-mass 0.4)
     (set! solver (new GA-solver% [machine machine] [printer printer]))
     (set! simulator (new GA-simulator-racket% [machine machine]))
@@ -26,8 +26,8 @@
 
     (define (get-mutations opcode-name)
       (if (equal? opcode-name `@p) 
-	  '(operand swap instruction)
-	  '(opcode swap instruction)))
+	  '(operand swap instruction rotate)
+	  '(opcode swap instruction rotate)))
 
     (define const-range 
           (list->vector
@@ -35,8 +35,20 @@
                    (for/list ([i (range 5 (sub1 (quotient bit 2)))]) 
                              (arithmetic-shift 1 i))
                    (list (- (arithmetic-shift 1 (sub1 (quotient bit 2))))))))
+    
+    (define (mutate-other index entry p type)
+      (cond
+       [(equal? type `rotate) (mutate-rotate index entry p)]
+       [else (raise (format "mutate-other: undefined mutate ~a" type))]))
+
+    (define (mutate-rotate index entry p)
+      (send stat inc-propose `rotate)
+      (vector-append (vector-copy p 0 index) 
+                     (vector-copy p (add1 index))
+                     (vector entry)))
 
     (define (mutate-operand index entry p)
+      (send stat inc-propose `operand)
       (define opcode-id (inst-op entry))
       (define arg (inst-args entry))
       (define new-p (vector-copy p))
