@@ -240,7 +240,7 @@
 	 ))
       
       (with-handlers*
-       ([exn:break? (raise e)]
+       ([exn:break? (lambda (e) (raise e))]
         [exn? (lambda (e)
                 (raise (exn:state
                         (exn-message e)
