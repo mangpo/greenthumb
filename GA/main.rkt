@@ -45,10 +45,10 @@
 
 (define (GA-generate-outputs-steps code dir subdir)
   (generate-outputs-steps (send printer encode code) dir subdir
-                          machine simulator stochastic))
+                          machine printer simulator stochastic))
 
-(define (GA-calculate-cost dir subdir live-out)
-  (calculate-cost dir subdir live-out machine stochastic))
+(define (GA-calculate-cost dir name live-out)
+  (calculate-cost dir name live-out machine stochastic))
 
 #|
 (GA-generate-inputs 
@@ -61,10 +61,9 @@
 (GA-generate-outputs-steps 
  (send (new GA-parser%) ast-from-string 
        "2 b! @b 3 b! !b 1 b! @b 2 b! !b")
- "data-ex" "spec-n10-3")|#
+ "data-ex" "spec-n100-3")|#
 
-;(GA-calculate-cost "data-ex" "spec-n10-3" '((data . 2) memory))
-
+(GA-calculate-cost "data-ex/spec-n100-2" "v1" '((data . 2) memory))
 
   
   

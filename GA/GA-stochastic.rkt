@@ -7,6 +7,8 @@
 
 (provide GA-stochastic%)
 
+(define-syntax-rule (min a b ...) a)
+
 (define GA-stochastic%
   (class stochastic%
     (super-new)
