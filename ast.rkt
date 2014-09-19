@@ -18,6 +18,8 @@
 (struct special (name))
 (struct assumption (cnstr))
 (struct item (x size))
+(struct	exn:state exn (state))
+
 
 ;; Traverse a given program AST recursively until (base? program) is true.
 ;; Then apply base-apply to program.

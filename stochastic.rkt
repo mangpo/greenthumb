@@ -8,7 +8,7 @@
   (class object%
     (super-new)
     (public superoptimize inst-copy-with-op inst-copy-with-args
-            get-mutations 
+            get-mutations mutate
             mutate-opcode mutate-operand
             mutate-operand-specific mutate-other
             random-instruction print-mutation-info)
@@ -18,7 +18,8 @@
     (init-field machine printer syn-mode
                 [solver #f]
                 [simulator #f]
-                [stat #f]
+                [stat (new stat% [printer printer])]
+                [input-file #f]
                 [w-error 9999]
                 [beta 1]
                 [nop-mass 0.8]
@@ -46,8 +47,15 @@
             (pretty-display ">>> Phase 0: print mutation info")
             (print-mutation-info)
             ;;(raise "done")
-            (pretty-display ">>> Phase 1: generate input states"))
-      (define inputs (send solver generate-input-states ntests spec assumption extra-info))
+            (pretty-display ">>> Phase 1: generate input states")
+            (if input-file
+                (pretty-display ">>> Inputs from file")
+                (pretty-display ">>> Auto generate"))
+            )
+      (define inputs 
+        (if input-file
+            (map cdr (send machine get-states-from-file input-file))
+            (send solver generate-input-states ntests spec assumption extra-info)))
 
       (when debug
             (for ([i inputs])
@@ -62,11 +70,9 @@
       ;; MCMC sampling
       (define-syntax-rule (get-sketch) 
         (random-insts (if size size (vector-length spec))))
-      (set! stat (new stat% 
-                      [printer printer]
-                      [best-correct-program spec] 
-                      [best-correct-cost (send simulator performance-cost spec)]
-                      [name name]))
+      (set-field! best-correct-program stat spec)
+      (set-field! best-correct-cost stat (send simulator performance-cost spec))
+      (set-field! name stat name)
       (mcmc-main spec (if syn-mode (get-sketch) spec) 
                  inputs outputs constraint assumption time-limit extra-info)
       )

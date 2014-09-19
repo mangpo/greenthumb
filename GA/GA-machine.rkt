@@ -122,9 +122,10 @@
     (inherit print-line)
     (override set-config get-config set-config-string
               adjust-config config-exceed-limit?
-              get-state display-state
+              get-state display-state 
               output-constraint-string output-assume-string
-	      no-assumption)
+	      no-assumption
+              display-state-text parse-state-text)
 
     (set! bit 18)
     (set! random-input-bit 16)
@@ -215,6 +216,67 @@
       (pretty-display (progstate-recv state))
       (display "comm: ")
       (pretty-display (progstate-comm state)))
+
+    (define (display-state-text pair)
+      (display (format "~a," (car pair)))
+      (define state (cdr pair))
+      (define a (progstate-a state))
+      (define b (progstate-b state))
+      (define r (progstate-r state))
+      (define s (progstate-s state))
+      (define t (progstate-t state))
+      (define data (progstate-data state))
+      (define return (progstate-return state))
+      (define memory (progstate-memory state))
+      (define recv (progstate-recv state))
+      (define comm (progstate-comm state))
+
+      (display (format "~a,~a,~a,~a,~a," a b r s t))
+      ;; data
+      (display (format "~a;" (stack-sp data)))
+      (display (string-join (map number->string (vector->list (stack-body data)))))
+      (display ",")
+      ;; return
+      (display (format "~a;" (stack-sp return)))
+      (display (string-join (map number->string (vector->list (stack-body return)))))
+      (display ",")
+      ;; memory
+      (display "")
+      (display (string-join (map number->string (vector->list memory))))
+      (display ",")
+      ;; recv
+      (display (string-join (map number->string recv)))
+      (display ",")
+      ;; comm
+      (display (string-join 
+                (map (lambda (x) 
+                       (format "~a ~a ~a" (first x) (second x) (third x)))
+                     comm)
+                ";"))
+      (pretty-display ","))
+
+    (define (parse-state-text str)
+      (define tokens (list->vector (string-split str ",")))
+      (define-syntax-rule (to-number index) (string->number (vector-ref tokens index)))
+      (define a (to-number 1))
+      (define b (to-number 2))
+      (define r (to-number 3))
+      (define s (to-number 4))
+      (define t (to-number 5))
+      (define raw-data (string-split (vector-ref tokens 6) ";"))
+      (define data (stack (string->number (first raw-data))
+                          (list->vector 
+                           (map string->number (string-split (second raw-data))))))
+      (define raw-return (string-split (vector-ref tokens 7) ";"))
+      (define return (stack (string->number (first raw-return))
+                            (list->vector 
+                             (map string->number (string-split (second raw-return))))))
+      (define memory (list->vector (map string->number (string-split (vector-ref tokens 8)))))
+      (define recv (map string->number (string-split (vector-ref tokens 9))))
+      (define raw-comm (string-split (vector-ref tokens 10) ";"))
+      (define comm (map (lambda (x) (map string->number (string-split x))) raw-comm))
+      (cons (equal? (vector-ref tokens 0) "#t")
+            (progstate a b r s t data return memory recv comm)))
 
     (define (no-assumption)
       (default-state this))

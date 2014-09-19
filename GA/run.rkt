@@ -25,7 +25,8 @@
 (optimize (send parser ast-from-string 
                 "over - and + - push drop pop")
           '((data . 1))
-          #t #t 0 #:cores 8 #:time-limit 3600 #:size 5)
+          #t #t 0 
+          #:cores 2 #:time-limit 3600 #:size 5 #:input-file "data-fff/inputs")
 
 ;; (optimize (send parser ast-from-string "dup drop 2 a! !") 
 ;;           '((data . 2) memory)

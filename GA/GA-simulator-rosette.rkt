@@ -39,8 +39,9 @@
 		       (let* ([len (length c)]
 			      [limit-p (list-ref limit len)])
 			 (assert (< len (length limit)) 'comm-length)  
-			 (assert (equal? (car p) (car limit-p)) `comm-data)
-			 (assert (equal? (cdr p) (cdr limit-p)) `comm-type)
+			 (assert (equal? (first p) (first limit-p)) `comm-data)
+			 (assert (equal? (second p) (second limit-p)) `comm-port)
+			 (assert (equal? (third p) (third limit-p)) `comm-read-write)
 			 (cons limit-p c)))))])) ; can return (cons p c) here, but this is more efficient. 
 					; it is correct because we assert that p == limit-p.
 
@@ -59,10 +60,6 @@
       (define r (progstate-r state))
       (define s (progstate-s state))
       (define t (progstate-t state))
-      ;; (define data (stack (stack-sp (progstate-data state))
-      ;; 			  (vector-copy (stack-body (progstate-data state)))))
-      ;; (define return (stack (stack-sp (progstate-return state))
-      ;; 			    (vector-copy (stack-body (progstate-return state)))))
       (define data-sp (stack-sp (progstate-data state)))
       (define data-body (vector-copy (stack-body (progstate-data state))))
       (define return-sp (stack-sp (progstate-return state)))
@@ -108,17 +105,13 @@
 	  (set! r (pop-stack! return-sp return-body))
           ret-val))
       
-      ;; Define comm-type
-      (define comm-dict (hash UP 0 DOWN 1 LEFT 2 RIGHT 3 IO 4))
-      
       ;; Read from the given memory address or communication port. If it
       ;; gets a communication port, it just returns a random number (for
       ;; now).
       (define (read-memory addr)
 	(define (read port)
-	  (let ([val (car recv)]
-		[type (hash-ref comm-dict port)])
-	    (set! comm (policy (cons val type) comm))
+	  (let ([val (car recv)])
+	    (set! comm (policy (list val port 0) comm))
 	    (set! recv (cdr recv))
 	    val))
 	(cond
@@ -135,9 +128,7 @@
       (define (set-memory! addr val)
 	(when debug (pretty-display `(set-memory! ,addr ,val)))
 	(define (write port)
-	  (let ([type (+ 5 (hash-ref comm-dict port))])
-	    (set! comm (policy (cons val type) comm))
-	    ))
+          (set! comm (policy (list val port 1) comm)))
 	(cond
 	 [(equal? addr UP)    (write UP)]
 	 [(equal? addr DOWN)  (write DOWN)]

@@ -2,7 +2,7 @@
 
 (provide debug machine%)
 
-(define debug #f)
+(define debug #t)
 
 (define machine%
   (class object%
@@ -14,7 +14,8 @@
               output-constraint-string)
     (public get-class-id print-line no-assumption
             get-inst-id get-inst-name
-            output-assume-string)
+            output-assume-string
+            display-state-text parse-state-text get-states-from-file)
 
     (define (get-inst-id opcode)
       (vector-member opcode inst-id))
@@ -47,5 +48,23 @@
 
     (define (output-assume-string machine-var x)
       x)
+
+    (define (display-state-text x)
+      (raise "display-state-text: unimplemented"))
+
+    (define (parse-state-text str)
+      (raise "parse-state-text: unimplemented"))
+
+    (define (get-states-from-file file)
+      (define port (open-input-file file))
+      (define (parse)
+        (define line (read-line port))
+        (if (equal? line eof)
+            (list)
+            (cons (parse-state-text line)
+                  (parse))))
+      (define ret (parse))
+      (close-input-port port)
+      ret)
 
     ))

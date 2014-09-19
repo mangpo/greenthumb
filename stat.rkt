@@ -8,7 +8,9 @@
 (define stat%
   (class object%
 
-    (init-field printer best-correct-program best-correct-cost
+    (init-field printer 
+                [best-correct-program #f] 
+                [best-correct-cost #f]
                 [stat-mutations (get-field report-mutations printer)]
                 [n (vector-length stat-mutations)]
                 [start-time (current-seconds)]

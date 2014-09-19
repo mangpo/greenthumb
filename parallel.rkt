@@ -7,7 +7,7 @@
 (define parallel%
   (class object%
     (super-new)
-    (init-field meta parser machine printer compress solver stochastic?)
+    (init-field meta parser machine printer compress solver stochastic? [input-file #f])
     (public optimize)
     
     (define (optimize-inner code-org live-out-org synthesize dir cores time-limit size 
@@ -51,7 +51,10 @@
            (pretty-display (format "(define printer (new ~a [machine machine]))" (send meta get-class-name "printer")))
 
 	   (if stochastic?
-	       (pretty-display (format "(define search (new ~a [machine machine] [printer printer] [syn-mode ~a]))" (send meta get-class-name "stochastic") synthesize))
+	       (pretty-display (format "(define search (new ~a [machine machine] [printer printer] [syn-mode ~a] [input-file \"~a\"]))" 
+                                       (send meta get-class-name "stochastic") 
+                                       synthesize
+                                       input-file))
 	       (pretty-display (format "(define search (new ~a [machine machine] [printer printer]))" (send meta get-class-name "solver"))))
 
            (pretty-display (format "(define parser (new ~a))" (send meta get-class-name "parser")))
