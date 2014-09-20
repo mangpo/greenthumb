@@ -7,12 +7,13 @@
 
 (provide GA-stochastic%)
 
-(define-syntax-rule (min a b ...) a)
+;(define-syntax-rule (min a b ...) a)
 
 (define GA-stochastic%
   (class stochastic%
     (super-new)
     (inherit-field machine printer solver simulator stat mutate-dist nop-mass)
+    (init-field [forward #t])
     (override get-mutations mutate-operand mutate-other
               correctness-cost get-arg-ranges random-instruction)
 
@@ -45,7 +46,7 @@
 
     (define (mutate-rotate index entry p)
       (send stat inc-propose `rotate)
-      (if (= (random 2) 0)
+      (if forward
           (vector-append (vector-copy p 0 index) 
                          (vector-copy p (add1 index))
                          (vector entry))

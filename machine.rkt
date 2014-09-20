@@ -1,5 +1,6 @@
 #lang racket
 
+(require "ast.rkt")
 (provide debug machine%)
 
 (define debug #f)
@@ -15,7 +16,7 @@
     (public get-class-id print-line no-assumption
             get-inst-id get-inst-name
             output-assume-string
-            display-state-text parse-state-text get-states-from-file)
+            display-state-text parse-state-text get-states-from-file syntax-equal?)
 
     (define (get-inst-id opcode)
       (vector-member opcode inst-id))
@@ -66,5 +67,11 @@
       (define ret (parse))
       (close-input-port port)
       ret)
+    
+    (define (syntax-equal? code1 code2)
+      (for/and ([x1 code1]
+                [x2 code2])
+               (and (equal? (inst-op x1) (inst-op x2))
+                    (equal? (inst-args x1) (inst-args x2)))))
 
     ))

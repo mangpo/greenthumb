@@ -41,7 +41,9 @@
 
     (define (superoptimize spec constraint 
                            name time-limit size [extra-info #f]
-                           #:assume [assumption (send machine no-assumption)])
+                           #:assume [assumption (send machine no-assumption)]
+                           #:input-file [input-file #f]
+                           #:start-prog [start #f])
       ;; Generate testcases
       (when debug 
             (pretty-display ">>> Phase 0: print mutation info")
@@ -73,7 +75,11 @@
       (set-field! best-correct-program stat spec)
       (set-field! best-correct-cost stat (send simulator performance-cost spec))
       (set-field! name stat name)
-      (mcmc-main spec (if syn-mode (get-sketch) spec) 
+      (mcmc-main spec 
+                 (cond
+                  [start start]
+                  [syn-mode (get-sketch)]
+                  [else spec])
                  inputs outputs constraint assumption time-limit extra-info)
       )
 
@@ -277,7 +283,7 @@
         (when debug (pretty-display `(final-correct ,correct)))
 
         (define ce #f)
-        (when (equal? correct 0)
+        (when (and (number? correct) (= correct 0))
               (send stat inc-validate)
               (define t1 (current-milliseconds))
               (set! ce (send solver counterexample target program constraint extra-info

@@ -304,7 +304,8 @@
                (vector->list code))))
 
     (define (superoptimize spec constraint name time-limit size [extra #f]
-			   #:assume [assumption (send machine no-assumption)])
+			   #:assume [assumption (send machine no-assumption)]
+                           #:start [start #f])
       (define sketch (sym-insts (if size size (vector-length spec))))
       (define start-time (current-seconds))
       (define final-program #f)

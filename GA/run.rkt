@@ -14,6 +14,11 @@
 ;; (optimize (send parser ast-from-string "2 b! @b 3 b! !b 1 b! @b 2 b! !b")
 ;;           '((data . 2) memory)
 ;;           #t #t 0 #:cores 8 #:time-limit 3600 #:size 8)
+(optimize (send parser ast-from-string "2 b! @b 3 b! !b 1 b! @b 2 b! !b")
+          '((data . 2) memory)
+          #t #t 0 #:cores 2 #:time-limit 3600 #:size 8
+          #:input-file "data-ex/inputs" 
+          #:start-prog "2 b! @b 3 b! !b 1 !b @b 2 b! b!")
 
 ;; has zero byte?
 ;; (optimize (send parser ast-from-string 
@@ -22,11 +27,11 @@
 ;;           #t #t 0 #:cores 8 #:time-limit 3600 #:size 6
 ;;           #:assume '((<= . 65535)))
 
-(optimize (send parser ast-from-string 
-                "over - and + - push drop pop")
-          '((data . 1))
-          #t #t 0 
-          #:cores 2 #:time-limit 3600 #:size 5 #:input-file "data-fff/inputs")
+;; (optimize (send parser ast-from-string 
+;;                 "over - and + - push drop pop")
+;;           '((data . 1))
+;;           #t #t 0 
+;;           #:cores 2 #:time-limit 3600 #:size 5 #:input-file "data-fff/inputs")
 
 ;; (optimize (send parser ast-from-string "dup drop 2 a! !") 
 ;;           '((data . 2) memory)

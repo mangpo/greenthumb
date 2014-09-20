@@ -7,11 +7,11 @@
 (define parallel%
   (class object%
     (super-new)
-    (init-field meta parser machine printer compress solver stochastic? [input-file #f])
+    (init-field meta parser machine printer compress solver stochastic?)
     (public optimize)
     
     (define (optimize-inner code-org live-out-org synthesize dir cores time-limit size 
-                            assume extra-info)
+                            assume extra-info input-file start-prog)
       (define path (format "~a/driver" dir))
       (system (format "mkdir ~a" dir))
       (system (format "rm ~a*" path))
@@ -51,10 +51,9 @@
            (pretty-display (format "(define printer (new ~a [machine machine]))" (send meta get-class-name "printer")))
 
 	   (if stochastic?
-	       (pretty-display (format "(define search (new ~a [machine machine] [printer printer] [syn-mode ~a] [input-file \"~a\"]))" 
+	       (pretty-display (format "(define search (new ~a [machine machine] [printer printer] [syn-mode ~a]))" 
                                        (send meta get-class-name "stochastic") 
-                                       synthesize
-                                       input-file))
+                                       synthesize))
 	       (pretty-display (format "(define search (new ~a [machine machine] [printer printer]))" (send meta get-class-name "solver"))))
 
            (pretty-display (format "(define parser (new ~a))" (send meta get-class-name "parser")))
@@ -62,10 +61,18 @@
            (send printer print-syntax code)
            (pretty-display "\"))")
            (pretty-display (format "(define encoded-code (send printer encode code))"))
-	   (pretty-display (format "(send search superoptimize encoded-code ~a \"~a-~a\" ~a ~a ~a #:assume ~a)" 
+           (when start-prog
+                 (pretty-display "(define start-code (send parser ast-from-string \"")
+                 (send printer print-syntax start-prog)
+                 (pretty-display "\"))")
+                 (pretty-display (format "(define encoded-start-code (send printer encode start-code))"))
+                 )
+	   (pretty-display (format "(send search superoptimize encoded-code ~a \"~a-~a\" ~a ~a ~a #:assume ~a #:input-file ~a #:start-prog ~a)" 
 				   (send machine output-constraint-string "machine" live-out)
 				   path id time-limit size extra-info
                                    (send machine output-assume-string "machine" assume)
+                                   (if input-file (string-append "\"" input-file "\"") #f)
+                                   (if start-prog "encoded-start-code" #f)
                                    ))
 	       
            ;;(pretty-display "(dump-memory-stats)"
@@ -159,7 +166,7 @@
       )
 
     (define (optimize-filter code-org live-out synthesize dir cores time-limit size 
-                             assume extra-info)
+                             assume extra-info input-file start-prog)
       (define-values (pass start stop extra-live-out) (send compress select-code code-org))
       (pretty-display `(select-code ,pass ,start ,stop ,extra-live-out))
       (if pass
@@ -167,7 +174,7 @@
                  (optimize-inner 
                   pass
                   (send compress combine-live-out live-out extra-live-out)
-                  synthesize dir cores time-limit size extra-info)])
+                  synthesize dir cores time-limit size extra-info input-file start-prog)])
             (send compress combine-code code-org middle-output start stop))
           code-org)
       )
@@ -184,13 +191,15 @@
                       #:dir [dir "output"] 
                       #:cores [cores 12]
                       #:time-limit [time-limit 3600]
-                      #:size [size #f])
+                      #:size [size #f]
+                      #:input-file [input-file #f]
+                      #:start-prog [start-prog #f])
       (pretty-display `(optimize))
 
       (if (> (vector-length code-org) 0)
           (if need-filter
-              (optimize-filter code-org live-out synthesize dir cores time-limit size assume extra-info)
-              (optimize-inner code-org live-out synthesize dir cores time-limit size assume extra-info))
+              (optimize-filter code-org live-out synthesize dir cores time-limit size assume extra-info input-file start-prog)
+              (optimize-inner code-org live-out synthesize dir cores time-limit size assume extra-info input-file start-prog))
           code-org))
 
     ))
