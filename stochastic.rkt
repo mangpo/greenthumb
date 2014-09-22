@@ -313,6 +313,8 @@
               (when (< total-cost (get-field best-cost stat))
                     (send stat update-best program total-cost)
                     )
+              (when (and (= correct 0) (= total-cost (get-field best-correct-cost stat)))
+                    (send stat update-best-correct-program program))
               (when (and (= correct 0) (< total-cost (get-field best-correct-cost stat)))
                     (pretty-display "NEW! best-correct-program")
                     (pretty-display "program-eq? --> true")
@@ -335,7 +337,7 @@
       ;; Main loop
       (define (iter current current-cost)
         (when debug (pretty-display ">>> iter >>>"))
-        (send stat inc-iter)
+        (send stat inc-iter current-cost)
         (define t1 (current-milliseconds))
         (define proposal (mutate current))
         (define t2 (current-milliseconds))

@@ -88,8 +88,12 @@
           (set! a (+ a (arithmetic-shift a -16)))
           (bitwise-and a #x3f))
 
-        (pop-count (bitwise-xor (bitwise-and x #x3ffff) 
-                                (bitwise-and y #x3ffff))))
+        ;; (pop-count (bitwise-xor (bitwise-and x #x3ffff) 
+        ;;                         (bitwise-and y #x3ffff))))
+
+        (/
+         (log (add1 (abs (- (bitwise-and x #x3ffff) (bitwise-and y #x3ffff)))))
+         (log 2)))
 
       (define-syntax-rule (accum x) (set! correctness (+ correctness x)))
 

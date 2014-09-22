@@ -36,7 +36,10 @@
            
     (super-new)
 
-    (define/public (inc-iter)
+    (define/public (inc-iter current-cost)
+      (with-output-to-file #:exists 'append (format "~a.csv" name)
+        (thunk
+         (pretty-display (format "~a,~a" iter-count current-cost))))
       (set! iter-count (add1 iter-count))
       (when (= (modulo iter-count 1000) 0)
             (print-stat-to-file)
@@ -75,6 +78,9 @@
          ;; (pretty-display (format "best-correct-time: ~a" best-correct-time))
          (send printer print-syntax (send printer decode program))))
       )
+    
+    (define/public (update-best-correct-program program)
+      (set! best-correct-program program))
 
     (define/public (update-best-correct program cost)
       (set! best-correct-program program)
