@@ -20,6 +20,14 @@
 (struct item (x size))
 (struct	exn:state exn (state))
 
+(struct node (val p))
+
+(define (display-node x [indent ""])
+  (when (node? x)
+	(pretty-display (format "~anode: ~a" indent (node-val x)))
+	(for ([i (node-p x)])
+	     (display-node i (string-append indent "  ")))))
+
 
 ;; Traverse a given program AST recursively until (base? program) is true.
 ;; Then apply base-apply to program.
