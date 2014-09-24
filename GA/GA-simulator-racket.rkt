@@ -50,7 +50,7 @@
     ;; code
     ;; state: initial progstate
     ;; policy: a procedure that enforces a communication policy (see the definition of comm-policy above)
-    (define (interpret code state [policy #f])
+    (define (interpret code state [policy #f] #:dep [dep #f])
       (set! policy (if policy
 		       (comm-policy at-most policy)
 		       (comm-policy all)))

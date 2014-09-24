@@ -63,7 +63,7 @@
             (for ([i inputs])
                  (send machine display-state i))
             (pretty-display ">>> Phase 2: generate output states"))
-      (define outputs (map (lambda (x) (send simulator interpret spec x)) inputs))
+      (define outputs (map (lambda (x) (send simulator interpret spec x #:dep #t)) inputs))
       (when debug
             (for ([i outputs])
                  (send machine display-state i))
@@ -241,7 +241,9 @@
         (with-handlers* 
          ([exn:break? (lambda (e) (raise e))]
           [exn? (lambda (e) 
-                  (when debug (pretty-display "Error!"))
+                  (when debug 
+                        (pretty-display "Error!")
+                        (pretty-display (exn-message e)))
                   #f)]
           )
          (let* ([t1 (current-milliseconds)]
@@ -292,7 +294,8 @@
                   (begin
                     (set! correct 1)
                     (set! inputs (cons ce inputs))
-                    (set! outputs (cons (send simulator interpret target ce) outputs))
+                    (set! outputs (cons (send simulator interpret target ce #:dep #t) 
+                                        outputs))
                     (pretty-display (format "Add counterexample. Total = ~a." (length inputs)))
                     (send machine display-state ce)
                     )

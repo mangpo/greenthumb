@@ -20,11 +20,12 @@
 (struct item (x size))
 (struct	exn:state exn (state))
 
-(struct node (val p))
+(struct node (val size p))
 
 (define (display-node x [indent ""])
   (when (node? x)
-	(pretty-display (format "~anode: ~a" indent (node-val x)))
+	(pretty-display (format "~anode: ~a(~a;~a)" 
+                                indent (node-val x) (length (node-p x)) (node-size x)))
 	(for ([i (node-p x)])
 	     (display-node i (string-append indent "  ")))))
 
