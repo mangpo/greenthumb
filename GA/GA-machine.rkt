@@ -11,6 +11,8 @@
 (struct progstate (a b r s t data return memory recv comm) 
         #:mutable #:transparent)
 
+(struct progstate+ progstate (extra))
+
 (define UP #x145) ;325
 (define DOWN #x115) ;277
 (define LEFT #x175) ;373

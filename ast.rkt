@@ -30,6 +30,48 @@
 	     (display-node i (string-append indent "  ")))))
 
 
+(define (create-node-ex val p init-vals)
+  (define my-size (+ (if val 1 0) (for/sum ([i (filter node? p)]) (node-size i))))
+  (define my-val (if (member val init-vals) #f val))
+  (define my-p (list))
+  (for ([x p])
+       (when (node? x)
+	     (if (node-val x) 
+		 (set! my-p (cons x my-p))
+		 (set! my-p (append (node-p x) my-p)))))
+  (node my-val my-size my-p))
+
+(define (adjust cost val dep inter [min-val 1])
+  ;;(pretty-display `(adjust ,cost ,val))
+  (define (dfs x)
+    ;;(pretty-display `(dfs ,(node-val x)))
+    (if (member (node-val x) inter)
+	(node-size x)
+	(for/sum ([i (node-p x)])
+		 (if (node? i) (dfs i) 0))))
+  
+  
+  (define half (max (quotient cost 2) min-val))
+  (cond
+   ;;[#t cost]
+   [(<= cost min-val) cost]
+   [(and (node? dep) (equal? (node-val dep) val) (member val inter))
+    ;;(pretty-display `(cover-all))
+    min-val]
+   [(node? dep)
+    (define total (node-size dep))
+    (define uncover (- total (dfs dep)))
+    ;;(pretty-display `(uncover-total ,uncover ,total ,cost))
+    ;;(exact->inexact (add1 (* (/ uncover total) (sub1 cost))))
+    (exact->inexact (+ half (* (/ uncover total) (- cost half))))
+    ]
+
+   ;; No computation
+   [else 
+    ;;(pretty-display `(no-comp))
+    min-val])
+  )
+
 ;; Traverse a given program AST recursively until (base? program) is true.
 ;; Then apply base-apply to program.
 (define-syntax traverse

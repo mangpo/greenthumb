@@ -37,9 +37,9 @@
     (super-new)
 
     (define/public (inc-iter current-cost)
-      (with-output-to-file #:exists 'append (format "~a.csv" name)
-        (thunk
-         (pretty-display (format "~a,~a" iter-count current-cost))))
+      ;; (with-output-to-file #:exists 'append (format "~a.csv" name)
+      ;;   (thunk
+      ;;    (pretty-display (format "~a,~a" iter-count current-cost))))
       (set! iter-count (add1 iter-count))
       (when (= (modulo iter-count 1000) 0)
             (print-stat-to-file)
