@@ -170,9 +170,9 @@
                         (diff-cost (vector-ref mem1 i) (vector-ref mem2 i))
                         (+ 1 (diff-cost (vector-ref mem1 i) (progstate-t state2))
                            (if (or (= i (progstate-a state2)) (= i (progstate-b state2)))
-                               0 1))
+                               0 1)))
                         (vector-ref mem1 i) (vector-ref mem-dep i) inter 3)
-                       ))))))
+                      )))))
       
       (define-syntax-rule (check-comm)
 	(when (progstate-comm constraint)
