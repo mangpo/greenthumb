@@ -52,24 +52,36 @@
   
   
   (define half (max (quotient cost 2) min-val))
+
   (cond
-   ;;[#t cost]
+   ;[#t cost]
    [(<= cost min-val) cost]
-   [(and (node? dep) (equal? (node-val dep) val) (member val inter))
+   ;; No computation
+   [(not (node? dep)) 
+    ;;(pretty-display `(no-comp))
+    min-val]
+   [(and (equal? (node-val dep) val) (member val inter))
     ;;(pretty-display `(cover-all))
     min-val]
-   [(node? dep)
-    (define total (node-size dep))
-    (define uncover (- total (dfs dep)))
-    ;;(pretty-display `(uncover-total ,uncover ,total ,cost))
-    ;;(exact->inexact (add1 (* (/ uncover total) (sub1 cost))))
-    (exact->inexact (+ half (* (/ uncover total) (- cost half))))
-    ]
+   [else cost])
+   ;;  (cond
+   ;; ;[#t cost]
+   ;; [(<= cost min-val) cost]
+   ;; [(and (node? dep) (equal? (node-val dep) val) (member val inter))
+   ;;  ;;(pretty-display `(cover-all))
+   ;;  min-val]
+   ;; [(node? dep)
+   ;;  (define total (node-size dep))
+   ;;  (define uncover (- total (dfs dep)))
+   ;;  ;;(pretty-display `(uncover-total ,uncover ,total ,cost))
+   ;;  ;;(exact->inexact (add1 (* (/ uncover total) (sub1 cost))))
+   ;;  (exact->inexact (+ half (* (/ uncover total) (- cost half))))
+   ;;  ]
 
-   ;; No computation
-   [else 
-    ;;(pretty-display `(no-comp))
-    min-val])
+   ;; ;; No computation
+   ;; [else 
+   ;;  ;;(pretty-display `(no-comp))
+   ;;  min-val])
   )
 
 ;; Traverse a given program AST recursively until (base? program) is true.

@@ -7,7 +7,7 @@
 
 (provide GA-stochastic%)
 
-(define-syntax-rule (min a b ...) a)
+;(define-syntax-rule (min a b ...) a)
 
 (define GA-stochastic%
   (class stochastic%
@@ -103,43 +103,48 @@
       (define (check-reg progstate-x)
 	(when (progstate-x constraint)
               (accum
-               (min
-                (adjust (diff-cost (progstate-x state1) (progstate-x state2))
-			(progstate-x state1) (progstate-x state-dep) inter)
-                (add1 (diff-cost (progstate-x state1) (progstate-t state2)))
-                ))))
+               (adjust
+                (min
+                 (diff-cost (progstate-x state1) (progstate-x state2))
+                 (add1 (diff-cost (progstate-x state1) (progstate-t state2))))
+                (progstate-x state1) (progstate-x state-dep) inter)
+               )))
 
       (define (check-reg-t)
 	(when (progstate-t constraint)
               ;; load mem
               (accum
-               (min
-                (adjust (diff-cost (progstate-t state1) (progstate-t state2))
-			(progstate-t state1) (progstate-t state-dep) inter)
-                (add1 (diff-cost (progstate-t state1) (progstate-a state2)))
-                (add1 (diff-cost (progstate-t state1) (progstate-r state2)))
-                (add1 (diff-cost (progstate-t state1) (progstate-s state2)))
-                ))))
+               (adjust
+                (min
+                 (diff-cost (progstate-t state1) (progstate-t state2))
+                 (add1 (diff-cost (progstate-t state1) (progstate-a state2)))
+                 (add1 (diff-cost (progstate-t state1) (progstate-r state2)))
+                 (add1 (diff-cost (progstate-t state1) (progstate-s state2))))
+                (progstate-t state1) (progstate-t state-dep) inter)
+               )))
 
       (define (check-reg-s)
 	(when (progstate-s constraint)
               (accum
-               (min
-                (adjust (diff-cost (progstate-s state1) (progstate-s state2))
-			(progstate-s state1) (progstate-s state-dep) inter)
-                (add1 (diff-cost (progstate-s state1) (progstate-t state2)))
-                (add1 (diff-cost (progstate-s state1) (get-stack (progstate-data state2) 0)))
-                ))))
+               (adjust
+                (min
+                 (diff-cost (progstate-s state1) (progstate-s state2))
+                 (add1 (diff-cost (progstate-s state1) (progstate-t state2)))
+                 (add1 (diff-cost (progstate-s state1) (get-stack (progstate-data state2) 0))))
+                
+                (progstate-s state1) (progstate-s state-dep) inter)
+               )))
 
       (define (check-reg-r)
 	(when (progstate-r constraint)
               (accum
-               (min
-                (adjust (diff-cost (progstate-r state1) (progstate-r state2))
-			(progstate-r state1) (progstate-r state-dep) inter)
-                (add1 (diff-cost (progstate-r state1) (progstate-t state2)))
-                (add1 (diff-cost (progstate-r state1) (get-stack (progstate-return state2) 0)))
-                ))))
+               (adjust
+                (min
+                 (diff-cost (progstate-r state1) (progstate-r state2))
+                 (add1 (diff-cost (progstate-r state1) (progstate-t state2)))
+                 (add1 (diff-cost (progstate-r state1) (get-stack (progstate-return state2) 0))))
+                (progstate-r state1) (progstate-r state-dep) inter)
+                )))
       
       (define-syntax-rule (check-stack progstate-x)
 	(when (progstate-x constraint)
@@ -160,13 +165,13 @@
           (for ([i (in-range 0 (vector-length mem1))])
                (when (vector-ref mem-const i)
                      (accum
-                      (min
-                       (adjust (diff-cost (vector-ref mem1 i) (vector-ref mem2 i))
-			       (vector-ref mem1 i) (vector-ref mem-dep i) inter 
-			       3)
-                       (+ 1 (diff-cost (vector-ref mem1 i) (progstate-t state2))
-                          (if (or (= i (progstate-a state2)) (= i (progstate-b state2)))
-                              0 1))
+                      (adjust
+                       (min
+                        (diff-cost (vector-ref mem1 i) (vector-ref mem2 i))
+                        (+ 1 (diff-cost (vector-ref mem1 i) (progstate-t state2))
+                           (if (or (= i (progstate-a state2)) (= i (progstate-b state2)))
+                               0 1))
+                        (vector-ref mem1 i) (vector-ref mem-dep i) inter 3)
                        ))))))
       
       (define-syntax-rule (check-comm)

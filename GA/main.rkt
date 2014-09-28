@@ -79,4 +79,4 @@
        "2 b! @b 3 b! !b 1 b! @b 2 b! !b")
  "data-ex" "tree-n5000" 4 5000)|#
   
-(GA-calculate-cost2 "data-ex/tree-n5000" "v3" '((data . 2) memory) 5005)
+;(GA-calculate-cost2 "data-ex/tree-n5000" "v3" '((data . 2) memory) 5005)
