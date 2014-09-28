@@ -224,12 +224,18 @@
       (define-syntax-rule (mem-to-stack addr addr-dep)
 	(let-values ([(val val-dep) (read-memory addr)])
 	  (let ([p (if (node? val-dep) (node-p val-dep) (list))])
-	    (push! val (and dep (create-node val (cons addr-dep p)))))))
+	    (push! val 
+                   (create-node #f (list (create-node val (list val-dep))
+                                         (create-node addr (list addr-dep))))))))
+                   ;(and dep (create-node val (cons addr-dep p)))))))
 
       (define-syntax-rule (stack-to-mem addr addr-dep)
 	(let-values ([(val val-dep) (pop!)])
 	  (let ([p (if (node? val-dep) (node-p val-dep) (list))])
-	    (set-memory! addr val (and dep (create-node val (cons addr-dep p)))))))
+	    (set-memory! addr val 
+                         (create-node #f (list (create-node val (list val-dep))
+                                               (create-node addr (list addr-dep))))))))
+                         ;(and dep (create-node val (cons addr-dep p)))))))
 
       (define-syntax-rule (stack-1 f)
 	(let ([val (f t)])

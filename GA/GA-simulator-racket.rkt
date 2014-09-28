@@ -224,12 +224,18 @@
       (define-syntax-rule (mem-to-stack addr addr-dep)
 	(let-values ([(val val-dep) (read-memory addr)])
 	  (let ([p (if (node? val-dep) (node-p val-dep) (list))])
-	    (push! val (and dep (create-node val (cons addr-dep p)))))))
+	    (push! val 
+                   (create-node #f (list (create-node val (list val-dep))
+                                         (create-node addr (list addr-dep))))))))
+                   ;(and dep (create-node val (cons addr-dep p)))))))
 
       (define-syntax-rule (stack-to-mem addr addr-dep)
 	(let-values ([(val val-dep) (pop!)])
 	  (let ([p (if (node? val-dep) (node-p val-dep) (list))])
-	    (set-memory! addr val (and dep (create-node val (cons addr-dep p)))))))
+	    (set-memory! addr val 
+                         (create-node #f (list (create-node val (list val-dep))
+                                               (create-node addr (list addr-dep))))))))
+                         ;(and dep (create-node val (cons addr-dep p)))))))
 
       (define-syntax-rule (stack-1 f)
 	(let ([val (f t)])
@@ -252,11 +258,13 @@
 	(cond
 	 [(inst-eq `@p)   (push! const (and dep (create-node const (list))))]
 	 [(inst-eq `@+)   (mem-to-stack a a-dep)
-	                  (set! a (add1 a))]
+	                  (set! a (add1 a))
+                          (unless dep (add-inter a))]
 	 [(inst-eq `@b)   (mem-to-stack b b-dep)]
 	 [(inst-eq `@)    (mem-to-stack a a-dep)]
 	 [(inst-eq `!+)   (stack-to-mem a a-dep)
-	                  (set! a (add1 a))]
+	                  (set! a (add1 a))
+                          (unless dep (add-inter a))]
 	 [(inst-eq `!b)   (stack-to-mem b b-dep)]
 	 [(inst-eq `!)    (stack-to-mem a a-dep)]
 	 [(inst-eq `+*)   (if (= (bitwise-and #x1 a) 0)
@@ -341,37 +349,37 @@
                                    memory recv comm))))])
        (interpret-struct code))
 
-      ;; (cond
-      ;;  [dep
-      ;; 	(pretty-display ">>> a")
-      ;; 	(display-node a-dep)
-      ;; 	(pretty-display ">>> b")
-      ;; 	(display-node b-dep)
-      ;; 	(pretty-display ">>> r")
-      ;; 	(display-node r-dep)
-      ;; 	(pretty-display ">>> t")
-      ;; 	(display-node t-dep)
-      ;; 	(pretty-display ">>> s")
-      ;; 	(display-node s-dep)
-      ;; 	(for ([x data-body-dep]
-      ;; 	      [i 8])
-      ;; 	     (pretty-display (format ">>> stack[~a]" i))
-      ;; 	     (display-node x))
-      ;; 	(for ([x return-body-dep]
-      ;; 	      [i 8])
-      ;; 	     (pretty-display (format ">>> rstack[~a]" i))
-      ;; 	     (display-node x))
-      ;; 	(for ([x memory-dep]
-      ;; 	      [i (vector-length memory)])
-      ;; 	     (pretty-display (format ">>> mem[~a]" i))
-      ;; 	     (display-node x))
-      ;; 	(for ([x comm-dep]
-      ;; 	      [i (vector-length memory)])
-      ;; 	     (pretty-display (format ">>> comm[~a]" i))
-      ;; 	     (display-node (car x)))
+      (cond
+       [dep
+      	(pretty-display ">>> a")
+      	(display-node a-dep)
+      	(pretty-display ">>> b")
+      	(display-node b-dep)
+      	(pretty-display ">>> r")
+      	(display-node r-dep)
+      	(pretty-display ">>> t")
+      	(display-node t-dep)
+      	(pretty-display ">>> s")
+      	(display-node s-dep)
+      	(for ([x data-body-dep]
+      	      [i 8])
+      	     (pretty-display (format ">>> stack[~a]" i))
+      	     (display-node x))
+      	(for ([x return-body-dep]
+      	      [i 8])
+      	     (pretty-display (format ">>> rstack[~a]" i))
+      	     (display-node x))
+      	(for ([x memory-dep]
+      	      [i (vector-length memory)])
+      	     (pretty-display (format ">>> mem[~a]" i))
+      	     (display-node x))
+      	(for ([x comm-dep]
+      	      [i (vector-length memory)])
+      	     (pretty-display (format ">>> comm[~a]" i))
+      	     (display-node (car x)))
 
-      ;; 	]
-      ;;  [else (pretty-display `(inter ,inter))])
+      	]
+       [else (pretty-display `(inter ,inter))])
 
       (define extra
 	(if dep
