@@ -349,37 +349,37 @@
                                    memory recv comm))))])
        (interpret-struct code))
 
-      (cond
-       [dep
-      	(pretty-display ">>> a")
-      	(display-node a-dep)
-      	(pretty-display ">>> b")
-      	(display-node b-dep)
-      	(pretty-display ">>> r")
-      	(display-node r-dep)
-      	(pretty-display ">>> t")
-      	(display-node t-dep)
-      	(pretty-display ">>> s")
-      	(display-node s-dep)
-      	(for ([x data-body-dep]
-      	      [i 8])
-      	     (pretty-display (format ">>> stack[~a]" i))
-      	     (display-node x))
-      	(for ([x return-body-dep]
-      	      [i 8])
-      	     (pretty-display (format ">>> rstack[~a]" i))
-      	     (display-node x))
-      	(for ([x memory-dep]
-      	      [i (vector-length memory)])
-      	     (pretty-display (format ">>> mem[~a]" i))
-      	     (display-node x))
-      	(for ([x comm-dep]
-      	      [i (vector-length memory)])
-      	     (pretty-display (format ">>> comm[~a]" i))
-      	     (display-node (car x)))
+      ;; (cond
+      ;;  [dep
+      ;; 	(pretty-display ">>> a")
+      ;; 	(display-node a-dep)
+      ;; 	(pretty-display ">>> b")
+      ;; 	(display-node b-dep)
+      ;; 	(pretty-display ">>> r")
+      ;; 	(display-node r-dep)
+      ;; 	(pretty-display ">>> t")
+      ;; 	(display-node t-dep)
+      ;; 	(pretty-display ">>> s")
+      ;; 	(display-node s-dep)
+      ;; 	(for ([x data-body-dep]
+      ;; 	      [i 8])
+      ;; 	     (pretty-display (format ">>> stack[~a]" i))
+      ;; 	     (display-node x))
+      ;; 	(for ([x return-body-dep]
+      ;; 	      [i 8])
+      ;; 	     (pretty-display (format ">>> rstack[~a]" i))
+      ;; 	     (display-node x))
+      ;; 	(for ([x memory-dep]
+      ;; 	      [i (vector-length memory)])
+      ;; 	     (pretty-display (format ">>> mem[~a]" i))
+      ;; 	     (display-node x))
+      ;; 	(for ([x comm-dep]
+      ;; 	      [i (vector-length memory)])
+      ;; 	     (pretty-display (format ">>> comm[~a]" i))
+      ;; 	     (display-node (car x)))
 
-      	]
-       [else (pretty-display `(inter ,inter))])
+      ;; 	]
+      ;;  [else (pretty-display `(inter ,inter))])
 
       (define extra
 	(if dep
