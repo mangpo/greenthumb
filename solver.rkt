@@ -309,6 +309,7 @@
                                   #:assume [assumption (send machine no-assumption)]
                                   #:input-file [input-file #f]
                                   #:start-prog [start #f])
+      (define start-time (current-seconds))
       (define final-program #f)
       (define final-len (if size size (vector-length spec)))
       (define final-cost #f)
@@ -332,6 +333,15 @@
         (pretty-display `(out ,out-program ,out-cost))
 
         (when out-program 
+              ;; Print to file
+              (with-output-to-file #:exists 'truncate (format "~a.stat" name)
+                (thunk
+                 (pretty-display (format "best-correct-cost:\t~a" out-cost))
+                 (pretty-display (format "best-correct-time:\t~a" 
+                                         (- (current-seconds) start-time)))))
+              (with-output-to-file #:exists 'truncate (format "~a.best" name)
+                (thunk
+                 (send printer print-syntax out-program)))
               (set! final-program out-program)
               (set! final-len middle)
               (set! final-cost out-cost))
