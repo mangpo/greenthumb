@@ -11,10 +11,13 @@
 (define solver (new GA-solver% [machine machine] [printer printer]))
 (define stochastic (new GA-stochastic% [machine machine] [printer printer] [syn-mode #t]))
 
-(define code2 (send parser ast-from-string "222 left b! !b right a! @"))
-(define code (send parser ast-from-string "2 b! @b 3 b! !b 1 b! @b 2 b! !b"))
-(define sketch (send parser ast-from-string "3 2/ nop a! @+ @ b! !"))
-
+(define code (send parser ast-from-string 
+                   "32639 and 32639 + over over - and + over - and + - 65535 and"
+                   ;"32639 and 32639 + over over - and + 32639 over - and + - 65535 and"
+                   ))
+(define sketch (send parser ast-from-string 
+                     "push 65535 dup pop nop 2/ a! nop +* nop nop nop nop nop nop nop or"))
+                     
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send printer encode sketch))
 (send printer print-struct encoded-code)
@@ -24,11 +27,14 @@
 ;;   input)
 ;; (define state (default-state machine 1 (lambda () (random 100))))
 ;; (send machine display-state state)
-(define inputs (map cdr (send machine get-states-from-file "data-ex/inputs")))
+(define inputs 
+   (map cdr (send machine get-states-from-file "data-fff/inputs")))
+
 
 (define states1 
   (for/list ([input inputs])
     (send simulator interpret encoded-code input #:dep #t)))
+
 (define states2 
   (for/list ([input inputs])
     (send simulator interpret encoded-sketch input #:dep #f)))
@@ -41,7 +47,7 @@
             [state2 states2])
     (let ([cost
            (send stochastic correctness-cost state1 state2 
-                 (constraint t memory))])
+                 (constraint s t r memory))])
       #|(pretty-display "expect=")
       (send machine display-state state1)
       (pretty-display "output=")
