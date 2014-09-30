@@ -152,6 +152,8 @@
       ;; gets a communication port, it just returns a random number (for
       ;; now).
       (define (read-memory addr)
+        (define ret #f)
+        (define ret-dep #f)
 	(define (read port)
 	  (let ([val (car recv)])
 	    (set! comm (policy (list val port 0) comm))
@@ -159,13 +161,15 @@
 	    (set! recv (cdr recv))
 	    val))
 	(cond
-	 [(equal? addr UP)    (values (read UP) #f)]
-	 [(equal? addr DOWN)  (values (read DOWN) #f)]
-	 [(equal? addr LEFT)  (values (read LEFT) #f)]
-	 [(equal? addr RIGHT) (values (read RIGHT) #f)]
-	 [(equal? addr IO)    (values (read IO) #f)]
-	 [else (values (vector-ref memory addr)
-		       (and dep (vector-ref memory-dep addr)))]))
+	 [(equal? addr UP)    (set! ret (read UP))]
+	 [(equal? addr DOWN)  (set! ret (read DOWN))]
+	 [(equal? addr LEFT)  (set! ret (read LEFT))]
+	 [(equal? addr RIGHT) (set! ret (read RIGHT))]
+	 [(equal? addr IO)    (set! ret (read IO))]
+	 [else 
+          (set! ret (vector-ref memory addr))
+          (set! ret-dep (and dep (vector-ref memory-dep addr)))])
+        (values ret ret-dep))
       
       ;; Write to the given memeory address or communication
       ;; port. Everything written to any communication port is simply

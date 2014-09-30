@@ -18,7 +18,7 @@
               encode-sym decode-sym sym-insts
               assume assert-output)
     (public proper-machine-config generate-input-states
-            superoptimize synthesize-from-sketch counterexample
+            superoptimize superoptimize-binary synthesize-from-sketch counterexample
             sym-op sym-arg
             assume-relax)
 
@@ -303,9 +303,61 @@
        (filter (lambda (x) (not (equal? (inst-op x) "nop")))
                (vector->list code))))
 
+    ;; Optimize the cost using binary search on the number of holes.
+    ;; spec: non-encoded block
+    (define (superoptimize-binary spec constraint name time-limit size [extra #f]
+                                  #:assume [assumption (send machine no-assumption)]
+                                  #:input-file [input-file #f]
+                                  #:start-prog [start #f])
+      (define final-program #f)
+      (define final-len (if size size (vector-length spec)))
+      (define final-cost #f)
+      (define (inner begin end cost)
+        (define middle (quotient (+ begin end) 2))
+        (pretty-display `(binary-search ,begin ,end ,middle))
+        (define sketch (sym-insts middle))
+        
+        (define-values (out-program out-cost)
+          (with-handlers* 
+           ([exn:fail? 
+             (lambda (e) 
+               (pretty-display "catch error")
+               (if (regexp-match #rx"synthesize: synthesis failed" 
+                                 (exn-message e))
+                   (values #f cost)
+                   (raise e)))])
+           (synthesize-from-sketch spec sketch constraint extra cost time-limit
+                                   #:assume assumption)))
+
+        (pretty-display `(out ,out-program ,out-cost))
+
+        (when out-program 
+              (set! final-program out-program)
+              (set! final-len middle)
+              (set! final-cost out-cost))
+
+        (if out-program
+            (inner begin middle out-cost)
+            (when (< middle end) (inner (add1 middle) end cost))))
+      
+      (with-handlers 
+       ([exn:break? (lambda (e) (unless final-program (set! final-program "timeout")))])
+       (inner 1 final-len #f))
+
+      ;; Try len + 2
+      ;; (unless (equal? final-program "timeout")
+      ;;         (with-handlers 
+      ;;          ([exn:break? (lambda (e) (void))])
+      ;;          (inner (+ final-len 2) (+ final-len 2) final-cost)))
+      
+
+      (pretty-display "after inner")
+      final-program)
+
     (define (superoptimize spec constraint name time-limit size [extra #f]
 			   #:assume [assumption (send machine no-assumption)]
-                           #:start [start #f])
+                           #:input-file [input-file #f]
+                           #:start-prog [start #f])
       (define sketch (sym-insts (if size size (vector-length spec))))
       (define start-time (current-seconds))
       (define final-program #f)
@@ -356,6 +408,7 @@
 				    #:assume-interpret [assume-interpret #t]
 				    #:assume [assumption (send machine no-assumption)])
       (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
+      (when debug (send printer print-struct sketch))
 
       ;; (current-solver (new z3%))
       ;; (current-solver (new kodkod%))

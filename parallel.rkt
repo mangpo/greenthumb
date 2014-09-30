@@ -7,7 +7,7 @@
 (define parallel%
   (class object%
     (super-new)
-    (init-field meta parser machine printer compress solver stochastic?)
+    (init-field meta parser machine printer compress solver stochastic? binary-search)
     (public optimize)
     
     (define (optimize-inner code-org live-out-org synthesize dir cores time-limit size 
@@ -67,7 +67,8 @@
                  (pretty-display "\"))")
                  (pretty-display (format "(define encoded-start-code (send printer encode start-code))"))
                  )
-	   (pretty-display (format "(send search superoptimize encoded-code ~a \"~a-~a\" ~a ~a ~a #:assume ~a #:input-file ~a #:start-prog ~a)" 
+	   (pretty-display (format "(send search ~a encoded-code ~a \"~a-~a\" ~a ~a ~a #:assume ~a #:input-file ~a #:start-prog ~a)" 
+                                   (if binary-search "superoptimize-binary" "superoptimize")
 				   (send machine output-constraint-string "machine" live-out)
 				   path id time-limit size extra-info
                                    (send machine output-assume-string "machine" assume)
