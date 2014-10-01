@@ -60,12 +60,12 @@
                  machine printer simulator backward-stochastic))
 
 
-(GA-generate-inputs 
- (send (new GA-parser%) ast-from-string 
-       "push drop pop pop a! right b! !b dup 1 + 15 and push drop pop")
- 0
- "data-fir"
- #:assume '((<= . 15)))
+;; (GA-generate-inputs 
+;;  (send (new GA-parser%) ast-from-string 
+;;        "push drop pop pop a! right b! !b dup 1 + 15 and push drop pop")
+;;  0
+;;  "data-fir"
+;;  #:assume '((<= . 15)))
 
 ;; (GA-generate-outputs-steps 
 ;;  (send (new GA-parser%) ast-from-string 

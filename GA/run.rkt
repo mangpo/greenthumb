@@ -15,9 +15,16 @@
 ;;                 "0 a! !+ push !+ pop dup 1 b! @b 0 b! @b 65535 or over - and + or p\
 ;; ush drop pop")
 ;;           '((data . 2) memory)
-;;           #t #t 0 #:cores 6 #:time-limit 36000 ;#:size 9                            
+;;           #t #t 0 #:cores 8 #:time-limit 36000 ;#:size 9                            
 ;;           #:assume '((<= . 65535) (<= . 65535) (<= . 65535))
 ;;           #:input-file "data-iii2/inputs")
+
+;; shaf                                                                             
+(optimize (send parser ast-from-string
+		"0 a! !+ !+ push pop dup 1 b! @b and over - 0 b! @b and or push drop pop")
+          '((data . 2) (return . 1))
+          #t #t 0 #:cores 8 #:time-limit 36000 
+          #:input-file "data-iii2/inputs")
 
 ;; zero byte
 ;; (optimize (send parser ast-from-string 
@@ -34,12 +41,12 @@
 ;;           #:assume '((<= . 65535)))
 
 ;; fir
-(optimize (send parser ast-from-string 
-                "push drop pop pop a! right b! !b dup 1 + 15 and push drop pop")
-          '((data . 1) a memory)
-          #t #t 0 #:cores 2 #:time-limit 3600 #:size 12
-          #:assume '((<= . 65535))
-          #:input-file "data-fir/inputs")
+;; (optimize (send parser ast-from-string 
+;;                 "push drop pop pop a! right b! !b dup 1 + 15 and push drop pop")
+;;           '((data . 1) a memory)
+;;           #t #t 0 #:cores 8 #:time-limit 360
+;;           #:assume '((<= . 65535))
+;;           #:input-file "data-fir/inputs")
 
 
 ;; mem
