@@ -41,9 +41,9 @@
         #:input-file input-file #:start-prog start-prog)
   )
 
-(define (GA-generate-inputs code extra-info dir)
+(define (GA-generate-inputs code extra-info dir #:assume [assume #f])
   (generate-inputs (send printer encode code) extra-info dir 
-                   machine printer solver))
+                   machine printer solver #:assume (constrain-stack machine assume)))
 
 (define (GA-generate-outputs-steps code dir subdir)
   (generate-outputs-steps (send printer encode code) dir subdir
@@ -59,12 +59,13 @@
   (generate-tree (send printer encode code) dir subdir degree n
                  machine printer simulator backward-stochastic))
 
-#|
+
 (GA-generate-inputs 
  (send (new GA-parser%) ast-from-string 
-       "2 b! @b 3 b! !b 1 b! @b 2 b! !b")
+       "push drop pop pop a! right b! !b dup 1 + 15 and push drop pop")
  0
- "data-ex")|#
+ "data-fir"
+ #:assume '((<= . 15)))
 
 ;; (GA-generate-outputs-steps 
 ;;  (send (new GA-parser%) ast-from-string 

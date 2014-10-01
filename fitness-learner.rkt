@@ -11,10 +11,10 @@
   (send machine get-states-from-file file))
 
 (define (generate-inputs code extra-info dir
-                         machine printer solver)
+                         machine printer solver #:assume [assume #f])
   
   (pretty-display ">>> Phase 1: generate input states")
-  (define inputs (send solver generate-input-states 16 code #f extra-info))
+  (define inputs (send solver generate-input-states 16 code assume extra-info))
   (system (format "rm -r ~a" dir))
   (system (format "mkdir ~a" dir))
 

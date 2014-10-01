@@ -12,12 +12,9 @@
 (define stochastic (new GA-stochastic% [machine machine] [printer printer] [syn-mode #t]))
 
 (define code (send parser ast-from-string 
-                   "32639 and 32639 + over over - and + over - and + - 65535 and"
-                   ;"32639 and 32639 + over over - and + 32639 over - and + - 65535 and"
-                   ))
+                   "push drop pop pop a! right b! !b dup 1 + 15 and push drop pop"))
 (define sketch (send parser ast-from-string 
-                     "push 65535 dup pop nop 2/ a! nop +* nop nop nop nop nop nop nop or"))
-                     
+                     "push drop pop pop a! right b! !b"))
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send printer encode sketch))
 (send printer print-struct encoded-code)
@@ -44,15 +41,16 @@
 
 (define total-cost
   (for/sum ([state1 states1]
-            [state2 states2])
+            [state2 states2]
+            [id (length states1)])
     (let ([cost
            (send stochastic correctness-cost state1 state2 
-                 (constraint s t r memory))])
-      #|(pretty-display "expect=")
+                 (constraint t a memory))])
+      (pretty-display "expect=")
       (send machine display-state state1)
       (pretty-display "output=")
-      (send machine display-state state2)|#
-      (pretty-display `(cost ,cost))
+      (send machine display-state state2)
+      (pretty-display `(cost ,cost ,id))
       cost)))
 
 (pretty-display `(total-cost ,total-cost))

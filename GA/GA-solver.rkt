@@ -141,7 +141,46 @@
       )
 
     (define (assume-relax state constraint)
-      (void))
+      (define (check item assumption)
+	(when (pair? assumption)
+	      (cond
+	       [(member (car assumption) (list "=" '=))
+		(if (list? (cdr assumption))
+		    (assert (member item (cdr assumption)))
+		    (assert (equal? item (cdr assumption))))]
+               ;; different from normal assume here
+	       [(and (member (car assumption) (list "<=" '<=))
+                     (< (cdr assumption) #xffff))
+		(assert (and (<= item (cdr assumption)) (>= item 0)))])
+	      ))
+
+      (define (check-reg progstate-x)
+	(check (progstate-x state) (progstate-x constraint)))
+      
+      (define (check-stack progstate-x)
+	(when (progstate-x constraint)
+	      (for ([i (in-range 8)])
+		   (check (get-stack (progstate-x state) i)
+			  (get-stack (progstate-x constraint) i)))))
+      
+      (define (check-mem)
+	(define mem-state (progstate-memory state))
+	(define mem-constraint (progstate-memory constraint))
+	(when (= (vector-length mem-constraint)
+		 (vector-length mem-state))
+	      (for ([i (in-range 0 (vector-length mem-state))])
+		   (check (vector-ref mem-state i) (vector-ref mem-constraint i)))))
+
+      (when constraint
+            (check-reg progstate-a)
+            (check-reg progstate-b)
+            (check-reg progstate-r)
+            (check-reg progstate-s)
+            (check-reg progstate-t)
+            (check-stack progstate-data)
+            (check-stack progstate-return)
+            (check-mem))
+      )
     
 
     ;; Assert assumption about start-state
