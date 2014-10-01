@@ -97,6 +97,7 @@
         ;; (/
         ;;  (log (add1 (abs (- (bitwise-and x #x3ffff) (bitwise-and y #x3ffff)))))
         ;;  (log 2)))
+         
 
       (define-syntax-rule (accum x) (set! correctness (+ correctness x)))
 
@@ -178,9 +179,6 @@
 	(when (progstate-comm constraint)
 	      (let ([comm1-len (length (progstate-comm state1))]
 		    [comm2-len (length (progstate-comm state2))])
-	      ;; (accum
-              ;;  (* bit (abs (- (length (progstate-comm state1)) 
-              ;;                 (length (progstate-comm state2))))))
 		(for ([i1 (progstate-comm state1)]
 		      [i2 (progstate-comm state2)]
 		      [i-dep (progstate-comm state-dep)])
@@ -190,14 +188,14 @@
 			     (accum 1))
 		     (unless (= (third i1) (third i2))
 			     (accum 1)))
-
-		(for ([i1 (drop (progstate-comm state1) comm2-len)]
-		      [i-dep (drop (progstate-comm state-dep) comm2-len)])
-		     (accum (adjust bit (first i1) (first i-dep) inter
-				    3)))
-
-		(for ([i2 (drop (progstate-comm state2) comm1-len)])
-		     (accum 1)))))
+                (when (> comm1-len comm2-len)
+                      (for ([i1 (drop (progstate-comm state1) comm2-len)]
+                            [i-dep (drop (progstate-comm state-dep) comm2-len)])
+                           (accum (adjust bit (first i1) (first i-dep) inter
+                                          3))))
+                (when (> comm2-len comm1-len)
+                      (for ([i2 (drop (progstate-comm state2) comm1-len)])
+                           (accum 1))))))
       
       (check-reg progstate-a)
       (check-reg progstate-b)
