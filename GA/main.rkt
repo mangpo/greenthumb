@@ -62,10 +62,9 @@
 
 ;; (GA-generate-inputs 
 ;;  (send (new GA-parser%) ast-from-string 
-;;        "push drop pop pop a! right b! !b dup 1 + 15 and push drop pop")
+;;        "2 b! !b 2 b! @b b! @b 2 b! @b 1 + b! @b 2 b! @b b! @b - 1 + +")
 ;;  0
-;;  "data-fir"
-;;  #:assume '((<= . 15)))
+;;  "data-interp")
 
 ;; (GA-generate-outputs-steps 
 ;;  (send (new GA-parser%) ast-from-string 
