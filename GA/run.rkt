@@ -19,12 +19,27 @@
 ;;           #:assume '((<= . 65535) (<= . 65535) (<= . 65535))
 ;;           #:input-file "data-iii2/inputs")
 
-;; shaf                                                                             
+;; shaf                                                                            
+;; (optimize (send parser ast-from-string
+;; 		"0 a! !+ !+ push pop dup 1 b! @b and over - 0 b! @b and or push drop pop")
+;;           '((data . 2) (return . 1))
+;;           #t #t 0 #:cores 8 #:time-limit 36000 
+;;           #:input-file "data-iii2/inputs")
+
+;; shag                                                                            
+;; (optimize (send parser ast-from-string
+;; 		"0 a! !+ !+ push pop dup 1 b! @b and over 0 b! @b and or 1 b! @b 0 b! @b and or push drop pop")
+;;           '((data . 2) (return . 1))
+;;           #t #t 0 #:cores 8 #:time-limit 3600
+;;           #:input-file "data-iii2/inputs")
+
+;; roundpower                                                                      
 (optimize (send parser ast-from-string
-		"0 a! !+ !+ push pop dup 1 b! @b and over - 0 b! @b and or push drop pop")
-          '((data . 2) (return . 1))
-          #t #t 0 #:cores 8 #:time-limit 36000 
-          #:input-file "data-iii2/inputs")
+                "-1 + push drop pop dup over 2/ over - and + push drop pop")
+          '((data . 2))
+          #t #t 0 #:cores 8 #:time-limit 800
+          #:input-file "data-fff-small/inputs")
+
 
 ;; zero byte
 ;; (optimize (send parser ast-from-string 
@@ -33,12 +48,13 @@
 ;;           #t #t 0 #:cores 8 #:time-limit 36000
 ;; 	  #:input-file "data-fff/inputs")
 
-;; has zero byte?
-;; (optimize (send parser ast-from-string 
-;;                 "dup 32639 and 32639 + over over - and + 32639 over - and + -")
+;; has zero byte?                                                                  
+;; (optimize (send parser ast-from-string
+;;                 "32639 and 32639 + over over - and + 32639 over - and + -")
 ;;           '((data . 1))
-;;           #t #t 0 #:cores 8 #:time-limit 3600 #:size 6
-;;           #:assume '((<= . 65535)))
+;;           #t #t 0 #:cores 8 #:time-limit 3600
+;;           #:assume '((<= . 65535))
+;;           #:input-file "data-fff/inputs")
 
 ;; fir
 ;; (optimize (send parser ast-from-string 
