@@ -68,40 +68,44 @@
     (set! bit 32)
     (set! random-input-bit 32)
     (set! inst-id '#(nop 
-                     add sub rsb ;;i
-                     and orr eor bic orn ;;i
-                     mov mvn ;;i, special mov Rd, #imm16
+                     add sub rsb
+                     addi subi rsbi
+                     and orr eor bic orn
+                     andi orri eori bici orni
+                     mov mvn
+                     movi mvni
                      rev rev16 revsh rbit
-                     asr lsl lsr ;; ror rrx ;; ...
+                     asr lsl lsr
+                     asri lsli lsri
                      sdiv udiv
                      mul mla mls
                      ;;smmul smmla smmls
                      bfc bfi
                      sbfx ubfx
-                     pkhbt pkhtb
                      clz
                      ldr str
-                     )) ;; constant version
+                     ldri stri
+                     ))
 
     ;; Instruction classes
     (set! classes 
-          (vector '(sub add and or xor 
-                        seq sne slt sgt sle sge 
-                        sequ sneu sltu sgtu sleu sgeu
-                        srl sra sll
-                        bset 
-                        bclr) ;;if0
-                  '(subi addi andi ori xori 
-                         seqi snei slti sgti slei sgei
-                         sequi sneui sltui sgtui sleui sgeui
-                         srli srai slli
-                         bseti bclri
-                         sw lw) ;;if3
-                  '(not clz skpbs skpbc) ;;if0b, if7
-                  '(extu insb) ;;if6
-                  '(movli movhi movsi)
-                  ;;'(movzi mov32 nop) ;;other
-                  )) ;;if6
+          (vector '(add sub rsb
+			and orr eor bic orn
+			asr lsl lsr
+			sdiv udiv mul
+			ldr str) ;; rrr
+		  '(addi subi rsbi
+			 andi orri eori bici orni
+			 ldri stri) ;; rri
+		  '(asri lsli lsri) ;; rri
+		  '(mov mvn 
+			rev rev16 revsh rbit
+			clz) ;;rr
+		  '(movi mvni) ;; ri
+		  '(mla mls) ;; rrrr
+		  '(bfi sbfx ubfx) ;; rrii
+		  ;'(bfc) ;; rii
+                  ))
 
 ;; In ARM instructions, constant can have any value that can be produced by rotating an 8-bit value right by any even number of bits within a 32-bit word.
 

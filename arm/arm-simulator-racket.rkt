@@ -1,11 +1,11 @@
-#lang s-exp rosette
+#lang racket
 
-(require "../simulator.rkt" "../ops-rosette.rkt" 
+(require "../simulator.rkt" "../ops-racket.rkt" 
          "../ast.rkt"
          "../machine.rkt" "arm-machine.rkt")
-(provide arm-simulator-rosette%)
+(provide arm-simulator-racket%)
 
-(define arm-simulator-rosette%
+(define arm-simulator-racket%
   (class simulator%
     (super-new)
     (init-field machine)

@@ -22,14 +22,7 @@
     (define nmems (send machine get-nmems))
 
     (define reg-range (list->vector (range nregs)))
-    (define const-range 
-          (list->vector
-           (append (range -16 17) (list (sub1 bit))
-                   ;; 24 #xffff #x3fff 490 655 -500)
-                   (for/list ([i (range 5 (sub1 (quotient bit 2)))]) 
-                             (arithmetic-shift 1 i))
-                   (list (- (arithmetic-shift 1 (sub1 (quotient bit 2))))))))
-    (define const-range-32
+    (define const-range
           (list->vector
            (append (range -16 17) (list (sub1 bit))
                    ;; 24 #x3fffffff)
@@ -48,10 +41,12 @@
       (cond
        [(equal? class-id 0) (vector reg-range reg-range reg-range)]
        [(equal? class-id 1) (vector reg-range reg-range const-range)]
-       [(equal? class-id 2) (vector reg-range reg-range)]
-       [(equal? class-id 3) (vector reg-range reg-range bit-range bit-range)]
+       [(equal? class-id 2) (vector reg-range reg-range bit-range)]
+       [(equal? class-id 3) (vector reg-range reg-range)]
        [(equal? class-id 4) (vector reg-range const-range)]
-       [(equal? opcode-name `mov32) (vector reg-range const-range-32)]
+       [(equal? class-id 5) (vector reg-range reg-range reg-range reg-range)]
+       [(equal? class-id 6) (vector reg-range reg-range bit-range bit-range)]
+       [(equal? opcode-name `bfc) (vector reg-range bit-range bit-range)]
        [else (vector)]))
 
     ;; state1: reference
