@@ -95,7 +95,7 @@
                      ((NOP)       (create-inst "nop" (vector))))
 
         (inst-list   (() (list))
-                     ((instruction inst-list) (append $1 $2)))
+                     ((instruction inst-list) (cons $1 $2)))
 
         (oneblock    ((BLOCK inst-list) (block (list->vector $2) #f 
                                                (substring $1 2))))
@@ -119,7 +119,7 @@
     (define (create-special-inst op1 op2)
       (cond
        [(equal? op2 "__aeabi_idiv")
-	(list (arm-inst "sdiv" (vector "r0" "r0" "r1") "al"))]
+	(arm-inst "sdiv" (vector "r0" "r0" "r1") "nop" #f "al")]
        [else
 	(raise (format "Undefine special instruction: ~a ~a" op1 op2))]))
 
@@ -128,28 +128,32 @@
       (cond
        [(and (>= args-len 4) 
 	     (member (string->symbol (vector-ref args (- args-len 2))) '(asr asl lsr lsl)))
-	(append (create-inst (vector-ref args (- args-len 2))
-			     (vector (vector-ref args (- args-len 3))
-				     (vector-ref args (- args-len 3))
-				     (vector-ref args (- args-len 1))))
-		(create-inst op (vector-copy args 0 (- args-len 2))))]
+
+        (define shfop (vector-ref args (- args-len 2)))
+        (when (equal? shfop "asl") (set! shfop "lsl"))
+        (when (not (equal? "r" (substring (vector-ref args (sub1 args-len)) 0 1)))
+              (set! shfop (string-append shfop "#")))
+
+        (define base (create-inst op (vector-copy args 0 (- args-len 2))))
+        (arm-inst (inst-op base) (inst-args base) 
+                  shfop (vector-ref args (- args-len 1))
+                  (inst-cond base))]
 
        [else
-	(when (equal? op "asl")
-	      (set! op "lsl"))
+	(when (equal? op "asl") (set! op "lsl"))
 	(define op-len (string-length op))
 	;; Determine type
 	(define cond-type (substring op (- op-len 2)))
 	(define cond? (member cond-type (list "eq" "ne")))
-	(set! cond-type (if cond? cond-type "al"))
+	(set! cond-type (if cond? cond-type ""))
 	(when cond?
-	      (set! op (substring op (- op-len 2))))
+	      (set! op (substring op 0 (- op-len 2))))
 
 	;; Append #, if last arg is immediate & op != bfc, sbfx, ubfx
 	(when (and (not (equal? "r" (substring (vector-ref args (sub1 args-len)) 0 1)))
-		   (not (member (string->symbol op) '(bfc sbfx ubfx))))
+		   (not (member (string->symbol op) '(bfi bfc sbfx ubfx))))
 	      (set! op (string-append op "#")))
-	(list (arm-inst op args cond-type))]))
+	(arm-inst op args "nop" #f cond-type)]))
 
     (define/public (liveness-from-file file)
       (define in-port (open-input-file file))

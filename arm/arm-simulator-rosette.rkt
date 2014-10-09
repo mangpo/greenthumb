@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "../simulator.rkt" "../ops-rosette.rkt" 
-         "../ast.rkt"
+         "../ast.rkt" "arm-ast.rkt"
          "../machine.rkt" "arm-machine.rkt")
 (provide arm-simulator-rosette%)
 
@@ -16,6 +16,7 @@
     (define nmems (send machine get-nmems))
     (define nop-id (send machine get-inst-id `nop))
     (define inst-id (get-field inst-id machine))
+    (define shf-inst-id (get-field shf-inst-id machine))
 
     (define (shl a b) (<< a b bit))
     (define (ushr a b) (>>> a b bit))
@@ -27,7 +28,8 @@
     (define byte3 (* 3 byte1))
     (define byte4 bit)
     (define byte-mask (sub1 (arithmetic-shift 1 byte1)))
-    (define high-mask (shl (sub1 (shl 1 byte2)) byte2))
+    (define low-mask (sub1 (shl 1 byte2)))
+    (define high-mask (shl low-mask byte2))
     (define mask (sub1 (arithmetic-shift 1 bit)))
 
     ;; helper functions
@@ -79,6 +81,12 @@
     (define bvmul (bvop *))
     (define bvmla (lambda (a b c) (finitize-bit (+ c (* a b)))))
     (define bvmls (lambda (a b c) (finitize-bit (- c (* a b)))))
+
+    (define (movlo to c)
+      (finitize-bit (bitwise-ior (bitwise-and to high-mask) c)))
+    
+    (define (movhi to c)
+      (finitize-bit (bitwise-ior (bitwise-and to low-mask) (shl c byte2))))
 
     (define (setbit d a width shift)
       (let* ([mask (sub1 (shl 1 width))]
@@ -148,8 +156,11 @@
       ;;(pretty-display `(interpret))
       (define regs (vector-copy (progstate-regs state)))
       (define memory (vector-copy (progstate-memory state)))
+      (define z 0)
+
       (define regs-dep (and dep (vector-copy (progstate-regs state))))
       (define memory-dep (and dep (vector-copy (progstate-memory state))))
+      (define z-dep #f)
       (define inter (list))
       (define init-vals (append (list 0) (vector->list regs) (vector->list memory)))
       
@@ -172,218 +183,310 @@
       (define (interpret-step step)
         (define op (inst-op step))
         (define args (inst-args step))
-                                        ;(pretty-display `(interpret-step ,op ,args))
+        (define cond-type (arm-inst-cond step))
+        (pretty-display `(interpret-step ,z ,op ,args ,cond-type))
         
         (define-syntax-rule (inst-eq x) (equal? op (vector-member x inst-id)))
 
         (define-syntax-rule (args-ref args i) (vector-ref args i))
 
-        ;; sub add
-        (define (rrr f)
-          (define d (args-ref args 0))
-          (define a (args-ref args 1))
-          (define b (args-ref args 2))
-	  (define val (f (vector-ref regs a) (vector-ref regs b)))
-          (vector-set! regs d val)
-	  (if dep
-	      (vector-set! regs-dep d (create-node val (list (vector-ref regs-dep a)
-						      (vector-ref regs-dep b))))
-	      (add-inter val)))
+        (define (exec cond-dep)
+          (define (opt-shift x)
+            (define op (arm-inst-shfop step))
+            (define k (arm-inst-shfarg step))
+            (define-syntax-rule (shf-inst-eq xx) 
+              (equal? op (vector-member xx shf-inst-id)))
 
-        (define (rrrr f)
-          (define d (args-ref args 0))
-          (define a (args-ref args 1))
-          (define b (args-ref args 2))
-          (define c (args-ref args 3))
-	  (define val (f (vector-ref regs a) (vector-ref regs b) (vector-ref regs c)))
-          (vector-set! regs d val)
-	  (if dep
-	      (vector-set! regs-dep d (create-node val 
-                                                   (list (vector-ref regs-dep a)
-                                                         (vector-ref regs-dep b)
-                                                         (vector-ref regs-dep c))))
-	      (add-inter val)))
+            (define val #f)
+            (define val-dep #f)
+            (define (rr f)
+              (set! val (f (vector-ref regs x) (vector-ref regs k)))
+              (if dep
+                  (set! val-dep (create-node val (list (vector-ref regs-dep x)
+                                                       (vector-ref regs-dep k))))
+                  (add-inter val)))
 
-        ;; count leading zeros
-        (define (rr f)
-          (define d (args-ref args 0))
-          (define a (args-ref args 1))
-	  (define val (f (vector-ref regs a)))
-          (vector-set! regs d val)
-	  (if dep
-	      (vector-set! regs-dep d (create-node val (list (vector-ref regs-dep a))))
-	      (add-inter val)))
+            (define (ri f)
+              (set! val (f (vector-ref regs x) k))
+              (if dep
+                  (set! val-dep (create-node val (list (vector-ref regs-dep x) k)))
+                  (add-inter val)))
+            (pretty-display `(opt-shift ,x ,(shf-inst-eq `nop)))
+            (cond
+             [(shf-inst-eq `nop) 
+              (set! val (vector-ref regs x))
+              (when dep (set! val-dep (vector-ref regs-dep x)))]
+             [(shf-inst-eq `lsr) (rr bvushr)]
+             [(shf-inst-eq `asr) (rr bvshr)]
+             [(shf-inst-eq `lsl) (rr bvshl)]
+             
+             ;; shift i
+             [(shf-inst-eq `lsr#) (ri bvushr)]
+             [(shf-inst-eq `asr#) (ri bvshr)]
+             [(shf-inst-eq `lsl#) (ri bvshl)]
+             [else
+              (raise (format "undefine optional shift: ~a" op))]
+             )
+            (cons val val-dep)
+            )
 
-        ;; mov
-        (define (ri f)
-          (define d (args-ref args 0))
-          (define a (args-ref args 1))
-	  (define val (f a))
-          (vector-set! regs d val)
-	  (if dep
-	      (vector-set! regs-dep d (create-node val (list a)))
-	      (add-inter val)))
+          ;; sub add
+          (define (rrr f)
+            (define d (args-ref args 0))
+            (define a (args-ref args 1))
+            (define b (args-ref args 2))
+            (define reg-b-val-dep (opt-shift b))
+            (pretty-display `(rrr ,f ,(vector-ref regs a) ,(car reg-b-val-dep)))
+            (define val (f (vector-ref regs a) (car reg-b-val-dep)))
+            (vector-set! regs d val)
+            (if dep
+                (vector-set! regs-dep d (create-node val (list (vector-ref regs-dep a)
+                                                               (cdr reg-b-val-dep)
+                                                               cond-dep)))
+                (add-inter val)))
 
-        ;; subi addi lw
-        (define (rri f)
-          (define d (args-ref args 0))
-          (define a (args-ref args 1))
-          (define b (args-ref args 2))
-	  (define val (f (vector-ref regs a) b))
-          (vector-set! regs d val)
-	  (if dep
-	      (vector-set! regs-dep d (create-node val (list (vector-ref regs-dep a))))
-	      (add-inter val)))
+          (define (rrrr f)
+            (define d (args-ref args 0))
+            (define a (args-ref args 1))
+            (define b (args-ref args 2))
+            (define c (args-ref args 3))
+            (define val (f (vector-ref regs a) (vector-ref regs b) (vector-ref regs c)))
+            (vector-set! regs d val)
+            (if dep
+                (vector-set! regs-dep d (create-node val 
+                                                     (list (vector-ref regs-dep a)
+                                                           (vector-ref regs-dep b)
+                                                           (vector-ref regs-dep c)
+                                                           cond-dep)))
+                (add-inter val)))
 
-        ;; store
-        (define (str reg-offset)
-          (define d (args-ref args 0))
-          (define a (args-ref args 1))
-          (define b (args-ref args 2))
-	  (define index 
-            (if reg-offset
-                (+ (vector-ref regs a) (vector-ref regs b))
-                (+ (vector-ref regs a) b)))
-	  (define val (vector-ref regs d))
-          (vector-set! memory index val)
-	  (if dep
-	      (let* ([val-dep (list (vector-ref regs-dep d))]
-                     [index-dep 
-                      (if reg-offset
-                          (list (vector-ref regs-dep a) (vector-ref regs-dep b))
-                          (list (vector-ref regs-dep a)))]) ;; TODO: no b?
-		(vector-set! memory-dep index 
-                             (create-node #f (list (create-node val val-dep)
-                                                   (create-node index index-dep)))))
-	      (add-inter index)))
+          ;; count leading zeros
+          (define (rr f)
+            (define d (args-ref args 0))
+            (define a (args-ref args 1))
+            (define reg-a-val-dep (opt-shift a))
+            (define val (f (car reg-a-val-dep)))
+            (vector-set! regs d val)
+            (if dep
+                (vector-set! regs-dep d (create-node val (list (cdr reg-a-val-dep)
+                                                               cond-dep)))
+                (add-inter val)))
 
-        ;; load
-        (define (ldr reg-offset)
-          (define d (args-ref args 0))
-          (define a (args-ref args 1))
-          (define b (args-ref args 2))
-	  (define index 
-            (if reg-offset
-                (+ (vector-ref regs a) (vector-ref regs b))
-                (+ (vector-ref regs a) b)))
-          (define val (vector-ref memory index))
-          (vector-set! regs d val)
-	  (if dep
-	      (let* ([val-dep (list (vector-ref memory-dep index))]
-                     [index-dep 
-                      (if reg-offset
-                          (list (vector-ref regs-dep a) (vector-ref regs-dep b))
-                          (list (vector-ref regs-dep a)))]) ;; TODO: no b?
-		(vector-set! regs-dep d 
-                             (create-node #f (list (create-node val val-dep)
-                                                   (create-node index index-dep)))))
-	      (add-inter index)))
+          ;; mov
+          (define (ri f)
+            (define d (args-ref args 0))
+            (define a (args-ref args 1))
+            (define val (f a))
+            (vector-set! regs d val)
+            (if dep
+                (vector-set! regs-dep d (create-node val (list a cond-dep)))
+                (add-inter val)))
 
-        ;; setbit
-        (define (rrii f)
-          (define d (args-ref args 0))
-          (define a (args-ref args 1))
-          (define width (args-ref args 3))
-          (define shift (args-ref args 2))
-	  (define val (f (vector-ref regs d) (vector-ref regs a) width shift))
-          (vector-set! regs d val)
-	  (if dep
-	      (vector-set! regs-dep d (create-node val (list (vector-ref regs-dep d)
-                                                             (vector-ref regs-dep a))))
-	      (add-inter val)))
+          ;; movhi movlo
+          (define (r!i f)
+            (define d (args-ref args 0))
+            (define a (args-ref args 1))
+            (define val (f (vector-ref regs d) a))
+            (vector-set! regs d val)
+            (if dep
+                (vector-set! regs-dep d (create-node val (list a (vector-ref regs-dep d)
+                                                               cond-dep)))
+                (add-inter val)))
 
-        ;; clrbit
-        (define (rii f)
-          (define d (args-ref args 0))
-          (define width (args-ref args 2))
-          (define shift (args-ref args 1))
-	  (define val (f (vector-ref regs d) width shift))
-          (vector-set! regs d val)
-	  (if dep
-	      (vector-set! regs-dep d (create-node val (list (vector-ref regs-dep d))))
-	      (add-inter val)))
-        
+          ;; subi addi
+          (define (rri f)
+            (define d (args-ref args 0))
+            (define a (args-ref args 1))
+            (define b (args-ref args 2))
+            (define val (f (vector-ref regs a) b))
+            (vector-set! regs d val)
+            (if dep
+                (vector-set! regs-dep d (create-node val (list b (vector-ref regs-dep a)
+                                                               cond-dep)))
+                (add-inter val)))
+
+          ;; store
+          (define (str reg-offset)
+            (define d (args-ref args 0))
+            (define a (args-ref args 1))
+            (define b (args-ref args 2))
+            (define index 
+              (if reg-offset
+                  (+ (vector-ref regs a) (vector-ref regs b))
+                  (+ (vector-ref regs a) b)))
+            (define val (vector-ref regs d))
+            (vector-set! memory index val)
+            (if dep
+                (let* ([val-dep (list (vector-ref regs-dep d))]
+                       [index-dep 
+                        (if reg-offset
+                            (list (vector-ref regs-dep a) (vector-ref regs-dep b))
+                            (list (vector-ref regs-dep a)))]) ;; TODO: no b?
+                  (vector-set! memory-dep index 
+                               (create-node #f (list (create-node val val-dep)
+                                                     (create-node index index-dep)
+                                                     cond-dep))))
+                (add-inter index)))
+
+          ;; load
+          (define (ldr reg-offset)
+            (define d (args-ref args 0))
+            (define a (args-ref args 1))
+            (define b (args-ref args 2))
+            (define index 
+              (if reg-offset
+                  (+ (vector-ref regs a) (vector-ref regs b))
+                  (+ (vector-ref regs a) b)))
+            (define val (vector-ref memory index))
+            (vector-set! regs d val)
+            (if dep
+                (let* ([val-dep (list (vector-ref memory-dep index))]
+                       [index-dep 
+                        (if reg-offset
+                            (list (vector-ref regs-dep a) (vector-ref regs-dep b))
+                            (list (vector-ref regs-dep a)))]) ;; TODO: no b?
+                  (vector-set! regs-dep d 
+                               (create-node #f (list (create-node val val-dep)
+                                                     (create-node index index-dep)
+                                                     cond-dep))))
+                (add-inter index)))
+
+          ;; setbit
+          (define (rrii f)
+            (define d (args-ref args 0))
+            (define a (args-ref args 1))
+            (define width (args-ref args 3))
+            (define shift (args-ref args 2))
+            (define val (f (vector-ref regs d) (vector-ref regs a) width shift))
+            (vector-set! regs d val)
+            (if dep
+                (vector-set! regs-dep d (create-node val (list (vector-ref regs-dep d)
+                                                               (vector-ref regs-dep a)
+                                                               cond-dep)))
+                (add-inter val)))
+
+          ;; clrbit
+          (define (r!ii f)
+            (define d (args-ref args 0))
+            (define width (args-ref args 2))
+            (define shift (args-ref args 1))
+            (define val (f (vector-ref regs d) width shift))
+            (vector-set! regs d val)
+            (if dep
+                (vector-set! regs-dep d (create-node val (list (vector-ref regs-dep d)
+                                                               cond-dep)))
+                (add-inter val)))
+
+          (define (z=rr f)
+            (define a (args-ref args 0))
+            (define b (args-ref args 1))
+            (if (= (f (vector-ref regs a) (vector-ref regs b)) 0)
+                (set! z 1)
+                (set! z 0))
+            (when dep
+                  (set! z-dep (create-node #f (list (vector-ref regs-dep a) 
+                                                    (vector-ref regs-dep b))))))
+
+          (define (z=ri f)
+            (define a (args-ref args 0))
+            (define b (args-ref args 1))
+            (if (= (f (vector-ref regs a) b) 0)
+                (set! z 1)
+                (set! z 0))
+            (when dep
+                  (set! z-dep (create-node #f (list (vector-ref regs-dep a) 
+                                                    (create-node b (list)))))))
+          (cond
+           ;; basic
+           [(inst-eq `nop) (void)]
+           [(inst-eq `add) (rrr bvadd)]
+           [(inst-eq `sub) (rrr bvsub)]
+           [(inst-eq `rsb) (rrr bvrsub)]
+
+           [(inst-eq `and) (rrr bitwise-and)]
+           [(inst-eq `orr) (rrr bitwise-ior)]
+           [(inst-eq `eor) (rrr bitwise-xor)]
+           [(inst-eq `bic) (rrr bvandn)]
+           [(inst-eq `orn) (rrr bviorn)]
+
+           ;; basic i
+           [(inst-eq `add#) (rri bvadd)]
+           [(inst-eq `sub#) (rri bvsub)]
+           [(inst-eq `rsb#) (rri bvrsub)]
+
+           [(inst-eq `and#) (rri bitwise-and)]
+           [(inst-eq `orr#) (rri bitwise-ior)]
+           [(inst-eq `eor#) (rri bitwise-xor)]
+           [(inst-eq `bic#) (rri bvandn)]
+           [(inst-eq `orn#) (rri bviorn)]
+           
+           ;; move
+           [(inst-eq `mov) (rr identity)]
+           [(inst-eq `mvn) (rr bvnot)]
+           
+           ;; move i
+           [(inst-eq `mov#) (ri identity)]
+           [(inst-eq `mvn#) (ri bvnot)]
+           [(inst-eq `movt#) (r!i movhi)]
+           [(inst-eq `movw#) (r!i movlo)]
+
+           ;; reverse
+           [(inst-eq `rev)   (rr bvrev)]
+           [(inst-eq `rev16) (rr bvrev16)]
+           [(inst-eq `revsh) (rr bvrevsh)]
+           [(inst-eq `rbit)  (rr bvrbit)]
+
+           ;; div & mul
+           [(inst-eq `sdiv) (rrr quotient)]
+           [(inst-eq `udiv) (rrr (lambda (x y) (quotient (bitwise-and x mask)
+                                                         (bitwise-and y mask))))]
+           [(inst-eq `mul)  (rrr bvmul)]
+           [(inst-eq `mla)  (rrrr bvmla)]
+           [(inst-eq `mls)  (rrrr bvmls)]
+           
+           ;; shift Rd, Rm, Rs
+           ;; only the least significant byte of Rs is used.
+           [(inst-eq `lsr) (rrr bvushr)]
+           [(inst-eq `asr) (rrr bvshr)]
+           [(inst-eq `lsl) (rrr bvshl)]
+           
+           ;; shift i
+           [(inst-eq `lsr#) (rri bvushr)]
+           [(inst-eq `asr#) (rri bvshr)]
+           [(inst-eq `lsl#) (rri bvshl)]
+
+           ;; bit
+           [(inst-eq `bfc)  (r!ii  clrbit)]
+           [(inst-eq `bfi)  (rrii setbit)]
+
+           ;; others
+           [(inst-eq `sbfx) (rrii sext)]
+           [(inst-eq `ubfx) (rrii ext)]
+           [(inst-eq `clz)  (rr clz)]
+
+           ;; load/store
+           [(inst-eq `ldr#) (ldr #f)]
+           [(inst-eq `str#) (str #f)]
+           [(inst-eq `ldr)  (ldr #t)]
+           [(inst-eq `str)  (str #t)]
+
+           ;; compare
+           [(inst-eq `tst) (z=rr bitwise-and)]
+           [(inst-eq `cmp) (z=rr -)]
+
+           [(inst-eq `tst#) (z=ri bitwise-and)]
+           [(inst-eq `cmp#) (z=ri -)]
+
+           [else (assert #f "undefine instruction")]))
+
         (cond
-         ;; basic
-         [(inst-eq `nop) (void)]
-         [(inst-eq `add) (rrr bvadd)]
-         [(inst-eq `sub) (rrr bvsub)]
-         [(inst-eq `rsb) (rrr bvrsub)]
+         [(equal? cond-type -1) (exec #f)]
+         [(equal? cond-type z) (exec z-dep)])
+                  
+        )
 
-         [(inst-eq `and) (rrr bitwise-and)]
-         [(inst-eq `orr) (rrr bitwise-ior)]
-         [(inst-eq `eor) (rrr bitwise-xor)]
-         [(inst-eq `bic) (rrr bvandn)]
-         [(inst-eq `orn) (rrr bviorn)]
-
-	 ;; basic i
-         [(inst-eq `add#) (rri bvadd)]
-         [(inst-eq `sub#) (rri bvsub)]
-         [(inst-eq `rsb#) (rri bvrsub)]
-
-         [(inst-eq `and#) (rri bitwise-and)]
-         [(inst-eq `orr#) (rri bitwise-ior)]
-         [(inst-eq `eor#) (rri bitwise-xor)]
-         [(inst-eq `bic#) (rri bvandn)]
-         [(inst-eq `orn#) (rri bviorn)]
-         
-	 ;; move
-         [(inst-eq `mov) (rr identity)]
-         [(inst-eq `mvn) (rr bvnot)]
-         
-	 ;; move i
-         [(inst-eq `mov#) (ri identity)]
-         [(inst-eq `mvn#) (ri bvnot)]
-
-         ;; reverse
-         [(inst-eq `rev)   (rr bvrev)]
-         [(inst-eq `rev16) (rr bvrev16)]
-         [(inst-eq `revsh) (rr bvrevsh)]
-         [(inst-eq `rbit)  (rr bvrbit)]
-
-         ;; div & mul
-         [(inst-eq `sdiv) (rrr quotient)]
-         [(inst-eq `udiv) (rrr (lambda (x y) (quotient (bitwise-and x mask)
-						       (bitwise-and y mask))))]
-         [(inst-eq `mul)  (rrr bvmul)]
-         [(inst-eq `mla)  (rrrr bvmla)]
-         [(inst-eq `mls)  (rrrr bvmls)]
-         
-         ;; shift Rd, Rm, Rs
-	 ;; only the least significant byte of Rs is used.
-         [(inst-eq `lsr) (rrr bvushr)]
-         [(inst-eq `asr) (rrr bvshr)]
-         [(inst-eq `lsl) (rrr bvshl)]
-         
-         ;; shift i
-         [(inst-eq `lsri) (rri bvushr)]
-         [(inst-eq `asri) (rri bvshr)]
-         [(inst-eq `lsli) (rri bvshl)]
-
-         ;; bit
-         [(inst-eq `bfc)  (rii  clrbit)]
-         [(inst-eq `bfi)  (rrii setbit)]
-
-	 ;; others
-         [(inst-eq `sbfx) (rrii sext)]
-         [(inst-eq `ubfx) (rrii ext)]
-         [(inst-eq `clz)  (rr clz)]
-
-         ;; load/store
-         [(inst-eq `ldr#) (ldr #f)]
-         [(inst-eq `str#) (str #f)]
-         [(inst-eq `ldr)  (ldr #t)]
-         [(inst-eq `str)  (str #t)]
-
-         [else (assert #f "undefine instruction")]
-
-         ))
-
-      (define exec #t)
       (for ([x program])
-           (if exec
-               (interpret-step x)
-               (set! exec #t)))
+           (interpret-step x))
       ;; (cond
       ;;  [dep
       ;;   (pretty-display "regs-dep")

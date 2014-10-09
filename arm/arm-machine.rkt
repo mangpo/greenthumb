@@ -73,7 +73,7 @@
                      and orr eor bic orn
                      and# orr# eor# bic# orn#
                      mov mvn
-                     mov# mvn#
+                     mov# mvn# movw# movt#
                      rev rev16 revsh rbit
                      asr lsl lsr
                      asr# lsl# lsr#
@@ -85,6 +85,8 @@
                      clz
                      ldr str
                      ldr# str#
+                     tst cmp
+                     tst# cmp#
                      ))
 
     ;; Instruction classes
@@ -100,8 +102,9 @@
 		  '(asr# lsl# lsr#) ;; rri
 		  '(mov mvn 
 			rev rev16 revsh rbit
-			clz) ;;rr
-		  '(mov# mvn#) ;; ri
+			clz
+                        tst cmp) ;;rr
+		  '(mov# mvn# movw# movt# tst# cmp#) ;; ri
 		  '(mla mls) ;; rrrr
 		  '(bfi sbfx ubfx) ;; rrii
 		  ;'(bfc) ;; rii
@@ -112,13 +115,16 @@
     (set! classes-len (vector-length classes))
     (set! perline 8)
 
-    (init-field [branch-inst-id '#(beq bne j jal b jr jr jalr bal)])
+    (init-field [branch-inst-id '#(beq bne j jal b jr jr jalr bal)]
+                [shf-inst-id '#(nop asr lsl lsr asr# lsl# lsr#)])
 
     (define nregs 5)
     (define nmems 1)
 
     (define/public (get-nregs) nregs)
     (define/public (get-nmems) nmems)
+    (define/public (get-shf-inst-id x)
+      (vector-member x shf-inst-id))
 
     (define (get-config)
       (list nregs nmems))
