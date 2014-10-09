@@ -69,14 +69,14 @@
     (set! random-input-bit 32)
     (set! inst-id '#(nop 
                      add sub rsb
-                     addi subi rsbi
+                     add# sub# rsb#
                      and orr eor bic orn
-                     andi orri eori bici orni
+                     and# orr# eor# bic# orn#
                      mov mvn
-                     movi mvni
+                     mov# mvn#
                      rev rev16 revsh rbit
                      asr lsl lsr
-                     asri lsli lsri
+                     asr# lsl# lsr#
                      sdiv udiv
                      mul mla mls
                      ;;smmul smmla smmls
@@ -84,7 +84,7 @@
                      sbfx ubfx
                      clz
                      ldr str
-                     ldri stri
+                     ldr# str#
                      ))
 
     ;; Instruction classes
@@ -94,14 +94,14 @@
 			asr lsl lsr
 			sdiv udiv mul
 			ldr str) ;; rrr
-		  '(addi subi rsbi
-			 andi orri eori bici orni
-			 ldri stri) ;; rri
-		  '(asri lsli lsri) ;; rri
+		  '(add# sub# rsb#
+			 and# orr# eor# bic# orn#
+			 ldr# str#) ;; rri
+		  '(asr# lsl# lsr#) ;; rri
 		  '(mov mvn 
 			rev rev16 revsh rbit
 			clz) ;;rr
-		  '(movi mvni) ;; ri
+		  '(mov# mvn#) ;; ri
 		  '(mla mls) ;; rrrr
 		  '(bfi sbfx ubfx) ;; rrii
 		  ;'(bfc) ;; rii

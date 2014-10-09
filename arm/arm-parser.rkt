@@ -3,7 +3,7 @@
 (require parser-tools/lex
          (prefix-in re- parser-tools/lex-sre)
          parser-tools/yacc
-	 "../parser.rkt" "../ast.rkt")
+	 "../parser.rkt" "../ast.rkt" "arm-ast.rkt")
 
 (provide arm-parser%)
 
@@ -12,8 +12,8 @@
     (super-new)
     (inherit-field asm-parser asm-lexer)
 
-    (define-tokens a (LABEL BLOCK WORD NUM))
-    (define-empty-tokens b (EOF NOP TEXT COMMA DQUOTE HOLE))
+    (define-tokens a (LABEL BLOCK WORD _WORD NUM REG))
+    (define-empty-tokens b (EOF TEXT COMMA DQUOTE HOLE HASH LSQBR RSQBR NOP))
 
     (define-lex-trans number
       (syntax-rules ()
@@ -33,11 +33,12 @@
       (digit10 (char-range "0" "9"))
       (number10 (number digit10))
       (snumber10 (re-or number10 (re-seq "-" number10)))
-      (identifier-characters (re-or (char-range "A" "Z") (char-range "a" "z") "." "-" "@" "_" "+"))
-      (identifier-characters-ext (re-or digit10 identifier-characters))
-      (identifier (re-seq identifier-characters
-                          (re-* identifier-characters-ext)))
+      (identifier-characters (re-or (char-range "A" "Z") (char-range "a" "z")))
+      (identifier-characters-ext (re-or digit10 identifier-characters "_"))
+      (identifier (re-+ identifier-characters))
       (identifier: (re-seq identifier ":"))
+      (_identifier (re-seq "_" (re-* identifier-characters-ext)))
+      (reg (re-or "fp" (re-seq "r" number10)))
       )
 
     (set! asm-lexer
@@ -47,8 +48,13 @@
        (","        (token-COMMA))
        ("\""       (token-DQUOTE))
        ("?"        (token-HOLE))
+       ("#"        (token-HASH))
+       ("["        (token-LSQBR))
+       ("]"        (token-RSQBR))
+       (reg        (token-REG lexeme))
        (identifier: (token-LABEL lexeme))
        (identifier (token-WORD lexeme))
+       (_identifier (token-_WORD lexeme))
        (snumber10  (token-NUM lexeme))
        (block-comment (token-BLOCK lexeme))
        (line-comment (position-token-token (asm-lexer input-port)))
@@ -70,23 +76,26 @@
        (tokens a b)
        (src-pos)
        (grammar
-        (words ((WORD) $1)
-               ((NUM) $1)
-               ((WORD words) (string-append $1 " " $2)))
 
-        (arg  ((WORD) $1)
-              ((DQUOTE words DQUOTE) (string-append "\"" $2 "\""))
+        (arg  ((REG) $1)
+              ((HASH NUM) $2)
               ((NUM) $1))
 
-        (args ((arg) (list $1))
-              ((arg COMMA args) (cons $1 $3)))
+	(arg-pair
+	      ((WORD arg) (list $1 $2))
+	      ((LSQBR REG COMMA arg RSQBR) (list $2 $4)))
 
-        (instruction ((WORD args) (inst $1 (list->vector $2)))
-                     ((NOP)       (inst "nop" (vector)))
-                     ((TEXT)      (inst ".text" (vector)))
-                     ((HOLE)      (inst #f #f)))
+        (args ((arg) (list $1))
+	      ((arg-pair) $1)
+              ((arg COMMA args) (cons $1 $3))
+	      ((arg-pair COMMA args) (append $1 $3)))
+
+        (instruction ((WORD args) (create-inst $1 (list->vector $2)))
+		     ((WORD _WORD) (create-special-inst $1 $2))
+                     ((NOP)       (create-inst "nop" (vector))))
+
         (inst-list   (() (list))
-                     ((instruction inst-list) (cons $1 $2)))
+                     ((instruction inst-list) (append $1 $2)))
 
         (oneblock    ((BLOCK inst-list) (block (list->vector $2) #f 
                                                (substring $1 2))))
@@ -106,6 +115,41 @@
                 )
 
         )))
+
+    (define (create-special-inst op1 op2)
+      (cond
+       [(equal? op2 "__aeabi_idiv")
+	(list (arm-inst "sdiv" (vector "r0" "r0" "r1") "al"))]
+       [else
+	(raise (format "Undefine special instruction: ~a ~a" op1 op2))]))
+
+    (define (create-inst op args)
+      (define args-len (vector-length args))
+      (cond
+       [(and (>= args-len 4) 
+	     (member (string->symbol (vector-ref args (- args-len 2))) '(asr asl lsr lsl)))
+	(append (create-inst (vector-ref args (- args-len 2))
+			     (vector (vector-ref args (- args-len 3))
+				     (vector-ref args (- args-len 3))
+				     (vector-ref args (- args-len 1))))
+		(create-inst op (vector-copy args 0 (- args-len 2))))]
+
+       [else
+	(when (equal? op "asl")
+	      (set! op "lsl"))
+	(define op-len (string-length op))
+	;; Determine type
+	(define cond-type (substring op (- op-len 2)))
+	(define cond? (member cond-type (list "eq" "ne")))
+	(set! cond-type (if cond? cond-type "al"))
+	(when cond?
+	      (set! op (substring op (- op-len 2))))
+
+	;; Append #, if last arg is immediate & op != bfc, sbfx, ubfx
+	(when (and (not (equal? "r" (substring (vector-ref args (sub1 args-len)) 0 1)))
+		   (not (member (string->symbol op) '(bfc sbfx ubfx))))
+	      (set! op (string-append op "#")))
+	(list (arm-inst op args cond-type))]))
 
     (define/public (liveness-from-file file)
       (define in-port (open-input-file file))

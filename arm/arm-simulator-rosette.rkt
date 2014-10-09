@@ -317,23 +317,23 @@
          [(inst-eq `orn) (rrr bviorn)]
 
 	 ;; basic i
-         [(inst-eq `addi) (rri bvadd)]
-         [(inst-eq `subi) (rri bvsub)]
-         [(inst-eq `rsbi) (rri bvrsub)]
+         [(inst-eq `add#) (rri bvadd)]
+         [(inst-eq `sub#) (rri bvsub)]
+         [(inst-eq `rsb#) (rri bvrsub)]
 
-         [(inst-eq `andi) (rri bitwise-and)]
-         [(inst-eq `orri) (rri bitwise-ior)]
-         [(inst-eq `eori) (rri bitwise-xor)]
-         [(inst-eq `bici) (rri bvandn)]
-         [(inst-eq `orni) (rri bviorn)]
+         [(inst-eq `and#) (rri bitwise-and)]
+         [(inst-eq `orr#) (rri bitwise-ior)]
+         [(inst-eq `eor#) (rri bitwise-xor)]
+         [(inst-eq `bic#) (rri bvandn)]
+         [(inst-eq `orn#) (rri bviorn)]
          
 	 ;; move
          [(inst-eq `mov) (rr identity)]
          [(inst-eq `mvn) (rr bvnot)]
          
 	 ;; move i
-         [(inst-eq `movi) (ri identity)]
-         [(inst-eq `mvni) (ri bvnot)]
+         [(inst-eq `mov#) (ri identity)]
+         [(inst-eq `mvn#) (ri bvnot)]
 
          ;; reverse
          [(inst-eq `rev)   (rr bvrev)]
@@ -370,8 +370,8 @@
          [(inst-eq `clz)  (rr clz)]
 
          ;; load/store
-         [(inst-eq `ldri) (ldr #f)]
-         [(inst-eq `stri) (str #f)]
+         [(inst-eq `ldr#) (ldr #f)]
+         [(inst-eq `str#) (str #f)]
          [(inst-eq `ldr)  (ldr #t)]
          [(inst-eq `str)  (str #t)]
 

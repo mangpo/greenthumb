@@ -22,12 +22,19 @@
 ;; Section 1: Concrete program
 (define code
 (send parser ast-from-string "
-sbfx r0, r1, 16, 7
-asri r1, r0, 31
-rsbi r2, r0, 0
-orr r3, r1, r2
+	rsb	r5, r0, #0
+	and	r5, r5, r0
+	mov	r4, r0
+	eor	r0, r5, r0
+	add	r4, r4, r5
+	mov	r1, r5
+	mov	r0, r0, asr #2
+	mov	r1, r5
+	mov	r0, r0, asr #2
+	bl	__aeabi_idiv
 "))
-(define encoded-code (send printer encode code))
+(send printer print-struct code)
+;(define encoded-code (send printer encode code))
 
 #|
 (define output-state
@@ -53,7 +60,7 @@ orr r3, r1, r2
 
 ;; ;; Section 3: Symbolic inputs
 ;; ;; Concrete program with symbolic inputs
-(define (sym-input)
+#|(define (sym-input)
   (define-symbolic* in number?)
   in)
 (define input-state-sym (default-state machine sym-input))
@@ -61,4 +68,4 @@ orr r3, r1, r2
 (pretty-display "Interpret concrete program with symbolic inputs...")
 (define output-state-sym
   (send simulator-rosette interpret encoded-code input-state-sym))
-(send machine display-state output-state-sym)
+(send machine display-state output-state-sym)|#
