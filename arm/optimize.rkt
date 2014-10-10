@@ -4,6 +4,7 @@
          "main.rkt")
 
 (define live-regs (make-parameter (list)))
+(define live-mem (make-parameter #t))
 
 (define size (make-parameter #f))
 (define cores (make-parameter 12))
@@ -26,6 +27,8 @@
    [("--live-reg")      live-r
                         "A list of live registers separated by , with no space (default=none)"
                         (live-regs (map string->number (string-split live-r ",")))]
+   [("--dead-mem")      "Memory is not live-out."
+                        (live-mem #f)]
    [("-c" "--core")      c
                         "Number of cores to run on (default=12)"
                         (cores (string->number c))]
@@ -42,9 +45,8 @@
                         "Path to inputs."
                         (input-file i)]
 
-   [("-b" "--binary")   b
-                        "Binary search."
-                        (binary b)]
+   [("-b" "--binary")   "Binary search."
+                        (binary #t)]
 
    #:once-any
    [("-o" "--optimize") "Optimize mode starts searching from the original program"
@@ -65,7 +67,7 @@
 (define parser (new arm-parser%))
 (define code (send parser ast-from-file file-to-optimize))
 
-(optimize code (live-regs) (synthesize) (stochastic?)
+(optimize code (list (live-regs) (live-mem)) (synthesize) (stochastic?)
           #:need-filter #f #:dir (dir) #:cores (cores) 
           #:time-limit (time-limit) #:size (size)
           #:input-file (input-file)
