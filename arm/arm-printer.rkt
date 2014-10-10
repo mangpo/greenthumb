@@ -67,7 +67,7 @@
     ;; into an instructions in string format.
     (define (decode-inst x)
       (define opcode (send machine get-inst-name (inst-op x)))
-      (pretty-display `(decode-inst ,opcode ,(inst-shfop x)))
+      ;;(pretty-display `(decode-inst ,opcode ,(inst-shfop x)))
       (define args (inst-args x))
       (define cond-type (inst-cond x))
       (define class-id (send machine get-class-id opcode))
@@ -114,6 +114,6 @@
        [(equal? class-id 5) (make-inst reg reg reg reg)]
        [(equal? class-id 6) (make-inst reg reg imm imm)]
        [(member opcode '(bfc)) (make-inst reg imm imm)]
-       [(equal? opcode `nop) (arm-inst "nop" (vector) "nop" #f #f)]
+       [(equal? opcode `nop) (arm-inst "nop" (vector) #f #f "")]
        [else (raise (format "decode-inst: undefined for ~a" opcode))]))
     ))

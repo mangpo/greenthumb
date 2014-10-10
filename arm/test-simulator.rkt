@@ -16,29 +16,30 @@
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 
 ;; Input machine state
-(define input-state (progstate (vector 9 6 12 -49 0 0)
+(define input-state (progstate (vector 784196467 10641 15 -49 0 0)
                                (vector 111 222 333 444)))
 
 ;; Section 1: Concrete program
 (define code
 (send parser ast-from-string "
+        cmp     r0, r1
+        movne   r2, r3
+        cmp     r0, r3
+        eoreq   r0, r3, r1
+        movne   r0, #0
+        eor     r0, r2, r0
 
-	sub	r3, r0, #1
-	orr	r3, r3, r0
-	add	r3, r3, #1
-	and	r0, r3, r0
 "))
 (send printer print-struct code)
 (define encoded-code (send printer encode code))
 (send printer print-struct encoded-code)
 (send printer print-syntax (send printer decode encoded-code))
 
-#|
 (define output-state
-  (send simulator-rosette interpret encoded-code input-state #:dep #f))
+  (send simulator-rosette interpret encoded-code input-state #:dep #t))
 (pretty-display "Output from simulator in rosette.")
 (send machine display-state output-state)
-(newline)|#
+(newline)
 
 ;; ;; Section 2: Unknown program
 ;; ;; ? = one instruction
