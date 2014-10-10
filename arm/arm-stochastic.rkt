@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../stochastic.rkt"
-         "../ast.rkt"
+         "../ast.rkt" "arm-ast.rkt"
          "../machine.rkt" "arm-machine.rkt" 
          "arm-simulator-racket.rkt" "arm-solver.rkt")
 
@@ -11,13 +11,23 @@
   (class stochastic%
     (super-new)
     (inherit-field machine printer solver simulator stat mutate-dist)
-    (override correctness-cost get-arg-ranges)
+    (inherit random-args-from-op mutate)
+    (override correctness-cost get-arg-ranges 
+	      get-mutations random-instruction mutate-other
+	      inst-copy-with-op inst-copy-with-args)
 
     (set! solver (new arm-solver% [machine machine] [printer printer]))
     (set! simulator (new arm-simulator-racket% [machine machine]))
 
+    (set! mutate-dist
+	  #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1)
+		(shf . 1) (cond-type . 1)))
+	  
+
     (define bit (get-field bit machine))
     (define inst-id (get-field inst-id machine))
+    (define shf-inst-id (get-field shf-inst-id machine))
+    (define inst-with-shf (get-field inst-with-shf machine))
     (define nregs (send machine get-nregs))
     (define nmems (send machine get-nmems))
 
@@ -33,6 +43,103 @@
     (define bit-range (list->vector (range bit)))
     (define mem-range (list->vector (range nmems)))
 
+    (define (inst-copy-with-op x op) 
+      (define opname (vector-ref inst-id op))
+      (if (member opname inst-with-shf)
+          (arm-inst op (inst-args x) (inst-shfop x) (inst-shfarg x) (inst-cond x))
+          (arm-inst op (inst-args x) #f #f (inst-cond x))))
+
+    (define (inst-copy-with-args x args) 
+      (arm-inst (inst-op x) args (inst-shfop x) (inst-shfarg x) (inst-cond x)))
+
+
+    (define (get-mutations opcode-name)
+      ;;(pretty-display `(get-mutations ,opcode-name ,(vector-member opcode-name shf-inst-id) ,shf-inst-id))
+      (define mutations '(instruction swap))
+      (unless (equal? opcode-name `nop)
+              (set! mutations (cons `opcode mutations))
+              (set! mutations (cons `operand mutations)))
+      (when (member opcode-name inst-with-shf)
+	    (set! mutations (cons `shf mutations)))
+      (unless (member opcode-name '(tst cmp tst# cmp#))
+              (set! mutations (cons `cond-type mutations)))
+      mutations)
+
+    (define (mutate-other index entry p type)
+      (cond
+       [(equal? type `shf)       (mutate-shf index entry p)]
+       [(equal? type `cond-type) (mutate-cond index entry p)]
+       [else (raise (format "No support for mutation ~a" type))]))
+
+
+    (define (mutate-shf index entry p)
+      (define opcode-id (inst-op entry))
+      (define args (vector-copy (inst-args entry)))
+      (define len (vector-length shf-inst-id))
+
+      (define shfop (inst-shfop entry))
+      (define shfop-name (and shfop (vector-ref shf-inst-id shfop)))
+      (define shfarg (inst-shfarg entry))
+      (define rand (random)) ;; op 0.1, arg 0.1, all 0.1, nop 0.7
+      (when debug
+	    (pretty-display (format " >> shf-type = ~a" rand)))
+      (cond
+       [(or (equal? shfop-name #f) (equal? shfop-name `nop) (< rand 0.1))
+	(set! shfop (vector-member (random-from-vec-ex shf-inst-id `nop) shf-inst-id))
+	(set! shfarg (random-from-vec (get-shfarg-range shfop)))]
+
+       [(< rand 0.2) ;; op
+	(define my-list
+	  (if (member shfop-name '(asr lsr lsl)) '(asr lsr lsl) '(asr# lsr# lsl#)))
+	(set! shfop (vector-member 
+		     (random-from-list-ex my-list shfop-name)
+		     shf-inst-id))]
+
+       [(< rand 0.3) ;; arg
+	(set! shfarg (random-from-vec-ex (get-shfarg-range shfop) shfarg))]
+
+       [else ;; nop
+	(set! shfop #f)
+	(set! shfarg #f)])
+
+      (define new-entry (arm-inst (inst-op entry) (inst-args entry)
+				  shfop shfarg (inst-cond entry)))
+      (define new-p (vector-copy p))
+      (vector-set! new-p index new-entry)
+      (send stat inc-propose `shf)
+      new-p)
+
+    (define (mutate-cond index entry p)
+      (define cmp 
+	(for/or ([i index])
+		(let ([name-i (vector-ref inst-id (inst-op (vector-ref p i)))])
+		  (member name-i '(tst cmp tst# cmp#)))))
+
+      (cond
+       [cmp 
+	(define cond-type (inst-cond entry))
+	(define new-cond-type (random-from-list-ex (list -1 0 1) cond-type))
+	(define new-entry (struct-copy arm-inst entry [cond new-cond-type]))
+	(define new-p (vector-copy p))
+	(vector-set! new-p index new-entry)
+	(send stat inc-propose `cond-type)
+	new-p]
+       [else (mutate p)]))
+
+    (define (random-instruction [opcode-id (random (vector-length inst-id))])
+      
+      (define opcode-name (vector-ref inst-id opcode-id))
+      (define args (random-args-from-op opcode-name))
+      (define shf? (and (member opcode-name inst-with-shf) (< (random) 0.3)))
+      (define shfop (and shf? (random (vector-length shf-inst-id))))
+      (define shfarg-range (and shf? (get-shfarg-range shfop)))
+      (define shfarg (and shf? (vector-ref shfarg-range (random (vector-length shfarg-range)))))
+      (define cond-type (sub1 (random 3)))
+      (arm-inst opcode-id args shfop shfarg cond-type))
+
+    (define (get-shfarg-range shfop-id)
+      (define shfop-name (vector-ref shf-inst-id shfop-id))
+      (if (member shfop-name '(asr lsr lsl)) reg-range bit-range))
 
     ;; nargs, ranges
     (define (get-arg-ranges opcode-name entry)

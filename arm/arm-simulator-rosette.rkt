@@ -184,7 +184,7 @@
         (define op (inst-op step))
         (define args (inst-args step))
         (define cond-type (arm-inst-cond step))
-        (pretty-display `(interpret-step ,z ,op ,args ,cond-type))
+        ;;(pretty-display `(interpret-step ,z ,op ,args ,cond-type))
         
         (define-syntax-rule (inst-eq x) (equal? op (vector-member x inst-id)))
 
@@ -211,9 +211,8 @@
               (if dep
                   (set! val-dep (create-node val (list (vector-ref regs-dep x) k)))
                   (add-inter val)))
-            (pretty-display `(opt-shift ,x ,(shf-inst-eq `nop)))
             (cond
-             [(shf-inst-eq `nop) 
+             [(or (equal? op #f) (shf-inst-eq `nop))
               (set! val (vector-ref regs x))
               (when dep (set! val-dep (vector-ref regs-dep x)))]
              [(shf-inst-eq `lsr) (rr bvushr)]
@@ -225,18 +224,21 @@
              [(shf-inst-eq `asr#) (ri bvshr)]
              [(shf-inst-eq `lsl#) (ri bvshl)]
              [else
-              (raise (format "undefine optional shift: ~a" op))]
+              (assert #f (format "undefine optional shift: ~a" op))]
              )
             (cons val val-dep)
             )
 
           ;; sub add
-          (define (rrr f)
+          (define (rrr f [shf #f])
             (define d (args-ref args 0))
             (define a (args-ref args 1))
             (define b (args-ref args 2))
-            (define reg-b-val-dep (opt-shift b))
-            (pretty-display `(rrr ,f ,(vector-ref regs a) ,(car reg-b-val-dep)))
+            (define reg-b-val-dep 
+	      (if shf
+		  (opt-shift b)
+		  (cons (vector-ref regs b) (vector-ref regs-dep b))))
+
             (define val (f (vector-ref regs a) (car reg-b-val-dep)))
             (vector-set! regs d val)
             (if dep
@@ -261,10 +263,13 @@
                 (add-inter val)))
 
           ;; count leading zeros
-          (define (rr f)
+          (define (rr f [shf #f])
             (define d (args-ref args 0))
             (define a (args-ref args 1))
-            (define reg-a-val-dep (opt-shift a))
+            (define reg-a-val-dep 
+	      (if shf
+		  (opt-shift a)
+		  (cons (vector-ref args a) (vector-ref regs-dep a))))
             (define val (f (car reg-a-val-dep)))
             (vector-set! regs d val)
             (if dep
@@ -399,15 +404,15 @@
           (cond
            ;; basic
            [(inst-eq `nop) (void)]
-           [(inst-eq `add) (rrr bvadd)]
-           [(inst-eq `sub) (rrr bvsub)]
-           [(inst-eq `rsb) (rrr bvrsub)]
+           [(inst-eq `add) (rrr bvadd #t)]
+           [(inst-eq `sub) (rrr bvsub #t)]
+           [(inst-eq `rsb) (rrr bvrsub #t)]
 
-           [(inst-eq `and) (rrr bitwise-and)]
-           [(inst-eq `orr) (rrr bitwise-ior)]
-           [(inst-eq `eor) (rrr bitwise-xor)]
-           [(inst-eq `bic) (rrr bvandn)]
-           [(inst-eq `orn) (rrr bviorn)]
+           [(inst-eq `and) (rrr bitwise-and #t)]
+           [(inst-eq `orr) (rrr bitwise-ior #t)]
+           [(inst-eq `eor) (rrr bitwise-xor #t)]
+           [(inst-eq `bic) (rrr bvandn #t)]
+           [(inst-eq `orn) (rrr bviorn #t)]
 
            ;; basic i
            [(inst-eq `add#) (rri bvadd)]
@@ -421,8 +426,8 @@
            [(inst-eq `orn#) (rri bviorn)]
            
            ;; move
-           [(inst-eq `mov) (rr identity)]
-           [(inst-eq `mvn) (rr bvnot)]
+           [(inst-eq `mov) (rr identity #t)]
+           [(inst-eq `mvn) (rr bvnot #t)]
            
            ;; move i
            [(inst-eq `mov#) (ri identity)]
@@ -437,9 +442,9 @@
            [(inst-eq `rbit)  (rr bvrbit)]
 
            ;; div & mul
-           [(inst-eq `sdiv) (rrr quotient)]
-           [(inst-eq `udiv) (rrr (lambda (x y) (quotient (bitwise-and x mask)
-                                                         (bitwise-and y mask))))]
+           ;; [(inst-eq `sdiv) (rrr quotient)]
+           ;; [(inst-eq `udiv) (rrr (lambda (x y) (quotient (bitwise-and x mask)
+           ;;                                               (bitwise-and y mask))))]
            [(inst-eq `mul)  (rrr bvmul)]
            [(inst-eq `mla)  (rrrr bvmla)]
            [(inst-eq `mls)  (rrrr bvmls)]

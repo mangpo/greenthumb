@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "../solver.rkt"
-         "../ast.rkt"
+         "../ast.rkt" "arm-ast.rkt"
          "../machine.rkt" "arm-machine.rkt" "arm-simulator-rosette.rkt")
 (provide arm-solver%)
 
@@ -17,7 +17,7 @@
     (set! simulator (new arm-simulator-rosette% [machine machine]))
 
     (define (sym-insts size)
-      (encode-sym (for/vector ([i size]) (inst #f #f))))
+      (encode-sym (for/vector ([i size]) (arm-inst #f #f #f #f #f))))
 
     (define (get-sym-vars state)
       (define lst (list))
@@ -48,11 +48,14 @@
       (progstate regs memory))
 
     (define (encode-sym code)
-
       (define (encode-inst-sym x)
         (if (inst-op x)
             (send printer encode-inst x)
-            (inst (sym-op) (vector (sym-arg) (sym-arg) (sym-arg) (sym-arg)))))	
+            (arm-inst (sym-op) 
+		      (vector (sym-arg) (sym-arg) (sym-arg) (sym-arg))
+		      (sym-op)
+		      (sym-arg)
+		      (sym-op))))
       
       (for/vector ([x code]) (encode-inst-sym x)))
 
@@ -60,9 +63,12 @@
       (define (decode-inst-sym x)
         (send
          printer decode-inst
-         (inst (evaluate (inst-op x) model)
-               (vector-map 
-                (lambda (a) (evaluate a model)) (inst-args x)))))
+         (arm-inst (evaluate (inst-op x) model)
+		   (vector-map 
+		    (lambda (a) (evaluate a model)) (inst-args x))
+		   (evaluate (inst-shfop x) model)
+		   (evaluate (inst-shfarg x) model)
+		   (evaluate (inst-cond x) model))))
 
       (for/vector ([x code]) (decode-inst-sym x)))
 

@@ -116,7 +116,9 @@
     (set! perline 8)
 
     (init-field [branch-inst-id '#(beq bne j jal b jr jr jalr bal)]
-                [shf-inst-id '#(nop asr lsl lsr asr# lsl# lsr#)])
+                [shf-inst-id '#(nop asr lsl lsr asr# lsl# lsr#)]
+		[inst-with-shf '(add sub rsb
+				     and orr eor bic orn mov mvn)])
 
     (define nregs 5)
     (define nmems 1)
@@ -125,6 +127,8 @@
     (define/public (get-nmems) nmems)
     (define/public (get-shf-inst-id x)
       (vector-member x shf-inst-id))
+    (define/public (get-shf-inst-name x)
+      (vector-ref shf-inst-id x))
 
     (define (get-config)
       (list nregs nmems))

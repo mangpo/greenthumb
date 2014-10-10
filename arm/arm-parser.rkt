@@ -92,7 +92,8 @@
 
         (instruction ((WORD args) (create-inst $1 (list->vector $2)))
 		     ((WORD _WORD) (create-special-inst $1 $2))
-                     ((NOP)       (create-inst "nop" (vector))))
+                     ((NOP)       (create-inst "nop" (vector)))
+		     ((HOLE) (arm-inst #f #f #f #f #f)))
 
         (inst-list   (() (list))
                      ((instruction inst-list) (cons $1 $2)))
@@ -131,8 +132,6 @@
 
         (define shfop (vector-ref args (- args-len 2)))
         (when (equal? shfop "asl") (set! shfop "lsl"))
-        (when (not (equal? "r" (substring (vector-ref args (sub1 args-len)) 0 1)))
-              (set! shfop (string-append shfop "#")))
 
         (define base (create-inst op (vector-copy args 0 (- args-len 2))))
         (arm-inst (inst-op base) (inst-args base) 
@@ -149,11 +148,7 @@
 	(when cond?
 	      (set! op (substring op 0 (- op-len 2))))
 
-	;; Append #, if last arg is immediate & op != bfc, sbfx, ubfx
-	(when (and (not (equal? "r" (substring (vector-ref args (sub1 args-len)) 0 1)))
-		   (not (member (string->symbol op) '(bfi bfc sbfx ubfx))))
-	      (set! op (string-append op "#")))
-	(arm-inst op args "nop" #f cond-type)]))
+	(arm-inst op args #f #f cond-type)]))
 
     (define/public (liveness-from-file file)
       (define in-port (open-input-file file))

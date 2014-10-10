@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../compress.rkt" "../ast.rkt" "../machine.rkt" "arm-machine.rkt")
+(require "../compress.rkt" "../ast.rkt" "arm-ast.rkt" "../machine.rkt" "arm-machine.rkt")
 
 (provide arm-compress%)
 
@@ -18,13 +18,16 @@
     (define (inner-rename x reg-map)
       (define (register-rename r)
         (cond
-         [(and (> (string-length r) 1) (equal? (substring r 0 2) "r"))
-          (format "r~a" (vector-ref reg-map (string->number (substring r 2))))]
+         [(and r (> (string-length r) 1) (equal? (substring r 0 1) "r"))
+          (format "r~a" (vector-ref reg-map (string->number (substring r 1))))]
          
          [else r]))
       
-      (inst (inst-op x) 
-            (list->vector (map register-rename (vector->list (inst-args x))))))
+      (arm-inst (inst-op x) 
+		(list->vector (map register-rename (vector->list (inst-args x))))
+		(inst-shfop x)
+		(register-rename (inst-shfarg x))
+		(inst-cond x)))
 
     ;; Input
     ;; program, a list of (inst opcode args) where opcode is string and args is a list of string
@@ -39,11 +42,14 @@
 
       ;; Collect all used register ids.
       (define (inner-collect x)
-        (for ([r (inst-args x)])
-             (when (and (> (string-length r) 1) (equal? (substring r 0 1) "r"))
-                   (let ([reg-id (string->number (substring r 2))])
-                     (set-add! reg-set reg-id)
-                     (when (> reg-id max-reg) (set! max-reg reg-id))))))
+	(define (f r)
+	  (when (and r (> (string-length r) 1) (equal? (substring r 0 1) "r"))
+		(let ([reg-id (string->number (substring r 1))])
+		  (set-add! reg-set reg-id)
+		  (when (> reg-id max-reg) (set! max-reg reg-id)))))
+	  
+        (for ([r (inst-args x)]) (f r))
+	(f (inst-shfarg x)))
       (for ([x program]) (inner-collect x))
 
       ;; Construct register map from original to compressed version.

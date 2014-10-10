@@ -16,6 +16,7 @@
 ;; >>> OUTPUT >>>
 ;; Optimized code, not encoded.
 (define (optimize code live-out synthesize stochastic?
+                  #:binary-search [binary-search #f]
                   #:need-filter [need-filter #f]
                   #:dir [dir "output"] 
                   #:cores [cores 12]
@@ -31,7 +32,7 @@
   (define solver (new arm-solver% [machine machine] [printer printer]))
   (define parallel (new parallel% [meta meta] [parser parser] [machine machine] 
                         [printer printer] [compress compress] [solver solver]
-			[stochastic? stochastic?]))
+			[stochastic? stochastic?] [binary-search binary-search]))
 
   (send parallel optimize code live-out synthesize 
         #:need-filter need-filter #:dir dir #:cores cores 

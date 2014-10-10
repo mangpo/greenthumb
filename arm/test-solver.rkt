@@ -10,18 +10,16 @@
 
 (define code
 (send parser ast-from-string "
-sbfx r0, r1, 16, 7
-asri r1, r0, 31
-rsbi r2, r0, 0
-orr r3, r1, r2
+	eor	r3, r1, r0
+	and	r0, r1, r0
+	add	r0, r0, r3, asr #1
 "))
 
 (define sketch
 (send parser ast-from-string "
-sbfx r0, r1, 16, 7
-asri r1, r0, 31
-rsbi r2, r0, 0
-orr r3, r1, r2
+eor r3, r1, r0
+?
+	add	r0, r0, r3, asr #1
 "))
 
 (define encoded-code (send printer encode code))
@@ -29,19 +27,22 @@ orr r3, r1, r2
 
 ;; Return counterexample if code and sketch are different.
 ;; Otherwise, return #f.
-(define ex
+#|(define ex
   (send solver counterexample encoded-code encoded-sketch 
-        (constraint machine [reg 0 1 2 3] [mem-all])))
+        (constraint machine [reg 0] [mem-all])))
 
 (when ex 
   (pretty-display "Counterexample:")
-  (send machine display-state ex))
+  (send machine display-state ex))|#
 
 ;; Test solver-based suoptimize function
-(send solver superoptimize 
+
+(define-values (res cost)
+(send solver synthesize-from-sketch 
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
-      (constraint machine [reg 0 1 2 3] [mem-all]))
+      (constraint machine [reg 0] [mem-all]) #f))
+(send printer print-syntax res)
 
 ;; This should terminate without an error.
 ;; If there is error (synthesize fail), that means Rosette might not support 

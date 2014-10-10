@@ -1,11 +1,10 @@
 #lang racket
 
-(require "arm-parser.rkt" "llvm-parser.rkt"
+(require "arm-parser.rkt"
          "main.rkt")
 
 (define live-regs (make-parameter (list)))
 
-(define llvm (make-parameter #f))
 (define size (make-parameter #f))
 (define cores (make-parameter 12))
 (define synthesize (make-parameter #t))
@@ -13,6 +12,7 @@
 (define dir (make-parameter "output"))
 (define time-limit (make-parameter 3600))
 (define input-file (make-parameter #f))
+(define binary (make-parameter #f))
  
 (define file-to-optimize
   (command-line
@@ -32,8 +32,6 @@
    [("-d" "--dir")      d
                         "Output directory (default=output)"
                         (dir d)]
-   [("-l" "--llvm")     "Input is in LLVM IR format."
-                        (llvm #t)]
    [("-t" "--time-limit") t
                         "Time limit in seconds (default=36000)."
                         (time-limit t)]
@@ -43,6 +41,10 @@
    [("-i" "--input")    i
                         "Path to inputs."
                         (input-file i)]
+
+   [("-b" "--binary")   b
+                        "Binary search."
+                        (binary b)]
 
    #:once-any
    [("-o" "--optimize") "Optimize mode starts searching from the original program"
@@ -60,10 +62,12 @@
    ; return the argument as a filename to compile
    filename))
 
-(define parser (if (llvm) (new llvm-parser%) (new arm-parser%)))
+(define parser (new arm-parser%))
 (define code (send parser ast-from-file file-to-optimize))
 
 (optimize code (live-regs) (synthesize) (stochastic?)
-          #:need-filter (llvm) #:dir (dir) #:cores (cores) 
+          #:need-filter #f #:dir (dir) #:cores (cores) 
           #:time-limit (time-limit) #:size (size)
-          #:input-file (input-file))
+          #:input-file (input-file)
+	  #:binary-search (binary)
+	  )
