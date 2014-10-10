@@ -83,10 +83,11 @@
         (traverse program inst? (lambda (x) (inner-rename x reg-map)))) 
       (define compressed-live-out 
         (map (lambda (x) (vector-ref reg-map x)) 
-             (filter (lambda (x) (and (<= x max-reg) (vector-ref reg-map x))) live-out)))
+             (filter (lambda (x) (and (<= x max-reg) (vector-ref reg-map x))) 
+                     (first live-out))))
 
       (values compressed-program
-              compressed-live-out
+              (list compressed-live-out (second live-out))
               reg-map-back 
               (list id (if mem-access 8 1))))
 

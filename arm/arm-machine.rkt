@@ -47,6 +47,9 @@
                     [memory (make-vector (send machine get-nmems) #t)]))
      )
 
+    ((constraint machine [reg r ...] [mem m ...])
+     (default-state machine lam-f [reg (r #t) ...] [mem (m #t) ...]))
+
     ((constraint [mem m ...] [reg r ...])
      (constraint [reg r ...] [mem m ...]))
 
@@ -156,8 +159,11 @@
     ;; live-out: a list of live registers' ids, same format is the output of (select-code) and (combine-live-out)
     ;; output: output constraint corresponding to live-out in string. When executing, the expression is evaluated to a progstate with #t and #f indicating which entries are constrainted (live).
     (define (output-constraint-string machine-var live-out)
-      (define live-regs-str (string-join (map number->string live-out)))
-      (format "(constraint ~a [reg ~a] [mem-all])" machine-var live-regs-str))
+      (define live-regs-str (string-join (map number->string (first live-out))))
+      (define live-mem (second live-out))
+      (if live-mem
+          (format "(constraint ~a [reg ~a] [mem-all])" machine-var live-regs-str)
+          (format "(constraint ~a [reg ~a] [mem])" machine-var live-regs-str)))
 
     ;; live-out: a list of live registers' ids
     ;; output: a progstate object. #t elements indicate live.
@@ -165,8 +171,10 @@
       ;; Registers are default to be dead.
       (define regs (make-vector nregs #f))
       ;; Memory is default to be live.
-      (define memory (make-vector nmems #t))
-      (for ([x live-out])
+      (define memory (if (second live-out)
+                         (make-vector nmems #t)
+                         (make-vector nmems #f)))
+      (for ([x (first live-out)])
            (vector-set! regs x #t))
       (progstate regs memory))
 
