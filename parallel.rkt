@@ -25,10 +25,10 @@
         (send compress compress-reg-space code-org live-out-org))
       (pretty-display (format ">>> machine-info: ~a" machine-info))
 
-      ;; machine-info from compress-reg-space is only accurate for reg but not memory. This will adjust the rest of the machine info.
-      (set! machine-info (send solver proper-machine-config code machine-info extra-info))
       (pretty-display ">>> compressed-code:")
       (send printer print-syntax code)
+      ;; machine-info from compress-reg-space is only accurate for reg but not memory. This will adjust the rest of the machine info.
+      (set! machine-info (send solver proper-machine-config code machine-info extra-info))
       (pretty-display (format ">>> machine-info: ~a" machine-info))
       (pretty-display (format ">>> live-out: ~a" live-out))
 

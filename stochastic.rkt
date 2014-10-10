@@ -11,7 +11,8 @@
             get-mutations mutate
             mutate-opcode mutate-operand
             mutate-operand-specific mutate-other
-            random-instruction print-mutation-info)
+            random-instruction print-mutation-info
+	    random-args-from-op)
     (abstract correctness-cost get-arg-ranges)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
@@ -343,6 +344,7 @@
         (send stat inc-iter current-cost)
         (define t1 (current-milliseconds))
         (define proposal (mutate current))
+        (when debug (pretty-display ">>> done mutate >>>"))
         (define t2 (current-milliseconds))
         (send stat mutate (- t2 t1))
         (when debug
