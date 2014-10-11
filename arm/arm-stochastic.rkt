@@ -34,7 +34,7 @@
     (define reg-range (list->vector (range nregs)))
     (define const-range
           (list->vector
-           (append (range -16 17) (list (sub1 bit) #x3333 #x5555 #x0f0f)
+           (append (range -16 17) (list (sub1 bit) #x3333 #x5555 #x0f0f #x3f)
                    (for/list ([i (range 5 (sub1 bit))]) 
                              (arithmetic-shift 1 i))
                    (list (- (arithmetic-shift 1 (sub1 bit)))))))
