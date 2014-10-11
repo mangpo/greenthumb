@@ -377,8 +377,10 @@
               ;; Adjust cost due to new counterexample
               (when (> (length inputs) n-inputs)
                     (when debug (display (format "Adjust proposal cost from ~a " proposal-cost)))
-                    (set! proposal-cost 
-                          (sub1 (+ proposal-cost (cost-one-input proposal (car inputs) (car outputs)))))
+		    (define more-cost (cost-one-input proposal (car inputs) (car outputs)))
+		    (if more-cost
+			(set! proposal-cost (sub1 (+ proposal-cost more-cost)))
+			(set! proposal-cost w-error))
                     (when debug (pretty-display (format "to ~a." proposal-cost)))
                     )
               (iter (if (cdr cost-correct) 
@@ -389,7 +391,10 @@
               ;; Adjust cost due to new counterexample
               (when (> (length inputs) n-inputs)
                     (when debug (display (format "Adjust current cost from ~a " current-cost)))
-                    (set! current-cost (+ current-cost (cost-one-input current (car inputs) (car outputs))))
+		    (define more-cost (cost-one-input current (car inputs) (car outputs)))
+		    (if more-cost
+			(set! current-cost (+ current-cost more-cost))
+			(set! current-cost w-error))
                     (when debug (pretty-display (format "to ~a." current-cost)))
                     )
               (iter current current-cost))
