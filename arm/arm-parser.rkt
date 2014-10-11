@@ -120,7 +120,7 @@
     (define (create-special-inst op1 op2)
       (cond
        [(equal? op2 "__aeabi_idiv")
-	(arm-inst "sdiv" (vector "r0" "r0" "r1") "nop" #f "al")]
+	(arm-inst "sdiv" (vector "r0" "r0" "r1") #f #f "")]
        [else
 	(raise (format "Undefine special instruction: ~a ~a" op1 op2))]))
 
@@ -147,6 +147,16 @@
 	(set! cond-type (if cond? cond-type ""))
 	(when cond?
 	      (set! op (substring op 0 (- op-len 2))))
+
+	;; for ldr & str, fp => r99, divide offset by 4
+	(when (or (equal? op "str") (equal? op "ldr"))
+	      (when (equal? (vector-ref args 1) "fp")
+		    (vector-set! args 1 "r10"))
+	      (define offset (vector-ref args 2))
+	      (unless (equal? (substring offset 0 1) "r")
+		      (vector-set! 
+		       args 2
+		       (number->string (quotient (string->number offset) 4)))))
 
 	(arm-inst op args #f #f cond-type)]))
 

@@ -169,16 +169,8 @@
           ((add-inter x) (set! inter (cons x inter)))
           ((add-inter x y ...) (set! inter (append (list x y ...) inter)))))
 
-      (define (create-node val p)
-        (define my-size (+ (if val 1 0) (for/sum ([i (filter node? p)]) (node-size i))))
-        (define my-val (if (member val init-vals) #f val))
-        (define my-p (list))
-        (for ([x p])
-          (when (node? x)
-            (if (node-val x) 
-                (set! my-p (cons x my-p))
-                (set! my-p (append (node-p x) my-p)))))
-        (node my-val my-size my-p))
+      (define-syntax-rule (create-node val p)
+	(create-node-ex val p init-vals))
 
       (define (interpret-step step)
         (define op (inst-op step))
@@ -237,7 +229,7 @@
             (define reg-b-val-dep 
 	      (if shf
 		  (opt-shift b)
-		  (cons (vector-ref regs b) (vector-ref regs-dep b))))
+		  (cons (vector-ref regs b) (and dep (vector-ref regs-dep b)))))
 
             (define val (f (vector-ref regs a) (car reg-b-val-dep)))
             (vector-set! regs d val)
@@ -269,7 +261,7 @@
             (define reg-a-val-dep 
 	      (if shf
 		  (opt-shift a)
-		  (cons (vector-ref args a) (vector-ref regs-dep a))))
+		  (cons (vector-ref args a) (and dep (vector-ref regs-dep a)))))
             (define val (f (car reg-a-val-dep)))
             (vector-set! regs d val)
             (if dep
@@ -442,9 +434,9 @@
            [(inst-eq `rbit)  (rr bvrbit)]
 
            ;; div & mul
-           ;; [(inst-eq `sdiv) (rrr quotient)]
-           ;; [(inst-eq `udiv) (rrr (lambda (x y) (quotient (bitwise-and x mask)
-           ;;                                               (bitwise-and y mask))))]
+           [(inst-eq `sdiv) (rrr quotient)]
+           [(inst-eq `udiv) (rrr (lambda (x y) (quotient (bitwise-and x mask)
+                                                         (bitwise-and y mask))))]
            [(inst-eq `mul)  (rrr bvmul)]
            [(inst-eq `mla)  (rrrr bvmla)]
            [(inst-eq `mls)  (rrrr bvmls)]

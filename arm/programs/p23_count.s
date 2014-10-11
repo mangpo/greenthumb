@@ -13,6 +13,7 @@
 	movt	r3, 3855
 	add	r2, r2, r2, asr #4
 	and	r3, r2, r3
-	add	r0, r3, r3, lsr #8
-	add	r0, r0, r0, lsr #16
-        
+	add	r3, r3, r3, lsr #8
+	add	r0, r3, r3, lsr #16
+	and	r0, r0, #63
+	

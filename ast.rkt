@@ -39,7 +39,11 @@
 	     (if (node-val x) 
 		 (set! my-p (cons x my-p))
 		 (set! my-p (append (node-p x) my-p)))))
-  (node my-val my-size my-p))
+  (cond
+   [(and (= (length my-p) 1) (equal? (node-val (car my-p)) my-val))
+    (car my-p)]
+   [else
+    (node my-val my-size my-p)]))
 
 (define (adjust cost val dep inter [min-val 1])
   ;;(pretty-display `(adjust ,cost ,val))

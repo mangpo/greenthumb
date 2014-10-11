@@ -34,11 +34,11 @@
 ;;           #:input-file "data-iii2/inputs")
 
 ;; roundpower                                                                      
-(optimize (send parser ast-from-string
-                "-1 + push drop pop dup over 2/ over - and + push drop pop")
-          '((data . 2))
-          #t #t 0 #:cores 8 #:time-limit 800
-          #:input-file "data-fff-small/inputs")
+;; (optimize (send parser ast-from-string
+;;                 "-1 + push drop pop dup over 2/ over - and + push drop pop")
+;;           '((data . 2))
+;;           #t #t 0 #:cores 8 #:time-limit 800
+;;           #:input-file "data-fff-small/inputs")
 
 
 ;; zero byte
@@ -66,12 +66,12 @@
 
 
 ;; mem
-;; (optimize (send parser ast-from-string "2 b! @b 3 b! !b 1 b! @b 2 b! !b")
-;;           '((data . 2) memory)
-;;           #t #f 0 #:cores 2 #:time-limit 3600 #:size 8
-;;           #:input-file "data-ex/inputs"
-;;           #:binary-search #t
-;;           );#:start-prog (send parser ast-from-string "3 2/ nop a! @+ @ b! !"))
+(optimize (send parser ast-from-string "2 b! @b 3 b! !b 1 b! @b 2 b! !b")
+          '((data . 2) memory)
+          #t #f 0 #:cores 2 #:time-limit 3600 #:size 8
+          #:input-file "data-ex/inputs"
+          #:binary-search #t
+          );#:start-prog (send parser ast-from-string "3 2/ nop a! @+ @ b! !"))
 ;; (optimize (send parser ast-from-string "2 b! @b 3 b! !b 1 b! @b 2 b! !b")
 ;;           '((data . 2) memory)
 ;;           #t #t 0 #:cores 2 #:time-limit 3600 #:size 8

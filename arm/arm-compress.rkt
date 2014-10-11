@@ -54,8 +54,7 @@
 
       ;; Construct register map from original to compressed version.
       (set-add! reg-set (+ max-reg 1))
-      (set-add! reg-set (+ max-reg 2))
-      (set! max-reg (+ max-reg 2))
+      (set! max-reg (+ max-reg 1))
       (define reg-map (make-vector (add1 max-reg) #f))
       (define id 0)
       (for ([i 32])
