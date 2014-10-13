@@ -12,18 +12,30 @@
 (define stochastic (new GA-stochastic% [machine machine] [printer printer] [syn-mode #t]))
 
 (define code (send parser ast-from-string 
-                   "push drop pop pop a! right b! !b dup 1 + 15 and push drop pop"))
+                   "1 2 3 4 5"))
 (define sketch (send parser ast-from-string 
-                     "push drop pop pop a! right b! !b"))
+                     "1 2 3 4 5"))
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send printer encode sketch))
 (send printer print-struct encoded-code)
+
+(define input
+   (cdar (send machine get-states-from-file "data-fff/inputs")))
+(define output
+  (send simulator interpret encoded-code input #:dep #f))
+(send machine display-state output)
+(send machine display-state
+      (send machine vector->progstate (send machine progstate->vector output)))
+
+(define live-in
+  (send solver get-live-in encoded-code (constraint (data 4) s t memory) 0))
 
 ;; (define (sym-input)
 ;;   (define-symbolic* input number?)
 ;;   input)
 ;; (define state (default-state machine 1 (lambda () (random 100))))
 ;; (send machine display-state state)
+#|
 (define inputs 
    (map cdr (send machine get-states-from-file "data-fff/inputs")))
 
@@ -53,4 +65,4 @@
       (pretty-display `(cost ,cost ,id))
       cost)))
 
-(pretty-display `(total-cost ,total-cost))
+(pretty-display `(total-cost ,total-cost))|#

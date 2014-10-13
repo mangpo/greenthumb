@@ -16,26 +16,32 @@
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 
 ;; Input machine state
-(define input-state (progstate (vector 784196468 10641 15 -49 6 0 0 0 0 5 5)
+(define input-state (progstate (vector 9 10641 15 -49 6 0 0 0 0 5 5)
                                (vector 0 0 0 0 0 0 0 0 0 0)))
 
 ;; Section 1: Concrete program
 (define code
 (send parser ast-from-string "
-	rsb	r5, r0, #0
-	and	r5, r5, r0
-	mov	r4, r0
-	eor	r0, r5, r0
-	add	r4, r4, r5
-	mov	r1, r5
-	mov	r0, r0, asr #2
-	bl	__aeabi_idiv
-	orr	r0, r0, r4
+        eor     r0, r0, r0, asr #1
+        movw    r3, #4369
+        movt    r3, 4369
+        eor     r0, r0, r0, asr #2
+        and     r3, r0, r3
+        add     r3, r3, r3, asl #4
+        add     r3, r3, r3, asl #8
+        add     r0, r3, r3, asl #16
+
 "))
+
 (send printer print-struct code)
 (define encoded-code (send printer encode code))
 (send printer print-struct encoded-code)
 (send printer print-syntax (send printer decode encoded-code))
+
+#|
+(send machine display-state
+(send solver get-live-in encoded-code 
+      (constraint machine [reg 0] [mem]) #f))|#
 
 (define output-state
   (send simulator-rosette interpret encoded-code input-state #:dep #t))
@@ -69,3 +75,5 @@
 (define output-state-sym
   (send simulator-rosette interpret encoded-code input-state-sym))
 (send machine display-state output-state-sym)|#
+
+

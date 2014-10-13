@@ -20,7 +20,7 @@
     (public proper-machine-config generate-input-states
             superoptimize superoptimize-binary synthesize-from-sketch counterexample
             sym-op sym-arg
-            assume-relax)
+            assume-relax get-live-in)
 
     (define-syntax-rule (print-struct x) (send printer print-struct x))
     (define-syntax-rule (display-state x) (send machine display-state x))
@@ -545,5 +545,57 @@
            (clear-terms!)
            state)
          )))
+    
+    ;; Return live-in in progstate format.
+    (define (get-live-in code live-out extra)
+      (define in-state (send machine get-state sym-input extra))
+      (define out-state (interpret code in-state))
+      (define vec-live-out (send machine progstate->vector live-out))
+      (define vec-input (send machine progstate->vector in-state))
+      (define vec-output (send machine progstate->vector out-state))
+      
+      (define live-list (list))
+      (define (collect-sym pred x)
+        (cond
+         [(boolean? pred)
+          ;; (pretty-display `(collect-sym ,pred ,x))
+          (when pred (set! live-list (cons x live-list))
+                ;; (pretty-display `(add ,(symbolics x)))
+                )]
+         [(number? pred)
+          (for ([p pred] [i x]) 
+               (collect-sym #t i))]
+         [(pair? x)
+          (collect-sym (car pred) (car x))
+          (collect-sym (cdr pred) (cdr x))]
+         [else
+          (for ([p pred] [i x]) (collect-sym p i))]))
+
+      ;; (pretty-display `(vec-live-out ,vec-live-out))
+      ;; (pretty-display `(vec-output ,vec-output))
+      (collect-sym vec-live-out vec-output)
+      (define live-terms (list->set (symbolics live-list)))
+      ;; (pretty-display `(live-terms ,live-terms))
+      
+      (define (extract-live pred x)
+        (cond
+         [(boolean? pred) 
+          (if (term? x)
+              (set-member? live-terms x)
+              pred)]
+         [(number? pred)
+          (define index 0)
+          (for ([ele x]
+                [i (vector-length x)])
+               (when (set-member? live-terms ele) (set! index (add1 i))))
+          index]
+         [(pair? x) 
+          (cons (extract-live (car pred) (car x)) 
+                (extract-live (cdr pred) (cdr x)))]
+         [(list? x) (for/list ([i x] [p pred]) (extract-live p i))]
+         [(vector? x) (for/vector ([i x] [p pred]) (extract-live p i))]))
+
+      (send machine vector->progstate (extract-live vec-live-out vec-input)))
+      
     
     ))
