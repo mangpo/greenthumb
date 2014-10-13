@@ -250,6 +250,8 @@
 	  (define (ri f) (inst-reg-pattern f 1 1))
 	  (define (r!i f) (inst-reg-pattern f 1 1 #t))
 	  (define (rri f) (inst-reg-pattern f 2 1))
+          (define (rrii f) (inst-reg-pattern f 2 2))
+          (define (r!ii f) (inst-reg-pattern f 1 2 #t))
 
           ;; sub add
           (define (rrr f [shf #f])
@@ -329,32 +331,6 @@
                                                      (create-node index index-dep)
                                                      cond-dep))))
                 (add-inter index)))
-
-          ;; setbit
-          (define (rrii f)
-            (define d (args-ref args 0))
-            (define a (args-ref args 1))
-            (define width (args-ref args 3))
-            (define shift (args-ref args 2))
-            (define val (f (vector-ref regs d) (vector-ref regs a) width shift))
-            (vector-set! regs d val)
-            (if dep
-                (vector-set! regs-dep d (create-node val (list (vector-ref regs-dep d)
-                                                               (vector-ref regs-dep a)
-                                                               cond-dep)))
-                (add-inter val)))
-
-          ;; clrbit
-          (define (r!ii f)
-            (define d (args-ref args 0))
-            (define width (args-ref args 2))
-            (define shift (args-ref args 1))
-            (define val (f (vector-ref regs d) width shift))
-            (vector-set! regs d val)
-            (if dep
-                (vector-set! regs-dep d (create-node val (list (vector-ref regs-dep d)
-                                                               cond-dep)))
-                (add-inter val)))
 
           (define (z=rr f)
             (define a (args-ref args 0))

@@ -3,34 +3,16 @@
 (require "main.rkt" "arm-parser.rkt" "arm-compress.rkt")
 
 (define code (send (new arm-parser%) ast-from-string "
-str r0, r4, -16
-str r1, r4, -20
-str r2, r4, -24
-ldr r2, r4, -16
-ldr r3, r4, -24
-mov r3, r2, asr r3
-str r3, r4, -12
-ldr r2, r4, -12
-ldr r3, r4, -16
-eor r3, r2, r3
-str r3, r4, -12
-ldr r2, r4, -12
-ldr r3, r4, -20
-and r3, r2, r3
-str r3, r4, -12
-ldr r2, r4, -12
-ldr r3, r4, -24
-mov r3, r2, lsl r3
-str r3, r4, -8
-ldr r2, r4, -8
-ldr r3, r4, -12
-eor r3, r2, r3
-str r3, r4, -8
-ldr r2, r4, -8
-ldr r3, r4, -16
-eor r3, r2, r3
-mov r0, r3
+	eor	r0, r0, r0, asr #1
+	movw	r3, #4369
+	movt	r3, 4369
+	eor	r0, r0, r0, asr #2
+	and	r3, r0, r3
+	add	r3, r3, r3, asl #4
+	add	r3, r3, r3, asl #8
+	add	r0, r3, r3, asl #16
+	ubfx	r0, r0, #28, #1
 "))
                    
 
-(arm-generate-inputs code (list 6 8) "input_p19_r6_m8")
+(arm-generate-inputs code (list 5 1) "input_r5_m1")
