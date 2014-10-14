@@ -12,7 +12,8 @@
     (abstract set-config get-config set-config-string
               get-state display-state
               adjust-config config-exceed-limit?
-              output-constraint-string)
+              output-constraint-string
+              progstate->vector vector->progstate)
     (public get-class-id print-line no-assumption
             get-inst-id get-inst-name
             output-assume-string

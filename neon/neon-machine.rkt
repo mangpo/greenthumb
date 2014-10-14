@@ -69,7 +69,8 @@
     (override set-config get-config set-config-string
               adjust-config config-exceed-limit?
               get-state display-state
-              output-constraint-string)
+              output-constraint-string
+              progstate->vector vector->progstate)
 
     ;; Initize common fields for neon
     (set! bit 32)
@@ -160,6 +161,16 @@
 
     (define (no-assumption)
       #f)
+
+    (define (progstate->vector x)
+      (vector (progstate-dregs x)
+              (progstate-rregs x)
+              (progstate-memory x)))
+    
+    (define (vector->progstate x)
+      (progstate (vector-ref x 0)
+                 (vector-ref x 1)
+                 (vector-ref x 2)))
 
     (define/public (get-type-id type)
       (vector-member type type-id))

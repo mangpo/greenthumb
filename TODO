@@ -18,3 +18,8 @@
 -----------------
 remove redundant
 - diff-cost
+
+
+
+- progstate->vector for GA, neon, vpe
+- use live-in to prune search space

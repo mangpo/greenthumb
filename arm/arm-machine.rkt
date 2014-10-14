@@ -66,7 +66,8 @@
               adjust-config config-exceed-limit?
               get-state display-state
               output-constraint-string
-              display-state-text parse-state-text)
+              display-state-text parse-state-text
+              progstate->vector vector->progstate)
 
     (set! bit 32)
     (set! random-input-bit 32)
@@ -206,5 +207,11 @@
       (define regs (list->vector (map string->number (string-split regs-str))))
       (define memory (list->vector (map string->number (string-split memory-str))))
       (cons #t (progstate regs memory)))
+
+    (define (progstate->vector x)
+      (vector (progstate-regs x) (progstate-memory x)))
+
+    (define (vector->progstate x)
+      (progstate (vector-ref x 0) (vector-ref x 1)))
 
     ))

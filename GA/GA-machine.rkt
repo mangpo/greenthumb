@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../machine.rkt")
+(require "../machine.rkt" "../ops-racket.rkt")
 
 (provide GA-machine% (all-defined-out))
 
@@ -127,7 +127,8 @@
               get-state display-state 
               output-constraint-string output-assume-string
 	      no-assumption
-              display-state-text parse-state-text)
+              display-state-text parse-state-text
+              progstate->vector vector->progstate)
 
     (set! bit 18)
     (set! random-input-bit 16)
@@ -218,6 +219,44 @@
       (pretty-display (progstate-recv state))
       (display "comm: ")
       (pretty-display (progstate-comm state)))
+    
+    (define (get-stack stack i)
+      (define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
+      (vector-ref (stack-body stack) (modulo- (- (stack-sp stack) i) 8)))
+
+    (define (stack->vector x)
+      (if (stack? x)
+          (for/vector ([i 8]) (get-stack x i))
+          x))
+    
+    (define (vector->stack x)
+      (if (vector? x)
+          (stack 7 (list->vector (reverse (vector->list x))))
+          x))
+    
+    (define (progstate->vector x)
+      (vector (progstate-a x)
+              (progstate-b x)
+              (progstate-r x)
+              (progstate-s x)
+              (progstate-t x)
+              (stack->vector (progstate-data x))
+              (stack->vector (progstate-return x))
+              (progstate-memory x)
+              (progstate-recv x)
+              (progstate-comm x)))
+
+    (define (vector->progstate x)
+      (progstate (vector-ref x 0)
+                 (vector-ref x 1)
+                 (vector-ref x 2)
+                 (vector-ref x 3)
+                 (vector-ref x 4)
+                 (vector->stack (vector-ref x 5))
+                 (vector->stack (vector-ref x 6))
+                 (vector-ref x 7)
+                 (vector-ref x 8)
+                 (vector-ref x 9)))
 
     (define (display-state-text pair)
       (display (format "~a," (car pair)))
