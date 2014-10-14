@@ -15,7 +15,7 @@
 ;; size (optional)
 ;; >>> OUTPUT >>>
 ;; Optimized code, not encoded.
-(define (optimize code live-out synthesize stochastic?
+(define (optimize code live-out live-in synthesize stochastic?
                   #:binary-search [binary-search #f]
                   #:need-filter [need-filter #f]
                   #:dir [dir "output"] 
@@ -34,7 +34,7 @@
                         [printer printer] [compress compress] [solver solver]
 			[stochastic? stochastic?] [binary-search binary-search]))
 
-  (send parallel optimize code live-out synthesize 
+  (send parallel optimize code live-out live-in synthesize 
         #:need-filter need-filter #:dir dir #:cores cores 
         #:time-limit time-limit #:size size #:input-file input-file)
   )

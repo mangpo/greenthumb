@@ -10,11 +10,12 @@
 (define arm-stochastic%
   (class stochastic%
     (super-new)
-    (inherit-field machine printer solver simulator stat mutate-dist)
-    (inherit random-args-from-op mutate)
+    (inherit-field machine printer solver simulator stat mutate-dist live-in)
+    (inherit random-args-from-op mutate filter-live update-live)
     (override correctness-cost get-arg-ranges 
 	      get-mutations random-instruction mutate-other
-	      inst-copy-with-op inst-copy-with-args)
+	      inst-copy-with-op inst-copy-with-args
+              get-operand-live)
 
     (set! solver (new arm-solver% [machine machine] [printer printer]))
     (set! simulator (new arm-simulator-racket% [machine machine]))
@@ -51,6 +52,15 @@
     (define (inst-copy-with-args x args) 
       (arm-inst (inst-op x) args (inst-shfop x) (inst-shfarg x) (inst-cond x)))
 
+    (define (get-operand-live state)
+      (and state
+           (let ([regs (progstate-regs state)]
+                 [live (list)])
+             (for ([i (vector-length regs)]
+                   [r regs])
+                  (when r (set! live (cons i live))))
+             live)))
+          
 
     (define (get-mutations opcode-name)
       ;;(pretty-display `(get-mutations ,opcode-name ,(vector-member opcode-name shf-inst-id) ,shf-inst-id))
@@ -84,8 +94,11 @@
 	    (pretty-display (format " >> shf-type = ~a" rand)))
       (cond
        [(or (equal? shfop-name #f) (equal? shfop-name `nop) (< rand 0.1))
+        (define my-live-in live-in)
+        (for ([i index])
+             (set! my-live-in (update-live my-live-in (vector-ref p i))))
 	(set! shfop (vector-member (random-from-vec-ex shf-inst-id `nop) shf-inst-id))
-	(set! shfarg (random-from-vec (get-shfarg-range shfop)))]
+	(set! shfarg (random-from-vec (get-shfarg-range shfop my-live-in)))]
 
        [(< rand 0.2) ;; op
 	(define my-list
@@ -95,7 +108,10 @@
 		     shf-inst-id))]
 
        [(< rand 0.3) ;; arg
-	(set! shfarg (random-from-vec-ex (get-shfarg-range shfop) shfarg))]
+        (define my-live-in live-in)
+        (for ([i index])
+             (set! my-live-in (update-live my-live-in (vector-ref p i))))
+	(set! shfarg (random-from-vec-ex (get-shfarg-range shfop my-live-in) shfarg))]
 
        [else ;; nop
 	(set! shfop #f)
@@ -125,34 +141,36 @@
 	new-p]
        [else (mutate p)]))
 
-    (define (random-instruction [opcode-id (random (vector-length inst-id))])
+    (define (random-instruction live-in [opcode-id (random (vector-length inst-id))])
       
       (define opcode-name (vector-ref inst-id opcode-id))
-      (define args (random-args-from-op opcode-name))
+      (define args (random-args-from-op opcode-name live-in))
       (define shf? (and (member opcode-name inst-with-shf) (< (random) 0.3)))
       (define shfop (and shf? (random (vector-length shf-inst-id))))
-      (define shfarg-range (and shf? (get-shfarg-range shfop)))
+      (define shfarg-range (and shf? (get-shfarg-range shfop live-in)))
       (define shfarg (and shf? (vector-ref shfarg-range (random (vector-length shfarg-range)))))
       (define cond-type (sub1 (random 3)))
       (arm-inst opcode-id args shfop shfarg cond-type))
 
-    (define (get-shfarg-range shfop-id)
+    (define (get-shfarg-range shfop-id live-in)
       (define shfop-name (vector-ref shf-inst-id shfop-id))
-      (if (member shfop-name '(asr lsr lsl)) reg-range bit-range))
+      (if (member shfop-name '(asr lsr lsl)) (filter-live reg-range live-in) bit-range))
 
     ;; nargs, ranges
-    (define (get-arg-ranges opcode-name entry)
+    (define (get-arg-ranges opcode-name entry live-in)
+      (define-syntax-rule (reg)
+        (filter-live reg-range live-in))
       (define class-id (send machine get-class-id opcode-name))
       ;;(pretty-display `(get-arg-ranges ,opcode-name ,class-id))
       (cond
-       [(equal? class-id 0) (vector reg-range reg-range reg-range)]
-       [(equal? class-id 1) (vector reg-range reg-range const-range)]
-       [(equal? class-id 2) (vector reg-range reg-range bit-range)]
-       [(equal? class-id 3) (vector reg-range reg-range)]
+       [(equal? class-id 0) (vector reg-range (reg) (reg))]
+       [(equal? class-id 1) (vector reg-range (reg) const-range)]
+       [(equal? class-id 2) (vector reg-range (reg) bit-range)]
+       [(equal? class-id 3) (vector reg-range (reg))]
        [(equal? class-id 4) (vector reg-range const-range)]
-       [(equal? class-id 5) (vector reg-range reg-range reg-range reg-range)]
-       [(equal? class-id 6) (vector reg-range reg-range bit-range bit-range)]
-       [(equal? opcode-name `bfc) (vector reg-range bit-range bit-range)]
+       [(equal? class-id 5) (vector reg-range (reg) (reg) (reg))]
+       [(equal? class-id 6) (vector reg-range (reg) bit-range bit-range)]
+       [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range)]
        [else (vector)]))
 
     ;; state1: reference

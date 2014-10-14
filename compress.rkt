@@ -12,9 +12,10 @@
             select-code combine-code combine-live-out)
 
     ;; Default: no compression
-    (define (compress-reg-space program live-out)
+    (define (compress-reg-space program live-out live-in)
       (values program
               live-out
+              live-in
               #f
               (send machine get-config)))
 

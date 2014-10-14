@@ -10,7 +10,7 @@
     (init-field meta parser machine printer compress solver stochastic? binary-search)
     (public optimize)
     
-    (define (optimize-inner code-org live-out-org synthesize dir cores time-limit size 
+    (define (optimize-inner code-org live-out-org live-in-org synthesize dir cores time-limit size 
                             assume extra-info input-file start-prog)
       (define path (format "~a/driver" dir))
       (system (format "mkdir ~a" dir))
@@ -21,8 +21,8 @@
       (pretty-display (format ">>> live-out-org: ~a" live-out-org))
 
       ;; Use the fewest number of registers possible.
-      (define-values (code live-out map-back machine-info) 
-        (send compress compress-reg-space code-org live-out-org))
+      (define-values (code live-out live-in map-back machine-info) 
+        (send compress compress-reg-space code-org live-out-org live-in-org))
       (pretty-display (format ">>> machine-info: ~a" machine-info))
 
       (pretty-display ">>> compressed-code:")
@@ -67,9 +67,10 @@
                  (pretty-display "\"))")
                  (pretty-display (format "(define encoded-start-code (send printer encode start-code))"))
                  )
-	   (pretty-display (format "(send search ~a encoded-code ~a \"~a-~a\" ~a ~a ~a #:assume ~a #:input-file ~a #:start-prog ~a)" 
+	   (pretty-display (format "(send search ~a encoded-code ~a ~a \"~a-~a\" ~a ~a ~a #:assume ~a #:input-file ~a #:start-prog ~a)" 
                                    (if binary-search "superoptimize-binary" "superoptimize")
 				   (send machine output-constraint-string "machine" live-out)
+                                   (send machine output-constraint-string "machine" live-in)
 				   path id time-limit size extra-info
                                    (send machine output-assume-string "machine" assume)
                                    (if input-file (string-append "\"" input-file "\"") #f)
@@ -166,7 +167,7 @@
 	  code-org)
       )
 
-    (define (optimize-filter code-org live-out synthesize dir cores time-limit size 
+    (define (optimize-filter code-org live-out live-in synthesize dir cores time-limit size 
                              assume extra-info input-file start-prog)
       (define-values (pass start stop extra-live-out) (send compress select-code code-org))
       (pretty-display `(select-code ,pass ,start ,stop ,extra-live-out))
@@ -175,6 +176,7 @@
                  (optimize-inner 
                   pass
                   (send compress combine-live-out live-out extra-live-out)
+                  live-in
                   synthesize dir cores time-limit size extra-info input-file start-prog)])
             (send compress combine-code code-org middle-output start stop))
           code-org)
@@ -185,7 +187,7 @@
     ;;   1) parsed AST, 2) .s file, 3) LLVM IR file
     ;; live-out: live-out info in custom format--- for vpe, a list of live registers
     ;;   synthesize: #t = synthesize mode, #f = optimize mode
-    (define (optimize code-org live-out synthesize
+    (define (optimize code-org live-out live-in synthesize
                       #:assume [assume #f]
                       #:extra-info [extra-info #f]
                       #:need-filter [need-filter #f]
@@ -199,8 +201,8 @@
 
       (if (> (vector-length code-org) 0)
           (if need-filter
-              (optimize-filter code-org live-out synthesize dir cores time-limit size assume extra-info input-file start-prog)
-              (optimize-inner code-org live-out synthesize dir cores time-limit size assume extra-info input-file start-prog))
+              (optimize-filter code-org live-out live-in synthesize dir cores time-limit size assume extra-info input-file start-prog)
+              (optimize-inner code-org live-out live-in synthesize dir cores time-limit size assume extra-info input-file start-prog))
           code-org))
 
     ))

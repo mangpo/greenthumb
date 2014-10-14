@@ -8,11 +8,12 @@
   (class object%
     (super-new)
     (public superoptimize inst-copy-with-op inst-copy-with-args
-            get-mutations mutate
+            get-mutations mutate filter-live
             mutate-opcode mutate-operand
             mutate-operand-specific mutate-other
             random-instruction print-mutation-info
-	    random-args-from-op)
+	    random-args-from-op
+            get-operand-live update-live)
     (abstract correctness-cost get-arg-ranges)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
@@ -26,7 +27,8 @@
                 [nop-mass 0.8]
                 [ntests 16]
                 [mutate-dist 
-                 #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1))])
+                 #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1))]
+                [live-in #f])
     
     (define nop-id (send machine get-inst-id `nop))
     (define inst-id (get-field inst-id machine))
@@ -40,11 +42,12 @@
     (define (inst-copy-with-op x op) (struct-copy inst x [op op]))
     (define (inst-copy-with-args x args) (struct-copy inst x [args args]))
 
-    (define (superoptimize spec constraint 
+    (define (superoptimize spec constraint this-live-in
                            name time-limit size [extra-info #f]
                            #:assume [assumption (send machine no-assumption)]
                            #:input-file [input-file #f]
                            #:start-prog [start #f])
+      (set! live-in (get-operand-live this-live-in))
       ;; Generate testcases
       (when debug 
             (pretty-display ">>> Phase 0: print mutation info")
@@ -89,8 +92,32 @@
        (filter (lambda (x) (not (equal? (inst-op x) nop-id)))
                (vector->list code))))
 
+    (define (get-operand-live constraint) #f)
+
+    (define (update-live live x)
+      (define (add-live ele lst)
+        (if (member ele lst) lst (cons ele lst)))
+      (and live
+           (cond
+            [(= (vector-length (inst-args x)) 0) live]
+            [else
+             (let ([def (vector-ref (inst-args x) 0)])
+               (if (number? def)
+                   (add-live def live)
+                   (foldl add-live live def)))])))
+          
     (define (random-insts n)
-      (for/vector ([i n]) (random-instruction)))
+      (define my-live-in live-in)
+      (for/vector ([i n]) 
+        (let ([x (random-instruction my-live-in)])
+          (pretty-display `(x ,x))
+          (set! my-live-in (update-live my-live-in x)) ;; TODO
+          x)))
+
+    (define (filter-live range live)
+      (if live
+          (vector-filter (lambda (x) (member x live)) range)
+          range))
 
     ;; Generic across architectures
     (define (mutate-swap index entry p)
@@ -131,16 +158,23 @@
       (define opcode-id (inst-op entry))
       (define opcode-name (vector-ref inst-id opcode-id))
       (define args (vector-copy (inst-args entry)))
-      (define ranges (get-arg-ranges opcode-name entry))
+      (define my-live-in live-in)
+      (for ([i index])
+           (set! my-live-in (update-live my-live-in (vector-ref p i))))
+      (define ranges (get-arg-ranges opcode-name entry my-live-in))
       (cond
        [(> (vector-length ranges) 0)
         (define args (vector-copy (inst-args entry)))
-        (define change (random (vector-length ranges)))
+        (define okay-indexes (list))
+        (for ([range ranges]
+              [i (vector-length ranges)])
+             (when (> (vector-length range) 1) (set! okay-indexes (cons i okay-indexes))))
+        (define change (random-from-list okay-indexes))
         (define valid-vals (vector-ref ranges change))
         (define new-val 
           (if (vector? valid-vals)
               (random-from-vec-ex valid-vals (vector-ref args change))
-              (mutate-operand-specific opcode-name args change)))
+              (mutate-operand-specific opcode-name args change live-in)))
         
         (define new-p (vector-copy p))
         (when debug
@@ -165,17 +199,20 @@
                    (random-from-list-ex (range (vector-length inst-id)) opcode-id))))
       (when debug
             (pretty-display (format " >> mutate instruction ~a" (vector-ref inst-id new-opcode-id))))
-      (define new-entry (random-instruction new-opcode-id))
+      (define my-live-in live-in)
+      (for ([i index])
+           (set! my-live-in (update-live my-live-in (vector-ref p i))))
+      (define new-entry (random-instruction my-live-in new-opcode-id))
       (vector-set! new-p index new-entry)
       new-p)
     
-    (define (random-instruction [opcode-id (random (vector-length inst-id))])
+    (define (random-instruction live-in [opcode-id (random (vector-length inst-id))])
       (define opcode-name (vector-ref inst-id opcode-id))
-      (define args (random-args-from-op opcode-name))
+      (define args (random-args-from-op opcode-name live-in))
       (inst opcode-id args))
     
-    (define (random-args-from-op opcode-name)
-      (define ranges (get-arg-ranges opcode-name #f))
+    (define (random-args-from-op opcode-name live-in)
+      (define ranges (get-arg-ranges opcode-name #f live-in))
       (when debug (pretty-display (format " --> ranges ~a" ranges)))
       (for/vector ([i (vector-length ranges)])
                 (random-from-vec (vector-ref ranges i))))

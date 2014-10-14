@@ -11,28 +11,18 @@
 
 (define code
 (send parser ast-from-string "
-str r0, r4, -4
-str r1, r4, -5
-ldr r2, r4, -4
-ldr r3, r4, -5
-and r3, r2, r3
-str r3, r4, -3
-ldr r2, r4, -4
-ldr r3, r4, -5
-eor r3, r2, r3
-str r3, r4, -2
-ldr r3, r4, -2
-mov r3, r3, asr 1
-str r3, r4, -2
-ldr r2, r4, -3
-ldr r3, r4, -2
-add r3, r2, r3
-mov r0, r3
+	sub	r3, r0, #1
+	orr	r3, r3, r0
+	add	r3, r3, #1
+	and	r0, r3, r0
 "))
 
 (define sketch
 (send parser ast-from-string "
-movne r0, r4, lsr 31
+orr r3, r0, r0, lsl 1
+sub r2, r0, r3
+and r0, r0, r2
+
 "))
 
 (define encoded-code (send printer encode code))

@@ -3,7 +3,8 @@
 (require "arm-parser.rkt"
          "main.rkt")
 
-(define live-regs (make-parameter (list)))
+(define live-out (make-parameter (list)))
+(define live-in (make-parameter #f))
 (define live-mem (make-parameter #t))
 
 (define size (make-parameter #f))
@@ -24,9 +25,12 @@
    ;; [("-m" "--memory")   m
    ;;                      "Memory size (default=1)"
    ;;                      (nmems (string->number m))]
-   [("--live-reg")      live-r
-                        "A list of live registers separated by , with no space (default=none)"
-                        (live-regs (map string->number (string-split live-r ",")))]
+   [("--live-out")      live-o
+                        "A list of live-out registers separated by , with no space (default=none)"
+                        (live-out (map string->number (string-split live-o ",")))]
+   [("--live-in")       live-i
+                        "A list of live-in registers separated by , with no space (default=none)"
+                        (live-in (map string->number (string-split live-i ",")))]
    [("--dead-mem")      "Memory is not live-out."
                         (live-mem #f)]
    [("-c" "--core")      c
@@ -67,7 +71,8 @@
 (define parser (new arm-parser%))
 (define code (send parser ast-from-file file-to-optimize))
 
-(optimize code (list (live-regs) (live-mem)) (synthesize) (stochastic?)
+(optimize code (list (live-out) (live-mem)) (list (live-in) (live-mem)) 
+          (synthesize) (stochastic?)
           #:need-filter #f #:dir (dir) #:cores (cores) 
           #:time-limit (time-limit) #:size (size)
           #:input-file (input-file)

@@ -36,7 +36,7 @@
     ;; 2) compressed live-out
     ;; 3) map-back
     ;; 4) machine-info in custom format--- (list nregs nmem) for arm
-    (define (compress-reg-space program live-out)
+    (define (compress-reg-space program live-out live-in)
       (define reg-set (mutable-set))
       (define max-reg 0)
 
@@ -84,9 +84,15 @@
         (map (lambda (x) (vector-ref reg-map x)) 
              (filter (lambda (x) (and (<= x max-reg) (vector-ref reg-map x))) 
                      (first live-out))))
+      (define compressed-live-in 
+        (and (first live-in)
+             (map (lambda (x) (vector-ref reg-map x)) 
+                  (filter (lambda (x) (and (<= x max-reg) (vector-ref reg-map x))) 
+                          (first live-in)))))
 
       (values compressed-program
               (list compressed-live-out (second live-out))
+              (list compressed-live-in (second live-in))
               reg-map-back 
               (list id (if mem-access 8 1))))
 

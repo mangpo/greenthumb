@@ -305,7 +305,7 @@
 
     ;; Optimize the cost using binary search on the number of holes.
     ;; spec: non-encoded block
-    (define (superoptimize-binary spec constraint name time-limit size [extra #f]
+    (define (superoptimize-binary spec constraint live-in name time-limit size [extra #f]
                                   #:assume [assumption (send machine no-assumption)]
                                   #:input-file [input-file #f]
                                   #:start-prog [start #f])
@@ -364,7 +364,7 @@
       (pretty-display "after inner")
       final-program)
 
-    (define (superoptimize spec constraint name time-limit size [extra #f]
+    (define (superoptimize spec constraint live-in name time-limit size [extra #f]
 			   #:assume [assumption (send machine no-assumption)]
                            #:input-file [input-file #f]
                            #:start-prog [start #f])

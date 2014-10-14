@@ -12,7 +12,7 @@
 (define stochastic (new GA-stochastic% [machine machine] [printer printer] [syn-mode #t]))
 
 (define code (send parser ast-from-string 
-                   "1 2 3 4 5"))
+                   "push over - push and pop pop and over 65535 or and or"))
 (define sketch (send parser ast-from-string 
                      "1 2 3 4 5"))
 (define encoded-code (send printer encode code))
@@ -28,7 +28,7 @@
       (send machine vector->progstate (send machine progstate->vector output)))
 
 (define live-in
-  (send solver get-live-in encoded-code (constraint (data 4) s t memory) 0))
+  (send solver get-live-in encoded-code (constraint (data 0) s t memory) 0))
 
 ;; (define (sym-input)
 ;;   (define-symbolic* input number?)

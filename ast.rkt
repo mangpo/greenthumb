@@ -206,6 +206,9 @@
 (define (random-from-vec vec)
   (vector-ref vec (random (vector-length vec))))
 
+(define (random-from-list lst)
+  (list-ref lst (random (length lst))))
+
 (define (random-from-list-ex lst ex)
   (let ([new-lst (remove ex lst)])
     (if (empty? new-lst)

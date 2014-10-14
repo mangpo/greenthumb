@@ -160,11 +160,14 @@
     ;; live-out: a list of live registers' ids, same format is the output of (select-code) and (combine-live-out)
     ;; output: output constraint corresponding to live-out in string. When executing, the expression is evaluated to a progstate with #t and #f indicating which entries are constrainted (live).
     (define (output-constraint-string machine-var live-out)
-      (define live-regs-str (string-join (map number->string (first live-out))))
-      (define live-mem (second live-out))
-      (if live-mem
-          (format "(constraint ~a [reg ~a] [mem-all])" machine-var live-regs-str)
-          (format "(constraint ~a [reg ~a] [mem])" machine-var live-regs-str)))
+      (cond
+       [(first live-out)
+        (define live-regs-str (string-join (map number->string (first live-out))))
+        (define live-mem (second live-out))
+        (if live-mem
+            (format "(constraint ~a [reg ~a] [mem-all])" machine-var live-regs-str)
+            (format "(constraint ~a [reg ~a] [mem])" machine-var live-regs-str))]
+       [else #f]))
 
     ;; live-out: a list of live registers' ids
     ;; output: a progstate object. #t elements indicate live.
