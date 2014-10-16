@@ -12,9 +12,11 @@
     (inherit sym-op sym-arg)
     (override get-sym-vars evaluate-state
               encode-sym decode-sym sym-insts
-              assume assume-relax assert-output)
+              assume assume-relax assert-output len-limit)
 
     (set! simulator (new GA-simulator-rosette% [machine machine]))
+
+    (define (len-limit) 8)
 
     (define (sym-insts size)
       (encode-sym (for/vector ([i size]) (inst #f #f))))

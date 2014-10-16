@@ -13,9 +13,11 @@
     (override get-sym-vars evaluate-state
               encode-sym decode-sym sym-insts
               assume assert-output
-              assume-relax)
+              assume-relax len-limit)
 
     (set! simulator (new neon-simulator-rosette% [machine machine]))
+
+    (define (len-limit) 2)
 
     (define (sym-insts size)
       (encode-sym (for/vector ([i size]) (neon-inst #f #f #f #f))))

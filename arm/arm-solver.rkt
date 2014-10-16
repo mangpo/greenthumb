@@ -12,9 +12,11 @@
     (inherit sym-op sym-arg)
     (override get-sym-vars evaluate-state
               encode-sym decode-sym sym-insts
-              assume assert-output)
+              assume assert-output len-limit)
 
     (set! simulator (new arm-simulator-rosette% [machine machine]))
+
+    (define (len-limit) 2)
 
     (define (sym-insts size)
       (encode-sym (for/vector ([i size]) (arm-inst #f #f #f #f #f))))

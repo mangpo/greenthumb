@@ -22,7 +22,30 @@
 		  (string->inst x)))
 
     (define (ast-from-file file)
-      (for*/list ([line (file->lines file)]
+      (for*/vector ([line (file->lines file)]
 		  [x (string-split line)])
 		 (string->inst x)))
+
+    (define/public (info-from-file file)
+      (define lines (file->lines file))
+      (define live-out
+	(for/list ([ele (string-split (first lines) ",")])
+		  (let ([toks (string-split ele)])
+		    (if (= (length toks) 2)
+			(cons (string->symbol (first toks)) (string->number (second toks)))
+			(string->symbol (first toks))))))
+      (define recv (string->number (second lines)))
+      (define assume 
+	(if (equal? "-" (string-trim (third lines)))
+	    #f
+	    (for/list ([ele (string-split (third lines) ",")])
+		      (let ([toks (string-split ele)])
+			(cons (string->symbol (first toks)) (string->number (second toks)))))))
+      (define input-file
+	(if (equal? "-" (string-trim (fourth lines)))
+	    #f 
+	    (fourth lines)))
+	
+      (values live-out recv assume input-file))
+      
     ))

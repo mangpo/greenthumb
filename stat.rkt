@@ -213,7 +213,6 @@
 
   (define best-correct-cost (arithmetic-shift 1 32))
   (define best-correct-time (arithmetic-shift 1 32))
-  (define best-correct-id #f)
   (define best-cost (arithmetic-shift 1 32))
 
   (for ([stat stat-list]
@@ -224,12 +223,10 @@
          (when (< correct-cost best-correct-cost)
                (set! best-correct-cost correct-cost)
                (set! best-correct-time correct-time)
-               (set! best-correct-id id)
                )
          (when (and (= correct-cost best-correct-cost)
                     (< correct-time best-correct-time))
                (set! best-correct-time correct-time)
-               (set! best-correct-id id)
                )
          (when (< cost best-cost)
                (set! best-cost cost))))
@@ -254,8 +251,7 @@
                     [best-correct-time best-correct-time]
                     [best-correct-cost best-correct-cost]
                     [best-cost best-cost]))
-  (send stat print-stat)
-  best-correct-id)
+  (send stat print-stat))
 
 (define (create-stat-from-file file printer)
   (define in-port (open-input-file file))

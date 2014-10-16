@@ -11,12 +11,13 @@
   (class object%
     (super-new)
     (init-field machine printer 
+		[syn-mode `binary]
                 [simulator #f] 
                 [bit (get-field bit machine)]
                 [random-input-bit (get-field random-input-bit machine)])
     (abstract get-sym-vars evaluate-state
               encode-sym decode-sym sym-insts
-              assume assert-output)
+              assume assert-output len-limit)
     (public proper-machine-config generate-input-states
             superoptimize superoptimize-binary synthesize-from-sketch counterexample
             sym-op sym-arg
@@ -186,126 +187,41 @@
       (map (lambda (x) (evaluate-state start-state x)) sltns))
 
 
-    (define (superoptimize-inc spec constraint name time-limit size [extra #f]
-			   #:assume [assumption (send machine no-assumption)])
-      (synthesize-from-sketch-inc spec 
-			      (sym-insts (if size size (vector-length spec)))
-			      constraint extra
-			      (send simulator performance-cost spec)
-			      time-limit name
-			      #:assume assumption))
-
-    ;; Superoptimize program
-    ;; >>> INPUTS >>>
-    ;; spec: program specification (naive code)
-    ;; sketch: skeleton of the output program
-    ;; constraint: constraint on the output state
-    ;; cost: upperbound (exclusive) of the cost of the output program, #f is no upperbound
-    ;; assume-interpret: always true (for now)
-    ;; assume: input assumption
-    (define (synthesize-from-sketch-inc spec sketch constraint extra cost time-limit name
-				    #:assume-interpret [assume-interpret #t]
-				    #:assume [assumption (send machine no-assumption)])
-      (pretty-display (format "SUPERPOTIMIZE-INC: assume-interpret = ~a" assume-interpret))
-
-      ;; (current-solver (new z3%))
-      (current-solver (new kodkod-incremental%))
-      (clear-asserts)
-      (configure [bitwidth bit] [loop-bound 20])
-      (define start-time (current-seconds))
-      (define start-state (send machine get-state sym-input extra))
-      (define spec-state #f)
-      (define sketch-state #f)
-      (define spec-cost #f)
-      (define sketch-cost #f)
-      
-      (define (interpret-spec!)
-        (pretty-display "========== interpret spec")
-        (set! spec-state (interpret-spec spec start-state assumption)))
-      
-      (define (compare-spec-sketch)
-        (pretty-display "=========== interpret sketch")
-        (set! sketch-state (send simulator interpret sketch start-state spec-state))
-        (pretty-display "check output")
-        ;; (set! spec-cost (send simulator performance-cost spec))
-        (set! sketch-cost (send simulator performance-cost sketch))
-        (when cost (assert (< sketch-cost cost)))
-        (assert-output spec-state sketch-state constraint)
-        )
-      
-      ;; Collect input variables and contruct their init values.
-      (define-values (sym-vars inputs)
-        (generate-inputs-inner 2 spec start-state assumption))
-
-      ;; (when debug
-      ;;       (pretty-display "Test calculate performance-cost with symbolic instructions...")
-      ;;       (send simulator performance-cost sketch)
-      ;;       (pretty-display "Test simulate with symbolic instructions...")
-      ;;       (send simulator interpret sketch start-state)
-      ;;       (pretty-display "Passed!"))
-      
-      (define final-program #f)
-      (define (inner)
-	(define model 
-	  (timeout
-	   time-limit
-	   (synthesize 
-	    #:forall sym-vars
-	    #:init inputs
-	    #:assume (if assume-interpret (interpret-spec!) (assume start-state assumption))
-	    #:guarantee (compare-spec-sketch)
-	    )
-	   )
-	  )
-	
-	(pretty-display ">>> done synthesize")
-	(set! final-program (decode-sym sketch model))
-	(define final-cost (evaluate sketch-cost model))
-	;; Print to file
-	(with-output-to-file #:exists 'truncate (format "~a.stat" name)
-	  (thunk
-	   (pretty-display (format "best-correct-cost:\t~a" final-cost))
-	   (pretty-display (format "best-correct-time:\t~a" 
-				   (- (current-seconds) start-time)))))
-	(with-output-to-file #:exists 'truncate (format "~a.best" name)
-	  (thunk
-	   (send printer print-syntax final-program)))
-	
-	(pretty-display ">>> superoptimize-output")
-	(print-struct final-program)
-	(pretty-display (format "limit cost = ~a" cost))
-	(pretty-display (format "new cost = ~a" final-cost))
-	(pretty-display "=====================================")
-	(when cost 
-	      (set! cost final-cost)
-	      (inner)))
-
-      (with-handlers* 
-       ([exn:fail? 
-	 (lambda (e) 
-	   (clear-asserts)
-	   (clear-terms!)
-	   (if (or (regexp-match #rx"synthesize: synthesis failed" (exn-message e))
-		   (regexp-match #rx"assert: progstate-cost" (exn-message e)))
-	       final-program
-	       (raise e)))]
-	[exn:break? (lambda (e) 
-		      (clear-asserts)
-		      (clear-terms!)
-		      (if final-program
-			  final-program
-			  "timeout"))])
-       (inner)
-       final-program))
-
     (define (remove-nops code)
       (list->vector 
        (filter (lambda (x) (not (equal? (inst-op x) "nop")))
                (vector->list code))))
 
+    (define (superoptimize spec constraint name time-limit size [extra #f]
+			   #:assume [assumption (send machine no-assumption)]
+			   #:input-file [input-file #f]
+			   #:start-prog [start #f])
+      (cond
+       [(equal? syn-mode `binary) 
+	(superoptimize-binary spec constraint name time-limit size extra
+			   #:assume assumption
+			   #:input-file input-file
+			   #:start-prog start)]
+
+       [(equal? syn-mode `linear) 
+	(superoptimize-linear spec constraint name time-limit size extra
+			   #:assume assumption
+			   #:input-file input-file
+			   #:start-prog start)]
+
+       [(equal? syn-mode `hybrid)
+	(superoptimize-binary spec constraint name time-limit size extra
+			      #:hard-cap (len-limit)
+			      #:assume assumption
+			      #:input-file input-file
+			      #:start-prog start)
+	]))
+	
+
     ;; Optimize the cost using binary search on the number of holes.
     ;; spec: non-encoded block
     (define (superoptimize-binary spec constraint name time-limit size [extra #f]
+				  #:hard-cap [hard-cap 1000]
                                   #:assume [assumption (send machine no-assumption)]
                                   #:input-file [input-file #f]
                                   #:start-prog [start #f])
@@ -313,8 +229,7 @@
       (define final-program #f)
       (define final-len (if size size (vector-length spec)))
       (define final-cost #f)
-      (define (inner begin end cost)
-        (define middle (quotient (+ begin end) 2))
+      (define (inner begin end cost [middle (quotient (+ begin end) 2)])
         (pretty-display `(binary-search ,begin ,end ,middle))
         (define sketch (sym-insts middle))
         
@@ -352,7 +267,7 @@
       
       (with-handlers 
        ([exn:break? (lambda (e) (unless final-program (set! final-program "timeout")))])
-       (inner 1 final-len #f))
+       (inner 1 final-len #f (min hard-cap (quotient (+ 1 final-len) 2))))
 
       ;; Try len + 2
       ;; (unless (equal? final-program "timeout")
@@ -364,7 +279,7 @@
       (pretty-display "after inner")
       final-program)
 
-    (define (superoptimize spec constraint name time-limit size [extra #f]
+    (define (superoptimize-linear spec constraint name time-limit size [extra #f]
 			   #:assume [assumption (send machine no-assumption)]
                            #:input-file [input-file #f]
                            #:start-prog [start #f])

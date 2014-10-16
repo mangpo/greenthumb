@@ -1,7 +1,12 @@
-x=slvr
-for file in rrotate complexA complexB complexC interp shaf iii
+type=hybrid
+mode=s
+for name in complexA complexB complexC fir rrotate shaf
 do
-    echo $file
-    racket programs/$file.rkt > $file-$x-1.log
-    mv output $file-$x-1
+    for t in 1 2
+    do
+	echo "$name $t"
+	racket optimize.rkt --hybrid -$mode -c 8 -t 100 -d results/$name-$type-$mode-$t programs/$name.s > results/$name-$type-$mode-$t.log
+    done
 done
+
+sh run2.sh

@@ -19,8 +19,7 @@
 
 (define simulator (new GA-simulator-racket% [machine machine]))
 
-(define (optimize code live-out mode stochastic? recv
-                  #:binary-search [binary-search #f]
+(define (optimize code live-out search-type mode recv
                   #:assume [assume #f]
                   #:need-filter [need-filter #f]
                   #:dir [dir "output"] 
@@ -32,8 +31,8 @@
 
   (define parallel (new parallel% [meta meta] [parser parser] [machine machine] 
                         [printer printer] [compress compress] [solver solver]
-                        [stochastic? stochastic?] [binary-search binary-search]))
-  (send parallel optimize code live-out mode 
+                        [search-type search-type] [mode mode]))
+  (send parallel optimize code live-out  
         #:assume assume
         #:extra-info recv
         #:need-filter need-filter #:dir dir #:cores cores 
