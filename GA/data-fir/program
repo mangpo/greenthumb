@@ -1,0 +1,1 @@
+push drop pop pop a! 469 b! !b dup 1 + 15 and push drop pop 
