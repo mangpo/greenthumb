@@ -35,15 +35,23 @@
                 )
            
     (super-new)
+    (define dir #f)
+
+    (define/public (set-name my-name)
+      (set! name my-name)
+      (define tokens (string-split my-name "/"))
+      (set! dir (string-join (take tokens (sub1 (length tokens))) "/")))
 
     (define/public (inc-iter current-cost)
       ;; (with-output-to-file #:exists 'append (format "~a.csv" name)
       ;;   (thunk
       ;;    (pretty-display (format "~a,~a" iter-count current-cost))))
       (set! iter-count (add1 iter-count))
-      (when (= (modulo iter-count 1000) 0)
-            (print-stat-to-file)
-            ))
+      (and (= (modulo iter-count 1000) 0)
+           (let ([len-file (format "~a/len" dir)])
+             (print-stat-to-file)
+             (and (file-exists? len-file) 
+                  (string->number (first (file->lines len-file)))))))
 
     (define/public (inc-propose x)
       (define index (vector-member x stat-mutations))
@@ -90,7 +98,10 @@
         (thunk
          ;; (pretty-display (format "best-correct-cost: ~a" best-correct-cost))
          ;; (pretty-display (format "best-correct-time: ~a" best-correct-time))
-         (send printer print-syntax (send printer decode best-correct-program)))))
+         (send printer print-syntax (send printer decode best-correct-program))))
+      (with-output-to-file #:exists 'truncate (format "~a/len" dir)
+        (thunk
+         (pretty-display (vector-length program)))))
 
     (define/public (simulate x) (set! simulate-time (+ simulate-time x)))
     (define/public (check x)    (set! check-time (+ check-time x)))

@@ -75,7 +75,7 @@
         (random-insts (if size size (vector-length spec))))
       (set-field! best-correct-program stat spec)
       (set-field! best-correct-cost stat (send simulator performance-cost spec))
-      (set-field! name stat name)
+      (send stat set-name name)
       (mcmc-main spec 
                  (cond
                   [start start]
@@ -229,6 +229,7 @@
        [(equal? type `instruction) (mutate-instruction index entry p)]
        [(equal? type `swap)        (mutate-swap index entry p)]
        [else                       (mutate-other index entry p type)]))
+      
     
 
     (define (mcmc-main target init inputs outputs constraint assumption time-limit extra-info)
@@ -237,6 +238,34 @@
       (pretty-display "start-program:")
       (send printer print-struct init)
       (define syn-mode #t)
+
+      (define (reduce-one p vec-len)
+        (define index (random vec-len))
+        (define new-p 
+          (vector-append (vector-copy p 0 index) (vector-copy p (add1 index) vec-len)))
+        (define cost (or (car (cost-all-inputs new-p w-error)) w-error))
+        (values new-p cost))
+
+      (define (reduce-size p cost size [ps (list)] [costs (list)])
+        (when debug (pretty-display `(reduce-size ,(vector-length p) ,size ,(length ps))))
+        (define vec-len (vector-length p))
+        (cond
+         [(= vec-len size) (values p cost)]
+         [(>= (length ps) 4)
+          (define min-cost (first costs))
+          (define min-p (first ps))
+          (for ([p-i (cdr ps)]
+                [c-i (cdr costs)])
+               (when (< c-i min-cost)
+                     (set! min-cost c-i)
+                     (set! min-p p-i)))
+          (reduce-size min-p min-cost size)]
+         [else
+          (define-values (new-p new-cost) (reduce-one p vec-len))
+          (if (<= new-cost cost)
+              (reduce-size new-p new-cost size)
+              (reduce-size p cost size (cons new-p ps) (cons new-cost costs)))])
+        )
 
       (define (cost-one-input program input output)
         (with-handlers* 
@@ -341,10 +370,16 @@
       ;; Main loop
       (define (iter current current-cost)
         (when debug (pretty-display ">>> iter >>>"))
-        (send stat inc-iter current-cost)
+        (define update-size (send stat inc-iter current-cost))
+        (when (and update-size (< update-size (vector-length current)))
+              (pretty-display (format ">>> reduce size from ~a to ~a" 
+                                      (vector-length current) update-size))
+              (define-values (new-p new-cost) 
+                (reduce-size current current-cost update-size))
+              (set! current new-p)
+              (set! current-cost new-cost))
         (define t1 (current-milliseconds))
         (define proposal (mutate current))
-        (when debug (pretty-display ">>> done mutate >>>"))
         (define t2 (current-milliseconds))
         (send stat mutate (- t2 t1))
         (when debug

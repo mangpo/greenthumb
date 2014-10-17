@@ -5,25 +5,36 @@
 
 (define parser (new GA-parser%))
 (define machine (new GA-machine%))
+(send machine set-config 4)
 (define printer (new GA-printer% [machine machine]))
 (define solver (new GA-solver% [machine machine] [printer printer]))
 
 (define code
 (send parser ast-from-string 
-      "2 b! @b 3 b! !b 1 b! @b 2 b! !b"))
+      "2 b! !b push drop pop 2 b! @b 0 b! !b up b! @b 0 b! @b 2/ 2/ + 65535 and"))
 
-(define sketch (send parser ast-from-string "_ _ _ _ _ _ _ _"))
-;(define sketch (send parser ast-from-string "dup push or and pop or"))
+(define sketch (send parser ast-from-string 
+      "? ? ? ? ? ? ?"))
+;2/ dup a! over dup over dup drop a 2/ 325 a! @+ + 65535 and
+;size = 16, 
+;opt = 10
+; 6 ?, no sol = 13
+; 8 ? => 16 s, no sol > 5 min
+; 9 ? => 72 s
+; 10 ? => > 2s, 
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send solver encode-sym sketch))
 
 #|
 (send solver counterexample encoded-code encoded-sketch 
-      (constraint t)
-      0
-      #:assume (constrain-stack machine '((<= . 65535) (<= . 65535) (<= . 65535))))|#
+      (constraint r s t)
+      1)|#
 
-
-(send solver synthesize-from-sketch encoded-code encoded-sketch
-      (constraint s t memory) 0)
+(define t (current-seconds))
+(with-handlers* 
+ ([exn:fail? 
+   (lambda (e) (pretty-display (exn-message e)))])
+ (send solver synthesize-from-sketch encoded-code encoded-sketch
+       (constraint s t r) 1))
+(pretty-display `(time ,(- (current-seconds) t)))

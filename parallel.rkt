@@ -35,6 +35,9 @@
       (pretty-display (format ">>> machine-info: ~a" machine-info))
       (pretty-display (format ">>> live-out: ~a" live-out))
 
+      (with-output-to-file #:exists 'truncate (format "~a/len" dir)
+        (thunk (pretty-display (vector-length code))))
+
       (define (create-file id stochastic? mode)
         (define (req file)
           (format "(file \"~a/~a\")" srcpath (send meta required-module file)))
