@@ -7,7 +7,7 @@
 (define machine (new GA-machine%))
 (send machine set-config 4)
 (define printer (new GA-printer% [machine machine]))
-(define solver (new GA-solver% [machine machine] [printer printer]))
+(define solver (new GA-solver% [machine machine] [printer printer] [syn-mode `partial]))
 
 (define code
 (send parser ast-from-string 
@@ -31,10 +31,15 @@
       (constraint r s t)
       1)|#
 
+#|
 (define t (current-seconds))
 (with-handlers* 
  ([exn:fail? 
    (lambda (e) (pretty-display (exn-message e)))])
  (send solver synthesize-from-sketch encoded-code encoded-sketch
        (constraint s t r) 1))
-(pretty-display `(time ,(- (current-seconds) t)))
+(pretty-display `(time ,(- (current-seconds) t)))|#
+
+
+(send solver superoptimize encoded-code 
+      (constraint s t r) "foo" 3600 #f 1)

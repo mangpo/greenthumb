@@ -99,9 +99,15 @@
          ;; (pretty-display (format "best-correct-cost: ~a" best-correct-cost))
          ;; (pretty-display (format "best-correct-time: ~a" best-correct-time))
          (send printer print-syntax (send printer decode best-correct-program))))
-      (with-output-to-file #:exists 'truncate (format "~a/len" dir)
-        (thunk
-         (pretty-display (vector-length program)))))
+
+      (define len-file (format "~a/len" dir))
+      (define best-len (and (file-exists? len-file) 
+                            (string->number (first (file->lines len-file)))))
+      (define my-len (vector-length program))
+      (when (or (equal? best-len #f) (< my-len best-len))
+            (with-output-to-file #:exists 'truncate len-file
+              (thunk
+               (pretty-display my-len)))))
 
     (define/public (simulate x) (set! simulate-time (+ simulate-time x)))
     (define/public (check x)    (set! check-time (+ check-time x)))
