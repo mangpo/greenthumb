@@ -17,7 +17,7 @@
       (pretty-display (format "SEACH TYPE: ~a" search-type))
       (define path (format "~a/driver" dir))
       (system (format "mkdir ~a" dir))
-      (system (format "rm ~a*" path))
+      (system (format "rm ~a/*" dir))
       
       (pretty-display ">>> select code:")
       (send printer print-syntax code-org)
@@ -35,9 +35,6 @@
       (pretty-display (format ">>> machine-info: ~a" machine-info))
       (pretty-display (format ">>> live-out: ~a" live-out))
 
-      (with-output-to-file #:exists 'truncate (format "~a/len" dir)
-        (thunk (pretty-display (vector-length code))))
-
       (define (create-file id stochastic? mode)
         (define (req file)
           (format "(file \"~a/~a\")" srcpath (send meta required-module file)))
@@ -52,16 +49,16 @@
            (pretty-display (format "(send machine set-config ~a)"
                                    (send machine set-config-string machine-info)))
            (pretty-display (format "(define printer (new ~a [machine machine]))" (send meta get-class-name "printer")))
+           (pretty-display (format "(define parser (new ~a))" (send meta get-class-name "parser")))
 
 	   (if stochastic?
 	       (pretty-display (format "(define search (new ~a [machine machine] [printer printer] [syn-mode ~a]))" 
                                        (send meta get-class-name "stochastic") 
                                        (equal? mode `syn)))
-	       (pretty-display (format "(define search (new ~a [machine machine] [printer printer] [syn-mode `~a]))" 
+	       (pretty-display (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode `~a]))" 
                                        (send meta get-class-name "solver") 
                                        mode)))
 
-           (pretty-display (format "(define parser (new ~a))" (send meta get-class-name "parser")))
            (pretty-display "(define code (send parser ast-from-string \"")
            (send printer print-syntax code)
            (pretty-display "\"))")
@@ -103,13 +100,17 @@
 			   (create-stat-from-file name printer)))))
 	(with-handlers* 
 	 ([exn? (lambda (e) (pretty-display "Error: print stat"))])
-	 (begin
-	   (when (> cores-stoch 0)
-		 (print-stat-all (filter identity (take stats cores-stoch)) printer))
-	   (let ([output-id (get-output-id stats)])
-	     (pretty-display (format "output-id: ~a" output-id))
-	     output-id
-	     ))))
+	 (when (> cores-stoch 0)
+	       (print-stat-all (filter identity (take stats cores-stoch)) printer)))
+
+	(define-values (cost len time id) (get-best-info dir))
+	(when cost
+	      (pretty-display "=============== SUMMARY ===============")
+	      (pretty-display (format "cost:\t~a" cost))
+	      (pretty-display (format "len:\t~a" len))
+	      (pretty-display (format "time:\t~a" time))
+	      (pretty-display id)))
+	 
         
       (define cores-solver 
 	(cond
@@ -132,7 +133,7 @@
 
       (define processes-solver
 	(for/list ([id cores-solver])
-		  (create-file (+ cores-stoch id) #f (if (equal? search-type `hybrid) `hybrid mode))
+		  (create-file (+ cores-stoch id) #f (if (equal? search-type `hybrid) `partial mode))
 		  (run-file (+ cores-stoch id))))
 
       (define (result)
@@ -151,15 +152,11 @@
 	 (kill-all)))
 	
       ;; STEP 2: wait until timeout or optimal program is found.
-      ;; (if (equal? search-type `stoch)
-      ;; 	  (stochastic-result)
-      ;; 	  (solver-result))
-
       (result)
 
       ;; STEP 3: get best output & print
-      (define id (get-stats))
-      (define output-code (send parser ast-from-file (format "~a-~a.best" path id)))
+      (get-stats)
+      (define output-code (send parser ast-from-file (format "~a/best.s" dir)))
       (if output-code
 	  (let ([decompressed-code (send compress decompress-reg-space output-code map-back)])
 	    (send printer print-syntax decompressed-code)

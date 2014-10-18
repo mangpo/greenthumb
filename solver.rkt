@@ -1,18 +1,20 @@
 #lang s-exp rosette
 
-(require  "ast.rkt" "machine.rkt" "printer.rkt")
+(require  "ast.rkt" "machine.rkt" "printer.rkt" "stat.rkt")
 
 ;;(require rosette/solver/z3/z3)
 (require rosette/solver/kodkod/kodkod)
 
 (provide solver%)
 
+(struct exn:restart exn (program))
+
 (define solver%
   (class object%
     (super-new)
-    (init-field machine printer 
-		[syn-mode `binary]
+    (init-field machine printer [syn-mode #f] [parser #f]
                 [simulator #f] 
+		[stat (new stat% [printer printer])]
                 [bit (get-field bit machine)]
                 [random-input-bit (get-field random-input-bit machine)])
     (abstract get-sym-vars evaluate-state
@@ -203,31 +205,34 @@
 			   #:assume [assumption (send machine no-assumption)]
 			   #:input-file [input-file #f]
 			   #:start-prog [start #f])
+      (send stat set-name name)
       (set! start-time (current-seconds))
-      (cond
-       [(equal? syn-mode `binary) 
-	(superoptimize-binary spec constraint name time-limit size extra
-                              #:assume assumption)]
+      (timeout
+       time-limit
+       (cond
+	[(equal? syn-mode `binary) 
+	 (superoptimize-binary spec constraint time-limit size extra
+			       #:assume assumption)]
 
-       [(equal? syn-mode `linear) 
-	(superoptimize-linear spec constraint name time-limit size extra
-                              #:assume assumption)]
+	[(equal? syn-mode `linear) 
+	 (superoptimize-linear spec constraint time-limit size extra
+			       #:assume assumption)]
 
-       [(equal? syn-mode `hybrid)
-	(superoptimize-binary spec constraint name time-limit size extra
-			      #:hard-cap (len-limit)
-			      #:assume assumption)]
+	[(equal? syn-mode `hybrid)
+	 (superoptimize-binary spec constraint time-limit size extra
+			       #:hard-cap (len-limit)
+			       #:assume assumption)]
 
-       [(equal? syn-mode `partial)
-	(superoptimize-partial spec constraint name time-limit size extra
-			      #:assume assumption)]
-
-       ))
+	[(equal? syn-mode `partial)
+	 (superoptimize-partial spec constraint time-limit size extra
+				#:assume assumption)])
+       )
+      )
 	
 
     ;; Optimize the cost using binary search on the number of holes.
     ;; spec: non-encoded block
-    (define (superoptimize-binary spec constraint name time-limit size [extra #f]
+    (define (superoptimize-binary spec constraint time-limit size [extra #f]
 				  #:hard-cap [hard-cap 1000]
                                   #:assume [assumption (send machine no-assumption)]
                                   #:prefix [prefix (vector)] #:postfix [postfix (vector)])
@@ -249,7 +254,8 @@
       (define final-len (if size size (vector-length spec)))
       (define final-cost #f)
       (define (inner begin end cost [middle (quotient (+ begin end) 2)])
-        (pretty-display `(binary-search ,begin ,end ,middle))
+	(newline)
+        (pretty-display `(binary-search ,begin ,end ,middle ,cost))
         (define sketch (sym-insts middle))
         
         (define-values (out-program out-cost)
@@ -264,10 +270,7 @@
            (synthesize-from-sketch (vector-append prefix spec postfix)
                                    (vector-append prefix sketch postfix)
                                    constraint extra cost time-limit
-                                   #:name name
                                    #:assume assumption)))
-
-        (pretty-display `(out ,out-program ,out-cost))
 
         (when out-program 
               (set! final-program 
@@ -297,10 +300,11 @@
       (pretty-display "after inner")
       final-program)
 
-    (define (superoptimize-linear spec constraint name time-limit size [extra #f]
+    (define (superoptimize-linear spec constraint time-limit size [extra #f]
 			   #:assume [assumption (send machine no-assumption)]
                            #:prefix [prefix (vector)] #:postfix [postfix (vector)]
                            )
+      (newline)
       (pretty-display (format ">> superoptimize-linear size = ~a" size))
       (when (> (vector-length prefix) 0)
             (display "[")
@@ -314,17 +318,18 @@
       (newline)
       (define prefix-len (vector-length prefix))
       (define postfix-len (vector-length postfix))
-      (define sketch (sym-insts (if size size (vector-length spec))))
+      (define sketch (sym-insts (if size (min size (vector-length spec)) 
+				    (vector-length spec))))
       (define final-program #f) ;; not including prefix & poster
       (define t #f)
       (define (inner cost)
-        (pretty-display `(len ,(vector-length sketch) ,cost))
+	(newline)
+        (pretty-display `(linear-inner ,(vector-length sketch) ,cost))
         (set! t (current-seconds))
 	(define-values (out-program out-cost) 
 	  (synthesize-from-sketch (vector-append prefix spec postfix)
                                   (vector-append prefix sketch postfix)
                                   constraint extra cost time-limit
-                                  #:name name
 				  #:assume assumption))
         (pretty-display `(time ,(- (current-seconds) t)))
 
@@ -353,28 +358,57 @@
 			  "timeout"))])
        (inner (send simulator performance-cost (vector-append prefix spec postfix)))))
 
-    (define (superoptimize-partial spec constraint name time-limit size [extra #f]
+    (define (superoptimize-partial spec constraint time-limit size [extra #f]
                                    #:assume [assumption (send machine no-assumption)])
+      (set-field! best-correct-cost stat (send simulator performance-cost spec))
 
-      (sliding-window spec constraint name 60 extra assumption (* 2 (len-limit)))
-      ;; (define (inner spec)
-      ;;   (define out-program
-      ;;     (fixed-window spec constraint name 60 extra assumption 
-      ;;                   (window-size) (len-limit)))
-      ;;   (when (< (vector-length out-program) (vector-length spec)) ;; TODO get global best
-      ;;         (raise (exn:restart out-program "restart" (current-continuation-marks))))
-      ;;   (sliding-window spec constraint name 60 extra assumption (* 2 (len-limit)))
-      ;;   )
+      (define (check-global input-prog output-prog)
+	(define-values (cost len time id) (send stat get-best-info-stat))
+	(pretty-display `(check-global ,cost ,len ,id))
+	(define old-cost (send simulator performance-cost input-prog))
+        (define best-cost (if cost cost (get-field best-correct-cost stat)))
+	(define best-program 
+	  (if cost 
+	      (send printer encode
+		    (send parser ast-from-file (format "~a/best.s" (get-field dir stat))))
+	      output-prog))
+
+	(when (< best-cost old-cost)
+	      (when (< best-cost (get-field best-correct-cost stat))
+		    (pretty-display "Steal program from other."))
+	      (pretty-display "restart!!!!!")
+	      (raise (exn:restart "restart" (current-continuation-marks) best-program))))
+
+      (define (inner)
+	(newline)
+	(pretty-display "Phase 1: fixed window")
+        (define program1
+          (fixed-window spec constraint 60 extra assumption 
+                        (window-size) (len-limit)))
+        (check-global spec program1)
+	;;(define program1 spec)
+
+	(define (loop timeout limit)
+	  (newline)
+	  (pretty-display (format "Phase 2: sliding window, timeout = ~a, len-limit = ~a" 
+				  timeout limit))
+	  (define program2
+	    (sliding-window program1 constraint timeout extra assumption (* 2 limit)))
+	  (check-global spec program2)
+	  (loop (* 2 timeout) (add1 limit)))
+	(loop 60 (len-limit))
+        )
         
-      ;; (with-handlers*
-      ;;  ([exn:restart?
-      ;;    (lambda (e)
-      ;;      (inner (exn:restart-program e)))])
-      ;;  (inner spec))
+      (with-handlers*
+       ([exn:restart?
+         (lambda (e)
+	   (superoptimize-partial (exn:restart-program e)
+				  constraint time-limit size extra #:assume assumption))])
+       (inner))
       
       )
     
-    (define (fixed-window spec constraint name time-limit extra assume
+    (define (fixed-window spec constraint time-limit extra assume
                           window size-limit)
       (define len (vector-length spec))
       (define output (vector))
@@ -385,7 +419,7 @@
                   [seq (vector-copy spec start end)]
                   [new-seq
                    (superoptimize-linear 
-                    seq constraint name time-limit size-limit extra #:assume assume
+                    seq constraint time-limit size-limit extra #:assume assume
                     #:prefix output
                     #:postfix (vector-copy spec end len))])
              (if (or (equal? new-seq #f) (equal? new-seq "timeout"))
@@ -394,23 +428,24 @@
       (set! output (vector-append output (vector-copy spec (* steps window) len)))
       (when (> len (* steps window))
             (let* ([out-len (vector-length output)]
-                   [seq (vector-copy output (- out-len window) out-len)]
-                   [prefix (vector-copy output 0 (- out-len window))]
+                   [seq (vector-copy output (max 0 (- out-len window)) out-len)]
+                   [prefix (vector-copy output 0 (max 0 (- out-len window)))]
                    [new-seq
                     (superoptimize-linear 
-                     seq constraint name time-limit size-limit extra #:assume assume
+                     seq constraint time-limit size-limit extra #:assume assume
                      #:prefix prefix)])
-              (unless (equal? new-seq "timeout")
-                      (set! output (vector-append prefix new-seq)))))
-      (print-syntax (decode output))
+             (if (or (equal? new-seq #f) (equal? new-seq "timeout"))
+                 (set! output (vector-append prefix seq))
+                 (set! output (vector-append prefix new-seq)))))
+      ;; (print-syntax (decode output))
       output)
 
-    (define (sliding-window-at prefix code constraint name time-limit extra assume window)
+    (define (sliding-window-at prefix code constraint time-limit extra assume window)
       (define len-code (vector-length code))
       (define (inner pos-to)
         (define out-program
           (superoptimize-binary 
-           (vector-take code pos-to) constraint name time-limit #f extra #:assume assume
+           (vector-take code pos-to) constraint time-limit #f extra #:assume assume
            #:prefix prefix
            #:postfix (vector-drop code pos-to)))
         (cond
@@ -421,28 +456,30 @@
                 (inner (sub1 pos-to)))
               (values #f #f))]
          [(equal? out-program #f)
-          (values #f #f)]
+          (values #f pos-to)]
          [else
           (values out-program pos-to)]))
                   
       (inner (min len-code window)))
 
-    (define (sliding-window spec constraint name time-limit extra assume window)
+    (define (sliding-window spec constraint time-limit extra assume window)
       (define output (vector))
       (define (loop code)
         (when (> (vector-length code) 0)
           (define-values 
             (out-program next-pos)
-            (sliding-window-at output code constraint name time-limit extra assume window))
-          (if out-program
-              (begin ;; skip
-                (pretty-display "found => skip")
-                (set! output (vector-append output out-program))
-                (loop (vector-drop code next-pos)))
-              (begin ;; slide
-                (pretty-display "no solution  => slide")
-                (set! output (vector-append output (vector (vector-ref code 0))))
-                (loop (vector-drop code 1))))))
+            (sliding-window-at output code constraint time-limit extra assume window))
+	  (cond
+	   [out-program
+	    (pretty-display "found => skip")
+	    (set! output (vector-append output out-program))
+	    (loop (vector-drop code next-pos))]
+	   [(and next-pos (>= next-pos (vector-length code)))
+	    (set! output (vector-append output code))]
+	   [else
+	    (set! output (vector-append output (vector (vector-ref code 0))))
+	    (loop (vector-drop code 1))])))
+	   
       (loop spec)
       output)
 
@@ -457,7 +494,6 @@
     (define (synthesize-from-sketch spec sketch constraint extra 
 				    [cost #f]
 				    [time-limit 3600]
-                                    #:name [name #f]
 				    #:assume-interpret [assume-interpret #t]
 				    #:assume [assumption (send machine no-assumption)])
       (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
@@ -479,13 +515,13 @@
       ;; (send machine display-state start-state)
       
       (define (interpret-spec!)
-        (pretty-display "========== interpret spec")
+        (when debug (pretty-display "========== interpret spec"))
         (set! spec-state (interpret-spec spec start-state assumption)))
       
       (define (compare-spec-sketch)
-        (pretty-display "=========== interpret sketch")
+        (when debug (pretty-display "=========== interpret sketch"))
         (set! sketch-state (send simulator interpret sketch start-state spec-state))
-        (pretty-display "check output")
+        (when debug (pretty-display "check output"))
         ;; (set! spec-cost (send simulator performance-cost spec))
         (set! sketch-cost (send simulator performance-cost sketch))
         (when cost (assert (< sketch-cost cost)))
@@ -514,7 +550,7 @@
          )
         )
       
-      (pretty-display ">>> done synthesize")
+      (when debug (pretty-display ">>> done synthesize"))
       (define final-program (evaluate-inst sketch model))
       (define final-cost (evaluate sketch-cost model))
       
@@ -528,24 +564,7 @@
       ;(clear-terms!)
 
       ;; Print to file
-      (when name
-        (with-output-to-file #:exists 'truncate (format "~a.stat" name)
-          (thunk
-           (pretty-display (format "best-correct-cost:\t~a" final-cost))
-           (pretty-display (format "best-correct-time:\t~a" 
-                                   (- (current-seconds) start-time)))))
-        (with-output-to-file #:exists 'truncate (format "~a.best" name)
-          (thunk (print-syntax (decode final-program))))
-
-        ;; (define len-file (format "~a/len" dir))
-        ;; (define best-len (and (file-exists? len-file) 
-        ;;                       (string->number (first (file->lines len-file)))))
-        ;; (define my-len (vector-length final-program))
-        ;; (when (or (equal? best-len #f) (< my-len best-len))
-        ;;       (with-output-to-file #:exists 'truncate len-file)
-        ;;         (thunk
-        ;;          (pretty-display my-len)))
-        )
+      (send stat update-best-correct final-program final-cost)
 
       (values final-program final-cost)
       )

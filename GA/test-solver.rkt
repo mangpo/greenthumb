@@ -7,7 +7,7 @@
 (define machine (new GA-machine%))
 (send machine set-config 4)
 (define printer (new GA-printer% [machine machine]))
-(define solver (new GA-solver% [machine machine] [printer printer] [syn-mode `partial]))
+(define solver (new GA-solver% [machine machine] [printer printer] [parser parser] [syn-mode `partial]))
 
 (define code
 (send parser ast-from-string 
@@ -40,6 +40,6 @@
        (constraint s t r) 1))
 (pretty-display `(time ,(- (current-seconds) t)))|#
 
-
+(define x
 (send solver superoptimize encoded-code 
-      (constraint s t r) "foo" 3600 #f 1)
+      (constraint s t r) "./foo" 3600 #f 1))

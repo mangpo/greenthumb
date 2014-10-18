@@ -355,7 +355,7 @@
                     (send printer print-struct target)
                     (pretty-display "candidate:")
                     (send printer print-struct program)
-                    (send stat update-best-correct program total-cost)
+                    (send stat update-best-correct (remove-nops program) total-cost)
                     )
               (if (or (<= total-cost okay-cost) change-mode) 
                   ;; return (correctness-cost . correct)
