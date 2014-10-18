@@ -11,12 +11,13 @@
     (inherit-field printer machine simulator)
     (inherit sym-op sym-arg)
     (override get-sym-vars evaluate-state
-              encode-sym decode-sym sym-insts
-              assume assume-relax assert-output len-limit)
+              encode-sym sym-insts evaluate-inst
+              assume assume-relax assert-output len-limit window-size)
 
     (set! simulator (new GA-simulator-rosette% [machine machine]))
 
     (define (len-limit) 8)
+    (define (window-size) 14)
 
     (define (sym-insts size)
       (encode-sym (for/vector ([i size]) (inst #f #f))))
@@ -77,12 +78,10 @@
       
       (traverse code inst? encode-inst-sym))
 
-    (define (decode-sym code model)
+    (define (evaluate-inst code model)
       (define (decode-inst-sym x)
-        (send
-         printer decode-inst
-         (inst (evaluate (inst-op x) model)
-               (evaluate (inst-args x) model))))
+        (inst (evaluate (inst-op x) model)
+              (evaluate (inst-args x) model)))
 
       (traverse code inst? decode-inst-sym))
 
