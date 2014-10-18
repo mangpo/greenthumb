@@ -1,7 +1,7 @@
 #lang racket
 
 (require "printer.rkt")
-(provide stat% print-stat-all get-output-id create-stat-from-file)
+(provide stat% print-stat-all create-stat-from-file get-best-info)
 
 (define-syntax-rule (ratio x y) (~r (exact->inexact (/ x y)) #:precision 6))
 
@@ -11,6 +11,7 @@
     (init-field printer 
                 [best-correct-program #f] 
                 [best-correct-cost #f]
+                [best-correct-len #f]
                 [stat-mutations (get-field report-mutations printer)]
                 [n (vector-length stat-mutations)]
                 [start-time (current-seconds)]
@@ -32,15 +33,16 @@
                 [check-time 0]
                 [validate-time 0]
                 [mutate-time 0]
+		[dir #f]
                 )
            
     (super-new)
-    (define dir #f)
 
     (define/public (set-name my-name)
       (set! name my-name)
-      (define tokens (string-split my-name "/"))
-      (set! dir (string-join (take tokens (sub1 (length tokens))) "/")))
+      (when name
+	    (define tokens (string-split my-name "/"))
+	    (set! dir (string-join (take tokens (sub1 (length tokens))) "/"))))
 
     (define/public (inc-iter current-cost)
       ;; (with-output-to-file #:exists 'append (format "~a.csv" name)
@@ -48,10 +50,9 @@
       ;;    (pretty-display (format "~a,~a" iter-count current-cost))))
       (set! iter-count (add1 iter-count))
       (and (= (modulo iter-count 1000) 0)
-           (let ([len-file (format "~a/len" dir)])
+	   (let-values ([(cost len time id) (get-best-info dir)])
              (print-stat-to-file)
-             (and (file-exists? len-file) 
-                  (string->number (first (file->lines len-file)))))))
+             (and cost len))))
 
     (define/public (inc-propose x)
       (define index (vector-member x stat-mutations))
@@ -76,6 +77,9 @@
     (define/public (inc-misalign)
       (set! misalign-count (add1 misalign-count)))
 
+    (define/public (get-best-info-stat)
+      (get-best-info dir))
+
     (define/public (update-best program cost)
       (set! best-program program)
       (set! best-cost cost)
@@ -90,24 +94,33 @@
     (define/public (update-best-correct-program program)
       (set! best-correct-program program))
 
+
     (define/public (update-best-correct program cost)
       (set! best-correct-program program)
       (set! best-correct-cost cost)
+      (set! best-correct-len (vector-length program))
       (set! best-correct-time (- (current-seconds) start-time))
-      (with-output-to-file #:exists 'truncate (format "~a.best" name)
-        (thunk
-         ;; (pretty-display (format "best-correct-cost: ~a" best-correct-cost))
-         ;; (pretty-display (format "best-correct-time: ~a" best-correct-time))
-         (send printer print-syntax (send printer decode best-correct-program))))
 
-      (define len-file (format "~a/len" dir))
-      (define best-len (and (file-exists? len-file) 
-                            (string->number (first (file->lines len-file)))))
-      (define my-len (vector-length program))
-      (when (or (equal? best-len #f) (< my-len best-len))
-            (with-output-to-file #:exists 'truncate len-file
+      (when dir
+	    (define info-file (format "~a/best.info" dir))
+	    (define-values (cost-r len-r time-r id-r) (get-best-info dir))
+	    (when (or (not cost-r) (< cost cost-r))
+		(pretty-display "I AM THE BEST. Count me.")
+		(with-output-to-file #:exists 'truncate info-file
+		  (thunk
+		   (pretty-display best-correct-cost)
+		   (pretty-display best-correct-len)
+		   (pretty-display best-correct-time)
+		   (pretty-display name)
+		   ))
+		(with-output-to-file #:exists 'truncate (format "~a/best.s" dir)
+		  (thunk
+		   (send printer print-syntax (send printer decode best-correct-program)))))
+	    (with-output-to-file #:exists 'truncate (format "~a.best" name)
               (thunk
-               (pretty-display my-len)))))
+	       (send printer print-syntax (send printer decode best-correct-program))))
+	    )
+      )
 
     (define/public (simulate x) (set! simulate-time (+ simulate-time x)))
     (define/public (check x)    (set! check-time (+ check-time x)))
@@ -164,31 +177,31 @@
     )
     ))
 
-(define (get-output-id stat-list)
+;; (define (get-output-id stat-list)
 
-  (define best-correct-cost (arithmetic-shift 1 32))
-  (define best-correct-time (arithmetic-shift 1 32))
-  (define best-correct-id #f)
+;;   (define best-correct-cost (arithmetic-shift 1 32))
+;;   (define best-correct-time (arithmetic-shift 1 32))
+;;   (define best-correct-id #f)
 
-  (for ([stat stat-list]
-        [id (length stat-list)])
-       (when stat
-	     (let ([correct-cost (get-field best-correct-cost stat)]
-		   [correct-time (get-field best-correct-time stat)])
-	       (when (< correct-cost best-correct-cost)
-		     (set! best-correct-cost correct-cost)
-		     (set! best-correct-time correct-time)
-		     (set! best-correct-id id)
-		     )
-	       (when (and (= correct-cost best-correct-cost)
-			  (< correct-time best-correct-time))
-		     (set! best-correct-time correct-time)
-		     (set! best-correct-id id)
-		     ))))
+;;   (for ([stat stat-list]
+;;         [id (length stat-list)])
+;;        (when stat
+;; 	     (let ([correct-cost (get-field best-correct-cost stat)]
+;; 		   [correct-time (get-field best-correct-time stat)])
+;; 	       (when (< correct-cost best-correct-cost)
+;; 		     (set! best-correct-cost correct-cost)
+;; 		     (set! best-correct-time correct-time)
+;; 		     (set! best-correct-id id)
+;; 		     )
+;; 	       (when (and (= correct-cost best-correct-cost)
+;; 			  (< correct-time best-correct-time))
+;; 		     (set! best-correct-time correct-time)
+;; 		     (set! best-correct-id id)
+;; 		     ))))
 
-  (pretty-display (format "best-correct-cost:\t~a" best-correct-cost))
-  (pretty-display (format "best-correct-time:\t~a" best-correct-time))
-  best-correct-id)
+;;   (pretty-display (format "best-correct-cost:\t~a" best-correct-cost))
+;;   (pretty-display (format "best-correct-time:\t~a" best-correct-time))
+;;   best-correct-id)
   
 
 (define (print-stat-all stat-list printer)
@@ -359,3 +372,17 @@
        [best-correct-time best-correct-time]
        [best-correct-cost best-correct-cost]
        [best-cost best-cost]))
+
+
+(define (get-best-info dir)
+  (define info-file (format "~a/best.info" dir))
+  (pretty-display `(get-best-info ,info-file ,(file-exists? info-file)))
+  (if (file-exists? info-file)
+      (let* ([in-port (open-input-file info-file)]
+	     [cost (read-line in-port)]
+	     [len (read-line in-port)]
+	     [time (read-line in-port)]
+	     [id (read-line in-port)])
+	(close-input-port in-port)
+	(values (string->number cost) (string->number len) time id))
+      (values #f #f #f #f)))
