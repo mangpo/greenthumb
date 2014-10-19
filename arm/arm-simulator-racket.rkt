@@ -261,7 +261,7 @@
             (define reg-a-val-dep 
 	      (if shf
 		  (opt-shift a)
-		  (cons (vector-ref args a) (and dep (vector-ref regs-dep a)))))
+		  (cons (vector-ref regs a) (and dep (vector-ref regs-dep a)))))
             (define val (f (car reg-a-val-dep)))
             (vector-set! regs d val)
             (if dep

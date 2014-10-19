@@ -35,7 +35,9 @@
       (snumber10 (re-or number10 (re-seq "-" number10)))
       (identifier-characters (re-or (char-range "A" "Z") (char-range "a" "z")))
       (identifier-characters-ext (re-or digit10 identifier-characters "_"))
-      (identifier (re-+ identifier-characters))
+      ;(identifier (re-+ identifier-characters))
+      (identifier (re-seq identifier-characters 
+                          (re-* (re-or identifier-characters digit10))))
       (identifier: (re-seq identifier ":"))
       (_identifier (re-seq "_" (re-* identifier-characters-ext)))
       (reg (re-or "fp" (re-seq "r" number10)))
