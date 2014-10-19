@@ -467,7 +467,7 @@
            #:prefix prefix
            #:postfix (vector-drop code pos-to)))
         (cond
-         [(and (equal? out-program "timeout") (> pos-to 3))
+         [(equal? out-program "timeout")
           (if (> pos-to 3) 
               (begin
                 (pretty-display "timeout => shrink")

@@ -6,7 +6,7 @@ do
 	for t in 1 2 3
 	do
 	    echo $name
-	    racket optimize.rkt --live-reg 0 --stoch -$mode -c 8 -t 3600 -d results/$name-$type-$mode-$t programs/$name.s > results/$name-$type-$mode-$t.log
+	    racket optimize.rkt --live-out 0 --hybrid -$mode -c 8 -t 3600 -d results/$name-$type-$mode-$t programs/$name.s > results/$name-$type-$mode-$t.log
 	done
     done
 done
