@@ -261,7 +261,7 @@
             (define reg-a-val-dep 
 	      (if shf
 		  (opt-shift a)
-		  (cons (vector-ref args a) (and dep (vector-ref regs-dep a)))))
+		  (cons (vector-ref regs a) (and dep (vector-ref regs-dep a)))))
             (define val (f (car reg-a-val-dep)))
             (vector-set! regs d val)
             (if dep
@@ -434,9 +434,9 @@
            [(inst-eq `rbit)  (rr bvrbit)]
 
            ;; div & mul
-           [(inst-eq `sdiv) (rrr quotient)]
-           [(inst-eq `udiv) (rrr (lambda (x y) (quotient (bitwise-and x mask)
-                                                         (bitwise-and y mask))))]
+           ;; [(inst-eq `sdiv) (rrr quotient)]
+           ;; [(inst-eq `udiv) (rrr (lambda (x y) (quotient (bitwise-and x mask)
+           ;;                                               (bitwise-and y mask))))]
            [(inst-eq `mul)  (rrr bvmul)]
            [(inst-eq `mla)  (rrrr bvmla)]
            [(inst-eq `mls)  (rrrr bvmls)]

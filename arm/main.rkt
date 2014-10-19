@@ -15,8 +15,7 @@
 ;; size (optional)
 ;; >>> OUTPUT >>>
 ;; Optimized code, not encoded.
-(define (optimize code live-out synthesize stochastic?
-                  #:binary-search [binary-search #f]
+(define (optimize code live-out search-type mode
                   #:need-filter [need-filter #f]
                   #:dir [dir "output"] 
                   #:cores [cores 12]
@@ -32,9 +31,9 @@
   (define solver (new arm-solver% [machine machine] [printer printer]))
   (define parallel (new parallel% [meta meta] [parser parser] [machine machine] 
                         [printer printer] [compress compress] [solver solver]
-			[stochastic? stochastic?] [binary-search binary-search]))
+                        [search-type search-type] [mode mode]))
 
-  (send parallel optimize code live-out synthesize 
+  (send parallel optimize code live-out  
         #:need-filter need-filter #:dir dir #:cores cores 
         #:time-limit time-limit #:size size #:input-file input-file)
   )
@@ -61,7 +60,7 @@
   (define machine (new arm-machine%))
   (send machine set-config machine-config)
   (define printer (new arm-printer% [machine machine]))
-  (define solver (new arm-solver% [machine machine] [printer printer]))
+  (define solver (new arm-solver% [machine machine] [printer printer] [syn-mode `binary]))
   
   (define encoded-code (send printer encode code))
   

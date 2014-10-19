@@ -11,16 +11,12 @@
     (inherit-field printer machine simulator)
     (inherit sym-op sym-arg)
     (override get-sym-vars evaluate-state
-              encode-sym sym-insts evaluate-inst
               assume assume-relax assert-output len-limit window-size)
 
     (set! simulator (new GA-simulator-rosette% [machine machine]))
 
     (define (len-limit) 8)
     (define (window-size) 14)
-
-    (define (sym-insts size)
-      (encode-sym (for/vector ([i size]) (inst #f #f))))
 
     (define (get-sym-vars state)
       (define lst (list))
@@ -69,21 +65,6 @@
       (define recv (map eval (progstate-recv state)))
       (define comm (map (lambda (xy) (cons (eval (car xy)) (eval (cdr xy)))) (progstate-comm state)))
       (progstate a b r s t data return memory recv comm))
-
-    (define (encode-sym code)
-      (define (encode-inst-sym x)
-        (if (inst-op x)
-            (send printer encode-inst x)
-            (inst (sym-op) (sym-arg))))
-      
-      (traverse code inst? encode-inst-sym))
-
-    (define (evaluate-inst code model)
-      (define (decode-inst-sym x)
-        (inst (evaluate (inst-op x) model)
-              (evaluate (inst-args x) model)))
-
-      (traverse code inst? decode-inst-sym))
 
     (define (assert-output state1 state2 constraint)
       (define (check-reg progstate-x)
