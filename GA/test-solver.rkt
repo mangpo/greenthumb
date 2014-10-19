@@ -7,14 +7,15 @@
 (define machine (new GA-machine%))
 (send machine set-config 4)
 (define printer (new GA-printer% [machine machine]))
-(define solver (new GA-solver% [machine machine] [printer printer] [parser parser] [syn-mode `partial]))
+(define solver (new GA-solver% [machine machine] [printer printer] 
+                    [parser parser] [syn-mode `binary]))
 
 (define code
 (send parser ast-from-string 
-      "2 b! !b push drop pop 2 b! @b 0 b! !b up b! @b 0 b! @b 2/ 2/ + 65535 and"))
+      "2 b! dup a! !b @+ @ - over + -"))
 
 (define sketch (send parser ast-from-string 
-      "? ? ? ? ? ? ?"))
+      "? ? ? ? ? ?"))
 ;2/ dup a! over dup over dup drop a 2/ 325 a! @+ + 65535 and
 ;size = 16, 
 ;opt = 10
@@ -42,4 +43,4 @@
 
 (define x
 (send solver superoptimize encoded-code 
-      (constraint s t r) "./foo" 3600 #f 1))
+      (constraint s t) "./foo" 3600 #f 1))

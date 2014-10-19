@@ -1,25 +1,10 @@
-- constraint in block not blockinfo
-- debug md5-1
-- found->timeout->shrink :(
-- shirink->nothing added->no optimizing :(
-- prefix
-  = test with core with if & for and no function call
-  
-- database
-- less conservative complexity-estimator, define-if, define-rotate
-
-- why assume (interpret-spec) make it so much slower?
-  => if none of arg is used for index, don't use (interpret-spec)?
-
-- add fixed sequences
-- reg/stack allocation
-
-
------------------
 remove redundant
 - diff-cost
+
+use progstate->vector, vector->progstate for
+- evaluate-state, get-sym-vars
+- maybe: assert-output, assume
 
 
 
 - progstate->vector for GA, neon, vpe
-- use live-in to prune search space

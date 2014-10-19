@@ -1,4 +1,4 @@
-type=basic
+type=hybrid+2p+half
 for name in p22_parity #p23_count p18_is_power p21_cycle p22_parity 
 do
     for mode in s #o
@@ -11,4 +11,4 @@ do
     done
 done
 
-sh run2.sh
+#sh run2.sh

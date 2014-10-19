@@ -11,15 +11,14 @@
     (inherit-field printer machine simulator)
     (inherit sym-op sym-arg)
     (override get-sym-vars evaluate-state
-              encode-sym decode-sym sym-insts
-              assume assert-output len-limit)
+              encode-sym-inst evaluate-inst
+              assume assert-output 
+              len-limit window-size)
 
     (set! simulator (new arm-simulator-rosette% [machine machine]))
 
     (define (len-limit) 2)
-
-    (define (sym-insts size)
-      (encode-sym (for/vector ([i size]) (arm-inst #f #f #f #f #f))))
+    (define (window-size) 4)
 
     (define (get-sym-vars state)
       (define lst (list))
@@ -49,30 +48,22 @@
 
       (progstate regs memory))
 
-    (define (encode-sym code)
-      (define (encode-inst-sym x)
-        (if (inst-op x)
-            (send printer encode-inst x)
-            (arm-inst (sym-op) 
-		      (vector (sym-arg) (sym-arg) (sym-arg) (sym-arg))
-		      (sym-op)
-		      (sym-arg)
-		      (sym-op))))
-      
-      (for/vector ([x code]) (encode-inst-sym x)))
+    (define (encode-sym-inst x)
+      (if (inst-op x)
+          (send printer encode-inst x)
+          (arm-inst (sym-op) 
+                    (vector (sym-arg) (sym-arg) (sym-arg) (sym-arg))
+                    (sym-op)
+                    (sym-arg)
+                    (sym-op))))
 
-    (define (decode-sym code model)
-      (define (decode-inst-sym x)
-        (send
-         printer decode-inst
-         (arm-inst (evaluate (inst-op x) model)
-		   (vector-map 
-		    (lambda (a) (evaluate a model)) (inst-args x))
-		   (evaluate (inst-shfop x) model)
-		   (evaluate (inst-shfarg x) model)
-		   (evaluate (inst-cond x) model))))
-
-      (for/vector ([x code]) (decode-inst-sym x)))
+    (define (evaluate-inst x model)
+      (arm-inst (evaluate (inst-op x) model)
+                (vector-map 
+                 (lambda (a) (evaluate a model)) (inst-args x))
+                (evaluate (inst-shfop x) model)
+                (evaluate (inst-shfarg x) model)
+                (evaluate (inst-cond x) model)))
 
     (define (assert-output state1 state2 constraint)
       (when debug (pretty-display "start assert-output"))

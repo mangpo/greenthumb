@@ -18,15 +18,14 @@
                 [bit (get-field bit machine)]
                 [random-input-bit (get-field random-input-bit machine)])
     (abstract get-sym-vars evaluate-state
-              encode-sym sym-insts evaluate-inst
               assume assert-output len-limit window-size)
     (public proper-machine-config generate-input-states
             superoptimize superoptimize-binary synthesize-from-sketch counterexample
-            sym-op sym-arg
+            sym-op sym-arg 
+            evaluate-inst encode-sym-inst encode-sym
             assume-relax get-live-in)
     
-    ;; TODO: len-limit, window-size, evaluate-state
-    ;; TODO: shared best-program & len
+    ;; TODO: len-limit, window-size, evaluate-program
 
     (define-syntax-rule (print-struct x) (send printer print-struct x))
     (define-syntax-rule (print-syntax x) (send printer print-syntax x))
@@ -53,6 +52,24 @@
 
     (define (assume-relax state assumption)
       (assume state assumption))
+
+    (define (evaluate-inst x model)
+      (inst (evaluate (inst-op x) model)
+            (evaluate (inst-args x) model)))
+
+    (define (evaluate-program code model)
+      (traverse code inst? (lambda (x) (evaluate-inst x model))))
+
+    (define (encode-sym-inst x)
+      (if (inst-op x)
+          (send printer encode-inst x)
+          (inst (sym-op) (sym-arg))))
+
+    (define (encode-sym code)
+      (traverse code inst? encode-sym-inst))
+
+    (define (sym-insts size)
+      (encode-sym (for/vector ([i size]) (inst #f #f))))
 
     (define (interpret-spec spec start-state assumption)
       (assume start-state assumption)
@@ -136,11 +153,11 @@
                      (vector-ref const-range (random const-range-len))))))
       
       (define inputs (append input-zero input-random input-random-const))
-      (when debug
-            (pretty-display "Test simulate with symbolic inputs...")
-            (assume-relax start-state assumption)
-            (interpret spec start-state)
-            (pretty-display "Passed!"))
+      ;; (when debug
+      ;;       (pretty-display "Test simulate with symbolic inputs...")
+      ;;       (assume-relax start-state assumption)
+      ;;       (interpret spec start-state)
+      ;;       (pretty-display "Passed!"))
       ;; Construct cnstr-inputs.
       (define cnstr-inputs (list))
       (define first-solve #t)
@@ -265,7 +282,9 @@
                (if (regexp-match #rx"synthesize: synthesis failed" 
                                  (exn-message e))
                    (values #f cost)
-                   (raise e)))])
+                   (begin
+                    (pretty-display (exn-message e))
+                    (raise e))))])
            (synthesize-from-sketch (vector-append prefix spec postfix)
                                    (vector-append prefix sketch postfix)
                                    constraint extra cost time-limit
@@ -549,7 +568,7 @@
         )
       
       (when debug (pretty-display ">>> done synthesize"))
-      (define final-program (evaluate-inst sketch model))
+      (define final-program (evaluate-program sketch model))
       (define final-cost (evaluate sketch-cost model))
       
       (pretty-display ">>> superoptimize-output")

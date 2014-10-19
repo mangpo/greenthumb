@@ -11,16 +11,14 @@
     (inherit-field printer machine simulator)
     (inherit sym-op sym-arg)
     (override get-sym-vars evaluate-state
-              encode-sym decode-sym sym-insts
+              encode-sym-inst evaluate-inst
               assume assert-output
-              assume-relax len-limit)
+              assume-relax len-limit window-size)
 
     (set! simulator (new neon-simulator-rosette% [machine machine]))
 
     (define (len-limit) 2)
-
-    (define (sym-insts size)
-      (encode-sym (for/vector ([i size]) (neon-inst #f #f #f #f))))
+    (define (len-limit) 4)
 
     (define (get-sym-vars state)
       (define lst (list))
@@ -56,58 +54,48 @@
 
       (progstate dregs rregs memory))
 
-    (define (encode-sym code)
+    (define (sym-byte)
+      (define-symbolic* byte number?)
+      (assert (and (>= byte 1) (<= byte 8)))
+      byte)
 
-      (define (sym-byte)
-        (define-symbolic* byte number?)
-        (assert (and (>= byte 1) (<= byte 8)))
-        byte)
+    (define (sym-type)
+      ;;(pretty-display `(sym-const ,(get-field ntypes machine)))
+      (define-symbolic* type number?)
+      (assert (and (>= type 0) (< type (get-field ntypes machine))))
+      type)
 
-      (define (sym-type)
-        ;;(pretty-display `(sym-const ,(get-field ntypes machine)))
-        (define-symbolic* type number?)
-        (assert (and (>= type 0) (< type (get-field ntypes machine))))
-        type)
+    (define (sym-const)
+      (define-symbolic* const number?)
+      (assert (and (>= const -16) (<= const 16)))
+      const)
 
-      (define (sym-const)
-        (define-symbolic* const number?)
-        (assert (and (>= const -16) (<= const 16)))
-        const)
+    (define (first-arg op)
+      (define ld-st
+        (ormap (lambda (x) (equal? op (send machine get-inst-id x))) '(vld1 vld2 vld1! vld2! vst1 vst1! vst2 vst2!)))
+      (if ld-st
+          (cons (sym-arg) (vector (sym-arg) (sym-arg) (sym-arg) (sym-arg)))
+          (sym-arg)))
 
-      (define (first-arg op)
-        (define ld-st
-          (ormap (lambda (x) (equal? op (send machine get-inst-id x))) '(vld1 vld2 vld1! vld2! vst1 vst1! vst2 vst2!)))
-        (if ld-st
-            (cons (sym-arg) (vector (sym-arg) (sym-arg) (sym-arg) (sym-arg)))
-            (sym-arg)))
-
-      (define (encode-inst-sym x)
-        ;; (pretty-display `(encode-inst-sym ,(inst-op x)))
-        (if (inst-op x)
-            ;; Concrete instruction
-            (send printer encode-inst x)
-            ;; Hole
-            (let ([op (sym-op)])
-              (neon-inst 
-               op
-               (vector (first-arg op) (sym-arg) (sym-arg) (sym-const))
-               (sym-byte)
-               (sym-type))
-              )))
-
-      (for/vector ([x code]) (encode-inst-sym x)))
+    (define (encode-sym-inst x)
+      ;; (pretty-display `(encode-inst-sym ,(inst-op x)))
+      (if (inst-op x)
+          ;; Concrete instruction
+          (send printer encode-inst x)
+          ;; Hole
+          (let ([op (sym-op)])
+            (neon-inst 
+             op
+             (vector (first-arg op) (sym-arg) (sym-arg) (sym-const))
+             (sym-byte)
+             (sym-type))
+            )))
     
-
-    (define (decode-sym code model)
-      (define (decode-inst-sym x)
-        (send 
-         printer decode-inst
-         (neon-inst (evaluate (inst-op x) model)
-                    (vector-map (lambda (a) (evaluate a model)) (inst-args x))
-                    (evaluate (inst-byte x) model)
-                    (evaluate (inst-type x) model))))
-
-      (for/vector ([x code]) (decode-inst-sym x)))
+    (define (evaluate-inst x)
+      (neon-inst (evaluate (inst-op x) model)
+                 (vector-map (lambda (a) (evaluate a model)) (inst-args x))
+                 (evaluate (inst-byte x) model)
+                 (evaluate (inst-type x) model)))
 
     (define (assert-output state1 state2 constraint)
       (when debug (pretty-display "start assert-output"))

@@ -434,9 +434,9 @@
            [(inst-eq `rbit)  (rr bvrbit)]
 
            ;; div & mul
-           [(inst-eq `sdiv) (rrr quotient)]
-           [(inst-eq `udiv) (rrr (lambda (x y) (quotient (bitwise-and x mask)
-                                                         (bitwise-and y mask))))]
+           ;; [(inst-eq `sdiv) (rrr quotient)]
+           ;; [(inst-eq `udiv) (rrr (lambda (x y) (quotient (bitwise-and x mask)
+           ;;                                               (bitwise-and y mask))))]
            [(inst-eq `mul)  (rrr bvmul)]
            [(inst-eq `mla)  (rrrr bvmla)]
            [(inst-eq `mls)  (rrrr bvmls)]
