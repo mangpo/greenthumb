@@ -81,7 +81,7 @@
                      rev rev16 revsh rbit
                      asr lsl lsr
                      asr# lsl# lsr#
-                     sdiv udiv
+                     ;;sdiv udiv
                      mul mla mls
                      ;;smmul smmla smmls
                      bfc bfi
@@ -98,7 +98,8 @@
           (vector '(add sub rsb
 			and orr eor bic orn
 			asr lsl lsr
-			sdiv udiv mul
+			;;sdiv udiv 
+			mul
 			ldr str) ;; rrr
 		  '(add# sub# rsb#
 			 and# orr# eor# bic# orn#
