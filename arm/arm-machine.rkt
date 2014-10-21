@@ -63,7 +63,7 @@
     (inherit-field bit random-input-bit inst-id classes classes-len perline)
     (inherit print-line)
     (override set-config get-config set-config-string
-              adjust-config config-exceed-limit?
+              adjust-config finalize-config config-exceed-limit?
               get-state display-state
               output-constraint-string
               display-state-text parse-state-text
@@ -149,10 +149,13 @@
       (format "(list ~a ~a)" 
               (first info) (second info)))
 
-
     (define (adjust-config info)
       ;; Double the memory size
       (list (first info) (* 2 (second info))))
+
+    (define (finalize-config info)
+      ;; Double the memory size
+      (list (first info) (add1 (second info))))
 
     (define (config-exceed-limit? info)
       ;; Memory size > 1000

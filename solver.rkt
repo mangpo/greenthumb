@@ -108,7 +108,7 @@
                         (solve-until-valid new-config)))
                   (raise e)))])
          (solve (send simulator interpret encoded-code state))
-         config))
+         (send machine finalize-config config)))
       
       (solve-until-valid config))
     

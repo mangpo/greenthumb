@@ -123,7 +123,7 @@
     (inherit-field bit random-input-bit inst-id classes classes-len perline)
     (inherit print-line)
     (override set-config get-config set-config-string
-              adjust-config config-exceed-limit?
+              adjust-config finalize-config config-exceed-limit?
               get-state display-state 
               output-constraint-string output-assume-string
 	      no-assumption
@@ -154,6 +154,7 @@
     (define (set-config info) (set! nmems info))
     (define (set-config-string info) info)
     (define (adjust-config info) (* 2 info))
+    (define (finalize-config info) (add1 info))
     (define (config-exceed-limit? info) (> info 100))
     (define (output-assume-string machine-var x)
       (if x

@@ -11,7 +11,7 @@
     (init-field [bit #f] [random-input-bit #f] [inst-id #f] [classes #f] [classes-len #f] [perline 8])
     (abstract set-config get-config set-config-string
               get-state display-state
-              adjust-config config-exceed-limit?
+              adjust-config finalize-config config-exceed-limit?
               output-constraint-string
               progstate->vector vector->progstate)
     (public get-class-id print-line no-assumption

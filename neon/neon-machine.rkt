@@ -67,7 +67,7 @@
     (inherit-field bit random-input-bit inst-id classes classes-len perline)
     (inherit print-line)
     (override set-config get-config set-config-string
-              adjust-config config-exceed-limit?
+              adjust-config finalize-config config-exceed-limit?
               get-state display-state
               output-constraint-string
               progstate->vector vector->progstate)
@@ -134,6 +134,10 @@
     (define (adjust-config info)
       ;; Double the memory size
       (list (first info) (second info) (* 2 (third info))))
+
+    (define (finalize-config info)
+      ;; Double the memory size
+      (list (first info) (second info) (add1 (third info))))
 
     (define (config-exceed-limit? info)
       ;; Memory size > 1000
