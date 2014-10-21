@@ -20,7 +20,8 @@
     (abstract get-sym-vars evaluate-state
               assume assert-output len-limit window-size)
     (public proper-machine-config generate-input-states
-            superoptimize superoptimize-binary synthesize-from-sketch counterexample
+            superoptimize superoptimize-binary superoptimize-linear
+            synthesize-from-sketch counterexample
             sym-op sym-arg 
             evaluate-inst encode-sym-inst encode-sym
             assume-relax get-live-in)
@@ -279,8 +280,8 @@
            ([exn:fail? 
              (lambda (e) 
                (pretty-display "catch error")
-               (if (regexp-match #rx"synthesize: synthesis failed" 
-                                 (exn-message e))
+               (if (or (regexp-match #rx"synthesize: synthesis failed" (exn-message e))
+                       (regexp-match #rx"assert: cost" (exn-message e)))
                    (values #f cost)
                    (begin
                     (pretty-display (exn-message e))
@@ -365,6 +366,7 @@
            (pretty-display `(time ,(- (current-seconds) t)))
            (pretty-display (exn-message e))
 	   (if (or (regexp-match #rx"synthesize: synthesis failed" (exn-message e))
+                   (regexp-match #rx"assert: cost" (exn-message e))
 		   (regexp-match #rx"assert: progstate-cost" (exn-message e)))
 	       final-program
 	       (raise e)))]
@@ -515,7 +517,8 @@
 				    #:assume-interpret [assume-interpret #t]
 				    #:assume [assumption (send machine no-assumption)])
       (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
-      (when debug (send printer print-struct sketch))
+      (when debug 
+            (send printer print-struct sketch))
 
       ;; (current-solver (new z3%))
       ;; (current-solver (new kodkod%))
@@ -541,7 +544,7 @@
         (when debug (pretty-display "check output"))
         ;; (set! spec-cost (send simulator performance-cost spec))
         (set! sketch-cost (send simulator performance-cost sketch))
-        (when cost (assert (< sketch-cost cost)))
+        (when cost (assert (< sketch-cost cost) "cost"))
         (assert-output spec-state sketch-state constraint)
         )
       
@@ -573,6 +576,7 @@
       
       (pretty-display ">>> superoptimize-output")
       (set! final-program (remove-nops final-program))
+      (send printer print-struct final-program)
       (print-syntax (decode final-program)) (newline)
       (pretty-display (format "limit cost = ~a" cost))
       (pretty-display (format "new cost = ~a" final-cost))

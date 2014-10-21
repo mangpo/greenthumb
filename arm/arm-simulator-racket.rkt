@@ -17,6 +17,8 @@
     (define nop-id (send machine get-inst-id `nop))
     (define inst-id (get-field inst-id machine))
     (define shf-inst-id (get-field shf-inst-id machine))
+    (define ninsts (vector-length inst-id))
+    (define n-shf-insts (vector-length shf-inst-id))
 
     (define (shl a b) (<< a b bit))
     (define (ushr a b) (>>> a b bit))
@@ -176,6 +178,7 @@
         (define op (inst-op step))
         (define args (inst-args step))
         (define cond-type (arm-inst-cond step))
+        (define shfop (arm-inst-shfop step))
         ;;(pretty-display `(interpret-step ,z ,op ,args ,cond-type))
         
         (define-syntax-rule (inst-eq x) (equal? op (vector-member x inst-id)))
@@ -478,8 +481,11 @@
 
         (cond
          [(equal? cond-type -1) (exec #f)]
-         [(equal? cond-type z) (exec z-dep)])
-                  
+         [(equal? cond-type z) (exec z-dep)]
+         [else (assert (and (or (equal? cond-type #f) (= cond-type 0) (= cond-type 1))
+                            (>= op 0) (< op ninsts)))]
+         )        
+        (assert (or (equal? shfop #f) (and (>= shfop 0) (< shfop n-shf-insts))))
         )
 
       (for ([x program])
