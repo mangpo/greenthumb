@@ -5,7 +5,7 @@
          "arm-simulator-rosette.rkt" 
          "arm-simulator-racket.rkt")
 
-(configure [bitwidth 32])
+(current-bitwidth 32)
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
 (send machine set-config (list 6 4)) ;; argument = (list num-regs memory)
@@ -22,15 +22,14 @@
 ;; Section 1: Concrete program
 (define code
 (send parser ast-from-string "
-        eor     r0, r0, r0, asr #1
-        movw    r3, #4369
-        movt    r3, 4369
-        eor     r0, r0, r0, asr #2
-        and     r3, r0, r3
-        add     r3, r3, r3, asl #4
-        add     r3, r3, r3, asl #8
-        add     r0, r3, r3, asl #16
-
+addne r4, r0, -1
+str r4, r5, -8
+clz r0, r4
+mvn r2, r0, lsl 5
+orrne r3, r4, r2, lsr r0
+str r3, r5, -8
+orrne r3, r3, r3, lsr 272
+addne r0, r3, 1
 "))
 
 (send printer print-struct code)

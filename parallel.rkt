@@ -52,7 +52,7 @@
            (pretty-display (format "(define parser (new ~a))" (send meta get-class-name "parser")))
 
 	   (if stochastic?
-	       (pretty-display (format "(define search (new ~a [machine machine] [printer printer] [syn-mode ~a]))" 
+	       (pretty-display (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode ~a]))" 
                                        (send meta get-class-name "stochastic") 
                                        (equal? mode `syn)))
 	       (pretty-display (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode `~a]))" 

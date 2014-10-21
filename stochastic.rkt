@@ -17,6 +17,7 @@
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
     (init-field machine printer syn-mode
+                [parser #f]
                 [solver #f]
                 [simulator #f]
                 [stat (new stat% [printer printer])]
@@ -374,10 +375,23 @@
         (when (and update-size (<= (+ update-size 3) (vector-length current)))
               (pretty-display (format ">>> reduce size from ~a to ~a" 
                                       (vector-length current) update-size))
-              (define-values (new-p new-cost) 
-                (reduce-size current current-cost update-size))
-              (set! current new-p)
-              (set! current-cost new-cost))
+              (cond
+               [syn-mode
+                (define-values (new-p new-cost) 
+                  (reduce-size current current-cost update-size))
+                (set! current new-p)
+                (set! current-cost new-cost)]
+
+               [else
+                (pretty-display ">>> steal best program")
+                (define-values (best-cost len time id) (send stat get-best-info-stat))
+                (set! current
+                      (send printer encode
+                            (send parser ast-from-file 
+                                  (format "~a/best.s" (get-field dir stat)))))
+                (set! current-cost best-cost)
+                ]
+              ))
         (define t1 (current-milliseconds))
         (define proposal (mutate current))
         (define t2 (current-milliseconds))
