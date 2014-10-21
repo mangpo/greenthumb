@@ -2,7 +2,7 @@
 
 (require  "ast.rkt" "machine.rkt" "printer.rkt" "stat.rkt")
 
-(require rosette/solver/z3/z3)
+;;(require rosette/solver/z3/z3)
 (require rosette/solver/kodkod/kodkod)
 
 (provide solver%)
@@ -91,7 +91,8 @@
         (send machine set-config config)
         ;; (current-solver (new kodkod%))
         (clear-asserts)
-        (configure [bitwidth bit] [loop-bound 20])
+        ;(configure [bitwidth bit] [loop-bound 20])
+	(current-bitwidth bit)
         (define state (send machine get-state sym-input extra))
 	;;(send simulator interpret encoded-code state)
 
@@ -118,7 +119,8 @@
       ;; (display-state start-state)
       ;; (current-solver (new kodkod%))
       (clear-asserts)
-      (configure [bitwidth bit] [loop-bound 20])
+      ;(configure [bitwidth bit] [loop-bound 20])
+      (current-bitwidth bit)
       (define const-range 
 	;; (- (arithmetic-shift 1 (sub1 random-input-bit)))
 	(for/vector ([i (sub1 random-input-bit)]) (arithmetic-shift 1 i)))
@@ -213,7 +215,6 @@
       (define-values (sym-vars sltns)
         (generate-inputs-inner n spec start-state assumption))
       (map (lambda (x) (evaluate-state start-state x)) sltns))
-
 
     (define (remove-nops code)
       (vector-filter-not (lambda (x) (= (inst-op x) nop-id)) code))
@@ -524,7 +525,8 @@
       ;; (current-solver (new kodkod%))
 
       (clear-asserts)
-      (configure [bitwidth bit] [loop-bound 20])
+      ;(configure [bitwidth bit] [loop-bound 20])
+      (current-bitwidth bit)
 
       (define start-state (send machine get-state sym-input extra))
       (define spec-state #f)
@@ -607,7 +609,8 @@
       
       ;; (current-solver (new kodkod%))
       (clear-asserts)
-      (configure [bitwidth bit] [loop-bound 20])
+      ;(configure [bitwidth bit] [loop-bound 20])
+      (current-bitwidth bit)
       (define start-state (send machine get-state sym-input extra))
       (define spec-state #f)
       (define program-state #f)
