@@ -13,7 +13,7 @@
             mutate-operand-specific mutate-other
             random-instruction print-mutation-info
 	    random-args-from-op)
-    (abstract correctness-cost get-arg-ranges)
+    (abstract correctness-cost get-arg-ranges window-size)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
     (init-field machine printer syn-mode
@@ -43,6 +43,8 @@
 
     (define (superoptimize spec constraint 
                            name time-limit size [extra-info #f]
+                           #:prefix [prefix (vector)]
+                           #:postfix [postfix (vector)]
                            #:assume [assumption (send machine no-assumption)]
                            #:input-file [input-file #f]
                            #:start-prog [start #f])
@@ -56,11 +58,14 @@
                 (pretty-display ">>> Inputs from file")
                 (pretty-display ">>> Auto generate"))
             )
-      (define inputs 
+      (define inits 
         (if input-file
             (map cdr (send machine get-states-from-file input-file))
-            (send solver generate-input-states ntests spec assumption extra-info)))
+            (send solver generate-input-states ntests (vector-append prefix spec postfix)
+                  assumption extra-info)))
 
+      (define inputs (map (lambda (x) (send simulator interpret prefix x #:dep #f)) inits))
+        
       (when debug
             (for ([i inputs])
                  (send machine display-state i))
@@ -70,20 +75,19 @@
             (for ([i outputs])
                  (send machine display-state i))
             )
+      (set-field! best-correct-program stat spec)
+      (set-field! best-correct-cost stat (send simulator performance-cost spec))
+      (send stat set-name name)
 
       ;; MCMC sampling
       (define-syntax-rule (get-sketch) 
         (random-insts (if size size (vector-length spec))))
-      (set-field! best-correct-program stat spec)
-      (set-field! best-correct-cost stat (send simulator performance-cost spec))
-      (send stat set-name name)
-      (mcmc-main spec 
+      (mcmc-main prefix postfix spec 
                  (cond
                   [start start]
                   [syn-mode (get-sketch)]
                   [else spec])
-                 inputs outputs constraint assumption time-limit extra-info)
-      )
+                 inputs outputs constraint assumption time-limit extra-info))
 
     (define (remove-nops code)
       (list->vector 
@@ -233,7 +237,7 @@
       
     
 
-    (define (mcmc-main target init inputs outputs constraint assumption time-limit extra-info)
+    (define (mcmc-main prefix postfix target init inputs outputs constraint assumption time-limit extra-info)
       (pretty-display ">>> start MCMC sampling")
       (pretty-display ">>> Phase 3: stochastic search")
       (pretty-display "start-program:")
@@ -319,11 +323,14 @@
         (when (and (number? correct) (= correct 0))
               (send stat inc-validate)
               (define t1 (current-milliseconds))
-              (set! ce (send solver counterexample target program constraint extra-info
+              (set! ce (send solver counterexample 
+                             (vector-append prefix target postfix) (vector-append prefix program postfix)
+                             constraint extra-info
                              #:assume assumption))
               (if ce 
                   (begin
                     (set! correct 1)
+                    (set! ce (send simulator interpret prefix ce #:dep #f))
                     (set! inputs (cons ce inputs))
                     (set! outputs (cons (send simulator interpret target ce #:dep #t) 
                                         outputs))

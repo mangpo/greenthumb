@@ -220,6 +220,7 @@
       (vector-filter-not (lambda (x) (= (inst-op x) nop-id)) code))
 
     (define (superoptimize spec constraint name time-limit size [extra #f]
+                           #:prefix [prefix (vector)] #:postfix [postfix (vector)]
 			   #:assume [assumption (send machine no-assumption)]
 			   #:input-file [input-file #f]
 			   #:start-prog [start #f])
@@ -230,19 +231,23 @@
        (cond
 	[(equal? syn-mode `binary) 
 	 (superoptimize-binary spec constraint time-limit size extra
+                               #:prefix prefix #:postfix postfix
 			       #:assume assumption)]
 
 	[(equal? syn-mode `linear) 
 	 (superoptimize-linear spec constraint time-limit size extra
+                               #:prefix prefix #:postfix postfix
 			       #:assume assumption)]
 
-	[(equal? syn-mode `hybrid)
-	 (superoptimize-binary spec constraint time-limit size extra
-			       #:hard-cap (len-limit)
-			       #:assume assumption)]
+	;; [(equal? syn-mode `hybrid)
+	;;  (superoptimize-binary spec constraint time-limit size extra
+        ;;                        #:prefix prefix #:postfix postfix
+	;; 		       #:hard-cap (len-limit)
+	;; 		       #:assume assumption)]
 
 	[(equal? syn-mode `partial)
 	 (superoptimize-partial spec constraint time-limit size extra
+                                #:hard-prefix prefix #:hard-postfix postfix
 				#:assume assumption)])
        )
       )
@@ -253,7 +258,9 @@
     (define (superoptimize-binary spec constraint time-limit size [extra #f]
 				  #:hard-cap [hard-cap 1000]
                                   #:assume [assumption (send machine no-assumption)]
-                                  #:prefix [prefix (vector)] #:postfix [postfix (vector)])
+                                  #:prefix [prefix (vector)] #:postfix [postfix (vector)]
+                                  #:hard-prefix [hard-prefix (vector)] #:hard-postfix [hard-postfix (vector)]
+                                  )
       (pretty-display (format ">> superoptimize-binary"))
       (when (> (vector-length prefix) 0)
             (display "[")
@@ -290,6 +297,7 @@
            (synthesize-from-sketch (vector-append prefix spec postfix)
                                    (vector-append prefix sketch postfix)
                                    constraint extra cost time-limit
+                                   #:hard-prefix hard-prefix #:hard-postfix hard-postfix
                                    #:assume assumption)))
 
         (when out-program 
@@ -323,6 +331,7 @@
     (define (superoptimize-linear spec constraint time-limit size [extra #f]
 			   #:assume [assumption (send machine no-assumption)]
                            #:prefix [prefix (vector)] #:postfix [postfix (vector)]
+                           #:hard-prefix [hard-prefix (vector)] #:hard-postfix [hard-postfix (vector)]
                            )
       (newline)
       (pretty-display (format ">> superoptimize-linear size = ~a" size))
@@ -350,6 +359,7 @@
 	  (synthesize-from-sketch (vector-append prefix spec postfix)
                                   (vector-append prefix sketch postfix)
                                   constraint extra cost time-limit
+                                  #:hard-prefix hard-prefix #:hard-postfix hard-postfix
 				  #:assume assumption))
         (pretty-display `(time ,(- (current-seconds) t)))
 
@@ -380,6 +390,8 @@
        (inner (send simulator performance-cost (vector-append prefix spec postfix)))))
 
     (define (superoptimize-partial spec constraint time-limit size [extra #f]
+                                   #:hard-prefix [hard-prefix (vector)]
+                                   #:hard-postfix [hard-postfix (vector)]
                                    #:assume [assumption (send machine no-assumption)])
       (set-field! best-correct-cost stat (send simulator performance-cost spec))
 
@@ -404,7 +416,7 @@
 	(newline)
 	(pretty-display "Phase 1: fixed window")
         (define program1
-          (fixed-window spec constraint 60 extra assumption 
+          (fixed-window hard-prefix hard-postfix spec constraint 60 extra assumption 
                         (window-size) (len-limit)))
         (check-global spec program1)
 	;;(define program1 spec)
@@ -414,7 +426,8 @@
 	  (pretty-display (format "Phase 2: sliding window, timeout = ~a, len-limit = ~a" 
 				  timeout limit))
 	  (define program2
-	    (sliding-window program1 constraint timeout extra assumption (* 2 limit)))
+	    (sliding-window hard-prefix hard-postfix program1 
+                            constraint timeout extra assumption (* 2 limit)))
 	  (check-global spec program2)
 	  (loop (* 2 timeout) (add1 limit)))
 	(loop 60 (len-limit))
@@ -429,7 +442,7 @@
       
       )
     
-    (define (fixed-window spec constraint time-limit extra assume
+    (define (fixed-window hard-prefix hard-postfix spec constraint time-limit extra assume
                           window size-limit)
       (define len (vector-length spec))
       (define output (vector))
@@ -441,6 +454,7 @@
                   [new-seq
                    (superoptimize-linear 
                     seq constraint time-limit size-limit extra #:assume assume
+                    #:hard-prefix hard-prefix #:hard-postfix hard-postfix
                     #:prefix output
                     #:postfix (vector-copy spec end len))])
              (if (or (equal? new-seq #f) (equal? new-seq "timeout"))
@@ -454,6 +468,7 @@
                    [new-seq
                     (superoptimize-linear 
                      seq constraint time-limit size-limit extra #:assume assume
+                     #:hard-prefix hard-prefix #:hard-postfix hard-postfix
                      #:prefix prefix)])
              (if (or (equal? new-seq #f) (equal? new-seq "timeout"))
                  (set! output (vector-append prefix seq))
@@ -461,12 +476,14 @@
       ;; (print-syntax (decode output))
       output)
 
-    (define (sliding-window-at prefix code constraint time-limit extra assume window)
+    (define (sliding-window-at hard-prefix hard-postfix prefix code 
+                               constraint time-limit extra assume window)
       (define len-code (vector-length code))
       (define (inner pos-to)
         (define out-program
           (superoptimize-binary 
            (vector-take code pos-to) constraint time-limit #f extra #:assume assume
+           #:hard-prefix hard-prefix #:hard-postfix hard-postfix
            #:prefix prefix
            #:postfix (vector-drop code pos-to)))
         (cond
@@ -483,13 +500,14 @@
                   
       (inner (min len-code window)))
 
-    (define (sliding-window spec constraint time-limit extra assume window)
+    (define (sliding-window hard-prefix hard-postfix spec constraint time-limit extra assume window)
       (define output (vector))
       (define (loop code)
         (when (> (vector-length code) 0)
           (define-values 
             (out-program next-pos)
-            (sliding-window-at output code constraint time-limit extra assume window))
+            (sliding-window-at output code constraint time-limit extra assume window
+                               ))
 	  (cond
 	   [out-program
 	    (pretty-display "found => skip")
@@ -515,6 +533,8 @@
     (define (synthesize-from-sketch spec sketch constraint extra 
 				    [cost #f]
 				    [time-limit 3600]
+                                    #:hard-prefix [hard-prefix (vector)] 
+                                    #:hard-postfix [hard-postfix (vector)]
 				    #:assume-interpret [assume-interpret #t]
 				    #:assume [assumption (send machine no-assumption)])
       (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
@@ -538,11 +558,15 @@
       
       (define (interpret-spec!)
         (when debug (pretty-display "========== interpret spec"))
-        (set! spec-state (interpret-spec spec start-state assumption)))
+        (set! spec-state 
+              (interpret-spec (vector-append hard-prefix spec hard-postfix)
+                              start-state assumption)))
       
       (define (compare-spec-sketch)
         (when debug (pretty-display "=========== interpret sketch"))
-        (set! sketch-state (send simulator interpret sketch start-state spec-state))
+        (set! sketch-state 
+              (send simulator interpret (vector-append hard-prefix sketch hard-postfix)
+                    start-state spec-state))
         (when debug (pretty-display "check output"))
         ;; (set! spec-cost (send simulator performance-cost spec))
         (set! sketch-cost (send simulator performance-cost sketch))
