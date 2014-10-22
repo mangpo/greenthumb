@@ -180,7 +180,7 @@
         (if output-code output-code (vector-copy code from to)))
 
       (define code-len (vector-length code))
-      (define window-size (send machine window-size)) ;34) ;; TODO
+      (define window-size 12);(send machine window-size))
       (define rounds (ceiling (/ code-len window-size)))
       (define size (ceiling (/ code-len rounds)))
       (define output-code (vector))
@@ -194,6 +194,22 @@
              (set! output-code (vector-append output-code new-code))))
       
       (when (> rounds 1)
+            (pretty-display `(mid-positions mid-positions))
+            (define small-size (floor (* (/ 6 10) window-size)))
+            (define gap1 (- (vector-ref mid-positions 1) (vector-ref mid-positions 0)))
+            (when (< gap1 small-size)
+                  (vector-set! 
+                   mid-positions 0
+                   (max 0 (- (vector-ref mid-positions 1) small-size))))
+            (define gap2 (- (vector-ref mid-positions (- rounds 1)) 
+                            (vector-ref mid-positions (- rounds 2))))
+            (when (< gap2 small-size)
+                  (vector-set! 
+                   mid-positions (- rounds 1)
+                   (min (vector-length output-code)
+                        (+ (vector-ref mid-positions (- rounds 2)) small-size))))
+            (pretty-display `(mid-positions mid-positions))
+
             (set! code output-code)
             (set! output-code (vector-copy code 0 (vector-ref mid-positions 0)))
             (newline)

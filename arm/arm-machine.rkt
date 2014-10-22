@@ -161,7 +161,7 @@
     (define/public (get-shf-inst-name x)
       (vector-ref shf-inst-id x))
 
-    (define (window-size) 34)
+    (define (window-size) 32)
 
     (define (get-config)
       (list nregs nmems fp))
