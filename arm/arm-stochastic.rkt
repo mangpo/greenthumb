@@ -194,16 +194,19 @@
       (define regs (progstate-regs constraint))
       (define memory (progstate-memory constraint))
       (define len (vector-length memory))
+      (define z (progstate-z constraint))
 
       (define regs1 (progstate-regs state1))
       (define memory1 (progstate-memory state1))
       (define dep (progstate+-extra state1))
       (define regs1-dep (progstate-regs dep))
       (define memory1-dep (progstate-memory dep))
+      (define z1 (progstate-z state1))
 
       (define regs2 (progstate-regs state2))
       (define memory2 (progstate-memory state2))
       (define inter (progstate+-extra state2))
+      (define z2 (progstate-z state2))
       
       (define correctness 0)
       (define relax #f)
@@ -248,6 +251,8 @@
                    (set! correctness (+ correctness (adjust my-cost m1 m1-dep inter))))
                    ;;(set! correctness (+ correctness my-cost))
                    ))
+
+      (when (and z (not (equal? z1 z2))) (set! correctness (add1 correctness)))
 
       ;; (when debug
       ;;       (pretty-display `(correct ,(vector-ref regs1 0) ,(vector-ref regs2 0) ,correctness)))

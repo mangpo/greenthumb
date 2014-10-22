@@ -18,6 +18,7 @@
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
     (init-field machine printer syn-mode
+                [parser #f]
                 [solver #f]
                 [simulator #f]
                 [stat (new stat% [printer printer])]
@@ -44,6 +45,8 @@
 
     (define (superoptimize spec constraint this-live-in
                            name time-limit size [extra-info #f]
+                           #:prefix [prefix (vector)]
+                           #:postfix [postfix (vector)]
                            #:assume [assumption (send machine no-assumption)]
                            #:input-file [input-file #f]
                            #:start-prog [start #f])
@@ -58,11 +61,14 @@
                 (pretty-display ">>> Inputs from file")
                 (pretty-display ">>> Auto generate"))
             )
-      (define inputs 
+      (define inits 
         (if input-file
             (map cdr (send machine get-states-from-file input-file))
-            (send solver generate-input-states ntests spec assumption extra-info)))
+            (send solver generate-input-states ntests (vector-append prefix spec postfix)
+                  assumption extra-info)))
 
+      (define inputs (map (lambda (x) (send simulator interpret prefix x #:dep #f)) inits))
+        
       (when debug
             (for ([i inputs])
                  (send machine display-state i))
@@ -72,25 +78,21 @@
             (for ([i outputs])
                  (send machine display-state i))
             )
+      (set-field! best-correct-program stat spec)
+      (set-field! best-correct-cost stat (send simulator performance-cost spec))
+      (send stat set-name name)
 
       ;; MCMC sampling
       (define-syntax-rule (get-sketch) 
         (random-insts (if size size (vector-length spec))))
-      (set-field! best-correct-program stat spec)
-      (set-field! best-correct-cost stat (send simulator performance-cost spec))
-      (set-field! name stat name)
-      (mcmc-main spec 
+      (mcmc-main prefix postfix spec 
                  (cond
                   [start start]
                   [syn-mode (get-sketch)]
                   [else spec])
-                 inputs outputs constraint assumption time-limit extra-info)
-      )
-
-    (define (remove-nops code)
-      (list->vector 
-       (filter (lambda (x) (not (equal? (inst-op x) nop-id)))
-               (vector->list code))))
+                 inputs outputs 
+		 (send solver get-live-in postfix constraint extra-info)
+		 assumption time-limit extra-info))
 
     (define (get-operand-live constraint) #f)
 
@@ -179,6 +181,7 @@
         (define new-p (vector-copy p))
         (when debug
               (pretty-display (format " --> org = ~a ~a" opcode-name args))
+	      (pretty-display (format " --> choices = ~a" (vector-ref ranges change)))
               (pretty-display (format " --> new = [~a]->~a)" change new-val)))
         (vector-set! args change new-val)
         (vector-set! new-p index (inst-copy-with-args entry args))
@@ -266,14 +269,45 @@
        [(equal? type `instruction) (mutate-instruction index entry p)]
        [(equal? type `swap)        (mutate-swap index entry p)]
        [else                       (mutate-other index entry p type)]))
+      
     
 
-    (define (mcmc-main target init inputs outputs constraint assumption time-limit extra-info)
+    (define (mcmc-main prefix postfix target init inputs outputs constraint assumption time-limit extra-info)
       (pretty-display ">>> start MCMC sampling")
       (pretty-display ">>> Phase 3: stochastic search")
       (pretty-display "start-program:")
       (send printer print-struct init)
+      (pretty-display "constraint:")
+      (send machine display-state constraint)
       (define syn-mode #t)
+
+      (define (reduce-one p vec-len)
+        (define index (random vec-len))
+        (define new-p 
+          (vector-append (vector-copy p 0 index) (vector-copy p (add1 index) vec-len)))
+        (define cost (or (car (cost-all-inputs new-p w-error)) w-error))
+        (values new-p cost))
+
+      (define (reduce-size p cost size [ps (list)] [costs (list)])
+        (when debug (pretty-display `(reduce-size ,(vector-length p) ,size ,(length ps))))
+        (define vec-len (vector-length p))
+        (cond
+         [(= vec-len size) (values p cost)]
+         [(>= (length ps) 4)
+          (define min-cost (first costs))
+          (define min-p (first ps))
+          (for ([p-i (cdr ps)]
+                [c-i (cdr costs)])
+               (when (< c-i min-cost)
+                     (set! min-cost c-i)
+                     (set! min-p p-i)))
+          (reduce-size min-p min-cost size)]
+         [else
+          (define-values (new-p new-cost) (reduce-one p vec-len))
+          (if (<= new-cost cost)
+              (reduce-size new-p new-cost size)
+              (reduce-size p cost size (cons new-p ps) (cons new-cost costs)))])
+        )
 
       (define (cost-one-input program input output)
         (with-handlers* 
@@ -326,11 +360,14 @@
         (when (and (number? correct) (= correct 0))
               (send stat inc-validate)
               (define t1 (current-milliseconds))
-              (set! ce (send solver counterexample target program constraint extra-info
+              (set! ce (send solver counterexample 
+                             (vector-append prefix target postfix) (vector-append prefix program postfix)
+                             constraint extra-info
                              #:assume assumption))
               (if ce 
                   (begin
                     (set! correct 1)
+                    (set! ce (send simulator interpret prefix ce #:dep #f))
                     (set! inputs (cons ce inputs))
                     (set! outputs (cons (send simulator interpret target ce #:dep #t) 
                                         outputs))
@@ -363,7 +400,9 @@
                     (send printer print-struct target)
                     (pretty-display "candidate:")
                     (send printer print-struct program)
-                    (send stat update-best-correct program total-cost)
+                    (send stat update-best-correct 
+			  (send machine clean-code program prefix) 
+			  total-cost)
                     )
               (if (or (<= total-cost okay-cost) change-mode) 
                   ;; return (correctness-cost . correct)
@@ -378,10 +417,29 @@
       ;; Main loop
       (define (iter current current-cost)
         (when debug (pretty-display ">>> iter >>>"))
-        (send stat inc-iter current-cost)
+        (define update-size (send stat inc-iter current-cost))
+        (when (and update-size (<= (+ update-size 3) (vector-length current)))
+              (pretty-display (format ">>> reduce size from ~a to ~a" 
+                                      (vector-length current) update-size))
+              (cond
+               [syn-mode
+                (define-values (new-p new-cost) 
+                  (reduce-size current current-cost update-size))
+                (set! current new-p)
+                (set! current-cost new-cost)]
+
+               [else
+                (pretty-display ">>> steal best program")
+                (define-values (best-cost len time id) (send stat get-best-info-stat))
+                (set! current
+                      (send printer encode
+                            (send parser ast-from-file 
+                                  (format "~a/best.s" (get-field dir stat)))))
+                (set! current-cost best-cost)
+                ]
+              ))
         (define t1 (current-milliseconds))
         (define proposal (mutate current))
-        (when debug (pretty-display ">>> done mutate >>>"))
         (define t2 (current-milliseconds))
         (send stat mutate (- t2 t1))
         (when debug
@@ -421,7 +479,7 @@
                     (when debug (pretty-display (format "to ~a." proposal-cost)))
                     )
               (iter (if (cdr cost-correct) 
-                        (remove-nops proposal) 
+                        (send machine clean-code proposal prefix)
                         proposal) 
                     proposal-cost))
             (begin
@@ -438,6 +496,8 @@
             ))
 
 
+      ;; (pretty-display `(cost-target ,(cost-all-inputs target 100)))
+      ;; (raise "done")
       (with-handlers 
        ([exn:break? (lambda (e) (send stat print-stat-to-file))])
        

@@ -12,11 +12,12 @@
     (override interpret performance-cost)
         
     (define bit (get-field bit machine))
-    (define nregs (send machine get-nregs))
-    (define nmems (send machine get-nmems))
+
     (define nop-id (send machine get-inst-id `nop))
     (define inst-id (get-field inst-id machine))
     (define shf-inst-id (get-field shf-inst-id machine))
+    (define ninsts (vector-length inst-id))
+    (define n-shf-insts (vector-length shf-inst-id))
 
     (define (shl a b) (<< a b bit))
     (define (ushr a b) (>>> a b bit))
@@ -89,19 +90,27 @@
       (finitize-bit (bitwise-ior (bitwise-and to low-mask) (shl c byte2))))
 
     (define (setbit d a width shift)
+      (assert (and (>= shift 0) (<= shift bit)))
+      (assert (and (>= width 0) (<= width bit)))
       (let* ([mask (sub1 (shl 1 width))]
              [keep (bitwise-and d (bitwise-not (shl mask shift)))]
              [insert (bvshl (bitwise-and a mask) shift)])
         (finitize-bit (bitwise-ior keep insert))))
 
     (define (clrbit d width shift)
+      (assert (and (>= shift 0) (<= shift bit)))
+      (assert (and (>= width 0) (<= width bit)))
       (let* ([keep (bitwise-not (shl (sub1 (shl 1 width)) shift))])
         (bitwise-and keep d)))
 
     (define (ext d a width shift)
+      (assert (and (>= shift 0) (<= shift bit)))
+      (assert (and (>= width 0) (<= width bit)))
       (bitwise-and (>> a shift) (sub1 (shl 1 width))))
 
     (define (sext d a width shift)
+      (assert (and (>= shift 0) (<= shift bit)))
+      (assert (and (>= width 0) (<= width bit)))
       (let ([keep (bitwise-and (>> a shift) (sub1 (shl 1 width)))])
 	(bitwise-ior
 	 (if (= (bitwise-bit-field keep (sub1 width) width) 1)
@@ -156,7 +165,8 @@
       ;;(pretty-display `(interpret))
       (define regs (vector-copy (progstate-regs state)))
       (define memory (vector-copy (progstate-memory state)))
-      (define z 0)
+      (define z (progstate-z state))
+      (define fp (progstate-fp state))
 
       (define regs-dep (and dep (vector-copy (progstate-regs state))))
       (define memory-dep (and dep (vector-copy (progstate-memory state))))
@@ -176,6 +186,7 @@
         (define op (inst-op step))
         (define args (inst-args step))
         (define cond-type (arm-inst-cond step))
+        (define shfop (arm-inst-shfop step))
         ;;(pretty-display `(interpret-step ,z ,op ,args ,cond-type))
         
         (define-syntax-rule (inst-eq x) (equal? op (vector-member x inst-id)))
@@ -261,7 +272,7 @@
             (define reg-a-val-dep 
 	      (if shf
 		  (opt-shift a)
-		  (cons (vector-ref args a) (and dep (vector-ref regs-dep a)))))
+		  (cons (vector-ref regs a) (and dep (vector-ref regs-dep a)))))
             (define val (f (car reg-a-val-dep)))
             (vector-set! regs d val)
             (if dep
@@ -305,20 +316,19 @@
           ;; store
           (define (str reg-offset)
             (define d (args-ref args 0))
-            (define a (args-ref args 1))
             (define b (args-ref args 2))
             (define index 
               (if reg-offset
-                  (+ (vector-ref regs a) (vector-ref regs b))
-                  (+ (vector-ref regs a) b)))
+                  (+ fp (vector-ref regs b))
+                  (+ fp b)))
             (define val (vector-ref regs d))
             (vector-set! memory index val)
             (if dep
                 (let* ([val-dep (list (vector-ref regs-dep d))]
                        [index-dep 
                         (if reg-offset
-                            (list (vector-ref regs-dep a) (vector-ref regs-dep b))
-                            (list (vector-ref regs-dep a)))]) ;; TODO: no b?
+                            (list (vector-ref regs-dep b))
+                            (list))]) ;; TODO: no b?
                   (vector-set! memory-dep index 
                                (create-node #f (list (create-node val val-dep)
                                                      (create-node index index-dep)
@@ -328,20 +338,19 @@
           ;; load
           (define (ldr reg-offset)
             (define d (args-ref args 0))
-            (define a (args-ref args 1))
             (define b (args-ref args 2))
             (define index 
               (if reg-offset
-                  (+ (vector-ref regs a) (vector-ref regs b))
-                  (+ (vector-ref regs a) b)))
+                  (+ fp (vector-ref regs b))
+                  (+ fp b)))
             (define val (vector-ref memory index))
             (vector-set! regs d val)
             (if dep
                 (let* ([val-dep (list (vector-ref memory-dep index))]
                        [index-dep 
                         (if reg-offset
-                            (list (vector-ref regs-dep a) (vector-ref regs-dep b))
-                            (list (vector-ref regs-dep a)))]) ;; TODO: no b?
+                            (list (vector-ref regs-dep b))
+                            (list))]) ;; TODO: no b?
                   (vector-set! regs-dep d 
                                (create-node #f (list (create-node val val-dep)
                                                      (create-node index index-dep)
@@ -434,9 +443,9 @@
            [(inst-eq `rbit)  (rr bvrbit)]
 
            ;; div & mul
-           [(inst-eq `sdiv) (rrr quotient)]
-           [(inst-eq `udiv) (rrr (lambda (x y) (quotient (bitwise-and x mask)
-                                                         (bitwise-and y mask))))]
+           ;; [(inst-eq `sdiv) (rrr quotient)]
+           ;; [(inst-eq `udiv) (rrr (lambda (x y) (quotient (bitwise-and x mask)
+           ;;                                               (bitwise-and y mask))))]
            [(inst-eq `mul)  (rrr bvmul)]
            [(inst-eq `mla)  (rrrr bvmla)]
            [(inst-eq `mls)  (rrrr bvmls)]
@@ -478,8 +487,11 @@
 
         (cond
          [(equal? cond-type -1) (exec #f)]
-         [(equal? cond-type z) (exec z-dep)])
-                  
+         [(equal? cond-type z) (exec z-dep)]
+         [else (assert (and (or (equal? cond-type #f) (= cond-type 0) (= cond-type 1))
+                            (>= op 0) (< op ninsts)))]
+         )        
+        (assert (or (equal? shfop #f) (and (>= shfop 0) (< shfop n-shf-insts))))
         )
 
       (for ([x program])
@@ -498,9 +510,10 @@
       ;;  [else
       ;;   (pretty-display `(inter ,inter))])
       
-      (progstate+ regs memory (if dep 
-				  (progstate regs-dep memory-dep)
-				  inter)))
+      (progstate+ regs memory z fp 
+		  (if dep 
+		      (progstate regs-dep memory-dep z-dep #f)
+		      inter)))
 
     (define (performance-cost code)
       (define cost 0)

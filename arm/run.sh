@@ -11,4 +11,4 @@ do
     done
 done
 
-sh run2.sh
+#sh run2.sh

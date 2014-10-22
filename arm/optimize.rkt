@@ -9,12 +9,12 @@
 
 (define size (make-parameter #f))
 (define cores (make-parameter 12))
-(define synthesize (make-parameter #t))
-(define stochastic? (make-parameter #t))
+(define search-type (make-parameter `hybrid))
+(define mode (make-parameter `syn))
+
 (define dir (make-parameter "output"))
 (define time-limit (make-parameter 3600))
 (define input-file (make-parameter #f))
-(define binary (make-parameter #f))
  
 (define file-to-optimize
   (command-line
@@ -49,20 +49,26 @@
                         "Path to inputs."
                         (input-file i)]
 
+   #:once-any
+   [("--solver") "Use solver-based search."
+                        (search-type `solver)]
+   [("--stoch") "Use stochastic search."
+                        (search-type `stoch)]
+   [("--hybrid") "Use stochastic search."
+                        (search-type `hybrid)]
+
+   #:once-any
+   [("-l" "--linear")   "Linear search."
+                        (mode `linear)]
    [("-b" "--binary")   "Binary search."
-                        (binary #t)]
+                        (mode `binary)]
 
    #:once-any
    [("-o" "--optimize") "Optimize mode starts searching from the original program"
-                        (synthesize #f)]
+                        (mode `opt)]
    [("-s" "--synthesize") "Synthesize mode starts searching from random programs (default)"
-                        (synthesize #t)]
+                        (mode `syn)]
 
-   #:once-any
-   [("--solver") "Use solver-based search."
-                        (stochastic? #f)]
-   [("--stoch") "Use stochastic search."
-                        (stochastic? #t)]
 
    #:args (filename) ; expect one command-line argument: <filename>
    ; return the argument as a filename to compile
@@ -71,10 +77,8 @@
 (define parser (new arm-parser%))
 (define code (send parser ast-from-file file-to-optimize))
 
-(optimize code (list (live-out) (live-mem)) (list (live-in) (live-mem)) 
-          (synthesize) (stochastic?)
+(optimize code (list (live-out) (live-mem)) (list (live-in) (live-mem)) (search-type) (mode)
           #:need-filter #f #:dir (dir) #:cores (cores) 
           #:time-limit (time-limit) #:size (size)
           #:input-file (input-file)
-	  #:binary-search (binary)
 	  )

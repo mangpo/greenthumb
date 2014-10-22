@@ -5,10 +5,10 @@
          "arm-simulator-rosette.rkt" 
          "arm-simulator-racket.rkt")
 
-(configure [bitwidth 32])
+(current-bitwidth 32)
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 6 4)) ;; argument = (list num-regs memory)
+(send machine set-config (list 5 4 4)) ;; argument = (list num-regs memory)
 (define printer (new arm-printer% [machine machine]))
 (define solver (new arm-solver% [machine machine] [printer printer]))
 
@@ -16,15 +16,16 @@
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 
 ;; Input machine state
-(define input-state (progstate (vector 3219617247 10641 15 -49 6 0 0 0 0 5 5)
-                               (vector 0 0 0 0 0 0 0 0 0 0)))
+(define input-state (progstate (vector -296032 -296002 0 0 0)
+                               (vector 0 0 0 0) 0 4))
 
 ;; Section 1: Concrete program
 (define code
 (send parser ast-from-string "
-orr r3, r0, r0, lsl 1
-sub r2, r0, r3
-and r0, r0, r2
+eor r3, r1, r0
+and r1, r1, r0
+and r4, r1, r2, lsr 512
+add r0, r4, r3, asr 1
 "))
 
 (send printer print-struct code)
@@ -60,7 +61,8 @@ and r0, r0, r2
 
 ;; ;; Section 3: Symbolic inputs
 ;; ;; Concrete program with symbolic inputs
-#|(define (sym-input)
+#|
+(define (sym-input)
   (define-symbolic* in number?)
   in)
 (define input-state-sym (default-state machine sym-input))

@@ -35,7 +35,9 @@
       (snumber10 (re-or number10 (re-seq "-" number10)))
       (identifier-characters (re-or (char-range "A" "Z") (char-range "a" "z")))
       (identifier-characters-ext (re-or digit10 identifier-characters "_"))
-      (identifier (re-+ identifier-characters))
+      ;(identifier (re-+ identifier-characters))
+      (identifier (re-seq identifier-characters 
+                          (re-* (re-or identifier-characters digit10))))
       (identifier: (re-seq identifier ":"))
       (_identifier (re-seq "_" (re-* identifier-characters-ext)))
       (reg (re-or "fp" (re-seq "r" number10)))
@@ -150,8 +152,8 @@
 
 	;; for ldr & str, fp => r99, divide offset by 4
 	(when (or (equal? op "str") (equal? op "ldr"))
-	      (when (equal? (vector-ref args 1) "fp")
-		    (vector-set! args 1 "r10"))
+	      ;; (when (equal? (vector-ref args 1) "fp")
+	      ;; 	    (vector-set! args 1 "r10"))
 	      (define offset (vector-ref args 2))
 	      (unless (equal? (substring offset 0 1) "r")
 		      (vector-set! 

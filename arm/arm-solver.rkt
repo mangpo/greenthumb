@@ -9,15 +9,16 @@
   (class solver%
     (super-new)
     (inherit-field printer machine simulator)
-    (inherit sym-op sym-arg)
+    (inherit sym-op sym-arg encode-sym)
     (override get-sym-vars evaluate-state
-              encode-sym decode-sym sym-insts
-              assume assert-output)
+              encode-sym-inst evaluate-inst
+              assume assert-output 
+              len-limit window-size)
 
     (set! simulator (new arm-simulator-rosette% [machine machine]))
 
-    (define (sym-insts size)
-      (encode-sym (for/vector ([i size]) (arm-inst #f #f #f #f #f))))
+    (define (len-limit) 2)
+    (define (window-size) 4)
 
     (define (get-sym-vars state)
       (define lst (list))
@@ -27,15 +28,20 @@
 
       (for ([r (progstate-regs state)]) (add r))
       (for ([m (progstate-memory state)]) (add m))
+      (add (progstate-z state))
       lst)
 
+    ;; Used for generate input and counterexample.
     (define (evaluate-state state sol)
-      (define regs (vector-copy (progstate-regs state)))
-      (define memory (vector-copy (progstate-memory state)))
-
       (define-syntax-rule (eval x model)
         (let ([ans (evaluate x model)])
           (if (term? ans) 0 ans)))
+
+      (define regs (vector-copy (progstate-regs state)))
+      (define memory (vector-copy (progstate-memory state)))
+      ;; CAUTION: input state sets z to be 0.
+      (define z (eval (progstate-z state) sol))
+      (define fp (progstate-fp state))
       
       (for ([i (vector-length regs)]
             [reg regs])
@@ -45,43 +51,38 @@
             [mem memory])
            (vector-set! memory i (eval mem sol)))
 
-      (progstate regs memory))
+      (progstate regs memory z fp))
 
-    (define (encode-sym code)
-      (define (encode-inst-sym x)
-        (if (inst-op x)
-            (send printer encode-inst x)
-            (arm-inst (sym-op) 
-		      (vector (sym-arg) (sym-arg) (sym-arg) (sym-arg))
-		      (sym-op)
-		      (sym-arg)
-		      (sym-op))))
-      
-      (for/vector ([x code]) (encode-inst-sym x)))
+    (define (encode-sym-inst x)
+      (if (inst-op x)
+          (send printer encode-inst x)
+          (arm-inst (sym-op) 
+                    (vector (sym-arg) (sym-arg) (sym-arg) (sym-arg))
+                    (sym-op)
+                    (sym-arg)
+                    (sym-op))))
 
-    (define (decode-sym code model)
-      (define (decode-inst-sym x)
-        (send
-         printer decode-inst
-         (arm-inst (evaluate (inst-op x) model)
-		   (vector-map 
-		    (lambda (a) (evaluate a model)) (inst-args x))
-		   (evaluate (inst-shfop x) model)
-		   (evaluate (inst-shfarg x) model)
-		   (evaluate (inst-cond x) model))))
-
-      (for/vector ([x code]) (decode-inst-sym x)))
+    (define (evaluate-inst x model)
+      (arm-inst (evaluate (inst-op x) model)
+                (vector-map 
+                 (lambda (a) (evaluate a model)) (inst-args x))
+                (evaluate (inst-shfop x) model)
+                (evaluate (inst-shfarg x) model)
+                (evaluate (inst-cond x) model)))
 
     (define (assert-output state1 state2 constraint)
       (when debug (pretty-display "start assert-output"))
       (define regs (progstate-regs constraint))
       (define memory (progstate-memory constraint))
+      (define z (progstate-z constraint))
 
       (define regs1 (progstate-regs state1))
       (define memory1 (progstate-memory state1))
+      (define z1 (progstate-z state1))
 
       (define regs2 (progstate-regs state2))
       (define memory2 (progstate-memory state2))
+      (define z2 (progstate-z state2))
       
       (for ([r regs]
             [r1 regs1]
@@ -92,6 +93,8 @@
             [m1 memory1]
             [m2 memory2])
            (when m (assert (equal? m1 m2))))
+
+      (when z (assert (equal? z1 z2)))
 
       (when debug (pretty-display "end assert-output"))
       )
