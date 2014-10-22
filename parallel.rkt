@@ -37,7 +37,7 @@
       (pretty-display (format ">>> live-out: ~a" live-out))
 
       (define dir-id 0)
-      (define (optimize-partial from to)
+      (define (optimize-partial prefix from to)
         (pretty-display (format "OPTIMIZE-PARTIAL from = ~a, to = ~a" from to))
 	(define dir (format "~a/~a" rootdir dir-id))
 	(system (format "mkdir ~a" dir))
@@ -72,7 +72,7 @@
                             mode)))
 
                (pretty-display "(define prefix (send parser ast-from-string \"")
-               (send printer print-syntax (vector-copy code 0 from))
+               (send printer print-syntax prefix)
                (pretty-display "\"))")
                (pretty-display "(define code (send parser ast-from-string \"")
                (send printer print-syntax (vector-copy code from to))
@@ -180,13 +180,13 @@
         (if output-code output-code (vector-copy code from to)))
 
       (define code-len (vector-length code))
-      (define window-size 12);(send machine window-size))
+      (define window-size (send machine window-size))
       (define rounds (ceiling (/ code-len window-size)))
       (define size (ceiling (/ code-len rounds)))
       (define output-code (vector))
       (define mid-positions (make-vector rounds))
       (for ([round rounds])
-           (let ([new-code (optimize-partial (* round size) 
+           (let ([new-code (optimize-partial output-code (* round size) 
                                              (min (* (add1 round) size) code-len))])
              (vector-set! mid-positions round 
                           (+ (vector-length output-code) 
@@ -217,7 +217,8 @@
             (send printer print-syntax code)
             (for ([round (sub1 rounds)])
                  (let ([new-code 
-                        (optimize-partial (vector-ref mid-positions round)
+                        (optimize-partial output-code
+                                          (vector-ref mid-positions round)
                                           (vector-ref mid-positions (add1 round)))])
                    (set! output-code (vector-append output-code new-code))))
             (set! output-code (vector-append 
