@@ -87,7 +87,7 @@
 				 (set! min-offset offset))
 			   (when (or (not max-offset) (> offset max-offset))
 				 (set! max-offset offset)))))))
-      (define nmems (if min-offset (add1 (- max-offset min-offset)) 1))
+      (define nmems (if min-offset (- max-offset min-offset)))
       (define fp (if min-offset (- min-offset) 0))
       (pretty-display `(min-max-offset ,min-offset ,max-offset))
 
