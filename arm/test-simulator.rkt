@@ -8,7 +8,7 @@
 (current-bitwidth 32)
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 6 4)) ;; argument = (list num-regs memory)
+(send machine set-config (list 5 4 4)) ;; argument = (list num-regs memory)
 (define printer (new arm-printer% [machine machine]))
 (define solver (new arm-solver% [machine machine] [printer printer]))
 
@@ -16,20 +16,19 @@
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 
 ;; Input machine state
-(define input-state (progstate (vector 9 10641 15 -49 6 0 0 0 0 5 5)
-                               (vector 0 0 0 0 0 0 0 0 0 0)))
+(define input-state (progstate (vector 2143232008 0 0 0 0)
+                               (vector 0 0 0 0) 0 4))
 
 ;; Section 1: Concrete program
 (define code
 (send parser ast-from-string "
-addne r4, r0, -1
-str r4, r5, -8
-clz r0, r4
-mvn r2, r0, lsl 5
-orrne r3, r4, r2, lsr r0
-str r3, r5, -8
-orrne r3, r3, r3, lsr 272
-addne r0, r3, 1
+	sub	r0, r0, #1
+	orr	r0, r0, r0, asr #1
+	orr	r0, r0, r0, asr #2
+	orr	r0, r0, r0, asr #4
+	orr	r0, r0, r0, asr #8
+	orr	r0, r0, r0, asr #16
+	add	r0, r0, #1
 "))
 
 (send printer print-struct code)
@@ -65,7 +64,8 @@ addne r0, r3, 1
 
 ;; ;; Section 3: Symbolic inputs
 ;; ;; Concrete program with symbolic inputs
-#|(define (sym-input)
+#|
+(define (sym-input)
   (define-symbolic* in number?)
   in)
 (define input-state-sym (default-state machine sym-input))

@@ -44,7 +44,9 @@
   ;;   (car my-p)]
   ;;  [else
   ;;   (node my-val my-size my-p)]))
-  (node my-val my-size my-p))
+  (if (or my-val (not (empty? my-p)))
+      (node my-val my-size my-p)
+      #f))
 
 (define (adjust cost val dep inter [min-val 1])
   ;;(pretty-display `(adjust ,cost ,val))

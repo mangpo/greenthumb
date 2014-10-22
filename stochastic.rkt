@@ -13,7 +13,7 @@
             mutate-operand-specific mutate-other
             random-instruction print-mutation-info
 	    random-args-from-op)
-    (abstract correctness-cost get-arg-ranges window-size)
+    (abstract correctness-cost get-arg-ranges)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
     (init-field machine printer syn-mode
@@ -87,12 +87,9 @@
                   [start start]
                   [syn-mode (get-sketch)]
                   [else spec])
-                 inputs outputs constraint assumption time-limit extra-info))
-
-    (define (remove-nops code)
-      (list->vector 
-       (filter (lambda (x) (not (equal? (inst-op x) nop-id)))
-               (vector->list code))))
+                 inputs outputs 
+		 (send solver get-live-in postfix constraint extra-info)
+		 assumption time-limit extra-info))
 
     (define (random-insts n)
       (for/vector ([i n]) (random-instruction)))
@@ -242,6 +239,8 @@
       (pretty-display ">>> Phase 3: stochastic search")
       (pretty-display "start-program:")
       (send printer print-struct init)
+      (pretty-display "constraint:")
+      (send machine display-state constraint)
       (define syn-mode #t)
 
       (define (reduce-one p vec-len)
@@ -363,7 +362,9 @@
                     (send printer print-struct target)
                     (pretty-display "candidate:")
                     (send printer print-struct program)
-                    (send stat update-best-correct (remove-nops program) total-cost)
+                    (send stat update-best-correct 
+			  (send machine clean-code program prefix) 
+			  total-cost)
                     )
               (if (or (<= total-cost okay-cost) change-mode) 
                   ;; return (correctness-cost . correct)
@@ -440,7 +441,7 @@
                     (when debug (pretty-display (format "to ~a." proposal-cost)))
                     )
               (iter (if (cdr cost-correct) 
-                        (remove-nops proposal) 
+                        (send machine clean-code proposal prefix)
                         proposal) 
                     proposal-cost))
             (begin
@@ -457,6 +458,8 @@
             ))
 
 
+      ;; (pretty-display `(cost-target ,(cost-all-inputs target 100)))
+      ;; (raise "done")
       (with-handlers 
        ([exn:break? (lambda (e) (send stat print-stat-to-file))])
        

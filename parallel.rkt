@@ -12,12 +12,12 @@
     ;; mode = `linear, `binary, `syn, `opt
     (public optimize)
     
-    (define (optimize-inner code-org live-out-org dir cores time-limit size 
+    (define (optimize-inner code-org live-out-org rootdir cores time-limit size 
                             assume extra-info input-file start-prog)
       (pretty-display (format "SEACH TYPE: ~a" search-type))
-      (define path (format "~a/driver" dir))
-      (system (format "mkdir ~a" dir))
-      (system (format "rm ~a/*" dir))
+      ;;(define path (format "~a/driver" dir))
+      (system (format "rm -r ~a" rootdir))
+      (system (format "mkdir ~a" rootdir))
       
       (pretty-display ">>> select code:")
       (send printer print-syntax code-org)
@@ -27,6 +27,7 @@
       (define-values (code live-out map-back machine-info) 
         (send compress compress-reg-space code-org live-out-org))
       (pretty-display (format ">>> machine-info: ~a" machine-info))
+      (pretty-display `(map-back ,map-back))
 
       (pretty-display ">>> compressed-code:")
       (send printer print-syntax code)
@@ -35,8 +36,13 @@
       (pretty-display (format ">>> machine-info: ~a" machine-info))
       (pretty-display (format ">>> live-out: ~a" live-out))
 
+      (define dir-id 0)
       (define (optimize-partial from to)
         (pretty-display (format "OPTIMIZE-PARTIAL from = ~a, to = ~a" from to))
+	(define dir (format "~a/~a" rootdir dir-id))
+	(system (format "mkdir ~a" dir))
+	(define path (format "~a/driver" dir))
+	(set! dir-id (add1 dir-id))
         
         (define (create-file id stochastic? mode)
           (define (req file)
@@ -74,7 +80,9 @@
                (pretty-display "(define postfix (send parser ast-from-string \"")
                (send printer print-syntax (vector-copy code to (vector-length code)))
                (pretty-display "\"))")
+               (pretty-display (format "(define encoded-prefix (send printer encode prefix))"))
                (pretty-display (format "(define encoded-code (send printer encode code))"))
+               (pretty-display (format "(define encoded-postfix (send printer encode postfix))"))
                (when start-prog
                      (pretty-display "(define start-code (send parser ast-from-string \"")
                      (send printer print-syntax start-prog)
@@ -82,7 +90,7 @@
                      (pretty-display (format "(define encoded-start-code (send printer encode start-code))"))
                      )
                (pretty-display 
-                (format "(send search ~a encoded-code ~a \"~a-~a\" ~a ~a ~a #:assume ~a #:input-file ~a #:start-prog ~a #:prefix prefix #:postfix postfix)" 
+                (format "(send search ~a encoded-code ~a \"~a-~a\" ~a ~a ~a #:assume ~a #:input-file ~a #:start-prog ~a #:prefix encoded-prefix #:postfix encoded-postfix)" 
                         "superoptimize"
                         (send machine output-constraint-string "machine" live-out)
                         path id time-limit size extra-info
@@ -109,8 +117,8 @@
           (define stats
             (for/list ([id cores])
                       (let ([name (format "~a-~a.stat" path id)])
-                        (and (file-exists? name)
-                             (create-stat-from-file name printer)))))
+                        (and (file-exists? name)+
+                             (create-stat-from-file name printer)))))=
           (with-handlers* 
            ([exn? (lambda (e) (pretty-display "Error: print stat"))])
            (when (> cores-stoch 0)
@@ -172,7 +180,7 @@
         (if output-code output-code (vector-copy code from to)))
 
       (define code-len (vector-length code))
-      (define window-size 34) ;; TODO
+      (define window-size (send machine window-size)) ;34) ;; TODO
       (define rounds (ceiling (/ code-len window-size)))
       (define size (ceiling (/ code-len rounds)))
       (define output-code (vector))
@@ -187,7 +195,7 @@
       
       (when (> rounds 1)
             (set! code output-code)
-            (set! output-code (vector))
+            (set! output-code (vector-copy code 0 (vector-ref mid-positions 0)))
             (newline)
             (pretty-display (format ">>> another round"))
             (send printer print-syntax code)
@@ -195,7 +203,11 @@
                  (let ([new-code 
                         (optimize-partial (vector-ref mid-positions round)
                                           (vector-ref mid-positions (add1 round)))])
-                   (set! output-code (vector-append output-code new-code)))))
+                   (set! output-code (vector-append output-code new-code))))
+            (set! output-code (vector-append 
+			       output-code 
+			       (vector-copy code (vector-ref mid-positions (sub1 rounds)))))
+	    )
 
       (let ([decompressed-code (send compress decompress-reg-space output-code map-back)])
         (send printer print-syntax decompressed-code)

@@ -120,7 +120,7 @@
 (define GA-machine%
   (class machine%
     (super-new)
-    (inherit-field bit random-input-bit inst-id classes classes-len perline)
+    (inherit-field bit nop-id random-input-bit inst-id classes classes-len perline)
     (inherit print-line)
     (override set-config get-config set-config-string
               adjust-config finalize-config config-exceed-limit?
@@ -128,10 +128,12 @@
               output-constraint-string output-assume-string
 	      no-assumption
               display-state-text parse-state-text
-              progstate->vector vector->progstate)
+              progstate->vector vector->progstate
+	      window-size)
 
     (set! bit 18)
     (set! random-input-bit 16)
+    (set! nop-id 0)
     (set! inst-id '#(nop @p @+ @b @ !+ !b ! +* 2* 
 			 2/ - + and or drop dup pop over a 
 			 push b! a!))
@@ -150,6 +152,7 @@
     (define nmems 1)
     (define/public (get-nmems) nmems)
 
+    (define (window-size) 34)
     (define (get-config) nmems)
     (define (set-config info) (set! nmems info))
     (define (set-config-string info) info)

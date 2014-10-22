@@ -152,8 +152,8 @@
 
 	;; for ldr & str, fp => r99, divide offset by 4
 	(when (or (equal? op "str") (equal? op "ldr"))
-	      (when (equal? (vector-ref args 1) "fp")
-		    (vector-set! args 1 "r10"))
+	      ;; (when (equal? (vector-ref args 1) "fp")
+	      ;; 	    (vector-set! args 1 "r10"))
 	      (define offset (vector-ref args 2))
 	      (unless (equal? (substring offset 0 1) "r")
 		      (vector-set! 

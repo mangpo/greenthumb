@@ -64,17 +64,19 @@
 (define neon-machine%
   (class machine%
     (super-new)
-    (inherit-field bit random-input-bit inst-id classes classes-len perline)
+    (inherit-field bit nop-id random-input-bit inst-id classes classes-len perline)
     (inherit print-line)
     (override set-config get-config set-config-string
               adjust-config finalize-config config-exceed-limit?
               get-state display-state
               output-constraint-string
-              progstate->vector vector->progstate)
+              progstate->vector vector->progstate
+	      window-size)
 
     ;; Initize common fields for neon
     (set! bit 32)
     (set! random-input-bit 8)
+    (set! nop-id 0)
     (set! inst-id '#(nop
                      vld1 vld2 ;vld3 vld4
                      vld1! vld2! ;vld3! vld4!
@@ -114,6 +116,8 @@
     (define type-id '#(s u i))
     (set! ninsts (vector-length inst-id))
     (set! ntypes (vector-length type-id))
+    
+    (define (window-size) 34)
 
     (define (get-config)
       (list nregs-d nregs-r nmems))

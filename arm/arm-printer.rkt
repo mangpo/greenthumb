@@ -24,9 +24,10 @@
       (define args (vector-copy (inst-args x)))
       (define shfop (inst-shfop x))
       (define shfarg (inst-shfarg x))
-      (when (and (or (equal? op "str") (equal? op "ldr"))
-		 (not (equal? (substring (vector-ref args 2) 0 1) "r")))
-	    (vector-set! args 2 (number->string (* 4 (string->number (vector-ref args 2))))))
+      (when (or (equal? op "str") (equal? op "ldr"))
+	    (vector-set! args 1 "fp")
+	    (when (not (equal? (substring (vector-ref args 2) 0 1) "r"))
+		  (vector-set! args 2 (number->string (* 4 (string->number (vector-ref args 2)))))))
       (display (format "~a~a~a ~a" indent op (inst-cond x) (string-join (vector->list args) ", ")))
       (when (and shfop (not (equal? shfop "nop")))
 	    (display (format ", ~a ~a" shfop shfarg)))
@@ -40,6 +41,8 @@
        
        [(and (> (string-length name) 1) (equal? (substring name 0 1) "r"))
         (string->number (substring name 1))]
+
+       [(equal? name "fp") "fp"]
        
        [else 
         (raise (format "encode: name->id: undefined for ~a" name))]))

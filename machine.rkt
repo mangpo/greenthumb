@@ -8,16 +8,19 @@
 (define machine%
   (class object%
     (super-new)
-    (init-field [bit #f] [random-input-bit #f] [inst-id #f] [classes #f] [classes-len #f] [perline 8])
+    (init-field [bit #f] [random-input-bit #f] [inst-id #f] [classes #f] [classes-len #f] 
+		[perline 8] [nop-id #f])
     (abstract set-config get-config set-config-string
               get-state display-state
               adjust-config finalize-config config-exceed-limit?
               output-constraint-string
-              progstate->vector vector->progstate)
+              progstate->vector vector->progstate
+	      window-size)
     (public get-class-id print-line no-assumption
             get-inst-id get-inst-name
-            output-assume-string
-            display-state-text parse-state-text get-states-from-file syntax-equal?)
+            output-assume-string get-state-liveness
+            display-state-text parse-state-text get-states-from-file syntax-equal?
+	    clean-code)
 
     (define (get-inst-id opcode)
       (vector-member opcode inst-id))
@@ -26,6 +29,8 @@
       (vector-ref inst-id id))
 
     (define (no-assumption) #f)
+
+    (define (get-state-liveness f extra) (get-state f extra))
 
     ;; x: name in form of symbol
     (define (get-class-id x)
@@ -75,4 +80,6 @@
                (and (equal? (inst-op x1) (inst-op x2))
                     (equal? (inst-args x1) (inst-args x2)))))
 
+    (define (clean-code code [prefix (vector)])
+      (vector-filter-not (lambda (x) (= (inst-op x) nop-id)) code))
     ))

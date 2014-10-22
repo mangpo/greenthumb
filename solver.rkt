@@ -34,7 +34,6 @@
     (define-syntax-rule (display-state x) (send machine display-state x))
 
     (define ninsts (vector-length (get-field inst-id machine)))
-    (define nop-id (vector-member `nop (get-field inst-id machine)))
     (define start-time #f)
 
     (define (sym-input)
@@ -86,6 +85,7 @@
     ;; code: non-encoded concrete code
     ;; config: machine config
     (define (proper-machine-config code config [extra #f])
+      (pretty-display `(config ,config))
       (define encoded-code (encode-sym code))
       (define (solve-until-valid config)
         (send machine set-config config)
@@ -94,7 +94,7 @@
         ;(configure [bitwidth bit] [loop-bound 20])
 	(current-bitwidth bit)
         (define state (send machine get-state sym-input extra))
-	;;(send simulator interpret encoded-code state)
+	(send simulator interpret encoded-code state)
 
         (with-handlers* 
          ([exn:fail? 
@@ -215,9 +215,6 @@
       (define-values (sym-vars sltns)
         (generate-inputs-inner n spec start-state assumption))
       (map (lambda (x) (evaluate-state start-state x)) sltns))
-
-    (define (remove-nops code)
-      (vector-filter-not (lambda (x) (= (inst-op x) nop-id)) code))
 
     (define (superoptimize spec constraint name time-limit size [extra #f]
                            #:prefix [prefix (vector)] #:postfix [postfix (vector)]
@@ -437,7 +434,9 @@
        ([exn:restart?
          (lambda (e)
 	   (superoptimize-partial (exn:restart-program e)
-				  constraint time-limit size extra #:assume assumption))])
+				  constraint time-limit size extra 
+				  #:hard-prefix hard-prefix #:hard-postfix hard-postfix
+				  #:assume assumption))])
        (inner))
       
       )
@@ -506,7 +505,8 @@
         (when (> (vector-length code) 0)
           (define-values 
             (out-program next-pos)
-            (sliding-window-at output code constraint time-limit extra assume window
+            (sliding-window-at hard-prefix hard-postfix output code 
+			       constraint time-limit extra assume window
                                ))
 	  (cond
 	   [out-program
@@ -538,8 +538,14 @@
 				    #:assume-interpret [assume-interpret #t]
 				    #:assume [assumption (send machine no-assumption)])
       (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
-      (when debug 
-            (send printer print-struct sketch))
+      (when debug
+            (send printer print-struct hard-prefix)
+	    (newline)
+            (send printer print-struct spec)
+	    (newline)
+            (send printer print-struct hard-postfix)
+	    (newline)
+	    )
 
       ;; (current-solver (new z3%))
       ;; (current-solver (new kodkod%))
@@ -601,8 +607,8 @@
       (define final-cost (evaluate sketch-cost model))
       
       (pretty-display ">>> superoptimize-output")
-      (set! final-program (remove-nops final-program))
-      (send printer print-struct final-program)
+      (set! final-program (send machine clean-code final-program hard-prefix))
+      ;;(send printer print-struct final-program)
       (print-syntax (decode final-program)) (newline)
       (pretty-display (format "limit cost = ~a" cost))
       (pretty-display (format "new cost = ~a" final-cost))
@@ -681,7 +687,7 @@
     
     ;; Return live-in in progstate format.
     (define (get-live-in code live-out extra)
-      (define in-state (send machine get-state sym-input extra))
+      (define in-state (send machine get-state-liveness sym-input extra))
       (define out-state (interpret code in-state))
       (define vec-live-out (send machine progstate->vector live-out))
       (define vec-input (send machine progstate->vector in-state))
