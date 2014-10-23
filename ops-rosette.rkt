@@ -4,6 +4,11 @@
 
 (provide (all-defined-out))
 
+(define-syntax-rule (assert-return c message val)
+  (begin
+    (assert c message)
+    val))
+
 (define-syntax-rule (<< x y bit) (sym/<< x y))
 (define-syntax-rule (>>> x y bit) (sym/>>> x y))
 
