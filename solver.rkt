@@ -242,10 +242,16 @@
 	;; 		       #:hard-cap (len-limit)
 	;; 		       #:assume assumption)]
 
-	[(equal? syn-mode `partial)
-	 (superoptimize-partial spec constraint time-limit size extra
-                                #:hard-prefix prefix #:hard-postfix postfix
-				#:assume assumption)])
+	[(equal? syn-mode `partial1)
+	 (superoptimize-partial-pattern spec constraint time-limit size extra
+                                        #:hard-prefix prefix #:hard-postfix postfix
+                                        #:assume assumption)]
+
+	[(equal? syn-mode `partial2)
+	 (superoptimize-partial-random spec constraint time-limit size extra
+                                        #:hard-prefix prefix #:hard-postfix postfix
+                                        #:assume assumption)]
+        )
        )
       )
 	
@@ -386,28 +392,12 @@
 			  "timeout"))])
        (inner (send simulator performance-cost (vector-append prefix spec postfix)))))
 
-    (define (superoptimize-partial spec constraint time-limit size [extra #f]
-                                   #:hard-prefix [hard-prefix (vector)]
-                                   #:hard-postfix [hard-postfix (vector)]
-                                   #:assume [assumption (send machine no-assumption)])
+    (define (superoptimize-partial-pattern 
+             spec constraint time-limit size [extra #f]
+             #:hard-prefix [hard-prefix (vector)]
+             #:hard-postfix [hard-postfix (vector)]
+             #:assume [assumption (send machine no-assumption)])
       (set-field! best-correct-cost stat (send simulator performance-cost spec))
-
-      (define (check-global input-prog output-prog)
-	(define-values (cost len time id) (send stat get-best-info-stat))
-	(pretty-display `(check-global ,cost ,len ,id))
-	(define old-cost (send simulator performance-cost input-prog))
-        (define best-cost (if cost cost (get-field best-correct-cost stat)))
-	(define best-program 
-	  (if cost 
-	      (send printer encode
-		    (send parser ast-from-file (format "~a/best.s" (get-field dir stat))))
-	      output-prog))
-
-	(when (< best-cost old-cost)
-	      (when (< best-cost (get-field best-correct-cost stat))
-		    (pretty-display "Steal program from other."))
-	      (pretty-display "restart!!!!!")
-	      (raise (exn:restart "restart" (current-continuation-marks) best-program))))
 
       (define (inner)
 	(newline)
@@ -433,13 +423,58 @@
       (with-handlers*
        ([exn:restart?
          (lambda (e)
-	   (superoptimize-partial (exn:restart-program e)
-				  constraint time-limit size extra 
-				  #:hard-prefix hard-prefix #:hard-postfix hard-postfix
-				  #:assume assumption))])
+	   (superoptimize-partial-pattern 
+            (exn:restart-program e)
+            constraint time-limit size extra 
+            #:hard-prefix hard-prefix #:hard-postfix hard-postfix
+            #:assume assumption))])
        (inner))
-      
       )
+
+    (define (superoptimize-partial-random 
+             spec constraint time-limit size [extra #f]
+             #:hard-prefix [hard-prefix (vector)]
+             #:hard-postfix [hard-postfix (vector)]
+             #:assume [assumption (send machine no-assumption)])
+      (define w (window-size))
+      (define (inner code)
+        (define len (vector-length code))
+        (define from (random (sub1 len)))
+        (pretty-display (format ">> superoptimize-partial-random pos = ~a, len = ~a" from len))
+        (define prefix (vector-copy code 0 from))
+        (define after-prefix (vector-copy code from))
+        (define-values (new-seq pos)
+          (sliding-window-at hard-prefix hard-postfix 
+                             prefix after-prefix
+                             constraint 60 extra assumption w))
+        (define output 
+          (if new-seq
+              (vector-append prefix new-seq (vector-copy after-prefix pos))
+              code))
+
+        (with-handlers*
+         ([exn:restart? (lambda (e) (inner (exn:restart-program e)))])
+         (check-global code output))
+
+        (inner output))
+      (inner spec))
+
+    (define (check-global input-prog output-prog)
+      (define-values (cost len time id) (send stat get-best-info-stat))
+      (pretty-display `(check-global ,cost ,len ,id))
+      (define old-cost (send simulator performance-cost input-prog))
+      (define best-cost (if cost cost (get-field best-correct-cost stat)))
+      (define best-program 
+        (if cost 
+            (send printer encode
+                  (send parser ast-from-file (format "~a/best.s" (get-field dir stat))))
+            output-prog))
+
+      (when (< best-cost old-cost)
+            (when (< best-cost (get-field best-correct-cost stat))
+                  (pretty-display "Steal program from other."))
+            (pretty-display "restart!!!!!")
+            (raise (exn:restart "restart" (current-continuation-marks) best-program))))
     
     (define (fixed-window hard-prefix hard-postfix spec constraint time-limit extra assume
                           window size-limit)

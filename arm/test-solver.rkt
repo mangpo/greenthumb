@@ -7,29 +7,32 @@
 (define machine (new arm-machine%))
 (send machine set-config (list 5 5 5))
 (define printer (new arm-printer% [machine machine]))
-(define solver (new arm-solver% [machine machine] [printer printer]))
+(define solver (new arm-solver% [machine machine] [printer printer]
+                    [parser parser]
+                    [syn-mode `partial2]))
 
 (define code
 (send parser ast-from-string "
-	eor	r3, r1, r0
-	and	r0, r1, r0
-	add	r0, r0, r3, asr #1
+	str	r0, [fp, #-16]
+	ldr	r3, [fp, #-16]
+	mov	r3, r3, asr #31
+	str	r3, [fp, #-12]
+	ldr	r3, [fp, #-16]
+	rsb	r3, r3, #0
+	str	r3, [fp, #-8]
+	ldr	r3, [fp, #-8]
+	mov	r3, r3, asr #31
+	str	r3, [fp, #-8]
+	ldr	r2, [fp, #-12]
+	ldr	r3, [fp, #-8]
+	orr	r3, r2, r3
+	mov	r0, r3
 "))
 
 (define sketch
 (send parser ast-from-string "
-eor r3, r1, r0
-and r1, r1, r0
-str r1, fp, -12
-str r3, fp, -8
-ldr r3, fp, -8
-mov r3, r3, asr 1
-str r3, fp, -8
-ldr r2, fp, -12
-ldr r3, fp, -8
-add r3, r2, r3
-mov r0, r3
-
+cmp r0, 0
+bicne r0, r3, 0
 "))
 
 (define encoded-code (send printer encode code))
@@ -58,6 +61,12 @@ mov r0, r3
       encoded-sketch ;; sketch = spec in this case
       (constraint machine [reg 0] [mem]) #f))
 (send printer print-syntax res)|#
+
+#|
+(define res
+  (send solver superoptimize 
+        encoded-code 
+        (constraint machine [reg 0] [mem]) "./foo" 3600 #f))|#
 
 #|
 (define live-in
