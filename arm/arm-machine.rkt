@@ -182,9 +182,7 @@
       ;; Double the memory size
       (list (first info) (* 2 (second info)) (third info)))
 
-    (define (finalize-config info)
-      ;; Double the memory size
-      (list (first info) (add1 (second info)) (third info)))
+    (define (finalize-config info) info)
 
     (define (config-exceed-limit? info)
       ;; Memory size > 1000

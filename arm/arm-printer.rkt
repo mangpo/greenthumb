@@ -55,7 +55,7 @@
       (define args-len (vector-length args))
       (when (and (> args-len 0)
 		 (not (equal? "r" (substring (vector-ref args (sub1 args-len)) 0 1)))
-		 (not (member (string->symbol op) '(bfc bfi sbfx ubfx))))
+                 (not (member (string->symbol op) '(bfc bfi sbfx ubfx))))
 	    (set! op (string-append op "#")))
       (define shfop (inst-shfop x))
       (define shfarg (inst-shfarg x))
