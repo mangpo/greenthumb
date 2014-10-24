@@ -234,6 +234,7 @@
 			       (vector-copy code (vector-ref mid-positions (sub1 rounds)))))
 	    )
 
+      (system "pkill -u mangpo java")
       (let ([decompressed-code (send compress decompress-reg-space output-code map-back)])
         (send printer print-syntax decompressed-code)
         decompressed-code)
