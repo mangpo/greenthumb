@@ -55,14 +55,14 @@ add r0, r0, 1
   (send machine display-state ex))|#
 
 ;; Test solver-based suoptimize function
-
+#|
 (define t (current-seconds))
 (define-values (res cost)
 (send solver synthesize-from-sketch 
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
       (constraint machine [reg 0] [mem]) #f))
-(pretty-display `(time ,(- (current-seconds) t)))
+(pretty-display `(time ,(- (current-seconds) t)))|#
 
 #|
 (define res
