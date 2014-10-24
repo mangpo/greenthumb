@@ -505,7 +505,7 @@
 
     (define (check-global input-prog quick-restart)
       (define-values (cost len time id) (send stat get-best-info-stat))
-      (pretty-display `(check-global ,quick-restart ,cost ,len ,id))
+      (pretty-display `(check-global ,cost ,len ,id))
       (define old-cost (send simulator performance-cost input-prog))
       (define best-cost (if cost cost (get-field best-correct-cost stat)))
 

@@ -261,12 +261,13 @@
                       #:extra-info [extra-info #f]
                       #:need-filter [need-filter #f]
                       #:dir [dir "output"] 
-                      #:cores [cores 12]
+                      #:cores [cores 8]
                       #:time-limit [time-limit 3600]
                       #:size [size #f]
                       #:input-file [input-file #f]
                       #:start-prog [start-prog #f])
-      (pretty-display `(optimize))
+      (when (and (equal? search-type `hybrid) (< cores 8))
+	    (raise "Cannot run hybrid search when # of cores < 12"))
 
       (if (> (vector-length code-org) 0)
           (if need-filter

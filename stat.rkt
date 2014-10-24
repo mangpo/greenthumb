@@ -120,9 +120,10 @@
 		(with-output-to-file #:exists 'append (format "~a/summary" dir)
 		  (thunk
 		   (pretty-display 
-                    "~a,~a,~a,~a" 
-                    best-correct-cost best-correct-len best-correct-time name)))
-		(with-output-to-file #:exists 'truncate (format "~a/best-~a.s" dir best-correct-time)
+		    (format
+		     "~a,~a,~a,~a" 
+		     best-correct-cost best-correct-len best-correct-time name))))
+		(with-output-to-file #:exists 'truncate (format "~a/best-~a.s" dir best-correct-cost)
 		  (thunk
 		   (send printer print-syntax (send printer decode best-correct-program))))
                 )
