@@ -7,30 +7,34 @@
 (define machine (new arm-machine%))
 (send machine set-config (list 5 5 5))
 (define printer (new arm-printer% [machine machine]))
-(define solver (new arm-solver% [machine machine] [printer printer]))
+(define solver (new arm-solver% [machine machine] [printer printer]
+                    [parser parser]
+                    [syn-mode `partial2]))
 
 (define code
 (send parser ast-from-string "
-	eor	r3, r1, r0
-	and	r0, r1, r0
-	add	r0, r0, r3, asr #1
+	sub	r0, r0, #1
+	orr	r0, r0, r0, asr #1
+	orr	r0, r0, r0, asr #2
+	orr	r0, r0, r0, asr #4
+	orr	r0, r0, r0, asr #8
+	orr	r0, r0, r0, asr #16
+	add	r0, r0, #1
 "))
 
 (define sketch
 (send parser ast-from-string "
-eor r3, r1, r0
-and r1, r1, r0
-str r1, fp, -12
-str r3, fp, -8
-ldr r3, fp, -8
-mov r3, r3, asr 1
-str r3, fp, -8
-ldr r2, fp, -12
-ldr r3, fp, -8
-add r3, r2, r3
-mov r0, r3
-
-"))
+sub r0, r0, 1
+? ? ?
+add r0, r0, 1
+")) ;;418, 731, >1200?
+#|
+sub r0, r0, 1
+clz r0, r0
+mvn r1, 0
+lsr r0, r1, r0
+add r0, r0, 1
+|#
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send solver encode-sym sketch))
@@ -41,27 +45,34 @@ mov r0, r3
 ;; Return counterexample if code and sketch are different.
 ;; Otherwise, return #f.
 
-
+#|
 (define ex
   (send solver counterexample encoded-code encoded-sketch 
         (constraint machine [reg 0] [mem])))
 
 (when ex 
   (pretty-display "Counterexample:")
-  (send machine display-state ex))
+  (send machine display-state ex))|#
 
 ;; Test solver-based suoptimize function
 #|
+(define t (current-seconds))
 (define-values (res cost)
 (send solver synthesize-from-sketch 
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
       (constraint machine [reg 0] [mem]) #f))
-(send printer print-syntax res)|#
+(pretty-display `(time ,(- (current-seconds) t)))|#
+
+#|
+(define res
+  (send solver superoptimize 
+        encoded-code 
+        (constraint machine [reg 0] [mem]) "./foo" 3600 #f))|#
 
 #|
 (define live-in
-(send solver get-live-in encoded-sketch (constraint machine [reg 0] [mem]) #f))
+(send solver get-live-in encoded-code (constraint machine [reg 0] [mem]) #f))
 (send machine display-state live-in)|#
 
 ;; This should terminate without an error.

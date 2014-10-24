@@ -2,6 +2,8 @@
 
 (provide (all-defined-out))
 
+(define-syntax-rule (assert-return c message val) val)
+
 (define-syntax-rule (<< x y bit)
   (if (and (>= y 0) (< y bit))
       (let ([mask (sub1 (arithmetic-shift 1 (- bit y)))])

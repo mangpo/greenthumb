@@ -222,6 +222,7 @@
 			   #:input-file [input-file #f]
 			   #:start-prog [start #f])
       (send stat set-name name)
+      (set-field! best-correct-cost stat (send simulator performance-cost spec))
       (set! start-time (current-seconds))
       (timeout
        time-limit
@@ -242,10 +243,21 @@
 	;; 		       #:hard-cap (len-limit)
 	;; 		       #:assume assumption)]
 
-	[(equal? syn-mode `partial)
-	 (superoptimize-partial spec constraint time-limit size extra
-                                #:hard-prefix prefix #:hard-postfix postfix
-				#:assume assumption)])
+	[(equal? syn-mode `partial1)
+	 (superoptimize-partial-pattern spec constraint time-limit size extra
+                                        #:hard-prefix prefix #:hard-postfix postfix
+                                        #:assume assumption)]
+
+	[(equal? syn-mode `partial2)
+	 (superoptimize-partial-pattern-slow spec constraint time-limit size extra
+                                             #:hard-prefix prefix #:hard-postfix postfix
+                                             #:assume assumption)]
+
+	[(equal? syn-mode `partial3)
+	 (superoptimize-partial-random spec constraint time-limit size extra
+                                        #:hard-prefix prefix #:hard-postfix postfix
+                                        #:assume assumption)]
+        )
        )
       )
 	
@@ -256,7 +268,8 @@
 				  #:hard-cap [hard-cap 1000]
                                   #:assume [assumption (send machine no-assumption)]
                                   #:prefix [prefix (vector)] #:postfix [postfix (vector)]
-                                  #:hard-prefix [hard-prefix (vector)] #:hard-postfix [hard-postfix (vector)]
+                                  #:hard-prefix [hard-prefix (vector)] 
+                                  #:hard-postfix [hard-postfix (vector)]
                                   )
       (pretty-display (format ">> superoptimize-binary"))
       (when (> (vector-length prefix) 0)
@@ -386,28 +399,11 @@
 			  "timeout"))])
        (inner (send simulator performance-cost (vector-append prefix spec postfix)))))
 
-    (define (superoptimize-partial spec constraint time-limit size [extra #f]
-                                   #:hard-prefix [hard-prefix (vector)]
-                                   #:hard-postfix [hard-postfix (vector)]
-                                   #:assume [assumption (send machine no-assumption)])
-      (set-field! best-correct-cost stat (send simulator performance-cost spec))
-
-      (define (check-global input-prog output-prog)
-	(define-values (cost len time id) (send stat get-best-info-stat))
-	(pretty-display `(check-global ,cost ,len ,id))
-	(define old-cost (send simulator performance-cost input-prog))
-        (define best-cost (if cost cost (get-field best-correct-cost stat)))
-	(define best-program 
-	  (if cost 
-	      (send printer encode
-		    (send parser ast-from-file (format "~a/best.s" (get-field dir stat))))
-	      output-prog))
-
-	(when (< best-cost old-cost)
-	      (when (< best-cost (get-field best-correct-cost stat))
-		    (pretty-display "Steal program from other."))
-	      (pretty-display "restart!!!!!")
-	      (raise (exn:restart "restart" (current-continuation-marks) best-program))))
+    (define (superoptimize-partial-pattern 
+             spec constraint time-limit size [extra #f]
+             #:hard-prefix [hard-prefix (vector)]
+             #:hard-postfix [hard-postfix (vector)]
+             #:assume [assumption (send machine no-assumption)])
 
       (define (inner)
 	(newline)
@@ -415,31 +411,116 @@
         (define program1
           (fixed-window hard-prefix hard-postfix spec constraint 60 extra assumption 
                         (window-size) (len-limit)))
-        (check-global spec program1)
+        (check-global spec #f)
 	;;(define program1 spec)
 
-	(define (loop timeout limit)
+	(define (loop timeout w)
 	  (newline)
-	  (pretty-display (format "Phase 2: sliding window, timeout = ~a, len-limit = ~a" 
-				  timeout limit))
+	  (pretty-display (format "Phase 2: sliding window, timeout = ~a, window-size = ~a" 
+				  timeout w))
 	  (define program2
 	    (sliding-window hard-prefix hard-postfix program1 
-                            constraint timeout extra assumption (* 2 limit)))
+                            constraint timeout extra assumption w))
 	  (check-global spec program2)
-	  (loop (* 2 timeout) (add1 limit)))
-	(loop 60 (len-limit))
+	  (loop (* 2 timeout) (add1 w)))
+	(loop 60 (window-size))
         )
         
       (with-handlers*
        ([exn:restart?
          (lambda (e)
-	   (superoptimize-partial (exn:restart-program e)
-				  constraint time-limit size extra 
-				  #:hard-prefix hard-prefix #:hard-postfix hard-postfix
-				  #:assume assumption))])
+	   (superoptimize-partial-pattern 
+            (exn:restart-program e)
+            constraint time-limit size extra 
+            #:hard-prefix hard-prefix #:hard-postfix hard-postfix
+            #:assume assumption))])
        (inner))
-      
       )
+
+    (define (superoptimize-partial-pattern-slow
+             spec constraint time-limit size [extra #f]
+             #:hard-prefix [hard-prefix (vector)]
+             #:hard-postfix [hard-postfix (vector)]
+             #:assume [assumption (send machine no-assumption)])
+      (pretty-display "superoptimize-partial-pattern-slow")
+      (define (loop timeout w)
+        (newline)
+        (pretty-display (format "Phase: sliding window, timeout = ~a, window-size = ~a" 
+                                timeout w))
+        (define program
+          (sliding-window hard-prefix hard-postfix spec
+                          constraint timeout extra assumption w #:restart #t))
+        (check-global spec program)
+        (loop (* 2 timeout) (add1 w)))
+        
+      (with-handlers*
+       ([exn:restart?
+         (lambda (e)
+	   (superoptimize-partial-pattern-slow
+            (exn:restart-program e)
+            constraint time-limit size extra 
+            #:hard-prefix hard-prefix #:hard-postfix hard-postfix
+            #:assume assumption))])
+       (loop 800 (floor (* (/ 5 4) (window-size)))))
+      )
+
+    (define (superoptimize-partial-random 
+             spec constraint time-limit size [extra #f]
+             #:hard-prefix [hard-prefix (vector)]
+             #:hard-postfix [hard-postfix (vector)]
+             #:assume [assumption (send machine no-assumption)])
+      
+      (define (inner w timeout choices)
+        (define from (list-ref choices (random (length choices))))
+        (pretty-display (format ">> superoptimize-partial-random pos = ~a, timeout = ~a" from timeout))
+        (pretty-display `(choices ,choices))
+        (define prefix (vector-copy spec 0 from))
+        (define after-prefix (vector-copy spec from))
+        (define-values (new-seq pos)
+          (sliding-window-at hard-prefix hard-postfix 
+                             prefix after-prefix
+                             constraint timeout extra assumption w))
+        (define output 
+          (if new-seq
+              (vector-append prefix new-seq (vector-copy after-prefix pos))
+              spec))
+
+        (check-global spec output)
+
+        (define new-choices (remove from choices))
+        (if (empty? new-choices)
+            (inner (add1 w) (* 2 timeout) (range (sub1 (vector-length spec))))
+            (inner w timeout new-choices))
+        )
+
+      (with-handlers*
+       ([exn:restart?
+         (lambda (e)
+           (superoptimize-partial-random 
+            (exn:restart-program e)
+            constraint time-limit size extra 
+            #:hard-prefix hard-prefix #:hard-postfix hard-postfix
+            #:assume assumption))])
+       (inner (window-size) 60 (range (sub1 (vector-length spec))))))
+
+    (define (check-global input-prog quick-restart)
+      (define-values (cost len time id) (send stat get-best-info-stat))
+      (pretty-display `(check-global ,cost ,len ,id))
+      (define old-cost (send simulator performance-cost input-prog))
+      (define best-cost (if cost cost (get-field best-correct-cost stat)))
+
+      (when (< best-cost old-cost)
+        (when (< best-cost (get-field best-correct-cost stat))
+          (pretty-display "Steal program from other."))
+        (when (or quick-restart (< best-cost (get-field best-correct-cost stat)))
+          (define best-program 
+            (if cost 
+                (send printer encode
+                      (send parser ast-from-file 
+                            (format "~a/best.s" (get-field dir stat))))
+                quick-restart))
+          (pretty-display "restart!!!!!")
+          (raise (exn:restart "restart" (current-continuation-marks) best-program)))))
     
     (define (fixed-window hard-prefix hard-postfix spec constraint time-limit extra assume
                           window size-limit)
@@ -487,7 +568,7 @@
            #:postfix (vector-drop code pos-to)))
         (cond
          [(equal? out-program "timeout")
-          (if (> pos-to 3) 
+          (if (> pos-to 2) 
               (begin
                 (pretty-display "timeout => shrink")
                 (inner (sub1 pos-to)))
@@ -499,7 +580,7 @@
                   
       (inner (min len-code window)))
 
-    (define (sliding-window hard-prefix hard-postfix spec constraint time-limit extra assume window)
+    (define (sliding-window hard-prefix hard-postfix spec constraint time-limit extra assume window #:restart [restart #f])
       (define output (vector))
       (define (loop code)
         (when (> (vector-length code) 0)
@@ -508,6 +589,7 @@
             (sliding-window-at hard-prefix hard-postfix output code 
 			       constraint time-limit extra assume window
                                ))
+          (when restart (check-global spec #f))
 	  (cond
 	   [out-program
 	    (pretty-display "found => skip")

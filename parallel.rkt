@@ -138,25 +138,31 @@
           (cond
            [(equal? search-type `stoch) 0]
            [(equal? search-type `solver) cores]
-           [(equal? search-type `hybrid) 1]))
+           [(equal? search-type `hybrid) 3]))
         (define cores-stoch (- cores cores-solver))
 
-        ;; (define types 
-        ;; 	(for/vector ([id cores]) 
-        ;; 		    (if (or (equal? search-type `stoch) (equal? search-type `hybrid))
-        ;; 			(cons #t mode) (cons #f mode))))
-        ;; (when (equal? search-type `hybrid)
-        ;; 	    (vector-set! types (sub1 cores) (cons `solver `hybrid)))
         ;; STEP 1: create file & run
+        (define-syntax-rule (create-and-run id mode stoch?)
+          (begin
+            (create-file id stoch? mode)
+            (run-file id)))
+
         (define processes-stoch
-          (for/list ([id cores-stoch])
-                    (create-file id #t mode)
-                    (run-file id)))
+          (if (equal? search-type `hybrid)
+              (let ([n 2])
+                (append (for/list ([id n]) 
+                                  (create-and-run id `opt #t))
+                        (for/list ([id (- cores-stoch n)]) 
+                                  (create-and-run (+ n id) `syn #t))))
+              (for/list ([id cores-stoch]) (create-and-run id mode #t))))
 
         (define processes-solver
-          (for/list ([id cores-solver])
-                    (create-file (+ cores-stoch id) #f (if (equal? search-type `hybrid) `partial mode))
-                    (run-file (+ cores-stoch id))))
+          (if (equal? search-type `hybrid)
+              (list (create-and-run (+ cores-stoch 0) `partial1 #f)
+                    (create-and-run (+ cores-stoch 1) `partial2 #f)
+                    (create-and-run (+ cores-stoch 2) `partial3 #f))
+              (for/list ([id cores-solver])
+                        (create-and-run (+ cores-stoch id) mode #f))))
 
         (define (result)
           (define (update-stats)
@@ -257,12 +263,13 @@
                       #:extra-info [extra-info #f]
                       #:need-filter [need-filter #f]
                       #:dir [dir "output"] 
-                      #:cores [cores 12]
+                      #:cores [cores 8]
                       #:time-limit [time-limit 3600]
                       #:size [size #f]
                       #:input-file [input-file #f]
                       #:start-prog [start-prog #f])
-      (pretty-display `(optimize))
+      (when (and (equal? search-type `hybrid) (< cores 8))
+	    (raise "Cannot run hybrid search when # of cores < 12"))
 
       (if (> (vector-length code-org) 0)
           (if need-filter

@@ -111,7 +111,7 @@
                      bfc bfi
                      sbfx ubfx
                      clz
-                     ldr str
+                     ;;ldr str
                      ldr# str#
                      tst cmp
                      tst# cmp#
@@ -123,11 +123,10 @@
 			and orr eor bic orn
 			asr lsl lsr
 			;;sdiv udiv 
-			mul
-			ldr str) ;; rrr
+			mul) ;; rrr
+			;; ldr str)
 		  '(add# sub# rsb#
-			 and# orr# eor# bic# orn#
-			 ldr# str#) ;; rri
+			 and# orr# eor# bic# orn#) ;; rri
 		  '(asr# lsl# lsr#) ;; rri
 		  '(mov mvn 
 			rev rev16 revsh rbit
@@ -136,6 +135,7 @@
 		  '(mov# mvn# movw# movt# tst# cmp#) ;; ri
 		  '(mla mls) ;; rrrr
 		  '(bfi sbfx ubfx) ;; rrii
+                  '(ldr# str#) ;; rri
 		  ;'(bfc) ;; rii
                   ))
 
@@ -161,7 +161,7 @@
     (define/public (get-shf-inst-name x)
       (vector-ref shf-inst-id x))
 
-    (define (window-size) 32)
+    (define (window-size) 100) ;;32
 
     (define (get-config)
       (list nregs nmems fp))

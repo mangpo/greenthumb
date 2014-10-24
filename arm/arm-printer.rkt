@@ -123,6 +123,7 @@
        [(equal? class-id 4) (make-inst reg imm)]
        [(equal? class-id 5) (make-inst reg reg reg reg)]
        [(equal? class-id 6) (make-inst reg reg imm imm)]
+       [(equal? class-id 7) (make-inst reg identity imm)]
        [(member opcode '(bfc)) (make-inst reg imm imm)]
        [(equal? opcode `nop) (arm-inst "nop" (vector) #f #f "")]
        [else (raise (format "decode-inst: undefined for ~a" opcode))]))

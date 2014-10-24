@@ -283,7 +283,7 @@
           ;; mov
           (define (ri f)
             (define d (args-ref args 0))
-            (define a (args-ref args 1))
+            (define a (check-imm-mov (args-ref args 1)))
             (define val (f a))
             (vector-set! regs d val)
             (if dep
@@ -293,7 +293,7 @@
           ;; movhi movlo
           (define (r!i f)
             (define d (args-ref args 0))
-            (define a (args-ref args 1))
+            (define a (check-imm-mov (args-ref args 1)))
             (define val (f (vector-ref regs d) a))
             (vector-set! regs d val)
             (if dep
@@ -303,6 +303,18 @@
 
           ;; subi addi
           (define (rri f)
+            (define d (args-ref args 0))
+            (define a (args-ref args 1))
+            (define b (check-imm (args-ref args 2)))
+            (define val (f (vector-ref regs a) b))
+            (vector-set! regs d val)
+            (if dep
+                (vector-set! regs-dep d (create-node val (list b (vector-ref regs-dep a)
+                                                               cond-dep)))
+                (add-inter val)))
+
+          ;; lsr
+          (define (rrb f)
             (define d (args-ref args 0))
             (define a (args-ref args 1))
             (define b (args-ref args 2))
@@ -358,7 +370,7 @@
                 (add-inter index)))
 
           ;; setbit
-          (define (rrii f)
+          (define (rrbb f)
             (define d (args-ref args 0))
             (define a (args-ref args 1))
             (define width (args-ref args 3))
@@ -372,7 +384,7 @@
                 (add-inter val)))
 
           ;; clrbit
-          (define (r!ii f)
+          (define (r!bb f)
             (define d (args-ref args 0))
             (define width (args-ref args 2))
             (define shift (args-ref args 1))
@@ -395,7 +407,7 @@
 
           (define (z=ri f)
             (define a (args-ref args 0))
-            (define b (args-ref args 1))
+            (define b (check-imm (args-ref args 1)))
             (if (= (f (vector-ref regs a) b) 0)
                 (set! z 1)
                 (set! z 0))
@@ -457,17 +469,17 @@
            [(inst-eq `lsl) (rrr bvshl)]
            
            ;; shift i
-           [(inst-eq `lsr#) (rri bvushr)]
-           [(inst-eq `asr#) (rri bvshr)]
-           [(inst-eq `lsl#) (rri bvshl)]
+           [(inst-eq `lsr#) (rrb bvushr)]
+           [(inst-eq `asr#) (rrb bvshr)]
+           [(inst-eq `lsl#) (rrb bvshl)]
 
            ;; bit
-           [(inst-eq `bfc)  (r!ii  clrbit)]
-           [(inst-eq `bfi)  (rrii setbit)]
+           [(inst-eq `bfc)  (r!bb  clrbit)]
+           [(inst-eq `bfi)  (rrbb setbit)]
 
            ;; others
-           [(inst-eq `sbfx) (rrii sext)]
-           [(inst-eq `ubfx) (rrii ext)]
+           [(inst-eq `sbfx) (rrbb sext)]
+           [(inst-eq `ubfx) (rrbb ext)]
            [(inst-eq `clz)  (rr clz)]
 
            ;; load/store
@@ -525,3 +537,19 @@
       (when debug (pretty-display `(performance ,cost)))
       cost)
     ))
+
+(define legal-imm 
+  (append (for/list ([i 12]) (arithmetic-shift #xff (* 2 i)))
+          (list #xff000000 (- #xff000000))))
+
+(define-syntax-rule (check-imm x) 
+  (assert-return 
+    (ormap (lambda (i) (= (bitwise-and x i) x)) legal-imm) 
+    "illegal immediate"
+    x))
+
+(define-syntax-rule (check-imm-mov x) 
+  (assert-return 
+   (= (bitwise-and x #xffff) x) 
+   "illegal mov immediate"
+    x))

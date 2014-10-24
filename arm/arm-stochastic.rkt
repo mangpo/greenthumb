@@ -35,13 +35,13 @@
     (define reg-range (list->vector (range nregs)))
     (define const-range
           (list->vector
-           (append (range -16 17) (list (sub1 bit) #x3333 #x5555 #x0f0f #x3f #x1111)
-                   (for/list ([i (range 5 (sub1 bit))]) 
+           (append (range 17) (list (sub1 bit) #x1111 #x3333 #x5555 #x0f0f #x3f)
+		   (for/list ([i (range 5 (sub1 bit))]) 
                              (arithmetic-shift 1 i))
                    (list (- (arithmetic-shift 1 (sub1 bit)))))))
     
     (define bit-range (list->vector (range bit)))
-    (define mem-range (list->vector (range nmems)))
+    (define mem-range (list->vector (for/list ([i (range 1 11)]) (- i))))
 
     (define (inst-copy-with-op x op) 
       (define opname (vector-ref inst-id op))
@@ -170,6 +170,7 @@
        [(equal? class-id 4) (vector reg-range const-range)]
        [(equal? class-id 5) (vector reg-range (reg) (reg) (reg))]
        [(equal? class-id 6) (vector reg-range (reg) bit-range bit-range)]
+       [(equal? class-id 7) (vector reg-range reg-range mem-range)]
        [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range)]
        [else (vector)]))
 
