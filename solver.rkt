@@ -522,7 +522,7 @@
            #:postfix (vector-drop code pos-to)))
         (cond
          [(equal? out-program "timeout")
-          (if (> pos-to 3) 
+          (if (> pos-to 2) 
               (begin
                 (pretty-display "timeout => shrink")
                 (inner (sub1 pos-to)))
