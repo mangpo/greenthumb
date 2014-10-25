@@ -557,7 +557,9 @@
       output)
 
     (define (sliding-window-at hard-prefix hard-postfix prefix code 
-                               constraint time-limit extra assume window)
+                               constraint time-limit extra assume window 
+                               #:restart [restart #f])
+      (define spec (vector-append prefix code))
       (define len-code (vector-length code))
       (define (inner pos-to)
         (define out-program
@@ -566,6 +568,7 @@
            #:hard-prefix hard-prefix #:hard-postfix hard-postfix
            #:prefix prefix
            #:postfix (vector-drop code pos-to)))
+        (when restart (check-global spec #f))
         (cond
          [(equal? out-program "timeout")
           (if (> pos-to 2) 
@@ -588,8 +591,8 @@
             (out-program next-pos)
             (sliding-window-at hard-prefix hard-postfix output code 
 			       constraint time-limit extra assume window
+                               #:restart restart
                                ))
-          (when restart (check-global spec #f))
 	  (cond
 	   [out-program
 	    (pretty-display "found => skip")
