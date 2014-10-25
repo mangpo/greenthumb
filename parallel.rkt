@@ -149,7 +149,7 @@
 
         (define processes-stoch
           (if (equal? search-type `hybrid)
-              (let ([n 2])
+              (let ([n 3])
                 (append (for/list ([id n]) 
                                   (create-and-run id `opt #t))
                         (for/list ([id (- cores-stoch n)]) 
@@ -234,6 +234,7 @@
 			       (vector-copy code (vector-ref mid-positions (sub1 rounds)))))
 	    )
 
+      (system "pkill -u mangpo java")
       (let ([decompressed-code (send compress decompress-reg-space output-code map-back)])
         (send printer print-syntax decompressed-code)
         decompressed-code)
