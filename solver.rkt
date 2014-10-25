@@ -135,7 +135,7 @@
       (define sym-vars (get-sym-vars start-state))
 
       ;; All 0s
-      (define input-zero (list (make-hash (for/list ([v sym-vars]) (cons v 0)))))
+      (define input-zero (list (generate-one-input (lambda () 0))))
       
       (define m (quotient n 2))
       ;; Random
@@ -667,21 +667,21 @@
       
       ;; Collect input variables and contruct their init values.
       (define-values (sym-vars inputs)
-        (generate-inputs-inner 2 spec start-state assumption))
+        (generate-inputs-inner 3 spec start-state assumption))
 
-      ;; (when debug
-      ;;       (pretty-display "Test calculate performance-cost with symbolic instructions...")
-      ;;       (send simulator performance-cost sketch)
-      ;;       (pretty-display "Test simulate with symbolic instructions...")
-      ;;       (send simulator interpret sketch start-state)
-      ;;       (pretty-display "Passed!"))
+      (when debug
+            (pretty-display "Test calculate performance-cost with symbolic instructions...")
+            (send simulator performance-cost sketch)
+            (pretty-display "Test simulate with symbolic instructions...")
+            (send simulator interpret sketch start-state)
+            (pretty-display "Passed!"))
       
       (define model 
         (timeout
          time-limit
          (synthesize 
           #:forall sym-vars
-          #:init inputs
+          #:init (drop inputs 1)
           #:assume (if assume-interpret (interpret-spec!) (assume start-state assumption))
           #:guarantee (compare-spec-sketch))
          )

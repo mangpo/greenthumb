@@ -5,7 +5,7 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 5 5 5))
+(send machine set-config (list 4 1 0))
 (define printer (new arm-printer% [machine machine]))
 (define solver (new arm-solver% [machine machine] [printer printer]
                     [parser parser]
@@ -13,28 +13,35 @@
 
 (define code
 (send parser ast-from-string "
-	sub	r0, r0, #1
-	orr	r0, r0, r0, asr #1
-	orr	r0, r0, r0, asr #2
-	orr	r0, r0, r0, asr #4
-	orr	r0, r0, r0, asr #8
-	orr	r0, r0, r0, asr #16
-	add	r0, r0, #1
+	eor	r0, r0, r0, asr #1
+	movw	r3, #4369
+	movt	r3, 4369
+	eor	r0, r0, r0, asr #2
+	and	r3, r0, r3
+	add	r3, r3, r3, asl #4
+	add	r3, r3, r3, asl #8
+	add	r0, r3, r3, asl #16
 "))
 
 (define sketch
 (send parser ast-from-string "
-sub r0, r0, 1
-? ? ?
-add r0, r0, 1
-")) ;;418, 731, >1200?
-#|
-sub r0, r0, 1
-clz r0, r0
-mvn r1, 0
-lsr r0, r1, r0
-add r0, r0, 1
-|#
+	eor	r0, r0, r0, asr #1
+	movw	r3, #4369
+	movt	r3, 4369
+	eor	r0, r0, r0, asr #2
+? ?
+")) 
+;; no div, no inputs 46, 44
+;; choice div, no inputs 41
+;; support div, no inputs 119, 115
+
+;; no div, inputs 61 105
+;; no div, 1 inputs (0) 76
+;; no div, 1 inputs (random) 41, 43
+;; no div, 2 inputs (random) 3, 23, 11, 51
+;; no div, 3 inputs (random) 25, 31
+
+;; support div, 2 inputs (random) 89
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send solver encode-sym sketch))
@@ -55,14 +62,14 @@ add r0, r0, 1
   (send machine display-state ex))|#
 
 ;; Test solver-based suoptimize function
-#|
+
 (define t (current-seconds))
 (define-values (res cost)
 (send solver synthesize-from-sketch 
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
       (constraint machine [reg 0] [mem]) #f))
-(pretty-display `(time ,(- (current-seconds) t)))|#
+(pretty-display `(time ,(- (current-seconds) t)))
 
 #|
 (define res

@@ -8,7 +8,7 @@
 (current-bitwidth 32)
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 5 4 4)) ;; argument = (list num-regs memory)
+(send machine set-config (list 6 4 4)) ;; argument = (list num-regs memory)
 (define printer (new arm-printer% [machine machine]))
 (define solver (new arm-solver% [machine machine] [printer printer]))
 
@@ -16,17 +16,21 @@
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 
 ;; Input machine state
-(define input-state (progstate (vector 0 0 0 0 0)
+(define input-state (progstate (vector 3 0 0 0 0 0)
                                (vector 0 0 0 0) 0 4))
 
 ;; Section 1: Concrete program
 (define code
 (send parser ast-from-string "
-sub r0, r0, 1
-clz r0, r0
-orr r1, r0, -1
-lsr r0, r1, r0
-add r0, r0, 1
+	rsb	r5, r0, #0
+	and	r5, r5, r0
+	mov	r4, r0
+	eor	r0, r5, r0
+	add	r4, r4, r5
+	mov	r1, r5
+	mov	r0, r0, asr #2
+	bl	__aeabi_idiv
+	orr	r0, r0, r4
 "))
 
 (send printer print-struct code)
