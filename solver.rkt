@@ -265,7 +265,7 @@
     ;; Optimize the cost using binary search on the number of holes.
     ;; spec: non-encoded block
     (define (superoptimize-binary spec constraint time-limit size [extra #f]
-				  #:hard-cap [hard-cap 1000]
+				  #:lower-bound [lower-bound 0]
                                   #:assume [assumption (send machine no-assumption)]
                                   #:prefix [prefix (vector)] #:postfix [postfix (vector)]
                                   #:hard-prefix [hard-prefix (vector)] 
@@ -324,9 +324,9 @@
       
       (with-handlers 
        ([exn:break? (lambda (e) (unless final-program (set! final-program "timeout")))])
-       (inner 1 final-len 
+       (inner (max 1 lower-bound) final-len 
               (send simulator performance-cost (vector-append prefix spec postfix))
-              (min hard-cap (quotient (+ 1 final-len) 2))))
+              (max lower-bound (quotient (+ 1 final-len) 2))))
 
       ;; Try len + 2
       ;; (unless (equal? final-program "timeout")
@@ -449,7 +449,8 @@
                                 timeout w))
         (define program
           (sliding-window hard-prefix hard-postfix spec
-                          constraint timeout extra assumption w #:restart #t))
+                          constraint timeout extra assumption w 
+			  #:restart #t #:lower-bound (add1 (len-limit))))
         (check-global spec program)
         (loop (* 2 timeout) (add1 w)))
         
@@ -557,7 +558,8 @@
       output)
 
     (define (sliding-window-at hard-prefix hard-postfix prefix code 
-                               constraint time-limit extra assume window 
+                               constraint time-limit extra assume window
+			       #:lower-bound [lower-bound 0]
                                #:restart [restart #f])
       (define spec (vector-append prefix code))
       (define len-code (vector-length code))
@@ -567,11 +569,12 @@
            (vector-take code pos-to) constraint time-limit #f extra #:assume assume
            #:hard-prefix hard-prefix #:hard-postfix hard-postfix
            #:prefix prefix
-           #:postfix (vector-drop code pos-to)))
+           #:postfix (vector-drop code pos-to)
+	   #:lower-bound lower-bound))
         (when restart (check-global spec #f))
         (cond
          [(equal? out-program "timeout")
-          (if (> pos-to 2) 
+          (if (> pos-to (max 2 lower-bound)) 
               (begin
                 (pretty-display "timeout => shrink")
                 (inner (sub1 pos-to)))
@@ -583,7 +586,10 @@
                   
       (inner (min len-code window)))
 
-    (define (sliding-window hard-prefix hard-postfix spec constraint time-limit extra assume window #:restart [restart #f])
+    (define (sliding-window hard-prefix hard-postfix spec 
+			    constraint time-limit extra assume window 
+			    #:restart [restart #f]
+			    #:lower-bound [lower-bound 0])
       (define output (vector))
       (define (loop code)
         (when (> (vector-length code) 0)
@@ -591,7 +597,7 @@
             (out-program next-pos)
             (sliding-window-at hard-prefix hard-postfix output code 
 			       constraint time-limit extra assume window
-                               #:restart restart
+                               #:restart restart #:lower-bound lower-bound
                                ))
 	  (cond
 	   [out-program

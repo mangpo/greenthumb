@@ -112,7 +112,6 @@
       (define my-live-in live-in)
       (for/vector ([i n]) 
         (let ([x (random-instruction my-live-in)])
-          (pretty-display `(x ,x))
           (set! my-live-in (update-live my-live-in x)) ;; TODO
           x)))
 

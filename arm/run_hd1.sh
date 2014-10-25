@@ -15,4 +15,4 @@ do
     done
 done
 
-sh run_kaofang2.sh
+sh run_hd2.sh

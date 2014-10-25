@@ -1,6 +1,6 @@
 extra=livein+half
 
-for name in p17_off_right_o0 p22_parity_o0 p23_count_o0 p24_roundpower_o0                                              
+for name in p17_off_right p22_parity p22_parity_full p23_count p24_roundpower                                              
 do
     for type in hybrid
     do
@@ -15,4 +15,4 @@ do
     done
 done
 
-sh run_kaofang3.sh
+sh run_hd3_o3.sh
