@@ -1,6 +1,6 @@
 extra=livein+half
 
-for name in p17_off_right_o0 p22_parity_o0 p23_count_o0 p24_roundpower_o0                                              
+for name in p22_parity_o0 p23_count_o0 p24_roundpower_o0 #p17_off_right_o0 
 do
     for type in hybrid
     do
@@ -15,4 +15,5 @@ do
     done
 done
 
-sh run_hd3.sh
+#sh run_hd3.sh
+sh dummpy.sh
