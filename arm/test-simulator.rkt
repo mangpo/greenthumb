@@ -22,15 +22,7 @@
 ;; Section 1: Concrete program
 (define code
 (send parser ast-from-string "
-	rsb	r5, r0, #0
-	and	r5, r5, r0
-	mov	r4, r0
-	eor	r0, r5, r0
-	add	r4, r4, r5
-	mov	r1, r5
-	mov	r0, r0, asr #2
-	bl	__aeabi_idiv
-	orr	r0, r0, r4
+	ldr	r4, [fp, -8]
 "))
 
 (send printer print-struct code)
@@ -48,6 +40,8 @@
 (pretty-display "Output from simulator in rosette.")
 (send machine display-state output-state)
 (newline)
+
+(send simulator-rosette performance-cost encoded-code)
 
 ;; ;; Section 2: Unknown program
 ;; ;; ? = one instruction

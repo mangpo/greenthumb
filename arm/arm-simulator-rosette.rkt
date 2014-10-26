@@ -530,10 +530,15 @@
     (define (performance-cost code)
       (define cost 0)
       (for ([x code])
-           (cond
-            [(equal? (inst-op x) (vector-member `nop inst-id)) (void)]
-            [else (set! cost (add1 cost))])
-           )
+           (let ([op (inst-op x)])
+             (define-syntax-rule (inst-eq a ...) 
+               (or (equal? op (vector-member a inst-id)) ...))
+             (cond
+              [(inst-eq `nop) (void)]
+              [(inst-eq `str `str# `ldr `ldr#) (set! cost (+ cost 3))]
+              [(inst-eq `mul `mla `mls `sdiv `udiv) (set! cost (+ cost 5))]
+              [else (set! cost (add1 cost))])
+             ))
       (when debug (pretty-display `(performance ,cost)))
       cost)
     ))

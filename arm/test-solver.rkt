@@ -13,22 +13,13 @@
 
 (define code
 (send parser ast-from-string "
-	eor	r0, r0, r0, asr #1
-	movw	r3, #4369
-	movt	r3, 4369
-	eor	r0, r0, r0, asr #2
-	and	r3, r0, r3
-	add	r3, r3, r3, asl #4
-	add	r3, r3, r3, asl #8
-	add	r0, r3, r3, asl #16
+	rsb	r3, r0, #0
+	mov	r0, r0, asr #31
+	orr	r0, r0, r3, asr #31
 "))
 
 (define sketch
 (send parser ast-from-string "
-	eor	r0, r0, r0, asr #1
-	movw	r3, #4369
-	movt	r3, 4369
-	eor	r0, r0, r0, asr #2
 ? ?
 ")) 
 ;; no div, no inputs 46, 44
@@ -39,13 +30,13 @@
 ;; no div, 1 inputs (0) 76
 ;; no div, 1 inputs (random) 41, 43
 ;; no div, 2 inputs (random) 3, 23, 11, 51
+;; adjust cost function
 ;; no div, 3 inputs (random) 25, 31
 
 ;; support div, 2 inputs (random) 89
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send solver encode-sym sketch))
-
 ;(send printer print-syntax (send printer decode
 ;(send machine clean-code encoded-sketch encoded-code)))
 
@@ -62,7 +53,6 @@
   (send machine display-state ex))|#
 
 ;; Test solver-based suoptimize function
-
 (define t (current-seconds))
 (define-values (res cost)
 (send solver synthesize-from-sketch 
@@ -70,6 +60,7 @@
       encoded-sketch ;; sketch = spec in this case
       (constraint machine [reg 0] [mem]) #f))
 (pretty-display `(time ,(- (current-seconds) t)))
+
 
 #|
 (define res

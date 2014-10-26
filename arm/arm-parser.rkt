@@ -123,6 +123,8 @@
       (cond
        [(equal? op2 "__aeabi_idiv")
 	(arm-inst "sdiv" (vector "r0" "r0" "r1") #f #f "")]
+       [(equal? op2 "__aeabi_uidiv")
+	(arm-inst "udiv" (vector "r0" "r0" "r1") #f #f "")]
        [else
 	(raise (format "Undefine special instruction: ~a ~a" op1 op2))]))
 
