@@ -16,13 +16,13 @@
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 
 ;; Input machine state
-(define input-state (progstate (vector 3 0 0 0 0 0)
+(define input-state (progstate (vector #x1abc66ac #xb919 0 0 0 0)
                                (vector 0 0 0 0) 0 4))
 
 ;; Section 1: Concrete program
 (define code
 (send parser ast-from-string "
-	ldr	r4, [fp, -8]
+	smull r1, r0, r1, r0
 "))
 
 (send printer print-struct code)

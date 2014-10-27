@@ -687,7 +687,7 @@
          time-limit
          (synthesize 
           #:forall sym-vars
-          ;;#:init (drop inputs 1)
+          #:init (drop inputs 1)
           #:assume (if assume-interpret (interpret-spec!) (assume start-state assumption))
           #:guarantee (compare-spec-sketch))
          )

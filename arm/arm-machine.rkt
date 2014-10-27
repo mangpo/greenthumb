@@ -107,7 +107,8 @@
                      asr# lsl# lsr#
                      ;;sdiv udiv
                      mul mla mls
-                     ;;smmul smmla smmls
+                     smull umull
+                     smmul smmla smmls
                      bfc bfi
                      sbfx ubfx
                      clz
@@ -123,7 +124,7 @@
 			and orr eor bic orn
 			asr lsl lsr
 			;;sdiv udiv 
-			mul) ;; rrr
+			mul smmul) ;; rrr
 			;; ldr str)
 		  '(add# sub# rsb#
 			 and# orr# eor# bic# orn#) ;; rri
@@ -133,7 +134,7 @@
 			clz
                         tst cmp) ;;rr
 		  '(mov# mvn# movw# movt# tst# cmp#) ;; ri
-		  '(mla mls) ;; rrrr
+		  '(mla mls smmla smmls smull umull) ;; rrrr
 		  '(bfi sbfx ubfx) ;; rrii
                   '(ldr# str#) ;; rri
 		  ;'(bfc) ;; rii
