@@ -26,7 +26,9 @@
             evaluate-inst encode-sym-inst encode-sym
             assume-relax get-live-in)
     
-    ;; TODO: len-limit, window-size, evaluate-program
+    (if syn-mode
+        (current-solver (new kodkod%))
+        (current-solver (new z3%)))
 
     (define-syntax-rule (print-struct x) (send printer print-struct x))
     (define-syntax-rule (print-syntax x) (send printer print-syntax x))
@@ -729,6 +731,7 @@
             )
       
       ;;(current-solver (new z3%))
+      (current-log-handler (log-handler #:info any/c))
       (clear-asserts)
       ;(configure [bitwidth bit] [loop-bound 20])
       (current-bitwidth bit)

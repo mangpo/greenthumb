@@ -8,8 +8,7 @@
 (send machine set-config (list 4 1 0))
 (define printer (new arm-printer% [machine machine]))
 (define solver (new arm-solver% [machine machine] [printer printer]
-                    [parser parser]
-                    [syn-mode `partial2]))
+                    [parser parser] [syn-mode `partial1]))
 
 (define code
 (send parser ast-from-string "
@@ -71,9 +70,10 @@
   (send solver counterexample encoded-code encoded-sketch 
         (constraint machine [reg 0 1] [mem])))
 
-(when ex 
-  (pretty-display "Counterexample:")
-  (send machine display-state ex))
+(pretty-display "Counterexample:")
+(if ex 
+  (send machine display-state ex)
+  (pretty-display "No"))
 
 ;; Test solver-based suoptimize function
 #|
