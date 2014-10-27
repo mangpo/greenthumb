@@ -21,6 +21,7 @@
                   #:cores [cores 12]
                   #:time-limit [time-limit 3600]
                   #:size [size #f]
+                  #:window [window #f]
                   #:input-file [input-file #f])
   
   (define parser (new arm-parser%))
@@ -31,7 +32,7 @@
   (define solver (new arm-solver% [machine machine] [printer printer]))
   (define parallel (new parallel% [meta meta] [parser parser] [machine machine] 
                         [printer printer] [compress compress] [solver solver]
-                        [search-type search-type] [mode mode]))
+                        [search-type search-type] [mode mode] [window window]))
 
   (send parallel optimize code live-out live-in
         #:need-filter need-filter #:dir dir #:cores cores 

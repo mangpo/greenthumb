@@ -33,12 +33,17 @@
     (define nmems (send machine get-nmems))
 
     (define reg-range (list->vector (range nregs)))
-    (define const-range
+    (define operand2-range
           (list->vector
-           (append (range 17) (list (sub1 bit) #x1111 #x3333 #x5555 #x0f0f #x3f)
+           (append (range 17) (list (sub1 bit) #x3f)
 		   (for/list ([i (range 5 (sub1 bit))]) 
                              (arithmetic-shift 1 i))
                    (list (- (arithmetic-shift 1 (sub1 bit)))))))
+    (define const-range
+          (list->vector
+           (append (range 17) (list (sub1 bit) #x1111 #x3333 #x5555 #x0f0f #x3f #xffff)
+		   (for/list ([i (range 5 (quotient bit 2))]) 
+                             (arithmetic-shift 1 i)))))
     
     (define bit-range (list->vector (range bit)))
     (define mem-range (list->vector (for/list ([i (range 1 11)]) (- i))))
@@ -164,7 +169,7 @@
       ;;(pretty-display `(get-arg-ranges ,opcode-name ,class-id))
       (cond
        [(equal? class-id 0) (vector reg-range (reg) (reg))]
-       [(equal? class-id 1) (vector reg-range (reg) const-range)]
+       [(equal? class-id 1) (vector reg-range (reg) operand2-range)]
        [(equal? class-id 2) (vector reg-range (reg) bit-range)]
        [(equal? class-id 3) (vector reg-range (reg))]
        [(equal? class-id 4) (vector reg-range const-range)]
