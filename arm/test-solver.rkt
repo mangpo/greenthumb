@@ -5,7 +5,7 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 4 1 0))
+(send machine set-config (list 5 1 0))
 (define printer (new arm-printer% [machine machine]))
 (define solver (new arm-solver% [machine machine] [printer printer]
                     [parser parser]
@@ -13,15 +13,25 @@
 
 (define code
 (send parser ast-from-string "
-	rsb	r3, r0, #0
-	mov	r0, r0, asr #31
-	orr	r0, r0, r3, asr #31
+        cmp	r0, r1
+	movne	r2, r3
+	cmp	r0, r3
+	eoreq	r0, r3, r1
+	movne	r0, #0
+	eor	r0, r2, r0
+        sub	r3, r0, #1
+	orr	r3, r3, r0
+	add	r3, r3, #1
+	and	r0, r3, r0
 "))
+
 
 (define sketch
 (send parser ast-from-string "
-? ?
-")) 
+cmpne r3, r0
+moveq r3, r1
+"))
+
 ;; no div, no inputs 46, 44
 ;; choice div, no inputs 41
 ;; support div, no inputs 119, 115
@@ -36,7 +46,7 @@
 ;; support div, 2 inputs (random) 89
 
 (define encoded-code (send printer encode code))
-(define encoded-sketch (send solver encode-sym sketch))
+;(define encoded-sketch (send solver encode-sym sketch))
 ;(send printer print-syntax (send printer decode
 ;(send machine clean-code encoded-sketch encoded-code)))
 
@@ -53,6 +63,7 @@
   (send machine display-state ex))|#
 
 ;; Test solver-based suoptimize function
+#|
 (define t (current-seconds))
 (define-values (res cost)
 (send solver synthesize-from-sketch 
@@ -60,7 +71,7 @@
       encoded-sketch ;; sketch = spec in this case
       (constraint machine [reg 0] [mem]) #f))
 (pretty-display `(time ,(- (current-seconds) t)))
-
+|#
 
 #|
 (define res
