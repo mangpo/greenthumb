@@ -82,6 +82,46 @@
     (define bvmul (bvop *))
     (define bvmla (lambda (a b c) (finitize-bit (+ c (* a b)))))
     (define bvmls (lambda (a b c) (finitize-bit (- c (* a b)))))
+    (define bvsmmla (lambda (a b c) (finitize-bit (+ c (bvsmmul a b)))))
+    (define bvsmmls (lambda (a b c) (finitize-bit (- c (bvsmmul a b)))))
+
+    (define (bvsmmul x y)
+      (define neg 0)
+      (when (< x 0)
+            (set! neg (add1 neg))
+            (set! x (- x)))
+      (when (< y 0)
+            (set! neg (add1 neg))
+            (set! y (- y)))
+      (define x-lo (bitwise-and x low-mask))
+      (define x-hi (>> (bitwise-and x high-mask) byte2))
+      (define y-lo (bitwise-and y low-mask))
+      (define y-hi (>> (bitwise-and y high-mask) byte2))
+      (define carry 
+        (>> (+ (>> (* x-lo y-lo) byte2)
+               (bitwise-and (* x-lo y-hi) low-mask)
+               (bitwise-and (* x-hi y-lo) low-mask))
+            byte2))
+      (define high 
+        (+ (* x-hi y-hi) (>> (* x-lo y-hi) byte2) (>> (* x-hi y-lo) byte2) carry))
+      (when (= neg 1)
+            (set! high (bitwise-not high))
+            (when (= (bvmul x y) 0) (set! high (add1 high))))
+      (finitize-bit high))
+      
+    (define (bvummul x y)
+      (define x-lo (bitwise-and x low-mask))
+      (define x-hi (>> (bitwise-and x high-mask) byte2))
+      (define y-lo (bitwise-and y low-mask))
+      (define y-hi (>> (bitwise-and y high-mask) byte2))
+      (define carry 
+        (>> (+ (>> (* x-lo y-lo) byte2)
+               (bitwise-and (* x-lo y-hi) low-mask)
+               (bitwise-and (* x-hi y-lo) low-mask))
+            byte2))
+      (define high 
+        (+ (* x-hi y-hi) (>> (* x-lo y-hi) byte2) (>> (* x-hi y-lo) byte2) carry))
+      (finitize-bit high))
 
     (define (movlo to c)
       (finitize-bit (bitwise-ior (bitwise-and to high-mask) c)))
@@ -264,6 +304,28 @@
                                                            (vector-ref regs-dep c)
                                                            cond-dep)))
                 (add-inter val)))
+
+          (define (ddrr f-lo f-hi)
+            (define d-lo (args-ref args 0))
+            (define d-hi (args-ref args 1))
+            (assert (not (= d-lo d-hi)))
+            (define a (args-ref args 2))
+            (define b (args-ref args 3))
+            (define val-lo (f-lo (vector-ref regs a) (vector-ref regs b)))
+            (define val-hi (f-hi (vector-ref regs a) (vector-ref regs b)))
+            (vector-set! regs d-lo val-lo)
+            (vector-set! regs d-hi val-hi)
+            (if dep
+                (begin 
+                  (vector-set! regs-dep d-lo (create-node val-lo
+                                                          (list (vector-ref regs-dep a)
+                                                                (vector-ref regs-dep b)
+                                                                cond-dep)))
+                  (vector-set! regs-dep d-hi (create-node val-hi
+                                                          (list (vector-ref regs-dep a)
+                                                                (vector-ref regs-dep b)
+                                                                cond-dep))))
+                (add-inter val-lo val-hi)))
 
           ;; count leading zeros
           (define (rr f [shf #f])
@@ -461,6 +523,13 @@
            [(inst-eq `mul)  (rrr bvmul)]
            [(inst-eq `mla)  (rrrr bvmla)]
            [(inst-eq `mls)  (rrrr bvmls)]
+
+           [(inst-eq `smmul) (rrr bvsmmul)]
+           [(inst-eq `smmla) (rrrr bvsmmla)]
+           [(inst-eq `smmls) (rrrr bvsmmls)]
+
+           [(inst-eq `smull) (ddrr bvmul bvsmmul)]
+           [(inst-eq `umull) (ddrr bvmul bvummul)]
            
            ;; shift Rd, Rm, Rs
            ;; only the least significant byte of Rs is used.
@@ -536,7 +605,10 @@
              (cond
               [(inst-eq `nop) (void)]
               [(inst-eq `str `str# `ldr `ldr#) (set! cost (+ cost 3))]
-              [(inst-eq `mul `mla `mls `sdiv `udiv) (set! cost (+ cost 5))]
+              [(inst-eq `mul `mla `mls `smmul `smmla `smmls `sdiv `udiv) 
+               (set! cost (+ cost 5))]
+              [(inst-eq `smull `umull) 
+               (set! cost (+ cost 6))]
               [else (set! cost (add1 cost))])
              ))
       (when debug (pretty-display `(performance ,cost)))

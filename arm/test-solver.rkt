@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "arm-solver.rkt" "arm-machine.rkt" "arm-printer.rkt"
-         "arm-parser.rkt")
+         "arm-parser.rkt" "arm-ast.rkt")
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
@@ -33,31 +33,57 @@
 
 ;; support div, 2 inputs (random) 89
 
-(define encoded-code (send printer encode code))
-(define encoded-sketch (send solver encode-sym sketch))
+;(define encoded-code (send printer encode code))
+;(define encoded-sketch (send solver encode-sym sketch))
+(define encoded-code
+  (vector
+   (arm-inst 21 '#(3 43691) #f #f -1)
+   (arm-inst 22 '#(3 10922) #f #f -1)
+   (arm-inst 21 '#(1 65524) #f #f -1)
+   (arm-inst 22 '#(1 65535) #f #f -1)
+   (arm-inst 36 '#(2 3 3 0) #f #f -1)
+   (arm-inst 17 '#(2 0) 4 31 -1)
+   (arm-inst 3 '#(3 2 3) 4 10 -1)
+   (arm-inst 1 '#(3 3 3) 5 1 -1)
+   (arm-inst 2 '#(0 0 3) 5 11 -1)))
+
+(define encoded-sketch
+  (vector
+(arm-inst 22 '#(1 65535) #f #f -1)
+(arm-inst 22 '#(3 10922) #f #f -1)
+(arm-inst 21 '#(3 43691) #f #f -1)
+(arm-inst 36 '#(2 3 3 0) #f #f -1)
+(arm-inst 21 '#(1 65524) #f #f -1)
+(arm-inst 17 '#(2 0) 4 31 -1)
+(arm-inst 3 '#(3 2 3) 6 10 -1)
+(arm-inst 1 '#(3 3 3) 5 1 -1)
+(arm-inst 2 '#(0 0 3) 5 11 -1)
+   ))
+
 ;(send printer print-syntax (send printer decode
 ;(send machine clean-code encoded-sketch encoded-code)))
 
 ;; Return counterexample if code and sketch are different.
 ;; Otherwise, return #f.
 
-#|
+
 (define ex
   (send solver counterexample encoded-code encoded-sketch 
-        (constraint machine [reg 0] [mem])))
+        (constraint machine [reg 0 1] [mem])))
 
 (when ex 
   (pretty-display "Counterexample:")
-  (send machine display-state ex))|#
+  (send machine display-state ex))
 
 ;; Test solver-based suoptimize function
+#|
 (define t (current-seconds))
 (define-values (res cost)
 (send solver synthesize-from-sketch 
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
       (constraint machine [reg 0] [mem]) #f))
-(pretty-display `(time ,(- (current-seconds) t)))
+(pretty-display `(time ,(- (current-seconds) t)))|#
 
 
 #|

@@ -33,9 +33,16 @@
     (define nmems (send machine get-nmems))
 
     (define reg-range (list->vector (range nregs)))
+    (define operand2-range
+          (list->vector
+           (append (range 17) (list (sub1 bit))
+		   (for/list ([i (range 5 (sub1 bit))]) 
+                             (arithmetic-shift 1 i))
+                   (list (- (arithmetic-shift 1 (sub1 bit)))))))
     (define const-range
           (list->vector
-           (append (range 17) (list (sub1 bit) #x1111 #x3333 #x5555 #x0f0f #x3f)
+           (append (range 17) (list (sub1 bit) #x1111 #x3333 #x5555 #x0f0f #x3f
+                                    #xaaab #x2aaa #xfff4 #xffff)
 		   (for/list ([i (range 5 (sub1 bit))]) 
                              (arithmetic-shift 1 i))
                    (list (- (arithmetic-shift 1 (sub1 bit)))))))
@@ -164,11 +171,11 @@
       ;;(pretty-display `(get-arg-ranges ,opcode-name ,class-id))
       (cond
        [(equal? class-id 0) (vector reg-range (reg) (reg))]
-       [(equal? class-id 1) (vector reg-range (reg) const-range)]
+       [(equal? class-id 1) (vector reg-range (reg) operand2-range)]
        [(equal? class-id 2) (vector reg-range (reg) bit-range)]
        [(equal? class-id 3) (vector reg-range (reg))]
        [(equal? class-id 4) (vector reg-range const-range)]
-       [(equal? class-id 5) (vector reg-range (reg) (reg) (reg))]
+       [(equal? class-id 5) (vector reg-range reg-range (reg) (reg))]
        [(equal? class-id 6) (vector reg-range (reg) bit-range bit-range)]
        [(equal? class-id 7) (vector reg-range reg-range mem-range)]
        [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range)]

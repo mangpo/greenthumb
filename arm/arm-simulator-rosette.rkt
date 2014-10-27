@@ -308,6 +308,7 @@
           (define (ddrr f-lo f-hi)
             (define d-lo (args-ref args 0))
             (define d-hi (args-ref args 1))
+            (assert (not (= d-lo d-hi)))
             (define a (args-ref args 2))
             (define b (args-ref args 3))
             (define val-lo (f-lo (vector-ref regs a) (vector-ref regs b)))
