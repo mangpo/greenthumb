@@ -47,7 +47,8 @@
                              (arithmetic-shift 1 i)))))
     
     (define bit-range (list->vector (range bit)))
-    (define mem-range (list->vector (for/list ([i (range 1 11)]) (- i))))
+    (define mem-range (vector-append (for/vector ([i (range 1 11)]) (- i))
+                                     (list->vector (range nmems))))
 
     (define (inst-copy-with-op x op) 
       (define opname (vector-ref inst-id op))
@@ -176,7 +177,7 @@
        [(equal? class-id 4) (vector reg-range const-range)]
        [(equal? class-id 5) (vector reg-range reg-range (reg) (reg))]
        [(equal? class-id 6) (vector reg-range (reg) bit-range bit-range)]
-       [(equal? class-id 7) (vector reg-range reg-range mem-range)]
+       [(equal? class-id 7) (vector reg-range (vector-append (reg) (vector -1))  mem-range)]
        [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range)]
        [else (vector)]))
 

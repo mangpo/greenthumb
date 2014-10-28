@@ -112,7 +112,7 @@
                      bfc bfi
                      sbfx ubfx
                      clz
-                     ;;ldr str
+                     ldr str
                      ldr# str#
                      tst cmp
                      tst# cmp#
@@ -124,8 +124,8 @@
 			and orr eor bic orn
 			asr lsl lsr
 			;;sdiv udiv 
-			mul smmul) ;; rrr
-			;; ldr str)
+			mul smmul ;; rrr
+			ldr str)
 		  '(add# sub# rsb#
 			 and# orr# eor# bic# orn#) ;; rri
 		  '(asr# lsl# lsr#) ;; rri
@@ -183,7 +183,8 @@
       ;; Double the memory size
       (list (first info) (* 2 (second info)) (third info)))
 
-    (define (finalize-config info) info)
+    (define (finalize-config info)
+      (list (first info) (add1 (second info)) (third info)))
 
     (define (config-exceed-limit? info)
       ;; Memory size > 1000

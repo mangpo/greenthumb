@@ -25,7 +25,7 @@
       (define shfop (inst-shfop x))
       (define shfarg (inst-shfarg x))
       (when (or (equal? op "str") (equal? op "ldr"))
-	    (vector-set! args 1 "fp")
+	    ;;(vector-set! args 1 "fp")
 	    (when (not (equal? (substring (vector-ref args 2) 0 1) "r"))
 		  (vector-set! args 2 (number->string (* 4 (string->number (vector-ref args 2)))))))
       (display (format "~a~a~a ~a" indent op (inst-cond x) (string-join (vector->list args) ", ")))
@@ -42,7 +42,7 @@
        [(and (> (string-length name) 1) (equal? (substring name 0 1) "r"))
         (string->number (substring name 1))]
 
-       [(equal? name "fp") "fp"]
+       [(equal? name "fp") -1]
        
        [else 
         (raise (format "encode: name->id: undefined for ~a" name))]))
@@ -113,6 +113,11 @@
                    [else ""])))
 
       (define (reg x) (format "r~a" x))
+      (define (index x)
+        (cond
+         [(= x -1) "fp"]
+         [else (reg x)]))
+
       (define imm number->string)
 
       (cond
@@ -123,7 +128,7 @@
        [(equal? class-id 4) (make-inst reg imm)]
        [(equal? class-id 5) (make-inst reg reg reg reg)]
        [(equal? class-id 6) (make-inst reg reg imm imm)]
-       [(equal? class-id 7) (make-inst reg identity imm)]
+       [(equal? class-id 7) (make-inst reg index imm)]
        [(member opcode '(bfc)) (make-inst reg imm imm)]
        [(equal? opcode `nop) (arm-inst "nop" (vector) #f #f "")]
        [else (raise (format "decode-inst: undefined for ~a" opcode))]))
