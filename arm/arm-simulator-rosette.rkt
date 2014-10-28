@@ -390,19 +390,25 @@
           ;; store
           (define (str reg-offset)
             (define d (args-ref args 0))
+            (define a (args-ref args 1))
             (define b (args-ref args 2))
+            (define base
+              (if (= a -1) fp (vector-ref regs a)))
+            (define base-dep
+              (and dep (if (= a -1) #f (vector-ref regs-dep a))))
             (define index 
-              (if reg-offset
-                  (+ fp (vector-ref regs b))
-                  (+ fp b)))
+              (finitize-bit
+               (if reg-offset
+                   (+ base (vector-ref regs b))
+                   (+ base b))))
             (define val (vector-ref regs d))
             (vector-set! memory index val)
             (if dep
                 (let* ([val-dep (list (vector-ref regs-dep d))]
                        [index-dep 
                         (if reg-offset
-                            (list (vector-ref regs-dep b))
-                            (list))]) ;; TODO: no b?
+                            (list base-dep (vector-ref regs-dep b))
+                            (list base-dep))])
                   (vector-set! memory-dep index 
                                (create-node #f (list (create-node val val-dep)
                                                      (create-node index index-dep)
@@ -412,19 +418,25 @@
           ;; load
           (define (ldr reg-offset)
             (define d (args-ref args 0))
+            (define a (args-ref args 1))
             (define b (args-ref args 2))
+            (define base
+              (if (= a -1) fp (vector-ref regs a)))
+            (define base-dep
+              (and dep (if (= a -1) #f (vector-ref regs-dep a))))
             (define index 
-              (if reg-offset
-                  (+ fp (vector-ref regs b))
-                  (+ fp b)))
+              (finitize-bit
+               (if reg-offset
+                   (+ base (vector-ref regs b))
+                   (+ base b))))
             (define val (vector-ref memory index))
             (vector-set! regs d val)
             (if dep
                 (let* ([val-dep (list (vector-ref memory-dep index))]
                        [index-dep 
                         (if reg-offset
-                            (list (vector-ref regs-dep b))
-                            (list))]) ;; TODO: no b?
+                            (list base-dep (vector-ref regs-dep b))
+                            (list base-dep))])
                   (vector-set! regs-dep d 
                                (create-node #f (list (create-node val val-dep)
                                                      (create-node index index-dep)

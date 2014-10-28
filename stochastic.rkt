@@ -69,11 +69,10 @@
 
       (define inputs (map (lambda (x) (send simulator interpret prefix x #:dep #f)) inits))
         
-      (when debug
-            (for ([i inputs])
-                 (send machine display-state i))
-            (pretty-display ">>> Phase 2: generate output states"))
-      (define outputs (map (lambda (x) (send simulator interpret spec x #:dep #t)) inputs))
+      (when debug (pretty-display ">>> Phase 2: generate output states"))
+      (define outputs (map (lambda (x) 
+                             (when debug (send machine display-state x))
+                             (send simulator interpret spec x #:dep #t)) inputs))
       (when debug
             (for ([i outputs])
                  (send machine display-state i))
@@ -217,7 +216,7 @@
       (define ranges (get-arg-ranges opcode-name #f live-in))
       (when debug (pretty-display (format " --> ranges ~a" ranges)))
       (for/vector ([i (vector-length ranges)])
-                (random-from-vec (vector-ref ranges i))))
+                  (random-from-vec (vector-ref ranges i))))
     
     (define (mutate-operand-specific opcode-name args index)
       (raise "mutate-operand-specific: unimplemented"))

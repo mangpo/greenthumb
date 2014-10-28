@@ -40,7 +40,7 @@
                           (re-* (re-or identifier-characters digit10))))
       (identifier: (re-seq identifier ":"))
       (_identifier (re-seq "_" (re-* identifier-characters-ext)))
-      (reg (re-or "fp" (re-seq "r" number10)))
+      (reg (re-or "fp" "ip" "lr" (re-seq "r" number10)))
       )
 
     (set! asm-lexer
@@ -85,7 +85,9 @@
 
 	(arg-pair
 	      ((WORD arg) (list $1 $2))
-	      ((LSQBR REG COMMA arg RSQBR) (list $2 $4)))
+	      ;((LSQBR REG COMMA arg RSQBR) (list $2 $4))
+	      ((LSQBR REG COMMA args RSQBR) (cons $2 $4))
+              )
 
         (args ((arg) (list $1))
 	      ((arg-pair) $1)
@@ -128,6 +130,14 @@
        [else
 	(raise (format "Undefine special instruction: ~a ~a" op1 op2))]))
 
+    (define (rename-args args)
+      (vector-map (lambda (x)
+                    (cond
+                     [(equal? x "lr") "r10"]
+                     [(equal? x "ip") "r11"]
+                     [else x]))
+                  args))
+
     (define (create-inst op args)
       (define args-len (vector-length args))
       (cond
@@ -138,7 +148,7 @@
         (when (equal? shfop "asl") (set! shfop "lsl"))
 
         (define base (create-inst op (vector-copy args 0 (- args-len 2))))
-        (arm-inst (inst-op base) (inst-args base) 
+        (arm-inst (inst-op base) (rename-args (inst-args base))
                   shfop (vector-ref args (- args-len 1))
                   (inst-cond base))]
 
@@ -153,16 +163,14 @@
 	      (set! op (substring op 0 (- op-len 2))))
 
 	;; for ldr & str, fp => r99, divide offset by 4
-	(when (or (equal? op "str") (equal? op "ldr"))
-	      ;; (when (equal? (vector-ref args 1) "fp")
-	      ;; 	    (vector-set! args 1 "r10"))
+	(when (member (string->symbol op) '(str ldr))
 	      (define offset (vector-ref args 2))
-	      (unless (equal? (substring offset 0 1) "r")
-		      (vector-set! 
-		       args 2
-		       (number->string (quotient (string->number offset) 4)))))
+	      (when (string->number offset)
+                    (vector-set! 
+                     args 2
+                     (number->string (quotient (string->number offset) 4)))))
 
-	(arm-inst op args #f #f cond-type)]))
+	(arm-inst op (rename-args args) #f #f cond-type)]))
 
     (define/public (liveness-from-file file)
       (define in-port (open-input-file file))
