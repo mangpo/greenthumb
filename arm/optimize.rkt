@@ -15,6 +15,7 @@
 (define dir (make-parameter "output"))
 (define time-limit (make-parameter 3600))
 (define input-file (make-parameter #f))
+(define window (make-parameter #f))
  
 (define file-to-optimize
   (command-line
@@ -48,6 +49,9 @@
    [("-i" "--input")    i
                         "Path to inputs."
                         (input-file i)]
+   [("-w" "--window")    w
+                        "Path to inputs."
+                        (window (string->number w))]
 
    #:once-any
    [("--solver") "Use solver-based search."
@@ -79,6 +83,6 @@
 
 (optimize code (list (live-out) (live-mem)) (list (live-in) (live-mem)) (search-type) (mode)
           #:need-filter #f #:dir (dir) #:cores (cores) 
-          #:time-limit (time-limit) #:size (size)
+          #:time-limit (time-limit) #:size (size) #:window (window)
           #:input-file (input-file)
 	  )

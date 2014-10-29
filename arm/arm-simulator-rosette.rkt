@@ -229,7 +229,12 @@
         (define shfop (arm-inst-shfop step))
         ;;(pretty-display `(interpret-step ,z ,op ,args ,cond-type))
         
-        (define-syntax-rule (inst-eq x) (equal? op (vector-member x inst-id)))
+        (define-syntax inst-eq
+          (syntax-rules ()
+            ((inst-eq x) (equal? op (vector-member x inst-id)))
+            ((inst-eq a b ...) (or (equal? op (vector-member a inst-id))
+                                   (equal? op (vector-member b inst-id))
+                                   ...))))
 
         (define-syntax-rule (args-ref args i) (vector-ref args i))
 
@@ -579,7 +584,9 @@
            [else (assert #f "undefine instruction")]))
 
         (cond
-         [(equal? cond-type -1) (exec #f)]
+         [(or (equal? cond-type -1)
+              (inst-eq `tst `cmp `tst# `cmp#))
+          (exec #f)]
          [(equal? cond-type z) (exec z-dep)]
          [else (assert (and (or (equal? cond-type #f) (= cond-type 0) (= cond-type 1))
                             (>= op 0) (< op ninsts)))]
@@ -610,18 +617,31 @@
 
     (define (performance-cost code)
       (define cost 0)
+      (define-syntax-rule (add-cost x) (set! cost (+ cost x)))
       (for ([x code])
-           (let ([op (inst-op x)])
+           (let ([op (inst-op x)]
+                 [shfop (inst-shfop x)])
              (define-syntax-rule (inst-eq a ...) 
                (or (equal? op (vector-member a inst-id)) ...))
+             (define-syntax-rule (shf-inst-eq a ...) 
+               (or (equal? shfop (vector-member a shf-inst-id)) ...))
+
              (cond
               [(inst-eq `nop) (void)]
-              [(inst-eq `str `str# `ldr `ldr#) (set! cost (+ cost 3))]
-              [(inst-eq `mul `mla `mls `smmul `smmla `smmls `sdiv `udiv) 
-               (set! cost (+ cost 5))]
-              [(inst-eq `smull `umull) 
-               (set! cost (+ cost 6))]
-              [else (set! cost (add1 cost))])
+              ;; [(inst-eq `mov) 
+              ;;  (cond
+              ;;   [(shf-inst-eq `lsr `asr `lsl) (add-cost 2)]
+              ;;   [else (add-cost 1)])]
+
+              ;; [(shf-inst-eq `lsr# `asr# `lsl#) (add-cost 2)]
+              [(shf-inst-eq `lsr `asr `lsl) (add-cost 2)]
+
+              [(inst-eq `sbfx `ubfx `bfc `bfi) (add-cost 2)]
+              [(inst-eq `str `str# `ldr `ldr#) (add-cost 3)]
+              [(inst-eq `mul `mla `mls `smmul `smmla `smmls `sdiv `udiv) (add-cost 5)]
+              [(inst-eq `smull `umull) (add-cost 6)]
+              [(inst-eq `tst `cmp `tst# `cmp#) (add-cost 2)]
+              [else (add-cost 1)])
              ))
       (when debug (pretty-display `(performance ,cost)))
       cost)
