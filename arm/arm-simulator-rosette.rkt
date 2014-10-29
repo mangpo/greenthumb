@@ -229,7 +229,12 @@
         (define shfop (arm-inst-shfop step))
         ;;(pretty-display `(interpret-step ,z ,op ,args ,cond-type))
         
-        (define-syntax-rule (inst-eq x) (equal? op (vector-member x inst-id)))
+        (define-syntax inst-eq
+          (syntax-rules ()
+            ((inst-eq x) (equal? op (vector-member x inst-id)))
+            ((inst-eq a b ...) (or (equal? op (vector-member a inst-id))
+                                   (equal? op (vector-member b inst-id))
+                                   ...))))
 
         (define-syntax-rule (args-ref args i) (vector-ref args i))
 
@@ -567,7 +572,9 @@
            [else (assert #f "undefine instruction")]))
 
         (cond
-         [(equal? cond-type -1) (exec #f)]
+         [(or (equal? cond-type -1)
+              (inst-eq `tst `cmp `tst# `cmp#))
+          (exec #f)]
          [(equal? cond-type z) (exec z-dep)]
          [else (assert (and (or (equal? cond-type #f) (= cond-type 0) (= cond-type 1))
                             (>= op 0) (< op ninsts)))]
