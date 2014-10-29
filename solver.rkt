@@ -401,6 +401,7 @@
 			  "timeout"))])
        (inner (send simulator performance-cost (vector-append prefix spec postfix)))))
 
+    ;; TODO: timeout = 60 => 150
     (define (superoptimize-partial-pattern 
              spec constraint time-limit size [extra #f]
              #:hard-prefix [hard-prefix (vector)]
