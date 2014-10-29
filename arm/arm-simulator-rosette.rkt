@@ -609,13 +609,13 @@
 
              (cond
               [(inst-eq `nop) (void)]
-              [(inst-eq `mov) 
-               (cond
-                [(shf-inst-eq `lsr `asr `lsl) (add-cost 2)]
-                [else (add-cost 1)])]
+              ;; [(inst-eq `mov) 
+              ;;  (cond
+              ;;   [(shf-inst-eq `lsr `asr `lsl) (add-cost 2)]
+              ;;   [else (add-cost 1)])]
 
-              [(shf-inst-eq `lsr# `asr# `lsl#) (add-cost 2)]
-              [(shf-inst-eq `lsr `asr `lsl) (add-cost 3)]
+              ;; [(shf-inst-eq `lsr# `asr# `lsl#) (add-cost 2)]
+              [(shf-inst-eq `lsr `asr `lsl) (add-cost 2)]
 
               [(inst-eq `sbfx `ubfx `bfc `bfi) (add-cost 2)]
               [(inst-eq `str `str# `ldr `ldr#) (add-cost 3)]

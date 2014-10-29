@@ -22,7 +22,9 @@
 ;; Section 1: Concrete program
 (define code
 (send parser ast-from-string "
-	smull r1, r0, r1, r0
+	rsb	r3, r0, #0
+	mov	r0, r0, asr #31
+	orr	r0, r0, r3, asr #31
 "))
 
 (send printer print-struct code)
@@ -34,12 +36,12 @@
 (send machine display-state
 (send solver get-live-in encoded-code 
       (constraint machine [reg 0] [mem]) #f))|#
-
+#|
 (define output-state
   (send simulator-rosette interpret encoded-code input-state #:dep #t))
 (pretty-display "Output from simulator in rosette.")
 (send machine display-state output-state)
-(newline)
+(newline)|#
 
 (send simulator-rosette performance-cost encoded-code)
 
