@@ -5,7 +5,7 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 4 1 0))
+(send machine set-config (list 5 1 0))
 (define printer (new arm-printer% [machine machine]))
 (define solver (new arm-solver% [machine machine] [printer printer]
                     [parser parser] [syn-mode `partial1]))
@@ -15,50 +15,14 @@
 	smull r1, r0, r1, r0
 "))
 
+
 (define sketch
 (send parser ast-from-string "
 	?
 ")) 
-;; no div, no inputs 46, 44
-;; choice div, no inputs 41
-;; support div, no inputs 119, 115
 
-;; no div, inputs 61 105
-;; no div, 1 inputs (0) 76
-;; no div, 1 inputs (random) 41, 43
-;; no div, 2 inputs (random) 3, 23, 11, 51
-;; adjust cost function
-;; no div, 3 inputs (random) 25, 31
-
-;; support div, 2 inputs (random) 89
-
-;(define encoded-code (send printer encode code))
+(define encoded-code (send printer encode code))
 ;(define encoded-sketch (send solver encode-sym sketch))
-(define encoded-code
-  (vector
-   (arm-inst 21 '#(3 43691) #f #f -1)
-   (arm-inst 22 '#(3 10922) #f #f -1)
-   (arm-inst 21 '#(1 65524) #f #f -1)
-   (arm-inst 22 '#(1 65535) #f #f -1)
-   (arm-inst 36 '#(2 3 3 0) #f #f -1)
-   (arm-inst 17 '#(2 0) 4 31 -1)
-   (arm-inst 3 '#(3 2 3) 4 10 -1)
-   (arm-inst 1 '#(3 3 3) 5 1 -1)
-   (arm-inst 2 '#(0 0 3) 5 11 -1)))
-
-(define encoded-sketch
-  (vector
-(arm-inst 22 '#(1 65535) #f #f -1)
-(arm-inst 22 '#(3 10922) #f #f -1)
-(arm-inst 21 '#(3 43691) #f #f -1)
-(arm-inst 36 '#(2 3 3 0) #f #f -1)
-(arm-inst 21 '#(1 65524) #f #f -1)
-(arm-inst 17 '#(2 0) 4 31 -1)
-(arm-inst 3 '#(3 2 3) 6 10 -1)
-(arm-inst 1 '#(3 3 3) 5 1 -1)
-(arm-inst 2 '#(0 0 3) 5 11 -1)
-   ))
-
 ;(send printer print-syntax (send printer decode
 ;(send machine clean-code encoded-sketch encoded-code)))
 

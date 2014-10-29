@@ -7,7 +7,8 @@
 (define parallel%
   (class object%
     (super-new)
-    (init-field meta parser machine printer compress solver search-type mode)
+    (init-field meta parser machine printer compress solver search-type mode 
+                [window #f])
     ;; search = `solver, `stoch, `hybrid
     ;; mode = `linear, `binary, `syn, `opt
     (public optimize)
@@ -188,7 +189,7 @@
         (if output-code output-code (vector-copy code from to)))
 
       (define code-len (vector-length code))
-      (define window-size (send machine window-size))
+      (define window-size (if window window (send machine window-size)))
       (define rounds (ceiling (/ code-len window-size)))
       (define size (ceiling (/ code-len rounds)))
       (define output-code (vector))
@@ -203,7 +204,7 @@
       
       (when (> rounds 1)
             (pretty-display `(mid-positions mid-positions))
-            (define small-size (floor (* (/ 6 10) window-size)))
+            (define small-size window-size);(floor (* (/ 6 10) window-size)))
             (define gap1 (- (vector-ref mid-positions 1) (vector-ref mid-positions 0)))
             (when (< gap1 small-size)
                   (vector-set! 

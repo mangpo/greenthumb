@@ -476,7 +476,7 @@
       (define (inner w timeout choices)
         (define from (list-ref choices (random (length choices))))
         (pretty-display (format ">> superoptimize-partial-random pos = ~a, timeout = ~a" from timeout))
-        (pretty-display `(choices ,choices))
+        ;;(pretty-display `(choices ,choices))
         (define prefix (vector-copy spec 0 from))
         (define after-prefix (vector-copy spec from))
         (define-values (new-seq pos)
