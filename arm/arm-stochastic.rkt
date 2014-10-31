@@ -22,7 +22,7 @@
 
     (set! mutate-dist
 	  #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1)
-		(shf . 1) (cond-type . 1)))
+		(shf . 2) (cond-type . 1)))
 	  
 
     (define bit (get-field bit machine))
@@ -33,12 +33,13 @@
     (define nmems (send machine get-nmems))
 
     (define reg-range (list->vector (range nregs)))
-    (define operand2-range
-          (list->vector
-           (append (range 17) (list (sub1 bit) #x3f)
-		   (for/list ([i (range 5 (sub1 bit))]) 
-                             (arithmetic-shift 1 i))
-                   (list (- (arithmetic-shift 1 (sub1 bit)))))))
+    (define operand2-range (list->vector (range 17)))
+    ;; (define operand2-range
+    ;;       (list->vector
+    ;;        (append (range 17) (list (sub1 bit) #x3f)
+    ;; 		   (for/list ([i (range 5 (sub1 bit))]) 
+    ;;                          (arithmetic-shift 1 i))
+    ;;                (list (- (arithmetic-shift 1 (sub1 bit)))))))
     (define const-range
           (list->vector
            (append (range 17) (list (sub1 bit) #x1111 #x3333 #x5555 #x0f0f #x3f #xffff)
@@ -170,12 +171,12 @@
       (cond
        [(equal? class-id 0) (vector reg-range (reg) (reg))]
        [(equal? class-id 1) (vector reg-range (reg) operand2-range)]
-       [(equal? class-id 2) (vector reg-range (reg) bit-range)]
-       [(equal? class-id 3) (vector reg-range (reg))]
-       [(equal? class-id 4) (vector reg-range const-range)]
-       [(equal? class-id 5) (vector reg-range (reg) (reg) (reg))]
-       [(equal? class-id 6) (vector reg-range (reg) bit-range bit-range)]
-       [(equal? class-id 7) (vector reg-range reg-range mem-range)]
+       ;[(equal? class-id 2) (vector reg-range (reg) bit-range)]
+       [(equal? class-id 2) (vector reg-range (reg))]
+       [(equal? class-id 3) (vector reg-range const-range)]
+       [(equal? class-id 4) (vector reg-range (reg) (reg) (reg))]
+       [(equal? class-id 5) (vector reg-range (reg) bit-range bit-range)]
+       [(equal? class-id 6) (vector reg-range reg-range mem-range)]
        [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range)]
        [else (vector)]))
 
