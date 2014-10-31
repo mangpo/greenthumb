@@ -215,7 +215,7 @@
       (define z2 (progstate-z state2))
       
       (define correctness 0)
-      (define relax #f)
+      (define relax #t)
       (define misalign-penalty 1)
       (define misalign 0)
       (if relax

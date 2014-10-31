@@ -2,7 +2,7 @@
 
 (require  "ast.rkt" "machine.rkt" "printer.rkt" "stat.rkt")
 
-;;(require rosette/solver/z3/z3)
+(require rosette/solver/smt/z3)
 (require rosette/solver/kodkod/kodkod)
 
 (provide solver%)
@@ -728,7 +728,7 @@
             ;; (pretty-display (format "assumption: ~a" assumption))
             )
       
-      ;; (current-solver (new kodkod%))
+      (current-solver (new z3%))
       (clear-asserts)
       ;(configure [bitwidth bit] [loop-bound 20])
       (current-bitwidth bit)
