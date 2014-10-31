@@ -372,6 +372,7 @@
                                         outputs))
                     (pretty-display (format "Add counterexample. Total = ~a." (length inputs)))
                     (send machine display-state ce)
+		    (send printer print-syntax (send printer decode program))
                     )
                   (begin
                     (send stat inc-correct)
