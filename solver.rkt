@@ -731,8 +731,7 @@
             ;; (pretty-display (format "assumption: ~a" assumption))
             )
       
-      ;;(current-solver (new z3%))
-      (current-log-handler (log-handler #:info any/c))
+      (current-solver (new kodkod%))
       (clear-asserts)
       ;(configure [bitwidth bit] [loop-bound 20])
       (current-bitwidth bit)

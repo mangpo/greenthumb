@@ -127,8 +127,8 @@
 			mul smmul) ;; rrr
 			;; ldr str)
 		  '(add# sub# rsb#
-			 and# orr# eor# bic# orn#) ;; rri
-		  '(asr# lsl# lsr#) ;; rri
+			 and# orr# eor# bic# orn#
+			 asr# lsl# lsr#) ;; rri
 		  '(mov mvn 
 			rev rev16 revsh rbit
 			clz

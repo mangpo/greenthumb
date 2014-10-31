@@ -5,24 +5,30 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 5 1 0))
+(send machine set-config (list 5 4 5))
 (define printer (new arm-printer% [machine machine]))
 (define solver (new arm-solver% [machine machine] [printer printer]
                     [parser parser] [syn-mode `partial1]))
 
 (define code
 (send parser ast-from-string "
-	smull r1, r0, r1, r0
+	eor	r3, r1, r0
+	and	r0, r1, r0
+	add	r0, r0, r3, asr #1
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-	?
+and r4, r1, r0
+rsb r2, r1, r4, lsl 1
+sub r0, r0, r2
+sbfx r2, r0, 1, 31
+add r0, r2, r4
 ")) 
 
 (define encoded-code (send printer encode code))
-;(define encoded-sketch (send solver encode-sym sketch))
+(define encoded-sketch (send solver encode-sym sketch))
 ;(send printer print-syntax (send printer decode
 ;(send machine clean-code encoded-sketch encoded-code)))
 
@@ -32,7 +38,7 @@
 
 (define ex
   (send solver counterexample encoded-code encoded-sketch 
-        (constraint machine [reg 0 1] [mem])))
+        (constraint machine [reg 0] [mem])))
 
 (pretty-display "Counterexample:")
 (if ex 

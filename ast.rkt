@@ -70,7 +70,7 @@
   ;;   min-val]
   ;;  [else cost])
     (cond
-   ;[#t cost]
+   [#t cost]
    [(<= cost min-val) 
     ;;(pretty-display `(min-val))
     cost]
