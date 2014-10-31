@@ -95,25 +95,25 @@
       (define shfop (inst-shfop entry))
       (define shfop-name (and shfop (vector-ref shf-inst-id shfop)))
       (define shfarg (inst-shfarg entry))
-      (define rand (random)) ;; op 0.1, arg 0.1, all 0.1, nop 0.7
+      (define rand (random)) ;; op 0.5, arg 0.25, all 0.05, nop 0.2
       (when debug
 	    (pretty-display (format " >> shf-type = ~a" rand)))
       (cond
-       [(or (equal? shfop-name #f) (equal? shfop-name `nop) (< rand 0.1))
+       [(or (equal? shfop-name #f) (equal? shfop-name `nop) (< rand 0.5))
         (define my-live-in live-in)
         (for ([i index])
              (set! my-live-in (update-live my-live-in (vector-ref p i))))
 	(set! shfop (vector-member (random-from-vec-ex shf-inst-id `nop) shf-inst-id))
 	(set! shfarg (random-from-vec (get-shfarg-range shfop my-live-in)))]
 
-       [(< rand 0.2) ;; op
+       [(< rand 0.55) ;; op
 	(define my-list
 	  (if (member shfop-name '(asr lsr lsl)) '(asr lsr lsl) '(asr# lsr# lsl#)))
 	(set! shfop (vector-member 
 		     (random-from-list-ex my-list shfop-name)
 		     shf-inst-id))]
 
-       [(< rand 0.3) ;; arg
+       [(< rand 0.8) ;; arg
         (define my-live-in live-in)
         (for ([i index])
              (set! my-live-in (update-live my-live-in (vector-ref p i))))

@@ -13,23 +13,28 @@
 
 (define code
 (send parser ast-from-string "
-        cmp	r0, r1
-	movne	r2, r3
-	cmp	r0, r3
-	eoreq	r0, r3, r1
-	movne	r0, #0
-	eor	r0, r2, r0
-        sub	r3, r0, #1
-	orr	r3, r3, r0
-	add	r3, r3, #1
-	and	r0, r3, r0
+	orr	r3, r1, r0
+	eor	r0, r1, r0
+	sub	r0, r3, r0, asr #1
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-cmpne r3, r0
-moveq r3, r1
+rsb r0, r3, 9
+sbfx r2, r1, 3, 12
+mov r3, 1024
+eor r2, r2, 8
+sbfx r3, r1, 1, 31
+add r4, r3, r0, asr 1
+add r3, r1, r3, asr 23
+orr r3, r0, r1
+rev r0, r3
+and r3, r3, 1
+orr r4, r3, 3
+add r0, r4, r3
+mvn r0, r2
+
 "))
 
 ;; no div, no inputs 46, 44
@@ -46,21 +51,21 @@ moveq r3, r1
 ;; support div, 2 inputs (random) 89
 
 (define encoded-code (send printer encode code))
-;(define encoded-sketch (send solver encode-sym sketch))
+(define encoded-sketch (send solver encode-sym sketch))
 ;(send printer print-syntax (send printer decode
 ;(send machine clean-code encoded-sketch encoded-code)))
 
 ;; Return counterexample if code and sketch are different.
 ;; Otherwise, return #f.
 
-#|
+
 (define ex
   (send solver counterexample encoded-code encoded-sketch 
         (constraint machine [reg 0] [mem])))
 
 (when ex 
   (pretty-display "Counterexample:")
-  (send machine display-state ex))|#
+  (send machine display-state ex))
 
 ;; Test solver-based suoptimize function
 #|
