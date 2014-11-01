@@ -63,12 +63,12 @@
     (define bvsub (bvop -))
     (define bvrsub (bvop (lambda (x y) (- y x))))
 
-    (define bvnot (lambda (x) (bitwise-not (finitize-bit x))))
+    (define bvnot (lambda (x) (finitize-bit (bitwise-not x))))
     (define bvand (bvop bitwise-and))
     (define bvor  (bvop bitwise-ior))
     (define bvxor (bvop bitwise-xor))
-    (define bvandn (lambda (x y) (bvnot (bitwise-and x y))))
-    (define bviorn  (lambda (x y) (bvnot (bitwise-ior x y))))
+    (define bvandn (lambda (x y) (finitize-bit (bitwise-and x (bitwise-not y)))))
+    (define bviorn  (lambda (x y) (finitize-bit (bitwise-ior x (bitwise-not y)))))
 
     (define bvrev (bvuop rev))
     (define bvrev16 (bvuop rev16))
@@ -101,12 +101,12 @@
       (assert (and (>= shift 0) (<= shift bit)))
       (assert (and (>= width 0) (<= width bit)))
       (let* ([keep (bitwise-not (shl (sub1 (shl 1 width)) shift))])
-        (bitwise-and keep d)))
+        (finitize-bit (bitwise-and keep d))))
 
     (define (ext d a width shift)
       (assert (and (>= shift 0) (<= shift bit)))
       (assert (and (>= width 0) (<= width bit)))
-      (bitwise-and (>> a shift) (sub1 (shl 1 width))))
+      (finitize-bit (bitwise-and (>> a shift) (sub1 (shl 1 width)))))
 
     (define (sext d a width shift)
       (assert (and (>= shift 0) (<= shift bit)))
@@ -116,7 +116,7 @@
 	 (if (= (bitwise-bit-field keep (sub1 width) width) 1)
 	     (shl -1 width)
 	     0)
-	 keep)))
+	 (finitize-bit keep))))
 
     (define (clz x)
       (let ([mask (shl 1 (sub1 bit))]
@@ -189,7 +189,12 @@
         (define shfop (arm-inst-shfop step))
         ;;(pretty-display `(interpret-step ,z ,op ,args ,cond-type))
         
-        (define-syntax-rule (inst-eq x) (equal? op (vector-member x inst-id)))
+        (define-syntax inst-eq
+          (syntax-rules ()
+            ((inst-eq x) (equal? op (vector-member x inst-id)))
+            ((inst-eq a b ...) (or (equal? op (vector-member a inst-id))
+                                   (equal? op (vector-member b inst-id))
+                                   ...))))
 
         (define-syntax-rule (args-ref args i) (vector-ref args i))
 
@@ -498,7 +503,8 @@
            [else (assert #f "undefine instruction")]))
 
         (cond
-         [(equal? cond-type -1) (exec #f)]
+         [(or (equal? cond-type -1) (inst-eq `tst `cmp `tst# `cmp#))
+          (exec #f)]
          [(equal? cond-type z) (exec z-dep)]
          [else (assert (and (or (equal? cond-type #f) (= cond-type 0) (= cond-type 1))
                             (>= op 0) (< op ninsts)))]
