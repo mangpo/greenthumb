@@ -63,12 +63,12 @@
     (define bvsub (bvop -))
     (define bvrsub (bvop (lambda (x y) (- y x))))
 
-    (define bvnot (lambda (x) (bitwise-not (finitize-bit x))))
+    (define bvnot (lambda (x) (finitize-bit (bitwise-not x))))
     (define bvand (bvop bitwise-and))
     (define bvor  (bvop bitwise-ior))
     (define bvxor (bvop bitwise-xor))
-    (define bvandn (lambda (x y) (bvnot (bitwise-and x y))))
-    (define bviorn  (lambda (x y) (bvnot (bitwise-ior x y))))
+    (define bvandn (lambda (x y) (finitize-bit (bitwise-and x (bitwise-not y)))))
+    (define bviorn  (lambda (x y) (finitize-bit (bitwise-ior x (bitwise-not y)))))
 
     (define bvrev (bvuop rev))
     (define bvrev16 (bvuop rev16))
@@ -89,43 +89,39 @@
     (define bvsmmla (lambda (a b c) (finitize-bit (+ c (bvsmmul a b)))))
     (define bvsmmls (lambda (a b c) (finitize-bit (- c (bvsmmul a b)))))
 
-    (define (bvsmmul x y)
-      (define neg 0)
-      (when (< x 0)
-            (set! neg (add1 neg))
-            (set! x (- x)))
-      (when (< y 0)
-            (set! neg (add1 neg))
-            (set! y (- y)))
-      (define x-lo (bitwise-and x low-mask))
-      (define x-hi (>> (bitwise-and x high-mask) byte2))
-      (define y-lo (bitwise-and y low-mask))
-      (define y-hi (>> (bitwise-and y high-mask) byte2))
-      (define carry 
-        (>> (+ (>> (* x-lo y-lo) byte2)
-               (bitwise-and (* x-lo y-hi) low-mask)
-               (bitwise-and (* x-hi y-lo) low-mask))
-            byte2))
-      (define high 
-        (+ (* x-hi y-hi) (>> (* x-lo y-hi) byte2) (>> (* x-hi y-lo) byte2) carry))
-      (when (= neg 1)
-            (set! high (bitwise-not high))
-            (when (= (bvmul x y) 0) (set! high (add1 high))))
-      (finitize-bit high))
+    (define (bvsmmul x y) (smmul x y bit))
+    (define (bvummul x y) (ummul x y bit))
+
+    ;; (define (bvsmmul x y)
+    ;;   (define o1 (bitwise-and x low-mask))
+    ;;   (define o2 (>> x byte2))
+    ;;   (define o3 (bitwise-and y low-mask))
+    ;;   (define o4 (>> y byte2))
+
+    ;;   (define o5 (* o1 o3))
+    ;;   (define o6 (* o2 o3))
+    ;;   (set! o1 (* o1 o4))
+    ;;   (set! o2 (* o2 o4))
+
+    ;;   (set! o5 (+ o6 (>> o5 byte2)))
+    ;;   (set! o6 (bitwise-and o5 low-mask))
+    ;;   (set! o5 (>> o5 byte2))
+
+    ;;   (finitize-bit (+ o5 o2 (>> (+ o1 o6) byte2))))
       
-    (define (bvummul x y)
-      (define x-lo (bitwise-and x low-mask))
-      (define x-hi (>> (bitwise-and x high-mask) byte2))
-      (define y-lo (bitwise-and y low-mask))
-      (define y-hi (>> (bitwise-and y high-mask) byte2))
-      (define carry 
-        (>> (+ (>> (* x-lo y-lo) byte2)
-               (bitwise-and (* x-lo y-hi) low-mask)
-               (bitwise-and (* x-hi y-lo) low-mask))
-            byte2))
-      (define high 
-        (+ (* x-hi y-hi) (>> (* x-lo y-hi) byte2) (>> (* x-hi y-lo) byte2) carry))
-      (finitize-bit high))
+    ;; (define (bvummul x y)
+    ;;   (define x-lo (bitwise-and x low-mask))
+    ;;   (define x-hi (ushr x byte2))
+    ;;   (define y-lo (bitwise-and y low-mask))
+    ;;   (define y-hi (ushr y byte2))
+    ;;   (define carry 
+    ;;     (>> (+ (bitwise-and (>> (* x-lo y-lo) byte2) low-mask)
+    ;;            (bitwise-and (* x-lo y-hi) low-mask)
+    ;;            (bitwise-and (* x-hi y-lo) low-mask))
+    ;;         byte2))
+    ;;   (define high 
+    ;;     (+ (* x-hi y-hi) (ushr (* x-lo y-hi) byte2) (ushr (* x-hi y-lo) byte2) carry))
+    ;;   (finitize-bit high))
 
     (define (movlo to c)
       (finitize-bit (bitwise-ior (bitwise-and to high-mask) c)))
@@ -145,12 +141,12 @@
       (assert (and (>= shift 0) (<= shift bit)))
       (assert (and (>= width 0) (<= width bit)))
       (let* ([keep (bitwise-not (shl (sub1 (shl 1 width)) shift))])
-        (bitwise-and keep d)))
+        (finitize-bit (bitwise-and keep d))))
 
     (define (ext d a width shift)
       (assert (and (>= shift 0) (<= shift bit)))
       (assert (and (>= width 0) (<= width bit)))
-      (bitwise-and (>> a shift) (sub1 (shl 1 width))))
+      (finitize-bit (bitwise-and (>> a shift) (sub1 (shl 1 width)))))
 
     (define (sext d a width shift)
       (assert (and (>= shift 0) (<= shift bit)))
@@ -160,7 +156,7 @@
 	 (if (= (bitwise-bit-field keep (sub1 width) width) 1)
 	     (shl -1 width)
 	     0)
-	 keep)))
+	 (finitize-bit keep))))
 
     (define (clz x)
       (let ([mask (shl 1 (sub1 bit))]

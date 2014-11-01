@@ -3,7 +3,8 @@
 (require "arm-machine.rkt" "arm-printer.rkt" "arm-parser.rkt"
          "arm-solver.rkt"
          "arm-simulator-rosette.rkt" 
-         "arm-simulator-racket.rkt")
+         "arm-simulator-racket.rkt"
+         )
 
 (current-bitwidth 32)
 (define parser (new arm-parser%))
@@ -16,7 +17,7 @@
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 
 ;; Input machine state
-(define input-state (progstate (vector 242087795 -1555402324 0 0 0 0)
+(define input-state (progstate (vector -901094643 38879887  0 0 0 0)
                                (vector 0 0 0 0) -1 5))
 
 ;; Section 1: Concrete program
@@ -40,7 +41,7 @@
 
 (define code
 (send parser ast-from-string "
-smmul r0, r0, r1
+smull r0, r1, r0, r1
 "))
 
 (send printer print-struct code)
@@ -57,6 +58,12 @@ smmul r0, r0, r1
   (send simulator-rosette interpret encoded-code input-state #:dep #t))
 (pretty-display "Output from simulator in rosette.")
 (send machine display-state output-state)
+(newline)
+
+(define output-state2
+  (send simulator-racket interpret encoded-code input-state #:dep #t))
+(pretty-display "Output from simulator in rosette.")
+(send machine display-state output-state2)
 (newline)
 
 (send simulator-rosette performance-cost encoded-code)
