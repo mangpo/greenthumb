@@ -21,8 +21,8 @@
     (set! simulator (new arm-simulator-racket% [machine machine]))
 
     (set! mutate-dist
-	  #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1)
-		(shf . 1) (cond-type . 1)))
+	  #hash((opcode . 2) (operand . 2) (swap . 1) (instruction . 2)
+		(shf . 4) (cond-type . 2)))
 	  
 
     (define bit (get-field bit machine))
@@ -34,16 +34,16 @@
 
     (define reg-range (list->vector (range nregs)))
     (define operand2-range
-          (list->vector
-           (append (range 17) (list (sub1 bit) #x3f)
-		   (for/list ([i (range 5 (sub1 bit))]) 
-                             (arithmetic-shift 1 i))
-                   (list (- (arithmetic-shift 1 (sub1 bit)))))))
+      (list->vector
+       (append (range bit) (list #x3f))))
+    ;; (for/list ([i (range 5 (sub1 bit))]) 
+    ;;           (arithmetic-shift 1 i))
+    ;; (list (- (arithmetic-shift 1 (sub1 bit)))))))
     (define const-range
-          (list->vector
-           (append (range 17) (list (sub1 bit) #x1111 #x3333 #x5555 #x0f0f #x3f #xffff)
-		   (for/list ([i (range 5 (quotient bit 2))]) 
-                             (arithmetic-shift 1 i)))))
+      (list->vector
+       (append (range 17) (list (sub1 bit) #x1111 #x3333 #x5555 #x0f0f #x3f #xffff))))
+    ;; (for/list ([i (range 5 (quotient bit 2))]) 
+    ;;           (arithmetic-shift 1 i)))))
     
     (define bit-range (list->vector (range bit)))
     (define mem-range (list->vector (for/list ([i (range 1 11)]) (- i))))
@@ -94,25 +94,25 @@
       (define shfop (inst-shfop entry))
       (define shfop-name (and shfop (vector-ref shf-inst-id shfop)))
       (define shfarg (inst-shfarg entry))
-      (define rand (random)) ;; op 0.1, arg 0.1, all 0.1, nop 0.7
+      (define rand (random)) ;; op 0.5, arg 0.25, all 0.05, nop 0.2
       (when debug
 	    (pretty-display (format " >> shf-type = ~a" rand)))
       (cond
-       [(or (equal? shfop-name #f) (equal? shfop-name `nop) (< rand 0.1))
+       [(or (equal? shfop-name #f) (equal? shfop-name `nop) (< rand 0.5))
         (define my-live-in live-in)
         (for ([i index])
              (set! my-live-in (update-live my-live-in (vector-ref p i))))
 	(set! shfop (vector-member (random-from-vec-ex shf-inst-id `nop) shf-inst-id))
 	(set! shfarg (random-from-vec (get-shfarg-range shfop my-live-in)))]
 
-       [(< rand 0.2) ;; op
+       [(< rand 0.55) ;; op
 	(define my-list
 	  (if (member shfop-name '(asr lsr lsl)) '(asr lsr lsl) '(asr# lsr# lsl#)))
 	(set! shfop (vector-member 
 		     (random-from-list-ex my-list shfop-name)
 		     shf-inst-id))]
 
-       [(< rand 0.3) ;; arg
+       [(< rand 0.8) ;; arg
         (define my-live-in live-in)
         (for ([i index])
              (set! my-live-in (update-live my-live-in (vector-ref p i))))
@@ -175,12 +175,12 @@
       (cond
        [(equal? class-id 0) (vector reg-range (reg) (reg))]
        [(equal? class-id 1) (vector reg-range (reg) operand2-range)]
-       [(equal? class-id 2) (vector reg-range (reg) bit-range)]
-       [(equal? class-id 3) (vector reg-range (reg))]
-       [(equal? class-id 4) (vector reg-range const-range)]
-       [(equal? class-id 5) (vector reg-range (reg) (reg) (reg))]
-       [(equal? class-id 6) (vector reg-range (reg) bit-range bit-range)]
-       [(equal? class-id 7) (vector reg-range reg-range mem-range)]
+       ;[(equal? class-id 2) (vector reg-range (reg) bit-range)]
+       [(equal? class-id 2) (vector reg-range (reg))]
+       [(equal? class-id 3) (vector reg-range const-range)]
+       [(equal? class-id 4) (vector reg-range (reg) (reg) (reg))]
+       [(equal? class-id 5) (vector reg-range (reg) bit-range bit-range)]
+       [(equal? class-id 6) (vector reg-range reg-range mem-range)]
        [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range)]
        [else (vector)]))
 
@@ -220,7 +220,7 @@
       (define z2 (progstate-z state2))
       
       (define correctness 0)
-      (define relax #f)
+      (define relax #t)
       (define misalign-penalty 1)
       (define misalign 0)
       (if relax

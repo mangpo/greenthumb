@@ -67,7 +67,10 @@ mvn r1, 0
 ;; p13_o0 8(4), 11(4)
 ;; max 36(3), 22(3), 13(3)
 
-;; support div, 2 inputs (random) 89
+;; merge
+;; p1 54(2), 18(2), 90(3)
+;; p13 55(3), 40(4), 67(3), 35(4)
+;; max 46(3), 99(3)
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send solver encode-sym sketch))
@@ -77,14 +80,14 @@ mvn r1, 0
 ;; Return counterexample if code and sketch are different.
 ;; Otherwise, return #f.
 
-#|
+
 (define ex
   (send solver counterexample encoded-code encoded-sketch 
         (constraint machine [reg 0] [mem])))
 
 (when ex 
   (pretty-display "Counterexample:")
-  (send machine display-state ex))|#
+  (send machine display-state ex))
 
 ;; Test solver-based suoptimize function
 

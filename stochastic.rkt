@@ -309,24 +309,24 @@
         )
 
       (define (cost-one-input program input output)
-        (with-handlers* 
-         ([exn:break? (lambda (e) (raise e))]
-          [exn? (lambda (e) 
-                  (when debug 
-                        (pretty-display "Error!")
-                        (pretty-display (exn-message e)))
-                  #f)]
-          )
-         (let* ([t1 (current-milliseconds)]
-                [program-out (send simulator interpret program input)]
-                [t2 (current-milliseconds)]
-                [ret (correctness-cost output program-out constraint)]
-                [t3 (current-milliseconds)]
-                )
-           (send stat simulate (- t2 t1))
-           (send stat check (- t3 t2))
-           ret
-           )))
+	(define t1 (current-milliseconds))
+	(define program-out
+	  (with-handlers* 
+	   ([exn:break? (lambda (e) (raise e))]
+	    [exn? (lambda (e) 
+		    (when debug 
+			  (pretty-display "Error!")
+			  (pretty-display (exn-message e)))
+		    #f)]
+	    )
+	   (send simulator interpret program input)))
+	(and program-out
+	     (let ([t2 (current-milliseconds)]
+		   [ret (correctness-cost output program-out constraint)]
+		   [t3 (current-milliseconds)])
+	       (send stat simulate (- t2 t1))
+	       (send stat check (- t3 t2))
+	       ret)))
       
       (define (cost-all-inputs program okay-cost)
         ;; (define correct 0)
@@ -372,6 +372,7 @@
                                         outputs))
                     (pretty-display (format "Add counterexample. Total = ~a." (length inputs)))
                     (send machine display-state ce)
+		    (send printer print-syntax (send printer decode program))
                     )
                   (begin
                     (send stat inc-correct)
