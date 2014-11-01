@@ -67,10 +67,9 @@
                   (vector-map name->id args)
                   (and shfop (send machine get-shf-inst-id (string->symbol shfop)))
                   (and shfarg (name->id shfarg))
-                  (cond
-                   [(equal? cond-type "eq") 1]
-                   [(equal? cond-type "ne") 0]
-                   [else -1]))))
+		  (if (equal? cond-type "")
+		      -1
+		      (send machine get-cond-inst-id (string->symbol cond-type))))))
                 
 
     ;; Convert an instruction encoded using numbers
@@ -107,10 +106,7 @@
         (arm-inst (convert-op opcode) new-args
 		  (and shfop (convert-op shfop))
 		  (and shfarg (convert-shfarg shfarg shfop))
-                  (cond
-                   [(equal? cond-type 1) "eq"]
-                   [(equal? cond-type 0) "ne"]
-                   [else ""])))
+		  (if (= cond-type -1) "" (send machine get-cond-inst-name cond-type))))
 
       (define (reg x) (format "r~a" x))
       (define imm number->string)

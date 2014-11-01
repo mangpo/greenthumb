@@ -75,7 +75,7 @@
               (set! mutations (cons `operand mutations)))
       (when (member opcode-name inst-with-shf)
 	    (set! mutations (cons `shf mutations)))
-      (unless (member opcode-name '(tst cmp tst# cmp#))
+      (unless (member opcode-name '(tst cmp tst# cmp# nop))
               (set! mutations (cons `cond-type mutations)))
       mutations)
 
@@ -131,15 +131,20 @@
 
     (define (mutate-cond index entry p)
       (define cmp 
-	(for/or ([i index])
+	(for/or ([i (reverse (range index))])
 		(let ([name-i (vector-ref inst-id (inst-op (vector-ref p i)))])
-		  (member name-i '(tst cmp tst# cmp#)))))
+		  (and (member name-i '(tst cmp tst# cmp#)) name-i))))
 
       (cond
        [cmp 
 	(define cond-type (inst-cond entry))
-	(define new-cond-type (random-from-list-ex (list -1 0 1) cond-type))
+	(define new-cond-type 
+	  (if (member cmp '(tst tst#))
+	      (random-from-list-ex (range -1 2) cond-type)
+	      (random-from-list-ex (range -1 6) cond-type)))
 	(define new-entry (struct-copy arm-inst entry [cond new-cond-type]))
+	(when debug
+	      (pretty-display (format " --> cond-type = ~a --> ~a" cond-type new-cond-type)))
 	(define new-p (vector-copy p))
 	(vector-set! new-p index new-entry)
 	(send stat inc-propose `cond-type)
@@ -154,7 +159,7 @@
       (define shfop (and shf? (random (vector-length shf-inst-id))))
       (define shfarg-range (and shf? (get-shfarg-range shfop live-in)))
       (define shfarg (and shf? (vector-ref shfarg-range (random (vector-length shfarg-range)))))
-      (define cond-type (sub1 (random 3)))
+      (define cond-type (sub1 (random 7)))
       (arm-inst opcode-id args shfop shfarg cond-type))
 
     (define (get-shfarg-range shfop-id live-in)

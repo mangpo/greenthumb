@@ -5,7 +5,7 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 5 1 0))
+(send machine set-config (list 5 2 2))
 (define printer (new arm-printer% [machine machine]))
 (define solver (new arm-solver% [machine machine] [printer printer]
                     [parser parser]
@@ -13,40 +13,64 @@
 
 (define code
 (send parser ast-from-string "
-        cmp	r0, r1
-	movne	r2, r3
-	cmp	r0, r3
-	eoreq	r0, r3, r1
-	movne	r0, #0
-	eor	r0, r2, r0
-        sub	r3, r0, #1
-	orr	r3, r3, r0
+	str	r0, [fp, #-8]
+	ldr	r3, [fp, #-8]
+	sub	r3, r3, #1
+	str	r3, [fp, #-8]
+	ldr	r3, [fp, #-8]
+	mov	r3, r3, asr #1
+	ldr	r2, [fp, #-8]
+	orr	r3, r2, r3
+	str	r3, [fp, #-8]
+	ldr	r3, [fp, #-8]
+	mov	r3, r3, asr #2
+	ldr	r2, [fp, #-8]
+	orr	r3, r2, r3
+	str	r3, [fp, #-8]
+	ldr	r3, [fp, #-8]
+	mov	r3, r3, asr #4
+	ldr	r2, [fp, #-8]
+	orr	r3, r2, r3
+	str	r3, [fp, #-8]
+	ldr	r3, [fp, #-8]
+	mov	r3, r3, asr #8
+	ldr	r2, [fp, #-8]
+	orr	r3, r2, r3
+	str	r3, [fp, #-8]
+	ldr	r3, [fp, #-8]
+	mov	r3, r3, asr #16
+	ldr	r2, [fp, #-8]
+	orr	r3, r2, r3
+	str	r3, [fp, #-8]
+	ldr	r3, [fp, #-8]
 	add	r3, r3, #1
-	and	r0, r3, r0
+	str	r3, [fp, #-8]
+	ldr	r3, [fp, #-8]
+	mov	r0, r3
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-cmpne r3, r0
-moveq r3, r1
+sub r0, r0, 1
+mvn r1, 0
+? ?
 "))
 
-;; no div, no inputs 46, 44
-;; choice div, no inputs 41
-;; support div, no inputs 119, 115
+;; no hi, ls 
+;; solver 50, 63, 28
+;; p13_o0 stoch 7 12 8
 
-;; no div, inputs 61 105
-;; no div, 1 inputs (0) 76
-;; no div, 1 inputs (random) 41, 43
-;; no div, 2 inputs (random) 3, 23, 11, 51
-;; adjust cost function
-;; no div, 3 inputs (random) 25, 31
+;; with hi, ls
+;; cmpne & better performance model
+;; solver 113, 70, 15
+;; p13_o0 8(4), 11(4)
+;; max 36(3), 22(3), 13(3)
 
 ;; support div, 2 inputs (random) 89
 
 (define encoded-code (send printer encode code))
-;(define encoded-sketch (send solver encode-sym sketch))
+(define encoded-sketch (send solver encode-sym sketch))
 ;(send printer print-syntax (send printer decode
 ;(send machine clean-code encoded-sketch encoded-code)))
 
@@ -63,7 +87,7 @@ moveq r3, r1
   (send machine display-state ex))|#
 
 ;; Test solver-based suoptimize function
-#|
+
 (define t (current-seconds))
 (define-values (res cost)
 (send solver synthesize-from-sketch 
@@ -71,7 +95,7 @@ moveq r3, r1
       encoded-sketch ;; sketch = spec in this case
       (constraint machine [reg 0] [mem]) #f))
 (pretty-display `(time ,(- (current-seconds) t)))
-|#
+
 
 #|
 (define res
