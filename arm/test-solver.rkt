@@ -67,10 +67,17 @@ mvn r1, 0
 ;; p13_o0 8(4), 11(4)
 ;; max 36(3), 22(3), 13(3)
 
-;; merge
+;; merge (misal)
 ;; p1 54(2), 18(2), 90(3)
 ;; p13 55(3), 40(4), 67(3), 35(4)
 ;; max 46(3), 99(3)
+
+;; merge (half)
+;; solver 9, > 180, 162
+;; max 54(3), 59(3)
+
+;; 1 input
+;; 21, 103, 17
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send solver encode-sym sketch))
