@@ -83,9 +83,10 @@
       (define regs2 (progstate-regs state2))
       (define memory2 (progstate-memory state2))
       (define z2 (progstate-z state2))
-      (pretty-display `(regs ,regs))
-      (pretty-display `(memory ,memory))
-      (pretty-display `(z ,z))
+      (pretty-display "@ arm-solver.rkt function `assert-output`")
+      (pretty-display "Assert equal only at #t")
+      (send machine display-state constraint)
+      (newline)
       
       (for ([r regs]
             [r1 regs1]
