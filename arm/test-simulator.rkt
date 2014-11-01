@@ -8,7 +8,7 @@
 (current-bitwidth 32)
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 6 4 4)) ;; argument = (list num-regs memory)
+(send machine set-config (list  6 4 5)) ;; argument = (list num-regs memory)
 (define printer (new arm-printer% [machine machine]))
 (define solver (new arm-solver% [machine machine] [printer printer]))
 
@@ -16,14 +16,31 @@
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 
 ;; Input machine state
-(define input-state (progstate (vector #x1abc66ac #xb919 0 0 0 0)
-                               (vector 0 0 0 0) 0 4))
+(define input-state (progstate (vector 242087795 -1555402324 0 0 0 0)
+                               (vector 0 0 0 0) -1 5))
 
 ;; Section 1: Concrete program
+#|
 (define code
 (send parser ast-from-string "
-cmp r0, r1
-moveq r0, 0
+	uxth	r5, r0
+	mov	r3, r0, asr #16
+	uxth	r4, r1
+	mov	r1, r1, asr #16
+	mul	r2, r4, r5
+	mul	r4, r4, r3
+	mul	r0, r1, r5
+	add	r2, r4, r2, asr #16
+	uxtah	r0, r0, r2
+	mov	r2, r2, asr #16
+	add	r0, r2, r0, asr #16
+	mla	r0, r1, r3, r0
+"))|#
+
+
+(define code
+(send parser ast-from-string "
+smmul r0, r0, r1
 "))
 
 (send printer print-struct code)
@@ -35,12 +52,12 @@ moveq r0, 0
 (send machine display-state
 (send solver get-live-in encoded-code 
       (constraint machine [reg 0] [mem]) #f))|#
-#|
+
 (define output-state
   (send simulator-rosette interpret encoded-code input-state #:dep #t))
 (pretty-display "Output from simulator in rosette.")
 (send machine display-state output-state)
-(newline)|#
+(newline)
 
 (send simulator-rosette performance-cost encoded-code)
 

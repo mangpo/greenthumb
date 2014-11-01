@@ -676,7 +676,7 @@
       
       ;; Collect input variables and contruct their init values.
       (define-values (sym-vars inputs)
-        (generate-inputs-inner 3 spec start-state assumption))
+        (generate-inputs-inner 2 spec start-state assumption))
 
       (when debug
             (pretty-display "Test calculate performance-cost with symbolic instructions...")

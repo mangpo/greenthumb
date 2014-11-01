@@ -147,7 +147,9 @@
 	(define op-len (string-length op))
 	;; Determine type
 	(define cond-type (substring op (- op-len 2)))
-	(define cond? (member cond-type (list "eq" "ne")))
+	(define cond? (and (member cond-type (list "eq" "ne" "ls" "hi" "cc" "cs")) 
+			   (> op-len 3)))
+	;; ls
 	(set! cond-type (if cond? cond-type ""))
 	(when cond?
 	      (set! op (substring op 0 (- op-len 2))))

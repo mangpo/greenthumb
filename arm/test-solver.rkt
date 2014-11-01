@@ -12,20 +12,74 @@
 
 (define code
 (send parser ast-from-string "
-	eor	r3, r1, r0
-	and	r0, r1, r0
-	add	r0, r0, r3, asr #1
+	str	r0, [fp, #-8]
+	ldr	r3, [fp, #-8]
+	sub	r3, r3, #1
+	str	r3, [fp, #-8]
+	ldr	r3, [fp, #-8]
+	mov	r3, r3, asr #1
+	ldr	r2, [fp, #-8]
+	orr	r3, r2, r3
+	str	r3, [fp, #-8]
+	ldr	r3, [fp, #-8]
+	mov	r3, r3, asr #2
+	ldr	r2, [fp, #-8]
+	orr	r3, r2, r3
+	str	r3, [fp, #-8]
+	ldr	r3, [fp, #-8]
+	mov	r3, r3, asr #4
+	ldr	r2, [fp, #-8]
+	orr	r3, r2, r3
+	str	r3, [fp, #-8]
+	ldr	r3, [fp, #-8]
+	mov	r3, r3, asr #8
+	ldr	r2, [fp, #-8]
+	orr	r3, r2, r3
+	str	r3, [fp, #-8]
+	ldr	r3, [fp, #-8]
+	mov	r3, r3, asr #16
+	ldr	r2, [fp, #-8]
+	orr	r3, r2, r3
+	str	r3, [fp, #-8]
+	ldr	r3, [fp, #-8]
+	add	r3, r3, #1
+	str	r3, [fp, #-8]
+	ldr	r3, [fp, #-8]
+	mov	r0, r3
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-and r4, r1, r0
-rsb r2, r1, r4, lsl 1
-sub r0, r0, r2
-sbfx r2, r0, 1, 31
-add r0, r2, r4
-")) 
+sub r0, r0, 1
+mvn r1, 0
+? ?
+"))
+
+;; no hi, ls 
+;; solver 50, 63, 28
+;; p13_o0 stoch 7 12 8
+
+;; with hi, ls
+;; cmpne & better performance model
+;; solver 113, 70, 15
+;; p13_o0 8(4), 11(4)
+;; max 36(3), 22(3), 13(3)
+
+;; merge (misal)
+;; p1 54(2), 18(2), 90(3)
+;; p13 55(3), 40(4), 67(3), 35(4)
+;; max 46(3), 99(3)
+
+;; merge (half)
+;; solver 9, > 180, 162
+;; max 54(3), 59(3)
+
+;; 1 input
+;; 21, 103, 17
+
+;; add smmul
+;; 10, 285, 111 (timeout 120)
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send solver encode-sym sketch))
@@ -46,14 +100,14 @@ add r0, r2, r4
   (pretty-display "No"))
 
 ;; Test solver-based suoptimize function
-#|
+
 (define t (current-seconds))
 (define-values (res cost)
 (send solver synthesize-from-sketch 
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
       (constraint machine [reg 0] [mem]) #f))
-(pretty-display `(time ,(- (current-seconds) t)))|#
+(pretty-display `(time ,(- (current-seconds) t)))
 
 
 #|

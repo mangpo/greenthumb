@@ -79,6 +79,10 @@
     (define bvshr  (bvshift >>))
     (define bvushr (bvshift ushr))
 
+    (define uxtah (bvop (lambda (x y) (+ x (bitwise-and y low-mask)))))
+    (define uxth (lambda (x) (finitize-bit (bitwise-and x low-mask))))
+    (define uxtb (lambda (x) (finitize-bit (bitwise-and x byte-mask))))
+
     (define bvmul (bvop *))
     (define bvmla (lambda (a b c) (finitize-bit (+ c (* a b)))))
     (define bvmls (lambda (a b c) (finitize-bit (- c (* a b)))))
@@ -197,6 +201,20 @@
              (set! res (bitwise-ior (shl res 1) (bitwise-and a 1)))
              (set! a (>> a 1)))
         res))
+
+    (define (tst x y) (if (= x y) 0 1))
+    (define (cmp x y)
+      (define my-x (finitize-bit x))
+      (define my-y (finitize-bit y))
+      (cond
+       [(= my-x my-y) 0]
+       [(or (and (>= my-x 0) (>= my-y 0))
+	    (and (< my-x 0) (< my-y 0)))
+	(cond
+	 [(< my-x my-y) 2]
+	 [else 3])]
+       [(< my-y 0) 2]
+       [else 3]))
     
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
@@ -227,7 +245,7 @@
         (define args (inst-args step))
         (define cond-type (arm-inst-cond step))
         (define shfop (arm-inst-shfop step))
-        ;;(pretty-display `(interpret-step ,z ,op ,args ,cond-type))
+        ;;(pretty-display `(interpret-step ,z ,op ,cond-type))
         
         (define-syntax inst-eq
           (syntax-rules ()
@@ -465,9 +483,7 @@
           (define (z=rr f)
             (define a (args-ref args 0))
             (define b (args-ref args 1))
-            (if (= (f (vector-ref regs a) (vector-ref regs b)) 0)
-                (set! z 1)
-                (set! z 0))
+	    (set! z (f (vector-ref regs a) (vector-ref regs b)))
             (when dep
                   (set! z-dep (create-node #f (list (vector-ref regs-dep a) 
                                                     (vector-ref regs-dep b))))))
@@ -475,9 +491,7 @@
           (define (z=ri f)
             (define a (args-ref args 0))
             (define b (check-imm (args-ref args 1)))
-            (if (= (f (vector-ref regs a) b) 0)
-                (set! z 1)
-                (set! z 0))
+	    (set! z (f (vector-ref regs a) b))
             (when dep
                   (set! z-dep (create-node #f (list (vector-ref regs-dep a) 
                                                     (create-node b (list)))))))
@@ -556,6 +570,10 @@
            [(inst-eq `ubfx) (rrbb ext)]
            [(inst-eq `clz)  (rr clz)]
 
+           [(inst-eq `uxtah) (rrr uxtah)]
+           [(inst-eq `uxth) (rr uxth)]
+           [(inst-eq `uxtb) (rr uxtb)]
+
            ;; load/store
            [(inst-eq `ldr#) (ldr #f)]
            [(inst-eq `str#) (str #f)]
@@ -563,21 +581,41 @@
            [(inst-eq `str)  (str #t)]
 
            ;; compare
-           [(inst-eq `tst) (z=rr bitwise-and)]
-           [(inst-eq `cmp) (z=rr -)]
+           [(inst-eq `tst) (z=rr tst)]
+           [(inst-eq `cmp) (z=rr cmp)]
 
-           [(inst-eq `tst#) (z=ri bitwise-and)]
-           [(inst-eq `cmp#) (z=ri -)]
+           [(inst-eq `tst#) (z=ri tst)]
+           [(inst-eq `cmp#) (z=ri cmp)]
 
            [else (assert #f "undefine instruction")]))
 
+	;; z: eq 0, ne 1, < 1, > 3
+	;; cond: eq 0, ne 1, ls 2, hi 3, cc 4, cs 5
+	(define-syntax-rule (assert-op) (assert (and (>= op 0) (< op ninsts))))
         (cond
-         [(or (equal? cond-type -1)
+         [(or (equal? z -1) (equal? cond-type -1)
               (inst-eq `tst `cmp `tst# `cmp#))
           (exec #f)]
-         [(equal? cond-type z) (exec z-dep)]
-         [else (assert (and (or (equal? cond-type #f) (= cond-type 0) (= cond-type 1))
-                            (>= op 0) (< op ninsts)))]
+
+	 [(equal? cond-type 0) ;; eq
+	  (if (equal? z 0) (exec z-dep) (assert-op))]
+
+	 [(equal? cond-type 1) ;; ne
+	  (if (member z (list 1 2 3)) (exec z-dep) (assert-op))]
+
+	 [(equal? cond-type 2) ;; ls
+	  (if (member z (list 0 2)) (exec z-dep) (assert-op))]
+
+	 [(equal? cond-type 3) ;; hi
+	  (if (equal? z 3) (exec z-dep) (assert-op))]
+
+	 [(equal? cond-type 4) ;; cc
+	  (if (equal? z 2) (exec z-dep) (assert-op))]
+
+	 [(equal? cond-type 5) ;; cs
+	  (if (member z (list 0 3)) (exec z-dep) (assert-op))]
+	 
+         [else (assert #f (format "illegal cond-type ~a" cond-type))]
          )        
         (assert (or (equal? shfop #f) (and (>= shfop 0) (< shfop n-shf-insts))))
         )

@@ -112,6 +112,7 @@
                      bfc bfi
                      sbfx ubfx
                      clz
+		     uxtah uxth uxtb
                      ;;ldr str
                      ldr# str#
                      tst cmp
@@ -124,13 +125,15 @@
 			and orr eor bic orn
 			asr lsl lsr
 			;;sdiv udiv 
-			mul smmul) ;; rrr
+			mul smmul
+			uxtah) ;; rrr
 			;; ldr str)
 		  '(add# sub# rsb#
 			 and# orr# eor# bic# orn#
 			 asr# lsl# lsr#) ;; rri
 		  '(mov mvn 
 			rev rev16 revsh rbit
+			uxth uxtb
 			clz
                         tst cmp) ;;rr
 		  '(mov# mvn# movw# movt# tst# cmp#) ;; ri
@@ -147,8 +150,9 @@
 
     (init-field [branch-inst-id '#(beq bne j jal b jr jr jalr bal)]
                 [shf-inst-id '#(nop asr lsl lsr asr# lsl# lsr#)]
-		[inst-with-shf '(add sub rsb
-				     and orr eor bic orn mov mvn)])
+		[inst-with-shf '(add sub rsb and orr eor bic orn mov mvn)]
+		[cond-inst-id '#(eq ne ls hi cc cs)]
+		)
 
     (define nregs 5)
     (define nmems 1)
@@ -161,6 +165,10 @@
       (vector-member x shf-inst-id))
     (define/public (get-shf-inst-name x)
       (vector-ref shf-inst-id x))
+    (define/public (get-cond-inst-id x)
+      (vector-member x cond-inst-id))
+    (define/public (get-cond-inst-name x)
+      (vector-ref cond-inst-id x))
 
     (define (window-size) 100) ;;32
 
@@ -215,7 +223,7 @@
       (progstate regs memory #f #f))
 
     (define (get-state init extra)
-      (default-state this init [set-z 0] [set-fp fp]))
+      (default-state this init [set-z -1] [set-fp fp]))
 
     (define (get-state-liveness init extra)
       (default-state this init))
