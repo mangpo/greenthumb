@@ -455,7 +455,7 @@
                           constraint timeout extra assumption w 
 			  #:restart #t #:lower-bound (add1 (len-limit))))
         (check-global spec program)
-        (loop (* 2 timeout) (add1 w)))
+        (loop (* 2 timeout) (floor (* (/ 5 4) w))))
         
       (with-handlers*
        ([exn:restart?
