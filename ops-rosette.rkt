@@ -12,21 +12,21 @@
 (define-syntax-rule (<< x y bit) (sym/<< x y))
 (define-syntax-rule (>>> x y bit) (sym/>>> x y))
 
-;; (define (finitize num bit)
-;;   (match (coerce num number?)
-;;          [(? sym? v) v]
-;;          [v (let* ([mask (arithmetic-shift -1 bit)]
-;;                    [masked (bitwise-and (bitwise-not mask) v)])
-;;               (if (bitwise-bit-set? masked (- bit 1))
-;;                   (bitwise-ior mask masked)  
-;;                   masked))]))
-
 (define (finitize num bit)
-  (let* ([mask (sym/<< -1 bit)]
-         [masked (bitwise-and (bitwise-not mask) num)])
-    (if (= (bitwise-and masked (arithmetic-shift 1 (sub1 bit))) 0)
-        masked
-        (bitwise-ior mask masked))))
+  (match (coerce num number?)
+         [(? term? v) v]
+         [v (let* ([mask (arithmetic-shift -1 bit)]
+                   [masked (bitwise-and (bitwise-not mask) v)])
+              (if (bitwise-bit-set? masked (- bit 1))
+                  (bitwise-ior mask masked)  
+                  masked))]))
+
+;; (define (finitize num bit)
+;;   (let* ([mask (sym/<< -1 bit)]
+;;          [masked (bitwise-and (bitwise-not mask) num)])
+;;     (if (= (bitwise-and masked (arithmetic-shift 1 (sub1 bit))) 0)
+;;         masked
+;;         (bitwise-ior mask masked))))
 
 ;; This function is very memory expensive in Rosette
 (define (vector-copy! dest dest-start src 

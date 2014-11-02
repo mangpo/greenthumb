@@ -160,7 +160,7 @@
         (define processes-solver
           (if (equal? search-type `hybrid)
               (list (create-and-run (+ cores-stoch 0) `partial1 #f)
-                    (create-and-run (+ cores-stoch 1) `partial2 #f)
+                    (create-and-run (+ cores-stoch 1) `partial4 #f)
                     (create-and-run (+ cores-stoch 2) `partial3 #f))
               (for/list ([id cores-solver])
                         (create-and-run (+ cores-stoch id) mode #f))))

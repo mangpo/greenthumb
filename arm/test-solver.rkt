@@ -79,6 +79,9 @@ mvn r1, 0
 ;; 1 input
 ;; 21, 103, 17
 
+;; 1 input
+;; 9, > 120, 87
+
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send solver encode-sym sketch))
 ;(send printer print-syntax (send printer decode
@@ -87,14 +90,14 @@ mvn r1, 0
 ;; Return counterexample if code and sketch are different.
 ;; Otherwise, return #f.
 
-
+#|
 (define ex
   (send solver counterexample encoded-code encoded-sketch 
         (constraint machine [reg 0] [mem])))
 
 (when ex 
   (pretty-display "Counterexample:")
-  (send machine display-state ex))
+  (send machine display-state ex))|#
 
 ;; Test solver-based suoptimize function
 
