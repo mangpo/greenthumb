@@ -425,7 +425,7 @@
 	    (sliding-window hard-prefix hard-postfix program1 
                             constraint timeout extra assumption w))
 	  (check-global spec program2)
-	  (loop (* 2 timeout) (add1 w)))
+	  (loop (* 2 timeout) (floor (* (/ 5 4) w))))
 	(loop 60 (window-size))
         )
         
@@ -493,7 +493,8 @@
 
         (define new-choices (remove from choices))
         (if (empty? new-choices)
-            (inner (add1 w) (* 2 timeout) (range (sub1 (vector-length spec))))
+            (inner (floor (* (/ 5 4) w)) 
+		   (* 2 timeout) (range (sub1 (vector-length spec))))
             (inner w timeout new-choices))
         )
 
