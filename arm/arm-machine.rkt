@@ -105,7 +105,7 @@
                      rev rev16 revsh rbit
                      asr lsl lsr
                      asr# lsl# lsr#
-                     ;;sdiv udiv
+                     sdiv udiv
                      mul mla mls
                      smull umull
                      smmul smmla smmls
@@ -124,7 +124,7 @@
           (vector '(add sub rsb
 			and orr eor bic orn
 			asr lsl lsr
-			;;sdiv udiv 
+			sdiv udiv 
 			mul smmul
 			uxtah) ;; rrr
 			;; ldr str)

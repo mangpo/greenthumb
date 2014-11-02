@@ -91,37 +91,13 @@
 
     (define (bvsmmul x y) (smmul x y bit))
     (define (bvummul x y) (ummul x y bit))
-
-    ;; (define (bvsmmul x y)
-    ;;   (define o1 (bitwise-and x low-mask))
-    ;;   (define o2 (>> x byte2))
-    ;;   (define o3 (bitwise-and y low-mask))
-    ;;   (define o4 (>> y byte2))
-
-    ;;   (define o5 (* o1 o3))
-    ;;   (define o6 (* o2 o3))
-    ;;   (set! o1 (* o1 o4))
-    ;;   (set! o2 (* o2 o4))
-
-    ;;   (set! o5 (+ o6 (>> o5 byte2)))
-    ;;   (set! o6 (bitwise-and o5 low-mask))
-    ;;   (set! o5 (>> o5 byte2))
-
-    ;;   (finitize-bit (+ o5 o2 (>> (+ o1 o6) byte2))))
+    (define (bvudiv n d)
+      (if (< d 0)
+          (if (< n d) 1 0)
+          (let* ([q (shl (quotient (ushr n 2) d) 2)]
+                 [r (- n (* q d))])
+            (finitize-bit (if (or (> r d) (< r 0)) q (add1 q))))))
       
-    ;; (define (bvummul x y)
-    ;;   (define x-lo (bitwise-and x low-mask))
-    ;;   (define x-hi (ushr x byte2))
-    ;;   (define y-lo (bitwise-and y low-mask))
-    ;;   (define y-hi (ushr y byte2))
-    ;;   (define carry 
-    ;;     (>> (+ (bitwise-and (>> (* x-lo y-lo) byte2) low-mask)
-    ;;            (bitwise-and (* x-lo y-hi) low-mask)
-    ;;            (bitwise-and (* x-hi y-lo) low-mask))
-    ;;         byte2))
-    ;;   (define high 
-    ;;     (+ (* x-hi y-hi) (ushr (* x-lo y-hi) byte2) (ushr (* x-hi y-lo) byte2) carry))
-    ;;   (finitize-bit high))
 
     (define (movlo to c)
       (finitize-bit (bitwise-ior (bitwise-and to high-mask) c)))
@@ -532,9 +508,8 @@
            [(inst-eq `rbit)  (rr bvrbit)]
 
            ;; div & mul
-           ;; [(inst-eq `sdiv) (rrr quotient)]
-           ;; [(inst-eq `udiv) (rrr (lambda (x y) (quotient (bitwise-and x mask)
-           ;;                                               (bitwise-and y mask))))]
+           [(inst-eq `sdiv) (rrr quotient)]
+           [(inst-eq `udiv) (rrr bvudiv)]
            [(inst-eq `mul)  (rrr bvmul)]
            [(inst-eq `mla)  (rrrr bvmla)]
            [(inst-eq `mls)  (rrrr bvmls)]
@@ -660,8 +635,8 @@
 
               [(inst-eq `sbfx `ubfx `bfc `bfi) (add-cost 2)]
               [(inst-eq `str `str# `ldr `ldr#) (add-cost 3)]
-              [(inst-eq `mul `mla `mls `smmul `smmla `smmls `sdiv `udiv) (add-cost 5)]
-              [(inst-eq `smull `umull) (add-cost 6)]
+              [(inst-eq `mul `mla `mls `smmul `smmla `smmls) (add-cost 5)]
+              [(inst-eq `smull `umull `sdiv `udiv) (add-cost 6)]
               [(inst-eq `tst `cmp `tst# `cmp#) (add-cost 2)]
               [else (add-cost 1)])
              ))
