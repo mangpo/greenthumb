@@ -152,7 +152,7 @@
     (define nmems 1)
     (define/public (get-nmems) nmems)
 
-    (define (window-size) 34)
+    (define (window-size) 100)
     (define (get-config) nmems)
     (define (set-config info) (set! nmems info))
     (define (set-config-string info) info)

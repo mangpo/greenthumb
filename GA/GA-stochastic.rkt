@@ -34,10 +34,10 @@
 
     (define const-range 
           (list->vector
-           (append (range -16 17) (list (sub1 bit) UP DOWN LEFT RIGHT IO 32639 65535 65536)
-                   (for/list ([i (range 5 (sub1 (quotient bit 2)))]) 
-                             (arithmetic-shift 1 i))
-                   (list (- (arithmetic-shift 1 (sub1 (quotient bit 2))))))))
+           (append (range -16 17) (list (sub1 bit) UP DOWN LEFT RIGHT IO 32639 65535 65536))))
+    ;; (for/list ([i (range 5 (sub1 (quotient bit 2)))]) 
+    ;;           (arithmetic-shift 1 i))
+    ;; (list (- (arithmetic-shift 1 (sub1 (quotient bit 2))))))))
     
     (define (mutate-other index entry p type)
       (cond
