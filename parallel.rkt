@@ -7,7 +7,7 @@
 (define parallel%
   (class object%
     (super-new)
-    (init-field meta parser machine printer compress solver search-type mode 
+    (init-field meta parser machine printer compress solver search-type mode base-cost
                 [window #f])
     ;; search = `solver, `stoch, `hybrid
     ;; mode = `linear, `binary, `syn, `opt
@@ -66,9 +66,9 @@
 
                (if stochastic?
                    (pretty-display 
-                    (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode ~a]))" 
+                    (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode ~a] [base-cost ~a]))" 
                             (send meta get-class-name "stochastic") 
-                            (equal? mode `syn)))
+                            (equal? mode `syn) base-cost))
                    (pretty-display 
                     (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode `~a]))" 
                             (send meta get-class-name "solver") 
@@ -105,8 +105,10 @@
                ;;(pretty-display "(dump-memory-stats)"
                )))
         
-        (define (run-file id)
-          (define out-port (open-output-file (format "~a-~a.log" path id) #:exists 'truncate))
+        (define (run-file id stoch?)
+          (define out-port 
+            (and (not stoch?) 
+                 (open-output-file (format "~a-~a.log" path id) #:exists 'truncate)))
           (define-values (sp o i e) 
             (subprocess out-port #f out-port (find-executable-path "racket") (format "~a-~a.rkt" path id)))
           sp)
@@ -146,7 +148,7 @@
         (define-syntax-rule (create-and-run id mode stoch?)
           (begin
             (create-file id stoch? mode)
-            (run-file id)))
+            (run-file id stoch?)))
 
         (define processes-stoch
           (if (equal? search-type `hybrid)

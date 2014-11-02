@@ -15,7 +15,7 @@
 ;; size (optional)
 ;; >>> OUTPUT >>>
 ;; Optimized code, not encoded.
-(define (optimize code live-out live-in search-type mode
+(define (optimize code live-out live-in search-type mode base-cost
                   #:need-filter [need-filter #f]
                   #:dir [dir "output"] 
                   #:cores [cores 12]
@@ -32,7 +32,8 @@
   (define solver (new arm-solver% [machine machine] [printer printer]))
   (define parallel (new parallel% [meta meta] [parser parser] [machine machine] 
                         [printer printer] [compress compress] [solver solver]
-                        [search-type search-type] [mode mode] [window window]))
+                        [search-type search-type] [mode mode] [base-cost base-cost]
+                        [window window]))
 
   (send parallel optimize code live-out live-in
         #:need-filter need-filter #:dir dir #:cores cores 

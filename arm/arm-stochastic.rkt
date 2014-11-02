@@ -10,8 +10,8 @@
 (define arm-stochastic%
   (class stochastic%
     (super-new)
-    (inherit-field machine printer solver simulator stat mutate-dist live-in)
-    (inherit random-args-from-op mutate filter-live update-live)
+    (inherit-field machine printer solver simulator stat mutate-dist live-in base-cost)
+    (inherit random-args-from-op mutate filter-live update-live adjust)
     (override correctness-cost get-arg-ranges 
 	      get-mutations random-instruction mutate-other
 	      inst-copy-with-op inst-copy-with-args
@@ -221,7 +221,7 @@
       (define z2 (progstate-z state2))
       
       (define correctness 0)
-      (define relax #f)
+      (define relax base-cost)
       (define misalign-penalty 1)
       (define misalign 0)
       (if relax

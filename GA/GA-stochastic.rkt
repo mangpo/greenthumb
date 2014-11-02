@@ -13,6 +13,7 @@
   (class stochastic%
     (super-new)
     (inherit-field machine printer solver simulator stat mutate-dist nop-mass)
+    (inherit adjust)
     (init-field [forward #t])
     (override get-mutations mutate-operand mutate-other
               correctness-cost get-arg-ranges random-instruction)

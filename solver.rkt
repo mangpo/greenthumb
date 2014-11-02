@@ -2,7 +2,7 @@
 
 (require  "ast.rkt" "machine.rkt" "printer.rkt" "stat.rkt")
 
-(require rosette/solver/smt/z3)
+;(require rosette/solver/smt/z3)
 (require rosette/solver/kodkod/kodkod)
 
 (provide solver%)
@@ -26,9 +26,9 @@
             evaluate-inst encode-sym-inst encode-sym
             assume-relax get-live-in)
     
-    (if syn-mode
-        (current-solver (new kodkod%))
-        (current-solver (new z3%)))
+    ;; (if syn-mode
+    ;;     (current-solver (new kodkod%))
+    ;;     (current-solver (new z3%)))
 
     (define-syntax-rule (print-struct x) (send printer print-struct x))
     (define-syntax-rule (print-syntax x) (send printer print-syntax x))
@@ -732,7 +732,7 @@
             ;; (pretty-display (format "assumption: ~a" assumption))
             )
       
-      (current-solver (new kodkod%))
+      ;(current-solver (new kodkod%))
       (clear-asserts)
       ;(configure [bitwidth bit] [loop-bound 20])
       (current-bitwidth bit)

@@ -16,6 +16,7 @@
 (define time-limit (make-parameter 3600))
 (define input-file (make-parameter #f))
 (define window (make-parameter #f))
+(define base-cost (make-parameter #f))
  
 (define file-to-optimize
   (command-line
@@ -52,7 +53,6 @@
    [("-w" "--window")    w
                         "Path to inputs."
                         (window (string->number w))]
-
    #:once-any
    [("--solver") "Use solver-based search."
                         (search-type `solver)]
@@ -73,6 +73,12 @@
    [("-s" "--synthesize") "Synthesize mode starts searching from random programs (default)"
                         (mode `syn)]
 
+   #:once-any
+   [("--inter")  "Cost function with intermediates."
+                 (base-cost #f)]
+   [("--base")   "Baseline cost function."
+                 (base-cost #t)]
+
 
    #:args (filename) ; expect one command-line argument: <filename>
    ; return the argument as a filename to compile
@@ -81,7 +87,7 @@
 (define parser (new arm-parser%))
 (define code (send parser ast-from-file file-to-optimize))
 
-(optimize code (list (live-out) (live-mem)) (list (live-in) (live-mem)) (search-type) (mode)
+(optimize code (list (live-out) (live-mem)) (list (live-in) (live-mem)) (search-type) (mode) (base-cost)
           #:need-filter #f #:dir (dir) #:cores (cores) 
           #:time-limit (time-limit) #:size (size) #:window (window)
           #:input-file (input-file)

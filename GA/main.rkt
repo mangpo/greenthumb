@@ -19,19 +19,21 @@
 
 (define simulator (new GA-simulator-racket% [machine machine]))
 
-(define (optimize code live-out search-type mode recv
+(define (optimize code live-out search-type mode recv base-cost
                   #:assume [assume #f]
                   #:need-filter [need-filter #f]
                   #:dir [dir "output"] 
                   #:cores [cores 12]
                   #:time-limit [time-limit 3600]
                   #:size [size #f]
+                  #:window [window #f]
                   #:input-file [input-file #f]
                   #:start-prog [start-prog #f])
 
   (define parallel (new parallel% [meta meta] [parser parser] [machine machine] 
                         [printer printer] [compress compress] [solver solver]
-                        [search-type search-type] [mode mode]))
+                        [search-type search-type] [mode mode] [base-cost base-cost]
+                        [window window]))
   (send parallel optimize code live-out #f
         #:assume assume
         #:extra-info recv
