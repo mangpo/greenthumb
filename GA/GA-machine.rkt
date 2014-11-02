@@ -24,12 +24,14 @@
 (struct stack (sp body))
 
 ;;; Print a circular stack:
-(define (display-stack stack)
+(define (display-stack x)
   (define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
   ;; (pretty-display (format " ~a" stack)))
-  (for [(i (in-range 0 8))]
-       (display (format " ~a" (vector-ref (stack-body stack)
-                                          (modulo- (- (stack-sp stack) i) 8))))))
+  (if (stack? x)
+      (for [(i (in-range 0 8))]
+           (display (format " ~a" (vector-ref (stack-body x)
+                                              (modulo- (- (stack-sp x) i) 8)))))
+      (display (format " ~a" x))))
 
 ;;;;;;;;;;;;;; END STACK ;;;;;;;;;;;;;;;;
 
@@ -165,7 +167,9 @@
           #f))
     (define (output-constraint-string machine-var live-out)
       ;; live-out is something like '((data . 0) (return . 1) memory a)
-      (format "(send ~a output-constraint '~a)" machine-var live-out))
+      (if live-out
+          (format "(send ~a output-constraint '~a)" machine-var live-out)
+          #f))
 
     (define/public (output-constraint lst [extra-data 0] [extra-return 0])
       (define a #f) 

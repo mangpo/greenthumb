@@ -32,7 +32,7 @@
   (define parallel (new parallel% [meta meta] [parser parser] [machine machine] 
                         [printer printer] [compress compress] [solver solver]
                         [search-type search-type] [mode mode]))
-  (send parallel optimize code live-out  
+  (send parallel optimize code live-out #f
         #:assume assume
         #:extra-info recv
         #:need-filter need-filter #:dir dir #:cores cores 

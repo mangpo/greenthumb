@@ -64,12 +64,12 @@
       (vector-set! new-p index (inst opcode-id (random-from-vec-ex const-range arg)))
       new-p)
     
-    (define (random-instruction [opcode-id (random (vector-length inst-id))])
+    (define (random-instruction live-in [opcode-id (random (vector-length inst-id))])
       (define opcode-name (vector-ref inst-id opcode-id))
       (define arg (and (equal? opcode-name `@p) (random-from-vec const-range)))
       (inst opcode-id arg))
     
-    (define (get-arg-ranges opcode-name entry)
+    (define (get-arg-ranges opcode-name entry live-in)
       (raise "GA: get-arg-ranges should not be called."))
 
     ;; state1: reference
