@@ -9,7 +9,7 @@
 (current-bitwidth 32)
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list  6 4 5)) ;; argument = (list num-regs memory)
+(send machine set-config (list  6 6 6)) ;; argument = (list num-regs memory)
 (define printer (new arm-printer% [machine machine]))
 (define solver (new arm-solver% [machine machine] [printer printer]))
 
@@ -17,8 +17,8 @@
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 
 ;; Input machine state
-(define input-state (progstate (vector 7 0 0 0 0 0)
-                               (vector 0 0 0 0) -1 5))
+(define input-state (progstate (vector 0 0 0 0 0 0 )
+                               (vector 0 0 0 0 0 0 0) -1 6))
 
 ;; Section 1: Concrete program
 #|
@@ -41,12 +41,25 @@
 
 (define code
 (send parser ast-from-string "
-	rsb	r1, r0, #0
-	and	r1, r1, r0
-	add	r4, r1, r0
-	eor	r0, r4, r0
-	bl	__aeabi_uidiv
-	orr	r0, r4, r0, lsr #2
+	str     r0, [fp, #-24]
+	ldr     r3, [fp, #-24]
+	sub     r3, r3, #1
+	str     r3, [fp, #-16]
+	ldr     r2, [fp, #-16]
+	ldr     r3, [fp, #-24]
+	and     r3, r2, r3
+	str     r3, [fp, #-16]
+	ldr     r3, [fp, #-16]
+	cmp     r3, #0
+	movne	r3, #0
+        moveq	r3, #1
+	str     r3, [fp, #-12]
+	ldr     r3, [fp, #-12]
+        ldr	r2, [fp, #-24]
+        cmp     r2, #0
+        moveq   r2, #0
+        andne	r2, r3, #1
+        mov     r0, r2
 "))
 
 (send printer print-struct code)
