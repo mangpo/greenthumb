@@ -142,7 +142,7 @@
       (set! time (- (current-seconds) start-time))
       (with-output-to-file #:exists 'truncate (format "~a.stat" name)
         (thunk (print-stat)))
-      (print-stat)
+      ;;(print-stat)
       )
 
     (define/public (print-stat)
