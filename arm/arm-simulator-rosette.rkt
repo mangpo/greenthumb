@@ -79,9 +79,25 @@
     (define bvshr  (bvshift >>))
     (define bvushr (bvshift ushr))
 
+    (define uxtah (bvop (lambda (x y) (+ x (bitwise-and y low-mask)))))
+    (define uxth (lambda (x) (finitize-bit (bitwise-and x low-mask))))
+    (define uxtb (lambda (x) (finitize-bit (bitwise-and x byte-mask))))
+
     (define bvmul (bvop *))
     (define bvmla (lambda (a b c) (finitize-bit (+ c (* a b)))))
     (define bvmls (lambda (a b c) (finitize-bit (- c (* a b)))))
+    (define bvsmmla (lambda (a b c) (finitize-bit (+ c (bvsmmul a b)))))
+    (define bvsmmls (lambda (a b c) (finitize-bit (- c (bvsmmul a b)))))
+
+    (define (bvsmmul x y) (smmul x y bit))
+    (define (bvummul x y) (ummul x y bit))
+    (define (bvudiv n d)
+      (if (< d 0)
+          (if (< n d) 1 0)
+          (let* ([q (shl (quotient (ushr n 2) d) 2)]
+                 [r (- n (* q d))])
+            (finitize-bit (if (or (> r d) (< r 0)) q (add1 q))))))
+      
 
     (define (movlo to c)
       (finitize-bit (bitwise-ior (bitwise-and to high-mask) c)))
@@ -284,6 +300,28 @@
                                                            cond-dep)))
                 (add-inter val)))
 
+          (define (ddrr f-lo f-hi)
+            (define d-lo (args-ref args 0))
+            (define d-hi (args-ref args 1))
+            (assert (not (= d-lo d-hi)))
+            (define a (args-ref args 2))
+            (define b (args-ref args 3))
+            (define val-lo (f-lo (vector-ref regs a) (vector-ref regs b)))
+            (define val-hi (f-hi (vector-ref regs a) (vector-ref regs b)))
+            (vector-set! regs d-lo val-lo)
+            (vector-set! regs d-hi val-hi)
+            (if dep
+                (begin 
+                  (vector-set! regs-dep d-lo (create-node val-lo
+                                                          (list (vector-ref regs-dep a)
+                                                                (vector-ref regs-dep b)
+                                                                cond-dep)))
+                  (vector-set! regs-dep d-hi (create-node val-hi
+                                                          (list (vector-ref regs-dep a)
+                                                                (vector-ref regs-dep b)
+                                                                cond-dep))))
+                (add-inter val-lo val-hi)))
+
           ;; count leading zeros
           (define (rr f [shf #f])
             (define d (args-ref args 0))
@@ -470,12 +508,23 @@
            [(inst-eq `rbit)  (rr bvrbit)]
 
            ;; div & mul
-           ;; [(inst-eq `sdiv) (rrr quotient)]
-           ;; [(inst-eq `udiv) (rrr (lambda (x y) (quotient (bitwise-and x mask)
-           ;;                                               (bitwise-and y mask))))]
            [(inst-eq `mul)  (rrr bvmul)]
            [(inst-eq `mla)  (rrrr bvmla)]
            [(inst-eq `mls)  (rrrr bvmls)]
+
+           ;; [(inst-eq `smmul) (rrr bvsmmul)]
+           ;; [(inst-eq `smmla) (rrrr bvsmmla)]
+           ;; [(inst-eq `smmls) (rrrr bvsmmls)]
+
+           ;; [(inst-eq `smull) (ddrr bvmul bvsmmul)]
+           ;; [(inst-eq `umull) (ddrr bvmul bvummul)]
+
+           ;; [(inst-eq `sdiv) (rrr quotient)]
+           ;; [(inst-eq `udiv) (rrr bvudiv)]
+
+           ;; [(inst-eq `uxtah) (rrr uxtah)]
+           ;; [(inst-eq `uxth) (rr uxth)]
+           ;; [(inst-eq `uxtb) (rr uxtb)]
            
            ;; shift Rd, Rm, Rs
            ;; only the least significant byte of Rs is used.
@@ -587,8 +636,8 @@
 
               [(inst-eq `sbfx `ubfx `bfc `bfi) (add-cost 2)]
               [(inst-eq `str `str# `ldr `ldr#) (add-cost 3)]
-              [(inst-eq `mul `mla `mls) (add-cost 5)]
-              [(inst-eq `smull `umull) (add-cost 6)]
+              [(inst-eq `mul `mla `mls `smmul `smmla `smmls) (add-cost 5)]
+              [(inst-eq `smull `umull `sdiv `udiv) (add-cost 6)]
               [(inst-eq `tst `cmp `tst# `cmp#) (add-cost 2)]
               [else (add-cost 1)])
              ))

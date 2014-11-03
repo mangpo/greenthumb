@@ -10,8 +10,8 @@
 (define arm-stochastic%
   (class stochastic%
     (super-new)
-    (inherit-field machine printer solver simulator stat mutate-dist live-in)
-    (inherit random-args-from-op mutate filter-live update-live)
+    (inherit-field machine printer solver simulator stat mutate-dist live-in base-cost)
+    (inherit random-args-from-op mutate filter-live update-live adjust)
     (override correctness-cost get-arg-ranges 
 	      get-mutations random-instruction mutate-other
 	      inst-copy-with-op inst-copy-with-args
@@ -41,7 +41,8 @@
     ;; (list (- (arithmetic-shift 1 (sub1 bit)))))))
     (define const-range
       (list->vector
-       (append (range 17) (list (sub1 bit) #x1111 #x3333 #x5555 #x0f0f #x3f #xffff))))
+       (append (range 17) (list (sub1 bit) #x1111 #x3333 #x5555 #x0f0f #x3f 
+				#xffff #xaaab #x2aaa #xfff4))))
     ;; (for/list ([i (range 5 (quotient bit 2))]) 
     ;;           (arithmetic-shift 1 i)))))
     
@@ -178,7 +179,7 @@
        ;[(equal? class-id 2) (vector reg-range (reg) bit-range)]
        [(equal? class-id 2) (vector reg-range (reg))]
        [(equal? class-id 3) (vector reg-range const-range)]
-       [(equal? class-id 4) (vector reg-range (reg) (reg) (reg))]
+       [(equal? class-id 4) (vector reg-range reg-range (reg) (reg))]
        [(equal? class-id 5) (vector reg-range (reg) bit-range bit-range)]
        [(equal? class-id 6) (vector reg-range reg-range mem-range)]
        [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range)]
@@ -220,7 +221,7 @@
       (define z2 (progstate-z state2))
       
       (define correctness 0)
-      (define relax #f)
+      (define relax base-cost)
       (define misalign-penalty 1)
       (define misalign 0)
       (if relax

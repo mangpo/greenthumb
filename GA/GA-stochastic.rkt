@@ -13,6 +13,7 @@
   (class stochastic%
     (super-new)
     (inherit-field machine printer solver simulator stat mutate-dist nop-mass)
+    (inherit adjust)
     (init-field [forward #t])
     (override get-mutations mutate-operand mutate-other
               correctness-cost get-arg-ranges random-instruction)
@@ -34,10 +35,10 @@
 
     (define const-range 
           (list->vector
-           (append (range -16 17) (list (sub1 bit) UP DOWN LEFT RIGHT IO 32639 65535 65536)
-                   (for/list ([i (range 5 (sub1 (quotient bit 2)))]) 
-                             (arithmetic-shift 1 i))
-                   (list (- (arithmetic-shift 1 (sub1 (quotient bit 2))))))))
+           (append (range -16 17) (list (sub1 bit) UP DOWN LEFT RIGHT IO 32639 65535 65536))))
+    ;; (for/list ([i (range 5 (sub1 (quotient bit 2)))]) 
+    ;;           (arithmetic-shift 1 i))
+    ;; (list (- (arithmetic-shift 1 (sub1 (quotient bit 2))))))))
     
     (define (mutate-other index entry p type)
       (cond
@@ -64,12 +65,12 @@
       (vector-set! new-p index (inst opcode-id (random-from-vec-ex const-range arg)))
       new-p)
     
-    (define (random-instruction [opcode-id (random (vector-length inst-id))])
+    (define (random-instruction live-in [opcode-id (random (vector-length inst-id))])
       (define opcode-name (vector-ref inst-id opcode-id))
       (define arg (and (equal? opcode-name `@p) (random-from-vec const-range)))
       (inst opcode-id arg))
     
-    (define (get-arg-ranges opcode-name entry)
+    (define (get-arg-ranges opcode-name entry live-in)
       (raise "GA: get-arg-ranges should not be called."))
 
     ;; state1: reference

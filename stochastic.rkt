@@ -13,7 +13,7 @@
             mutate-operand-specific mutate-other
             random-instruction print-mutation-info
 	    random-args-from-op
-            get-operand-live update-live)
+            get-operand-live update-live adjust)
     (abstract correctness-cost get-arg-ranges)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
@@ -21,6 +21,7 @@
                 [parser #f]
                 [solver #f]
                 [simulator #f]
+                [base-cost #f]
                 [stat (new stat% [printer printer])]
                 [input-file #f]
                 [w-error 9999]
@@ -51,6 +52,7 @@
                            #:input-file [input-file #f]
                            #:start-prog [start #f])
       (set! live-in (get-operand-live this-live-in))
+      (pretty-display (format "Base-cost: ~a" base-cost))
       ;; Generate testcases
       (when debug 
             (pretty-display ">>> Phase 0: print mutation info")
@@ -509,4 +511,39 @@
                       ))
        )
       )
+
+
+    (define (adjust cost val dep inter [min-val 1])
+      ;;(pretty-display `(adjust ,cost ,val))
+      (define (dfs x)
+        ;;(pretty-display `(dfs ,(node-val x)))
+        (if (member (node-val x) inter)
+            (node-size x)
+            (for/sum ([i (node-p x)])
+                     (if (node? i) (dfs i) 0))))
+      
+      
+      (define half (max (/ cost 2) min-val))
+      (cond
+       [base-cost cost]
+       [(<= cost min-val) 
+        ;;(pretty-display `(min-val))
+        cost]
+       ;; [(and (node? dep) (equal? (node-val dep) val) (member val inter))
+       ;;  (pretty-display `(cover-all))
+       ;;  min-val]
+       [(node? dep)
+        (define total (node-size dep))
+        (define uncover (- total (dfs dep)))
+        ;;(pretty-display `(uncover-total ,uncover ,total ,cost))
+        ;;(exact->inexact (add1 (* (/ uncover total) (sub1 cost))))
+        (exact->inexact (+ half (* (/ uncover total) (- cost half))))
+        ]
+
+       ;; No computation
+       [else 
+        ;;(pretty-display `(no-comp))
+        min-val])
+      )
+
     ))

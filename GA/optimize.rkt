@@ -9,6 +9,8 @@
 (define mode (make-parameter `syn))
 (define dir (make-parameter "output"))
 (define time-limit (make-parameter 3600))
+(define window (make-parameter #f))
+(define base-cost (make-parameter #f))
  
 (define file-to-optimize
   (command-line
@@ -28,6 +30,9 @@
    [("-i" "--input")    i
                         "Path to inputs."
                         (input-file i)]
+   [("-w" "--window")    w
+                        "Path to inputs."
+                        (window (string->number w))]
 
    #:once-any
    [("--solver") "Use solver-based search."
@@ -49,6 +54,12 @@
    [("-s" "--synthesize") "Synthesize mode starts searching from random programs (default)"
                         (mode `syn)]
 
+   #:once-any
+   [("--inter")  "Cost function with intermediates."
+                 (base-cost #f)]
+   [("--base")   "Baseline cost function."
+                 (base-cost #t)]
+
 
    #:args (filename) ; expect one command-line argument: <filename>
    ; return the argument as a filename to compile
@@ -59,9 +70,9 @@
 (define-values (live-out recv assume input-file) (send parser info-from-file (string-append file-to-optimize ".info")))
 
 (pretty-display `(live-out ,live-out ,recv  ,assume ,input-file))
-(optimize code live-out (search-type) (mode) recv
+(optimize code live-out (search-type) (mode) recv (base-cost)
 	  #:assume assume
           #:need-filter #f #:dir (dir) #:cores (cores) 
-          #:time-limit (time-limit) #:size (size)
+          #:time-limit (time-limit) #:size (size) #:window (window)
           #:input-file input-file
 	  )

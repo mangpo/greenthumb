@@ -105,9 +105,11 @@
                      rev rev16 revsh rbit
                      asr lsl lsr
                      asr# lsl# lsr#
-                     ;;sdiv udiv
                      mul mla mls
-                     ;;smmul smmla smmls
+                     ;; smull umull
+                     ;; smmul smmla smmls
+                     ;; sdiv udiv
+		     ;; uxtah uxth uxtb
                      bfc bfi
                      sbfx ubfx
                      clz
@@ -121,19 +123,22 @@
     (set! classes 
           (vector '(add sub rsb
 			and orr eor bic orn
-			asr lsl lsr
-			;;sdiv udiv 
-			mul) ;; rrr
+			asr lsl lsr 
+                        mul
+			;; sdiv udiv smmul uxtah
+                        ) ;; rrr
 			;; ldr str)
 		  '(add# sub# rsb#
 			 and# orr# eor# bic# orn#
 			 asr# lsl# lsr#) ;; rri
 		  '(mov mvn 
 			rev rev16 revsh rbit
+			;; uxth uxtb
 			clz
                         tst cmp) ;;rr
 		  '(mov# mvn# movw# movt# tst# cmp#) ;; ri
-		  '(mla mls) ;; rrrr
+		  '(mla mls ;; smmla smmls smull umull
+                        ) ;; rrrr
 		  '(bfi sbfx ubfx) ;; rrii
                   '(ldr# str#) ;; rri
 		  ;'(bfc) ;; rii

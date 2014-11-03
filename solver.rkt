@@ -2,7 +2,7 @@
 
 (require  "ast.rkt" "machine.rkt" "printer.rkt" "stat.rkt")
 
-(require rosette/solver/smt/z3)
+;(require rosette/solver/smt/z3)
 (require rosette/solver/kodkod/kodkod)
 
 (provide solver%)
@@ -26,7 +26,9 @@
             evaluate-inst encode-sym-inst encode-sym
             assume-relax get-live-in)
     
-    ;; TODO: len-limit, window-size, evaluate-program
+    ;; (if syn-mode
+    ;;     (current-solver (new kodkod%))
+    ;;     (current-solver (new z3%)))
 
     (define-syntax-rule (print-struct x) (send printer print-struct x))
     (define-syntax-rule (print-syntax x) (send printer print-syntax x))
@@ -244,7 +246,7 @@
 	;; 		       #:assume assumption)]
 
 	[(equal? syn-mode `partial1)
-	 (superoptimize-partial-pattern spec constraint 100 size extra
+	 (superoptimize-partial-pattern spec constraint 60 size extra ;; div 240
                                         #:hard-prefix prefix #:hard-postfix postfix
                                         #:assume assumption)]
 
@@ -259,7 +261,7 @@
                                         #:assume assumption)]
 
 	[(equal? syn-mode `partial4)
-	 (superoptimize-partial-random spec constraint 100 size extra
+	 (superoptimize-partial-random spec constraint 100 size extra ;; div 240
                                         #:hard-prefix prefix #:hard-postfix postfix
                                         #:assume assumption)]
         )
@@ -404,6 +406,7 @@
 			  "timeout"))])
        (inner (send simulator performance-cost (vector-append prefix spec postfix)))))
 
+    ;; TODO: timeout = 60 => 150
     (define (superoptimize-partial-pattern 
              spec constraint time-limit size [extra #f]
              #:hard-prefix [hard-prefix (vector)]
@@ -457,7 +460,7 @@
                           constraint timeout extra assumption w 
 			  #:restart #t #:lower-bound (add1 (len-limit))))
         (check-global spec program)
-        (loop (* 2 timeout) (add1 w)))
+        (loop (* 2 timeout) (floor (* (/ 5 4) w))))
         
       (with-handlers*
        ([exn:restart?
@@ -495,7 +498,8 @@
 
         (define new-choices (remove from choices))
         (if (empty? new-choices)
-            (inner (floor (* (/ 5 4) w)) (* 2 timeout) (range (sub1 (vector-length spec))))
+            (inner (floor (* (/ 5 4) w)) 
+		   (* 2 timeout) (range (sub1 (vector-length spec))))
             (inner w timeout new-choices))
         )
 

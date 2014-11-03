@@ -1,127 +1,79 @@
 #lang s-exp rosette
 
 (require "arm-solver.rkt" "arm-machine.rkt" "arm-printer.rkt"
-         "arm-parser.rkt")
+         "arm-parser.rkt" "arm-ast.rkt" "arm-simulator-rosette.rkt")
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 5 2 2))
+(send machine set-config (list 6 6 6))
 (define printer (new arm-printer% [machine machine]))
 (define solver (new arm-solver% [machine machine] [printer printer]
-                    [parser parser]
-                    [syn-mode `partial2]))
+                    [parser parser] [syn-mode `partial1]))
+(define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 
 (define code
 (send parser ast-from-string "
-	str	r0, [fp, #-8]
-	ldr	r3, [fp, #-8]
-	sub	r3, r3, #1
+	str	r0, [fp, #-24]
+	ldr	r3, [fp, #-24]
+	rsb	r3, r3, #0
+	mov	r2, r3
+	ldr	r3, [fp, #-24]
+	and	r3, r2, r3
+	str	r3, [fp, #-20]
+	ldr	r2, [fp, #-24]
+	ldr	r3, [fp, #-20]
+	add	r3, r2, r3
+	str	r3, [fp, #-16]
+	ldr	r2, [fp, #-24]
+	ldr	r3, [fp, #-16]
+	eor	r3, r2, r3
+	str	r3, [fp, #-12]
+	ldr	r0, [fp, #-12]
+	ldr	r1, [fp, #-20]
+	bl	__aeabi_uidiv
+	mov	r3, r0
 	str	r3, [fp, #-8]
 	ldr	r3, [fp, #-8]
-	mov	r3, r3, asr #1
+	mov	r3, r3, lsr #2
+	str	r3, [fp, #-8]
 	ldr	r2, [fp, #-8]
+	ldr	r3, [fp, #-16]
 	orr	r3, r2, r3
-	str	r3, [fp, #-8]
-	ldr	r3, [fp, #-8]
-	mov	r3, r3, asr #2
-	ldr	r2, [fp, #-8]
-	orr	r3, r2, r3
-	str	r3, [fp, #-8]
-	ldr	r3, [fp, #-8]
-	mov	r3, r3, asr #4
-	ldr	r2, [fp, #-8]
-	orr	r3, r2, r3
-	str	r3, [fp, #-8]
-	ldr	r3, [fp, #-8]
-	mov	r3, r3, asr #8
-	ldr	r2, [fp, #-8]
-	orr	r3, r2, r3
-	str	r3, [fp, #-8]
-	ldr	r3, [fp, #-8]
-	mov	r3, r3, asr #16
-	ldr	r2, [fp, #-8]
-	orr	r3, r2, r3
-	str	r3, [fp, #-8]
-	ldr	r3, [fp, #-8]
-	add	r3, r3, #1
-	str	r3, [fp, #-8]
-	ldr	r3, [fp, #-8]
 	mov	r0, r3
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-sub r0, r0, 1
-mvn r1, 0
-? ?
+	rsb	r1, r0, #0
+	and	r1, r1, r0
+	add	r4, r1, r0
+	eor	r0, r4, r0
+	bl	__aeabi_uidiv
+	orr	r0, r4, r0, lsr #2
 "))
-
-;; no hi, ls 
-;; solver 50, 63, 28
-;; p13_o0 stoch 7 12 8
-
-;; with hi, ls
-;; cmpne & better performance model
-;; solver 113, 70, 15
-;; p13_o0 8(4), 11(4)
-;; max 36(3), 22(3), 13(3)
-
-;; merge (misal)
-;; p1 54(2), 18(2), 90(3)
-;; p13 55(3), 40(4), 67(3), 35(4)
-;; max 46(3), 99(3)
-
-;; merge (half)
-;; solver 9, > 180, 162
-;; max 54(3), 59(3)
-
-;; 1 input
-;; 21, 103, 17
-
-;; 1 input
-;; 9, > 120, 87
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send solver encode-sym sketch))
-;(send printer print-syntax (send printer decode
-;(send machine clean-code encoded-sketch encoded-code)))
 
-;; Return counterexample if code and sketch are different.
-;; Otherwise, return #f.
-
-#|
-(define ex
+(define ex 
   (send solver counterexample encoded-code encoded-sketch 
         (constraint machine [reg 0] [mem])))
 
-(when ex 
-  (pretty-display "Counterexample:")
-  (send machine display-state ex))|#
-
-;; Test solver-based suoptimize function
-
-(define t (current-seconds))
-(define-values (res cost)
-(send solver synthesize-from-sketch 
-      encoded-code ;; spec
-      encoded-sketch ;; sketch = spec in this case
-      (constraint machine [reg 0] [mem]) #f))
-(pretty-display `(time ,(- (current-seconds) t)))
-
-
+(pretty-display "Counterexample:")
+(if ex 
+  (send machine display-state ex)
+  (pretty-display "No"))
+(newline)
 #|
-(define res
-  (send solver superoptimize 
-        encoded-code 
-        (constraint machine [reg 0] [mem]) "./foo" 3600 #f))|#
+;; Counterexample:
+(define input-state (progstate (vector 242087795 -1555402324 0 0 0 0)
+                               (vector 0 0 0 0) -1 5))
 
-#|
-(define live-in
-(send solver get-live-in encoded-code (constraint machine [reg 0] [mem]) #f))
-(send machine display-state live-in)|#
+(pretty-display "Output 1")
+(send machine display-state (send simulator-rosette interpret encoded-code input-state))
+(newline)
 
-;; This should terminate without an error.
-;; If there is error (synthesize fail), that means Rosette might not support 
-;; some operations you use arm-simulator-rosette.rkt.
-;; Debug this by running the given code in test-simulator.rkt (Section 3).
+(pretty-display "Output 2")
+(send machine display-state (send simulator-rosette interpret encoded-sketch input-state))
+|#
