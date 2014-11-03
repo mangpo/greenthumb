@@ -174,7 +174,7 @@
              (set! a (>> a 1)))
         res))
 
-    (define (tst x y) (if (= x y) 0 1))
+    (define (tst x y) (if (= (bitwise-and x y) 0) 0 1))
     (define (cmp x y)
       (define my-x (finitize-bit x))
       (define my-y (finitize-bit y))
