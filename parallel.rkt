@@ -107,8 +107,8 @@
         
         (define (run-file id stoch?)
           (define out-port 
-            (and (not stoch?) 
-                 (open-output-file (format "~a-~a.log" path id) #:exists 'truncate)))
+            ;;(and (not stoch?) 
+	    (open-output-file (format "~a-~a.log" path id) #:exists 'truncate))
           (define-values (sp o i e) 
             (subprocess out-port #f out-port (find-executable-path "racket") (format "~a-~a.rkt" path id)))
           sp)
@@ -237,7 +237,7 @@
 			       (vector-copy code (vector-ref mid-positions (sub1 rounds)))))
 	    )
 
-      (system "pkill -u mangpo java")
+      (system "pkill -u ubuntu java")
       (let ([decompressed-code (send compress decompress-reg-space output-code map-back)])
         (send printer print-syntax decompressed-code)
         decompressed-code)
