@@ -567,6 +567,7 @@
         (cond
          [(or (equal? z -1) (equal? cond-type -1)
               (inst-eq `tst `cmp `tst# `cmp#))
+	  (assert (and (>= cond-type -1) (<= cond-type 5)))
           (exec #f)]
 
 	 [(equal? cond-type 0) ;; eq
