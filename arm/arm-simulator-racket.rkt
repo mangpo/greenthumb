@@ -1,11 +1,11 @@
-#lang racket
+#lang s-exp rosette
 
-(require "../simulator.rkt" "../ops-racket.rkt" 
+(require "../simulator.rkt" "../ops-rosette.rkt" 
          "../ast.rkt" "arm-ast.rkt"
          "../machine.rkt" "arm-machine.rkt")
-(provide arm-simulator-racket%)
+(provide arm-simulator-rosette%)
 
-(define arm-simulator-racket%
+(define arm-simulator-rosette%
   (class simulator%
     (super-new)
     (init-field machine)
@@ -512,19 +512,19 @@
            [(inst-eq `mla)  (rrrr bvmla)]
            [(inst-eq `mls)  (rrrr bvmls)]
 
-           ;; [(inst-eq `smmul) (rrr bvsmmul)]
-           ;; [(inst-eq `smmla) (rrrr bvsmmla)]
-           ;; [(inst-eq `smmls) (rrrr bvsmmls)]
+           [(inst-eq `smmul) (rrr bvsmmul)]
+           [(inst-eq `smmla) (rrrr bvsmmla)]
+           [(inst-eq `smmls) (rrrr bvsmmls)]
 
-           ;; [(inst-eq `smull) (ddrr bvmul bvsmmul)]
-           ;; [(inst-eq `umull) (ddrr bvmul bvummul)]
+           [(inst-eq `smull) (ddrr bvmul bvsmmul)]
+           [(inst-eq `umull) (ddrr bvmul bvummul)]
 
-           ;; [(inst-eq `sdiv) (rrr quotient)]
-           ;; [(inst-eq `udiv) (rrr bvudiv)]
+           [(inst-eq `sdiv) (rrr quotient)]
+           [(inst-eq `udiv) (rrr bvudiv)]
 
-           ;; [(inst-eq `uxtah) (rrr uxtah)]
-           ;; [(inst-eq `uxth) (rr uxth)]
-           ;; [(inst-eq `uxtb) (rr uxtb)]
+           [(inst-eq `uxtah) (rrr uxtah)]
+           [(inst-eq `uxth) (rr uxth)]
+           [(inst-eq `uxtb) (rr uxtb)]
            
            ;; shift Rd, Rm, Rs
            ;; only the least significant byte of Rs is used.
@@ -627,19 +627,21 @@
 
              (cond
               [(inst-eq `nop) (void)]
+              [(inst-eq `str `str# `ldr `ldr#) (add-cost 3)]
+              [(inst-eq `mul `mla `mls `smmul `smmla `smmls) (add-cost 5)]
+              [(inst-eq `smull `umull `sdiv `udiv) (add-cost 6)]
+              [(inst-eq `tst `cmp `tst# `cmp#) (add-cost 2)]
+              [(inst-eq `sbfx `ubfx `bfc `bfi) (add-cost 2)]
               ;; [(inst-eq `mov) 
               ;;  (cond
               ;;   [(shf-inst-eq `lsr `asr `lsl) (add-cost 2)]
               ;;   [else (add-cost 1)])]
 
               ;; [(shf-inst-eq `lsr# `asr# `lsl#) (add-cost 2)]
-              [(shf-inst-eq `lsr `asr `lsl) (add-cost 2)]
+              [(and (inst-eq `add `sub `rsb `and `orr `eor `bic `orn `mov `mvn)
+                    (shf-inst-eq `lsr `asr `lsl))
+               (add-cost 2)]
 
-              [(inst-eq `sbfx `ubfx `bfc `bfi) (add-cost 2)]
-              [(inst-eq `str `str# `ldr `ldr#) (add-cost 3)]
-              [(inst-eq `mul `mla `mls `smmul `smmla `smmls) (add-cost 5)]
-              [(inst-eq `smull `umull `sdiv `udiv) (add-cost 6)]
-              [(inst-eq `tst `cmp `tst# `cmp#) (add-cost 2)]
               [else (add-cost 1)])
              ))
       (when debug (pretty-display `(performance ,cost)))
