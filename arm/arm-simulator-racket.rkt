@@ -627,37 +627,41 @@
 
              (cond
               [(inst-eq `nop) (void)]
+              [(inst-eq `str `str# `ldr `ldr#) (add-cost 3)]
+              [(inst-eq `mul `mla `mls `smmul `smmla `smmls) (add-cost 5)]
+              [(inst-eq `smull `umull `sdiv `udiv) (add-cost 6)]
+              [(inst-eq `tst `cmp `tst# `cmp#) (add-cost 2)]
+              [(inst-eq `sbfx `ubfx `bfc `bfi) (add-cost 2)]
               ;; [(inst-eq `mov) 
               ;;  (cond
               ;;   [(shf-inst-eq `lsr `asr `lsl) (add-cost 2)]
               ;;   [else (add-cost 1)])]
 
               ;; [(shf-inst-eq `lsr# `asr# `lsl#) (add-cost 2)]
-              [(shf-inst-eq `lsr `asr `lsl) (add-cost 2)]
+              [(and (inst-eq `add `sub `rsb `and `orr `eor `bic `orn `mov `mvn)
+                    (shf-inst-eq `lsr `asr `lsl))
+               (add-cost 2)]
 
-              [(inst-eq `sbfx `ubfx `bfc `bfi) (add-cost 2)]
-              [(inst-eq `str `str# `ldr `ldr#) (add-cost 3)]
-              [(inst-eq `mul `mla `mls `smmul `smmla `smmls) (add-cost 5)]
-              [(inst-eq `smull `umull `sdiv `udiv) (add-cost 6)]
-              [(inst-eq `tst `cmp `tst# `cmp#) (add-cost 2)]
               [else (add-cost 1)])
              ))
       (when debug (pretty-display `(performance ,cost)))
       cost)
+
+    (define legal-imm 
+      (append (for/list ([i 12]) (arithmetic-shift #xff (* 2 i)))
+              (list #xff000000 (- #xff000000))))
+
+    (define-syntax-rule (check-imm x) 
+      (assert-return 
+       (ormap (lambda (i) (= (bitwise-and x i) (bitwise-and x mask))) legal-imm) 
+       "illegal immediate"
+       x))
+
+    (define-syntax-rule (check-imm-mov x) 
+      (assert-return 
+       (= (bitwise-and x #xffff) x) 
+       "illegal mov immediate"
+       x))
+
     ))
   
-(define legal-imm 
-  (append (for/list ([i 12]) (arithmetic-shift #xff (* 2 i)))
-          (list #xff000000 (- #xff000000))))
-
-(define-syntax-rule (check-imm x) 
-  (assert-return 
-    (ormap (lambda (i) (= (bitwise-and x i) x)) legal-imm) 
-    "illegal immediate"
-    x))
-
-(define-syntax-rule (check-imm-mov x) 
-  (assert-return 
-   (= (bitwise-and x #xffff) x) 
-   "illegal mov immediate"
-    x))
