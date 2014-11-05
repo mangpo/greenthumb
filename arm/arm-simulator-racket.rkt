@@ -519,8 +519,8 @@
            [(inst-eq `smull) (ddrr bvmul bvsmmul)]
            [(inst-eq `umull) (ddrr bvmul bvummul)]
 
-           [(inst-eq `sdiv) (rrr quotient)]
-           [(inst-eq `udiv) (rrr bvudiv)]
+           ;; [(inst-eq `sdiv) (rrr quotient)]
+           ;; [(inst-eq `udiv) (rrr bvudiv)]
 
            [(inst-eq `uxtah) (rrr uxtah)]
            [(inst-eq `uxth) (rr uxth)]

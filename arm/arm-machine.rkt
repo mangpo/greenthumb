@@ -108,7 +108,7 @@
                      mul mla mls
                      smull umull
                      smmul smmla smmls
-                     sdiv udiv
+                     ;; sdiv udiv
 		     uxtah uxth uxtb
                      bfc bfi
                      sbfx ubfx
@@ -125,7 +125,9 @@
 			and orr eor bic orn
 			asr lsl lsr 
                         mul
-			sdiv udiv smmul uxtah
+			;; sdiv udiv 
+                        smmul 
+                        uxtah
                         ) ;; rrr
 			;; ldr str)
 		  '(add# sub# rsb#

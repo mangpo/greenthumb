@@ -3,9 +3,9 @@
 (require "arm-parser.rkt"
          "main.rkt")
 
-(define live-out (make-parameter (list)))
-(define live-in (make-parameter #f))
-(define live-mem (make-parameter #t))
+;; (define live-out (make-parameter (list)))
+;; (define live-in (make-parameter #f))
+;; (define live-mem (make-parameter #t))
 
 (define size (make-parameter #f))
 (define cores (make-parameter 12))
@@ -27,14 +27,14 @@
    ;; [("-m" "--memory")   m
    ;;                      "Memory size (default=1)"
    ;;                      (nmems (string->number m))]
-   [("--live-out")      live-o
-                        "A list of live-out registers separated by , with no space (default=none)"
-                        (live-out (map string->number (string-split live-o ",")))]
-   [("--live-in")       live-i
-                        "A list of live-in registers separated by , with no space (default=none)"
-                        (live-in (map string->number (string-split live-i ",")))]
-   [("--dead-mem")      "Memory is not live-out."
-                        (live-mem #f)]
+   ;; [("--live-out")      live-o
+   ;;                      "A list of live-out registers separated by , with no space (default=none)"
+   ;;                      (live-out (map string->number (string-split live-o ",")))]
+   ;; [("--live-in")       live-i
+   ;;                      "A list of live-in registers separated by , with no space (default=none)"
+   ;;                      (live-in (map string->number (string-split live-i ",")))]
+   ;; [("--dead-mem")      "Memory is not live-out."
+   ;;                      (live-mem #f)]
    [("-c" "--core")      c
                         "Number of cores to run on (default=12)"
                         (cores (string->number c))]
@@ -86,8 +86,9 @@
 
 (define parser (new arm-parser%))
 (define code (send parser ast-from-file file-to-optimize))
+(define-values (live-mem live-out live-in) (send parser info-from-file (string-append file-to-optimize ".info")))
 
-(optimize code (list (live-out) (live-mem)) (list (live-in) (live-mem)) (search-type) (mode) (base-cost)
+(optimize code (list live-out live-mem) (list live-in live-mem) (search-type) (mode) (base-cost)
           #:need-filter #f #:dir (dir) #:cores (cores) 
           #:time-limit (time-limit) #:size (size) #:window (window)
           #:input-file (input-file)

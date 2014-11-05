@@ -40,7 +40,7 @@
                           (re-* (re-or identifier-characters digit10))))
       (identifier: (re-seq identifier ":"))
       (_identifier (re-seq "_" (re-* identifier-characters-ext)))
-      (reg (re-or "fp" (re-seq "r" number10)))
+      (reg (re-or "fp" "ip" "lr" "sl" (re-seq "r" number10)))
       )
 
     (set! asm-lexer
@@ -164,7 +164,14 @@
 		       args 2
 		       (number->string (quotient (string->number offset) 4)))))
 
-	(arm-inst op args #f #f cond-type)]))
+	(arm-inst op (vector-map rename args) #f #f cond-type)]))
+
+    (define (rename x)
+      (cond
+       [(equal? x "ip") "r10"]
+       [(equal? x "lr") "r11"]
+       [(equal? x "sl") "r11"]
+       [else x]))
 
     (define/public (liveness-from-file file)
       (define in-port (open-input-file file))
@@ -181,5 +188,13 @@
                 (parse)))
       (parse)
       liveness-map)
+
+    (define/public (info-from-file file)
+      (define lines (file->lines file))
+      (define live-out (map string->number (string-split (first lines) ",")))
+      (define live-in (map string->number (string-split (second lines) ",")))
+      (define live-mem (and (> (length lines) 2) 
+                            (equal? (substring (third lines) 0 3) "mem")))
+      (values live-mem live-out live-in))
 
     ))
