@@ -512,19 +512,19 @@
            [(inst-eq `mla)  (rrrr bvmla)]
            [(inst-eq `mls)  (rrrr bvmls)]
 
-           ;; [(inst-eq `smmul) (rrr bvsmmul)]
-           ;; [(inst-eq `smmla) (rrrr bvsmmla)]
-           ;; [(inst-eq `smmls) (rrrr bvsmmls)]
+           [(inst-eq `smmul) (rrr bvsmmul)]
+           [(inst-eq `smmla) (rrrr bvsmmla)]
+           [(inst-eq `smmls) (rrrr bvsmmls)]
 
-           ;; [(inst-eq `smull) (ddrr bvmul bvsmmul)]
-           ;; [(inst-eq `umull) (ddrr bvmul bvummul)]
+           [(inst-eq `smull) (ddrr bvmul bvsmmul)]
+           [(inst-eq `umull) (ddrr bvmul bvummul)]
 
-           ;; [(inst-eq `sdiv) (rrr quotient)]
-           ;; [(inst-eq `udiv) (rrr bvudiv)]
+           [(inst-eq `sdiv) (rrr quotient)]
+           [(inst-eq `udiv) (rrr bvudiv)]
 
-           ;; [(inst-eq `uxtah) (rrr uxtah)]
-           ;; [(inst-eq `uxth) (rr uxth)]
-           ;; [(inst-eq `uxtb) (rr uxtb)]
+           [(inst-eq `uxtah) (rrr uxtah)]
+           [(inst-eq `uxth) (rr uxth)]
+           [(inst-eq `uxtb) (rr uxtb)]
            
            ;; shift Rd, Rm, Rs
            ;; only the least significant byte of Rs is used.

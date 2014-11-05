@@ -246,7 +246,7 @@
 	;; 		       #:assume assumption)]
 
 	[(equal? syn-mode `partial1)
-	 (superoptimize-partial-pattern spec constraint 60 size extra ;; div 240
+	 (superoptimize-partial-pattern spec constraint 240 size extra ;; no div 60
                                         #:hard-prefix prefix #:hard-postfix postfix
                                         #:assume assumption)]
 
@@ -261,7 +261,7 @@
                                         #:assume assumption)]
 
 	[(equal? syn-mode `partial4)
-	 (superoptimize-partial-random spec constraint 100 size extra ;; div 240
+	 (superoptimize-partial-random spec constraint 240 size extra ;; no div 100
                                         #:hard-prefix prefix #:hard-postfix postfix
                                         #:assume assumption)]
         )

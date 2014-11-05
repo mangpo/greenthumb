@@ -106,10 +106,10 @@
                      asr lsl lsr
                      asr# lsl# lsr#
                      mul mla mls
-                     ;; smull umull
-                     ;; smmul smmla smmls
-                     ;; sdiv udiv
-		     ;; uxtah uxth uxtb
+                     smull umull
+                     smmul smmla smmls
+                     sdiv udiv
+		     uxtah uxth uxtb
                      bfc bfi
                      sbfx ubfx
                      clz
@@ -125,7 +125,7 @@
 			and orr eor bic orn
 			asr lsl lsr 
                         mul
-			;; sdiv udiv smmul uxtah
+			sdiv udiv smmul uxtah
                         ) ;; rrr
 			;; ldr str)
 		  '(add# sub# rsb#
@@ -133,11 +133,11 @@
 			 asr# lsl# lsr#) ;; rri
 		  '(mov mvn 
 			rev rev16 revsh rbit
-			;; uxth uxtb
+			uxth uxtb
 			clz
                         tst cmp) ;;rr
 		  '(mov# mvn# movw# movt# tst# cmp#) ;; ri
-		  '(mla mls ;; smmla smmls smull umull
+		  '(mla mls smmla smmls smull umull
                         ) ;; rrrr
 		  '(bfi sbfx ubfx) ;; rrii
                   '(ldr# str#) ;; rri
