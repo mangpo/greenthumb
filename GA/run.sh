@@ -5,7 +5,7 @@ echo "RUN $name ----------------------------------"
 
 function e {
     echo "$@" >&2
-    $@
+    #$@
 }
 
 mode=s
