@@ -194,6 +194,7 @@
       (define live-out (map string->number (string-split (first lines) ",")))
       (define live-in (map string->number (string-split (second lines) ",")))
       (define live-mem (and (> (length lines) 2) 
+                            (>= (string-length (third lines)) 3)
                             (equal? (substring (third lines) 0 3) "mem")))
       (values live-mem live-out live-in))
 
