@@ -35,7 +35,7 @@
     (define reg-range (list->vector (range nregs)))
     (define operand2-range
       (list->vector
-       (append (range bit) (list #x3f #xff0000 #xff00 (- #xff000000)))))
+       (append (range bit) (list #x3f #xff0000 #xff00 (- #xff000000) (- #x80000000)))))
     ;; (for/list ([i (range 5 (sub1 bit))]) 
     ;;           (arithmetic-shift 1 i))
     ;; (list (- (arithmetic-shift 1 (sub1 bit)))))))
