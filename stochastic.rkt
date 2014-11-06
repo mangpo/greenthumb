@@ -420,7 +420,7 @@
       (define (iter current current-cost)
         (when debug (pretty-display ">>> iter >>>"))
         (define update-size (send stat inc-iter current-cost))
-        (when (and update-size (<= (+ update-size 3) (vector-length current)))
+        (when (and update-size (<= (+ update-size 5) (vector-length current)))
               (pretty-display (format ">>> reduce size from ~a to ~a" 
                                       (vector-length current) update-size))
               (cond

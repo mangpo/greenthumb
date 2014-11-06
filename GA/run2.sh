@@ -1,6 +1,6 @@
-for name in fff ggg hhh iii
-do
-    bash run.sh $name 3600
-done
+bash run.sh fff 900
+bash run.sh ggg 1800
+bash run.sh hhh 900
+bash run.sh iii 1900
 
-sh dummy.sh
+bassh dummy.sh
