@@ -181,7 +181,9 @@
 
         (define (result)
 	  (define t (current-seconds))
-	  (define limit (string->number time-limit))
+	  (define limit (if (string? time-limit) 
+			    (string->number time-limit) 
+			    time-limit))
           (define (update-stats)
             (sleep 10)
             (when (and (< (- (current-seconds) t) limit)
