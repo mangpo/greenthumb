@@ -1,7 +1,7 @@
-	cmp	r1, #0
+	cmp	r1, #-2147483648
 	add	r3, r1, #7
 	mov	r5, r1, asr #31
-	movcs	r3, r1
+	movcc	r3, r1
 	cmp	r2, #0
 	mov	r2, r3, asr #3
 	mov	r3, r5, lsr #29
