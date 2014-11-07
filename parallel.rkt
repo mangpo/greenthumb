@@ -180,9 +180,12 @@
             (for/list ([id cores-solver]) (create-and-run id mode #f))]))
 
         (define (result)
+	  (define t (current-seconds))
+	  (define limit (string->number time-limit))
           (define (update-stats)
             (sleep 10)
-            (when (and (or (empty? processes-stoch)
+            (when (and (< (- (current-seconds) t) limit)
+		       (or (empty? processes-stoch)
                            (ormap (lambda (sp) (equal? (subprocess-status sp) 'running)) processes-stoch))
                        (or (empty? processes-solver)
                            (andmap (lambda (sp) (equal? (subprocess-status sp) 'running)) processes-solver)))
