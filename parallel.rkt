@@ -169,11 +169,11 @@
            [(and (equal? search-type `solver) (equal? mode `partial))
             (define step (quotient cores-solver 3))
             (define n1 2)
-            (define n2 4)
-            (define n3 (- cores-solver n2))
+            (define n2 2)
+            (define n3 (- cores-solver (+ n1 n2)))
             (append (for/list ([i n1]) (create-and-run i `partial1 #f))
                     (for/list ([i n2]) (create-and-run (+ n1 i) `partial2 #f))
-                    (for/list ([i n3]) (create-and-run (+ n2 i) `partial3 #f)))
+                    (for/list ([i n3]) (create-and-run (+ n1 n2 i) `partial3 #f)))
             ]
 
            [else
