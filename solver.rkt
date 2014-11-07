@@ -231,12 +231,12 @@
        (cond
 	[(equal? syn-mode `binary) 
 	 (superoptimize-binary spec constraint time-limit size extra
-                               #:prefix prefix #:postfix postfix
+                               #:hard-prefix prefix #:hard-postfix postfix
 			       #:assume assumption)]
 
 	[(equal? syn-mode `linear) 
 	 (superoptimize-linear spec constraint time-limit size extra
-                               #:prefix prefix #:postfix postfix
+                               #:hard-prefix prefix #:hard-postfix postfix
 			       #:assume assumption)]
 
 	;; [(equal? syn-mode `hybrid)

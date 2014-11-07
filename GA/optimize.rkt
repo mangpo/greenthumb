@@ -47,6 +47,8 @@
                         (mode `linear)]
    [("-b" "--binary")   "Binary search."
                         (mode `binary)]
+   [("-p" "--partial")   "Partial search."
+                        (mode `partial)]
 
    #:once-any
    [("-o" "--optimize") "Optimize mode starts searching from the original program"

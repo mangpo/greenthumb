@@ -1,11 +1,7 @@
-for name in fir shaf shag complexB complexC iii_ex
+for name in shag complexC iii_ex
 do
-    bash run.sh $name 300
+    bash run.sh $name 1200
 done
-
-for name in rrotate complexA interp
-do
-    bash run.sh $name 1800
-done
+# 7 hours each
 
 sh dummy.sh

@@ -1,12 +1,6 @@
-type=hybrid+1p+half
-mode=s
-for name in complexA rrotate shaf
+for name in p14_floor interp_large
 do
-    for t in 1 2
-    do
-	echo "$name $t"
-	racket optimize.rkt --hybrid -$mode -c 24 -t 1000 -d results/$name-$type-$mode-$t programs/$name.s > results/$name-$type-$mode-$t.log
-    done
+    bash run_com.sh $name
 done
 
-sh run4.sh
+sh dummy.sh

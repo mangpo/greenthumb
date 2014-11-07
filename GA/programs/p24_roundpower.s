@@ -1,0 +1,1 @@
+dup 1 - 1 + + push drop pop dup over 2/ over - and + push drop pop dup over 2/ 2/ over - and + push drop pop dup over 2/ 2/ 2/ 2/ over - and + push drop pop dup over 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ over - and + push drop pop dup over 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ over - and + push drop pop dup 1 + push drop pop

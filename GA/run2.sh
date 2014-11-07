@@ -1,6 +1,7 @@
-for name in fff ggg hhh iii
+for name in fir shaf complexA complexB rrotate interp fff ggg hhh iii 
 do
-    bash run.sh $name 3600
+    bash run_extra.sh $name 1200
 done
+# 3 hours each = 30 hours
 
-sh dummy.sh
+bash dummy.sh

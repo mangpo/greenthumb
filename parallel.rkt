@@ -160,17 +160,34 @@
               (for/list ([id cores-stoch]) (create-and-run id mode #t))))
 
         (define processes-solver
-          (if (equal? search-type `hybrid)
-              (list (create-and-run (+ cores-stoch 0) `partial1 #f)
-                    (create-and-run (+ cores-stoch 1) `partial2 #f)
-                    (create-and-run (+ cores-stoch 2) `partial3 #f))
-              (for/list ([id cores-solver])
-                        (create-and-run (+ cores-stoch id) mode #f))))
+          (cond
+           [(equal? search-type `hybrid)
+            (list (create-and-run (+ cores-stoch 0) `partial1 #f)
+                  (create-and-run (+ cores-stoch 1) `partial2 #f)
+                  (create-and-run (+ cores-stoch 2) `partial3 #f))]
+
+           [(and (equal? search-type `solver) (equal? mode `partial))
+            (define step (quotient cores-solver 3))
+            (define n1 2)
+            (define n2 2)
+            (define n3 (- cores-solver (+ n1 n2)))
+            (append (for/list ([i n1]) (create-and-run i `partial1 #f))
+                    (for/list ([i n2]) (create-and-run (+ n1 i) `partial2 #f))
+                    (for/list ([i n3]) (create-and-run (+ n1 n2 i) `partial3 #f)))
+            ]
+
+           [else
+            (for/list ([id cores-solver]) (create-and-run id mode #f))]))
 
         (define (result)
+	  (define t (current-seconds))
+	  (define limit (if (string? time-limit) 
+			    (string->number time-limit) 
+			    time-limit))
           (define (update-stats)
             (sleep 10)
-            (when (and (or (empty? processes-stoch)
+            (when (and (< (- (current-seconds) t) limit)
+		       (or (empty? processes-stoch)
                            (ormap (lambda (sp) (equal? (subprocess-status sp) 'running)) processes-stoch))
                        (or (empty? processes-solver)
                            (andmap (lambda (sp) (equal? (subprocess-status sp) 'running)) processes-solver)))
