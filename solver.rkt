@@ -246,7 +246,7 @@
 	;; 		       #:assume assumption)]
 
 	[(equal? syn-mode `partial1)
-	 (superoptimize-partial-pattern spec constraint 240 size extra ;; no div 60
+	 (superoptimize-partial-pattern spec constraint 60 size extra ;; no div 60
                                         #:hard-prefix prefix #:hard-postfix postfix
                                         #:assume assumption)]
 
@@ -460,7 +460,7 @@
                           constraint timeout extra assumption w 
 			  #:restart #t #:lower-bound (add1 (len-limit))))
         (check-global spec program)
-        (loop (* 2 timeout) (floor (* (/ 5 4) w))))
+        (loop (* 2 timeout) (max (add1 w) (floor (* (/ 5 4) w)))))
         
       (with-handlers*
        ([exn:restart?
@@ -470,7 +470,7 @@
             constraint time-limit size extra 
             #:hard-prefix hard-prefix #:hard-postfix hard-postfix
             #:assume assumption))])
-       (loop time-limit (floor (* (/ 5 4) (window-size)))))
+       (loop time-limit (max (add1 (window-size)) (floor (* (/ 5 4) (window-size))))))
       )
 
     (define (superoptimize-partial-random 
