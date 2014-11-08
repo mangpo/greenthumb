@@ -494,7 +494,7 @@
         (define new-choices (remove from choices))
         (if (empty? new-choices)
             (inner (floor (* (/ 5 4) w)) 
-		   (* 2 timeout) (range (sub1 (vector-length spec))))
+		   (* 2 timeout) (range (max 1 (sub1 (vector-length spec)))))
             (inner w timeout new-choices))
         )
 
