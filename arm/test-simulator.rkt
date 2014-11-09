@@ -3,7 +3,8 @@
 (require "arm-machine.rkt" "arm-printer.rkt" "arm-parser.rkt"
          "arm-solver.rkt"
          "arm-simulator-rosette.rkt" 
-         "arm-simulator-racket.rkt")
+         "arm-simulator-racket.rkt"
+         )
 
 (current-bitwidth 32)
 (define parser (new arm-parser%))
@@ -21,6 +22,24 @@
                                0 2))
 
 ;; Section 1: Concrete program
+#|
+(define code
+(send parser ast-from-string "
+	uxth	r5, r0
+	mov	r3, r0, asr #16
+	uxth	r4, r1
+	mov	r1, r1, asr #16
+	mul	r2, r4, r5
+	mul	r4, r4, r3
+	mul	r0, r1, r5
+	add	r2, r4, r2, asr #16
+	uxtah	r0, r0, r2
+	mov	r2, r2, asr #16
+	add	r0, r2, r0, asr #16
+	mla	r0, r1, r3, r0
+"))|#
+
+
 (define code
 (send parser ast-from-string "
 eor r4, r3, r3
@@ -47,12 +66,12 @@ str r2, fp, -8
       (constraint machine [reg 0] [mem]) #f))|#
 
 (define output-state
-  (send simulator-rosette interpret encoded-code input-state #:dep #t))
+  (send simulator-racket interpret encoded-code input-state #:dep #t))
 (pretty-display "Output from simulator in rosette.")
 (send machine display-state output-state)
 (newline)
 
-(send simulator-rosette performance-cost encoded-code)
+(send simulator-racket performance-cost encoded-code)
 
 ;; ;; Section 2: Unknown program
 ;; ;; ? = one instruction

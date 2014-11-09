@@ -1,2 +1,1 @@
-push over - push and pop pop and over 65535 or and or
-	
+0 a! !+ !+ push pop dup 1 b! @b and over 65535 or 0 b! @b and over - and + push drop pop

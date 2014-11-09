@@ -1,12 +1,41 @@
-type=hybrid+1p+half
+name=$1
+timeout=$2
+
+echo "RUN $name ----------------------------------"
+
+function e {
+    echo "$@" >&2
+    $@
+}
+
+
+type=hybrid
 mode=s
-for name in complexC
+for cost in inter base
 do
-    for t in 1 2
+    for t in 1 2 3
     do
-	echo "$name $t"
-	racket optimize.rkt --hybrid -$mode -c 24 -t 150 -d results/$name-$type-$mode-$t programs/$name.s > results/$name-$type-$mode-$t.log
+	e racket optimize.rkt --$type -$mode --$cost -c 16 -t $timeout -d results/$name-$type-$cost-$mode-$t programs/$name.s > results/$name-$type-$cost-$mode-$t.log
     done
 done
 
-sh run2.sh
+
+type=stoch
+for cost in inter base
+do
+    for mode in s o
+    do
+        for t in 1 2 3
+        do
+	    e racket optimize.rkt --$type -$mode --$cost -c 16 -t $timeout -d results/$name-$type-$cost-$mode-$t programs/$name.s > results/$name-$type-$cost-$mode-$t.log
+        done
+    done
+done
+
+type=solver
+mode=p
+for t in 1 2 3
+do
+    e racket optimize.rkt --$type -$mode -c 16 -t $timeout -d results/$name-$type-$mode-$t programs/$name.s > results/$name-$type-$mode-$t.log
+done
+

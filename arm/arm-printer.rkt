@@ -67,10 +67,9 @@
                   (vector-map name->id args)
                   (and shfop (send machine get-shf-inst-id (string->symbol shfop)))
                   (and shfarg (name->id shfarg))
-                  (cond
-                   [(equal? cond-type "eq") 1]
-                   [(equal? cond-type "ne") 0]
-                   [else -1]))))
+		  (if (equal? cond-type "")
+		      -1
+		      (send machine get-cond-inst-id (string->symbol cond-type))))))
                 
 
     ;; Convert an instruction encoded using numbers
@@ -107,10 +106,7 @@
         (arm-inst (convert-op opcode) new-args
 		  (and shfop (convert-op shfop))
 		  (and shfarg (convert-shfarg shfarg shfop))
-                  (cond
-                   [(equal? cond-type 1) "eq"]
-                   [(equal? cond-type 0) "ne"]
-                   [else ""])))
+		  (if (= cond-type -1) "" (send machine get-cond-inst-name cond-type))))
 
       (define (reg x) (format "r~a" x))
       (define (index x)
@@ -123,12 +119,12 @@
       (cond
        [(equal? class-id 0) (make-inst reg reg reg)]
        [(equal? class-id 1) (make-inst reg reg imm)]
-       [(equal? class-id 2) (make-inst reg reg imm)]
-       [(equal? class-id 3) (make-inst reg reg)]
-       [(equal? class-id 4) (make-inst reg imm)]
-       [(equal? class-id 5) (make-inst reg reg reg reg)]
-       [(equal? class-id 6) (make-inst reg reg imm imm)]
-       [(equal? class-id 7) (make-inst reg index imm)]
+       ;[(equal? class-id 2) (make-inst reg reg imm)]
+       [(equal? class-id 2) (make-inst reg reg)]
+       [(equal? class-id 3) (make-inst reg imm)]
+       [(equal? class-id 4) (make-inst reg reg reg reg)]
+       [(equal? class-id 5) (make-inst reg reg imm imm)]
+       [(equal? class-id 6) (make-inst reg index imm)]
        [(member opcode '(bfc)) (make-inst reg imm imm)]
        [(equal? opcode `nop) (arm-inst "nop" (vector) #f #f "")]
        [else (raise (format "decode-inst: undefined for ~a" opcode))]))

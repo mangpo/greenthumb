@@ -105,10 +105,11 @@
                      rev rev16 revsh rbit
                      asr lsl lsr
                      asr# lsl# lsr#
-                     ;;sdiv udiv
                      mul mla mls
                      smull umull
                      smmul smmla smmls
+                     ;; sdiv udiv
+		     uxtah uxth uxtb
                      bfc bfi
                      sbfx ubfx
                      clz
@@ -122,19 +123,25 @@
     (set! classes 
           (vector '(add sub rsb
 			and orr eor bic orn
-			asr lsl lsr
-			;;sdiv udiv 
-			mul smmul ;; rrr
-			ldr str)
+			asr lsl lsr 
+                        mul
+			;; sdiv udiv 
+                        smmul 
+                        uxtah
+                        ldr str
+                        ) ;; rrr
+			;; ldr str)
 		  '(add# sub# rsb#
-			 and# orr# eor# bic# orn#) ;; rri
-		  '(asr# lsl# lsr#) ;; rri
+			 and# orr# eor# bic# orn#
+			 asr# lsl# lsr#) ;; rri
 		  '(mov mvn 
 			rev rev16 revsh rbit
+			uxth uxtb
 			clz
                         tst cmp) ;;rr
 		  '(mov# mvn# movw# movt# tst# cmp#) ;; ri
-		  '(mla mls smmla smmls smull umull) ;; rrrr
+		  '(mla mls smmla smmls smull umull
+                        ) ;; rrrr
 		  '(bfi sbfx ubfx) ;; rrii
                   '(ldr# str#) ;; rri
 		  ;'(bfc) ;; rii
@@ -147,8 +154,9 @@
 
     (init-field [branch-inst-id '#(beq bne j jal b jr jr jalr bal)]
                 [shf-inst-id '#(nop asr lsl lsr asr# lsl# lsr#)]
-		[inst-with-shf '(add sub rsb
-				     and orr eor bic orn mov mvn)])
+		[inst-with-shf '(add sub rsb and orr eor bic orn mov mvn)]
+		[cond-inst-id '#(eq ne ls hi cc cs)]
+		)
 
     (define nregs 5)
     (define nmems 1)
@@ -161,6 +169,10 @@
       (vector-member x shf-inst-id))
     (define/public (get-shf-inst-name x)
       (vector-ref shf-inst-id x))
+    (define/public (get-cond-inst-id x)
+      (vector-member x cond-inst-id))
+    (define/public (get-cond-inst-name x)
+      (vector-ref cond-inst-id x))
 
     (define (window-size) 100) ;;32
 
@@ -216,7 +228,7 @@
       (progstate regs memory #f #f))
 
     (define (get-state init extra)
-      (default-state this init [set-z 0] [set-fp fp]))
+      (default-state this init [set-z -1] [set-fp fp]))
 
     (define (get-state-liveness init extra)
       (default-state this init))

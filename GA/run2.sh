@@ -1,12 +1,7 @@
-type=hybrid+1p+half
-mode=s
-for name in complexB fir
+for name in fir shaf complexA complexB rrotate interp fff ggg hhh iii 
 do
-    for t in 1 2
-    do
-	echo "$name $t"
-	racket optimize.rkt --hybrid -$mode -c 24 -t 500 -d results/$name-$type-$mode-$t programs/$name.s > results/$name-$type-$mode-$t.log
-    done
+    bash run_extra.sh $name 1200
 done
+# 3 hours each = 30 hours
 
-sh run3.sh
+bash dummy.sh

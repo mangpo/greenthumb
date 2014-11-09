@@ -17,8 +17,8 @@
 
     (set! simulator (new arm-simulator-rosette% [machine machine]))
 
-    (define (len-limit) 2)
-    (define (window-size) 4)
+    (define (len-limit) 1)
+    (define (window-size) 2)
 
     (define (get-sym-vars state)
       (define lst (list))

@@ -1,0 +1,1 @@
+racket optimize.rkt --stoch -s --base -c 16 -t 60 programs/iii.s

@@ -7,7 +7,7 @@
 (define parallel%
   (class object%
     (super-new)
-    (init-field meta parser machine printer compress solver search-type mode 
+    (init-field meta parser machine printer compress solver search-type mode base-cost
                 [window #f])
     ;; search = `solver, `stoch, `hybrid
     ;; mode = `linear, `binary, `syn, `opt
@@ -66,9 +66,9 @@
 
                (if stochastic?
                    (pretty-display 
-                    (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode ~a]))" 
+                    (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode ~a] [base-cost ~a]))" 
                             (send meta get-class-name "stochastic") 
-                            (equal? mode `syn)))
+                            (equal? mode `syn) base-cost))
                    (pretty-display 
                     (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode `~a]))" 
                             (send meta get-class-name "solver") 
@@ -105,8 +105,10 @@
                ;;(pretty-display "(dump-memory-stats)"
                )))
         
-        (define (run-file id)
-          (define out-port (open-output-file (format "~a-~a.log" path id) #:exists 'truncate))
+        (define (run-file id stoch?)
+          (define out-port 
+            ;;(and (not stoch?) 
+	    (open-output-file (format "~a-~a.log" path id) #:exists 'truncate))
           (define-values (sp o i e) 
             (subprocess out-port #f out-port (find-executable-path "racket") (format "~a-~a.rkt" path id)))
           sp)
@@ -146,7 +148,7 @@
         (define-syntax-rule (create-and-run id mode stoch?)
           (begin
             (create-file id stoch? mode)
-            (run-file id)))
+            (run-file id stoch?)))
 
         (define processes-stoch
           (if (equal? search-type `hybrid)
@@ -158,17 +160,34 @@
               (for/list ([id cores-stoch]) (create-and-run id mode #t))))
 
         (define processes-solver
-          (if (equal? search-type `hybrid)
-              (list (create-and-run (+ cores-stoch 0) `partial1 #f)
-                    (create-and-run (+ cores-stoch 1) `partial2 #f)
-                    (create-and-run (+ cores-stoch 2) `partial3 #f))
-              (for/list ([id cores-solver])
-                        (create-and-run (+ cores-stoch id) mode #f))))
+          (cond
+           [(equal? search-type `hybrid)
+            (list (create-and-run (+ cores-stoch 0) `partial1 #f)
+                  (create-and-run (+ cores-stoch 1) `partial2 #f)
+                  (create-and-run (+ cores-stoch 2) `partial3 #f))]
+
+           [(and (equal? search-type `solver) (equal? mode `partial))
+            (define step (quotient cores-solver 3))
+            (define n1 2)
+            (define n2 2)
+            (define n3 (- cores-solver (+ n1 n2)))
+            (append (for/list ([i n1]) (create-and-run i `partial1 #f))
+                    (for/list ([i n2]) (create-and-run (+ n1 i) `partial2 #f))
+                    (for/list ([i n3]) (create-and-run (+ n1 n2 i) `partial3 #f)))
+            ]
+
+           [else
+            (for/list ([id cores-solver]) (create-and-run id mode #f))]))
 
         (define (result)
+	  (define t (current-seconds))
+	  (define limit (if (string? time-limit) 
+			    (string->number time-limit) 
+			    time-limit))
           (define (update-stats)
             (sleep 10)
-            (when (and (or (empty? processes-stoch)
+            (when (and (< (- (current-seconds) t) limit)
+		       (or (empty? processes-stoch)
                            (ormap (lambda (sp) (equal? (subprocess-status sp) 'running)) processes-stoch))
                        (or (empty? processes-solver)
                            (andmap (lambda (sp) (equal? (subprocess-status sp) 'running)) processes-solver)))

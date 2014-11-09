@@ -13,7 +13,7 @@
             mutate-operand-specific mutate-other
             random-instruction print-mutation-info
 	    random-args-from-op
-            get-operand-live update-live)
+            get-operand-live update-live adjust)
     (abstract correctness-cost get-arg-ranges)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
@@ -21,6 +21,7 @@
                 [parser #f]
                 [solver #f]
                 [simulator #f]
+                [base-cost #f]
                 [stat (new stat% [printer printer])]
                 [input-file #f]
                 [w-error 9999]
@@ -51,6 +52,7 @@
                            #:input-file [input-file #f]
                            #:start-prog [start #f])
       (set! live-in (get-operand-live this-live-in))
+      (pretty-display (format "Base-cost: ~a" base-cost))
       ;; Generate testcases
       (when debug 
             (pretty-display ">>> Phase 0: print mutation info")
@@ -308,24 +310,24 @@
         )
 
       (define (cost-one-input program input output)
-        (with-handlers* 
-         ([exn:break? (lambda (e) (raise e))]
-          [exn? (lambda (e) 
-                  (when debug 
-                        (pretty-display "Error!")
-                        (pretty-display (exn-message e)))
-                  #f)]
-          )
-         (let* ([t1 (current-milliseconds)]
-                [program-out (send simulator interpret program input)]
-                [t2 (current-milliseconds)]
-                [ret (correctness-cost output program-out constraint)]
-                [t3 (current-milliseconds)]
-                )
-           (send stat simulate (- t2 t1))
-           (send stat check (- t3 t2))
-           ret
-           )))
+	(define t1 (current-milliseconds))
+	(define program-out
+	  (with-handlers* 
+	   ([exn:break? (lambda (e) (raise e))]
+	    [exn? (lambda (e) 
+		    (when debug 
+			  (pretty-display "Error!")
+			  (pretty-display (exn-message e)))
+		    #f)]
+	    )
+	   (send simulator interpret program input)))
+	(and program-out
+	     (let ([t2 (current-milliseconds)]
+		   [ret (correctness-cost output program-out constraint)]
+		   [t3 (current-milliseconds)])
+	       (send stat simulate (- t2 t1))
+	       (send stat check (- t3 t2))
+	       ret)))
       
       (define (cost-all-inputs program okay-cost)
         ;; (define correct 0)
@@ -371,6 +373,7 @@
                                         outputs))
                     (pretty-display (format "Add counterexample. Total = ~a." (length inputs)))
                     (send machine display-state ce)
+		    (send printer print-syntax (send printer decode program))
                     )
                   (begin
                     (send stat inc-correct)
@@ -416,7 +419,7 @@
       (define (iter current current-cost)
         (when debug (pretty-display ">>> iter >>>"))
         (define update-size (send stat inc-iter current-cost))
-        (when (and update-size (<= (+ update-size 3) (vector-length current)))
+        (when (and update-size (<= (+ update-size 5) (vector-length current)))
               (pretty-display (format ">>> reduce size from ~a to ~a" 
                                       (vector-length current) update-size))
               (cond
@@ -507,4 +510,39 @@
                       ))
        )
       )
+
+
+    (define (adjust cost val dep inter [min-val 1])
+      ;;(pretty-display `(adjust ,cost ,val))
+      (define (dfs x)
+        ;;(pretty-display `(dfs ,(node-val x)))
+        (if (member (node-val x) inter)
+            (node-size x)
+            (for/sum ([i (node-p x)])
+                     (if (node? i) (dfs i) 0))))
+      
+      
+      (define half (max (/ cost 2) min-val))
+      (cond
+       [base-cost cost]
+       [(<= cost min-val) 
+        ;;(pretty-display `(min-val))
+        cost]
+       ;; [(and (node? dep) (equal? (node-val dep) val) (member val inter))
+       ;;  (pretty-display `(cover-all))
+       ;;  min-val]
+       [(node? dep)
+        (define total (node-size dep))
+        (define uncover (- total (dfs dep)))
+        ;;(pretty-display `(uncover-total ,uncover ,total ,cost))
+        ;;(exact->inexact (add1 (* (/ uncover total) (sub1 cost))))
+        (exact->inexact (+ half (* (/ uncover total) (- cost half))))
+        ]
+
+       ;; No computation
+       [else 
+        ;;(pretty-display `(no-comp))
+        min-val])
+      )
+
     ))

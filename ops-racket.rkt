@@ -67,3 +67,9 @@
   ;(pretty-display `(vector-extract-ret ,vec))
   vec)
        
+(define (smmul x y bit) 
+  (finitize (arithmetic-shift (* x y) (- bit)) bit))
+
+(define (ummul x y bit) 
+  (let ([mask (sub1 (arithmetic-shift 1 bit))])
+    (finitize (arithmetic-shift (* (bitwise-and x mask) (bitwise-and y)) (- bit)) bit)))

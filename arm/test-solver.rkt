@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "arm-solver.rkt" "arm-machine.rkt" "arm-printer.rkt"
-         "arm-parser.rkt" "arm-ast.rkt")
+         "arm-parser.rkt" "arm-ast.rkt" "arm-simulator-rosette.rkt")
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
@@ -9,6 +9,7 @@
 (define printer (new arm-printer% [machine machine]))
 (define solver (new arm-solver% [machine machine] [printer printer]
                     [parser parser] [syn-mode `partial1]))
+(define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 
 (define code
 (send parser ast-from-string "
@@ -26,7 +27,6 @@
         ldr     r3, [fp, #-8]
         orr     r3, r2, r3
         mov     r0, r3
-
 "))
 
 
@@ -48,18 +48,29 @@ orreq r0, r2, 0
 ;; Return counterexample if code and sketch are different.
 ;; Otherwise, return #f.
 
-
-(define ex
+#|
+(define ex 
   (send solver counterexample encoded-code encoded-sketch 
-        (constraint machine [reg 0] [mem-all])))
+        (constraint machine [reg 0] [mem])))
 
 (pretty-display "Counterexample:")
 (if ex 
   (send machine display-state ex)
   (pretty-display "No"))
-
-;; Test solver-based suoptimize function
+(newline) |#
 #|
+;; Counterexample:
+(define input-state (progstate (vector 242087795 -1555402324 0 0 0 0)
+                               (vector 0 0 0 0) -1 5))
+
+(pretty-display "Output 1")
+(send machine display-state (send simulator-rosette interpret encoded-code input-state))
+(newline)
+
+(pretty-display "Output 2")
+(send machine display-state (send simulator-rosette interpret encoded-sketch input-state))
+|#
+
 (define t (current-seconds))
 (define-values (res cost)
 (send solver synthesize-from-sketch 
@@ -67,7 +78,6 @@ orreq r0, r2, 0
       encoded-sketch ;; sketch = spec in this case
       (constraint machine [reg 2] [mem-all]) #f))
 (pretty-display `(time ,(- (current-seconds) t)))
-|#
 
 #|
 (define res
@@ -79,8 +89,3 @@ orreq r0, r2, 0
 (define live-in
 (send solver get-live-in encoded-code (constraint machine [reg 0] [mem]) #f))
 (send machine display-state live-in)|#
-
-;; This should terminate without an error.
-;; If there is error (synthesize fail), that means Rosette might not support 
-;; some operations you use arm-simulator-rosette.rkt.
-;; Debug this by running the given code in test-simulator.rkt (Section 3).

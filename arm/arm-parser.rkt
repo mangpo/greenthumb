@@ -40,7 +40,7 @@
                           (re-* (re-or identifier-characters digit10))))
       (identifier: (re-seq identifier ":"))
       (_identifier (re-seq "_" (re-* identifier-characters-ext)))
-      (reg (re-or "fp" "ip" "lr" (re-seq "r" number10)))
+      (reg (re-or "fp" "ip" "lr" "sl" (re-seq "r" number10)))
       )
 
     (set! asm-lexer
@@ -148,8 +148,8 @@
         (when (equal? shfop "asl") (set! shfop "lsl"))
 
         (define base (create-inst op (vector-copy args 0 (- args-len 2))))
-        (arm-inst (inst-op base) (rename-args (inst-args base))
-                  shfop (vector-ref args (- args-len 1))
+        (arm-inst (inst-op base) (inst-args base)
+                  shfop (rename (vector-ref args (- args-len 1)))
                   (inst-cond base))]
 
        [else
@@ -157,7 +157,10 @@
 	(define op-len (string-length op))
 	;; Determine type
 	(define cond-type (substring op (- op-len 2)))
-	(define cond? (member cond-type (list "eq" "ne")))
+	(define cond? (and (member cond-type (list "eq" "ne" "ls" "hi" "cc" "cs")) 
+			   (> op-len 3)
+                           (not (equal? op "smmls"))))
+	;; ls
 	(set! cond-type (if cond? cond-type ""))
 	(when cond?
 	      (set! op (substring op 0 (- op-len 2))))
@@ -170,7 +173,14 @@
                      args 2
                      (number->string (quotient (string->number offset) 4)))))
 
-	(arm-inst op (rename-args args) #f #f cond-type)]))
+	(arm-inst op (vector-map rename args) #f #f cond-type)]))
+
+    (define (rename x)
+      (cond
+       [(equal? x "ip") "r10"]
+       [(equal? x "lr") "r11"]
+       [(equal? x "sl") "r11"]
+       [else x]))
 
     (define/public (liveness-from-file file)
       (define in-port (open-input-file file))
@@ -187,5 +197,14 @@
                 (parse)))
       (parse)
       liveness-map)
+
+    (define/public (info-from-file file)
+      (define lines (file->lines file))
+      (define live-out (map string->number (string-split (first lines) ",")))
+      (define live-in (map string->number (string-split (second lines) ",")))
+      (define live-mem (and (> (length lines) 2) 
+                            (>= (string-length (third lines)) 3)
+                            (equal? (substring (third lines) 0 3) "mem")))
+      (values live-mem live-out live-in))
 
     ))

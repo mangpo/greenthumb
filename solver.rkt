@@ -2,7 +2,7 @@
 
 (require  "ast.rkt" "machine.rkt" "printer.rkt" "stat.rkt")
 
-(require rosette/solver/smt/z3)
+;(require rosette/solver/smt/z3)
 (require rosette/solver/kodkod/kodkod)
 
 (provide solver%)
@@ -26,9 +26,9 @@
             evaluate-inst encode-sym-inst encode-sym
             assume-relax get-live-in)
     
-    (if syn-mode
-        (current-solver (new kodkod%))
-        (current-solver (new z3%)))
+    ;; (if syn-mode
+    ;;     (current-solver (new kodkod%))
+    ;;     (current-solver (new z3%)))
 
     (define-syntax-rule (print-struct x) (send printer print-struct x))
     (define-syntax-rule (print-syntax x) (send printer print-syntax x))
@@ -231,12 +231,12 @@
        (cond
 	[(equal? syn-mode `binary) 
 	 (superoptimize-binary spec constraint time-limit size extra
-                               #:prefix prefix #:postfix postfix
+                               #:hard-prefix prefix #:hard-postfix postfix
 			       #:assume assumption)]
 
 	[(equal? syn-mode `linear) 
 	 (superoptimize-linear spec constraint time-limit size extra
-                               #:prefix prefix #:postfix postfix
+                               #:hard-prefix prefix #:hard-postfix postfix
 			       #:assume assumption)]
 
 	;; [(equal? syn-mode `hybrid)
@@ -246,17 +246,22 @@
 	;; 		       #:assume assumption)]
 
 	[(equal? syn-mode `partial1)
-	 (superoptimize-partial-pattern spec constraint time-limit size extra
+	 (superoptimize-partial-pattern spec constraint 60 size extra ;; no div 60
                                         #:hard-prefix prefix #:hard-postfix postfix
                                         #:assume assumption)]
 
 	[(equal? syn-mode `partial2)
-	 (superoptimize-partial-pattern-slow spec constraint time-limit size extra
+	 (superoptimize-partial-pattern-slow spec constraint 800 size extra
                                              #:hard-prefix prefix #:hard-postfix postfix
                                              #:assume assumption)]
 
 	[(equal? syn-mode `partial3)
-	 (superoptimize-partial-random spec constraint time-limit size extra
+	 (superoptimize-partial-random spec constraint 60 size extra
+                                        #:hard-prefix prefix #:hard-postfix postfix
+                                        #:assume assumption)]
+
+	[(equal? syn-mode `partial4)
+	 (superoptimize-partial-random spec constraint 240 size extra ;; no div 100
                                         #:hard-prefix prefix #:hard-postfix postfix
                                         #:assume assumption)]
         )
@@ -401,6 +406,7 @@
 			  "timeout"))])
        (inner (send simulator performance-cost (vector-append prefix spec postfix)))))
 
+    ;; TODO: timeout = 60 => 150
     (define (superoptimize-partial-pattern 
              spec constraint time-limit size [extra #f]
              #:hard-prefix [hard-prefix (vector)]
@@ -424,8 +430,8 @@
 	    (sliding-window hard-prefix hard-postfix program1 
                             constraint timeout extra assumption w))
 	  (check-global spec program2)
-	  (loop (* 2 timeout) (add1 w)))
-	(loop 60 (window-size))
+	  (loop (* 2 timeout) (floor (* (/ 5 4) w))))
+	(loop time-limit (window-size))
         )
         
       (with-handlers*
@@ -454,7 +460,7 @@
                           constraint timeout extra assumption w 
 			  #:restart #t #:lower-bound (add1 (len-limit))))
         (check-global spec program)
-        (loop (* 2 timeout) (add1 w)))
+        (loop (* 2 timeout) (max (add1 w) (floor (* (/ 5 4) w)))))
         
       (with-handlers*
        ([exn:restart?
@@ -464,7 +470,7 @@
             constraint time-limit size extra 
             #:hard-prefix hard-prefix #:hard-postfix hard-postfix
             #:assume assumption))])
-       (loop 800 (floor (* (/ 5 4) (window-size)))))
+       (loop time-limit (max (add1 (window-size)) (floor (* (/ 5 4) (window-size))))))
       )
 
     (define (superoptimize-partial-random 
@@ -492,7 +498,8 @@
 
         (define new-choices (remove from choices))
         (if (empty? new-choices)
-            (inner (add1 w) (* 2 timeout) (range (sub1 (vector-length spec))))
+            (inner (floor (* (/ 5 4) w)) 
+		   (* 2 timeout) (range (max 1 (sub1 (vector-length spec)))))
             (inner w timeout new-choices))
         )
 
@@ -504,7 +511,7 @@
             constraint time-limit size extra 
             #:hard-prefix hard-prefix #:hard-postfix hard-postfix
             #:assume assumption))])
-       (inner (window-size) 60 (range (sub1 (vector-length spec))))))
+       (inner (window-size) time-limit (range (sub1 (vector-length spec))))))
 
     (define (check-global input-prog quick-restart)
       (define-values (cost len time id) (send stat get-best-info-stat))
@@ -675,7 +682,7 @@
       
       ;; Collect input variables and contruct their init values.
       (define-values (sym-vars inputs)
-        (generate-inputs-inner 3 spec start-state assumption))
+        (generate-inputs-inner 2 spec start-state assumption))
 
       (when debug
             (pretty-display "Test calculate performance-cost with symbolic instructions...")
@@ -731,6 +738,7 @@
             )
       
       ;;(current-solver (new z3%))
+      ;(current-solver (new kodkod%))
       (clear-asserts)
       ;(configure [bitwidth bit] [loop-bound 20])
       (current-bitwidth bit)

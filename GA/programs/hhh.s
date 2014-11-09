@@ -1,0 +1,1 @@
+0 a! !+ push !+ pop 1 b! @b over or 0 b! @b or push drop pop
