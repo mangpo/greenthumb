@@ -118,6 +118,7 @@
                (when (equal? (subprocess-status sp) 'running)
                      (subprocess-kill sp #f))))
 	
+        (define t (current-seconds))
         (define (get-stats)
           (define stats
             (for/list ([id cores])
@@ -130,6 +131,7 @@
                  (print-stat-all (filter identity (take stats cores-stoch)) printer)))
 
           (define-values (cost len time id) (get-best-info dir))
+          (pretty-display (format "current-time:\t~a" (- (current-seconds) t)))
           (when cost
                 (pretty-display "=============== SUMMARY ===============")
                 (pretty-display (format "cost:\t~a" cost))
@@ -180,7 +182,6 @@
             (for/list ([id cores-solver]) (create-and-run id mode #f))]))
 
         (define (result)
-	  (define t (current-seconds))
 	  (define limit (if (string? time-limit) 
 			    (string->number time-limit) 
 			    time-limit))
