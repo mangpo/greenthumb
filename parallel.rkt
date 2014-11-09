@@ -204,8 +204,9 @@
 
         ;; STEP 3: get best output & print
         (get-stats)
-        (define output-code (send parser ast-from-file (format "~a/best.s" dir)))
-        (if output-code output-code (vector-copy code from to)))
+	(if (file-exists? (format "~a/best.s" dir))
+	    (send parser ast-from-file (format "~a/best.s" dir))
+	    (vector-copy code from to)))
 
       (define code-len (vector-length code))
       (define window-size (if window window (send machine window-size)))
@@ -222,7 +223,7 @@
              (set! output-code (vector-append output-code new-code))))
       
       (when (> rounds 1)
-            (pretty-display `(mid-positions mid-positions))
+            (pretty-display `(mid-positions ,mid-positions))
             (define small-size window-size);(floor (* (/ 6 10) window-size)))
             (define gap1 (- (vector-ref mid-positions 1) (vector-ref mid-positions 0)))
             (when (< gap1 small-size)
@@ -236,7 +237,7 @@
                    mid-positions (- rounds 1)
                    (min (vector-length output-code)
                         (+ (vector-ref mid-positions (- rounds 2)) small-size))))
-            (pretty-display `(mid-positions mid-positions))
+            (pretty-display `(mid-positions ,mid-positions))
 
             (set! code output-code)
             (set! output-code (vector-copy code 0 (vector-ref mid-positions 0)))
