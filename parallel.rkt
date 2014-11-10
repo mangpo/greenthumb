@@ -118,6 +118,7 @@
                (when (equal? (subprocess-status sp) 'running)
                      (subprocess-kill sp #f))))
 	
+        (define t (current-seconds))
         (define (get-stats)
           (define stats
             (for/list ([id cores])
@@ -130,6 +131,7 @@
                  (print-stat-all (filter identity (take stats cores-stoch)) printer)))
 
           (define-values (cost len time id) (get-best-info dir))
+          (pretty-display (format "current-time:\t~a" (- (current-seconds) t)))
           (when cost
                 (pretty-display "=============== SUMMARY ===============")
                 (pretty-display (format "cost:\t~a" cost))
@@ -180,17 +182,20 @@
             (for/list ([id cores-solver]) (create-and-run id mode #f))]))
 
         (define (result)
-	  (define t (current-seconds))
 	  (define limit (if (string? time-limit) 
 			    (string->number time-limit) 
 			    time-limit))
           (define (update-stats)
             (sleep 10)
-            (when (and (< (- (current-seconds) t) limit)
-		       (or (empty? processes-stoch)
-                           (ormap (lambda (sp) (equal? (subprocess-status sp) 'running)) processes-stoch))
-                       (or (empty? processes-solver)
-                           (andmap (lambda (sp) (equal? (subprocess-status sp) 'running)) processes-solver)))
+            (when (< (- (current-seconds) t) limit)
+                  (for ([id (length processes-stoch)]
+                        [sp processes-stoch])
+                       (unless (equal? (subprocess-status sp) 'running)
+                               (pretty-display (format "driver-~a is dead." id))))
+                  (for ([id (length processes-solver)]
+                        [sp processes-solver])
+                       (unless (equal? (subprocess-status sp) 'running)
+                               (pretty-display (format "driver-~a is dead." (+ cores-stoch id)))))
                   (get-stats)
                   (update-stats)))
 
@@ -204,8 +209,9 @@
 
         ;; STEP 3: get best output & print
         (get-stats)
-        (define output-code (send parser ast-from-file (format "~a/best.s" dir)))
-        (if output-code output-code (vector-copy code from to)))
+	(if (file-exists? (format "~a/best.s" dir))
+	    (send parser ast-from-file (format "~a/best.s" dir))
+	    (vector-copy code from to)))
 
       (define code-len (vector-length code))
       (define window-size (if window window (send machine window-size)))
@@ -222,7 +228,7 @@
              (set! output-code (vector-append output-code new-code))))
       
       (when (> rounds 1)
-            (pretty-display `(mid-positions mid-positions))
+            (pretty-display `(mid-positions ,mid-positions))
             (define small-size window-size);(floor (* (/ 6 10) window-size)))
             (define gap1 (- (vector-ref mid-positions 1) (vector-ref mid-positions 0)))
             (when (< gap1 small-size)
@@ -236,7 +242,7 @@
                    mid-positions (- rounds 1)
                    (min (vector-length output-code)
                         (+ (vector-ref mid-positions (- rounds 2)) small-size))))
-            (pretty-display `(mid-positions mid-positions))
+            (pretty-display `(mid-positions ,mid-positions))
 
             (set! code output-code)
             (set! output-code (vector-copy code 0 (vector-ref mid-positions 0)))
@@ -291,6 +297,8 @@
                       #:start-prog [start-prog #f])
       (when (and (equal? search-type `hybrid) (< cores 8))
 	    (raise "Cannot run hybrid search when # of cores < 12"))
+      (when (and (equal? search-type `solver) (equal? mode `partial) (< cores 4))
+	    (raise "Cannot run solver partial search when # of cores < 4"))
 
       (if (> (vector-length code-org) 0)
           (if need-filter
