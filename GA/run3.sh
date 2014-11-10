@@ -1,6 +1,4 @@
-for name in p14_floor interp_large
-do
-    bash run_com.sh $name
-done
+bash run_extra.sh shaf 120
+bash run_extra.sh fff 300
 
-sh dummy.sh
+bash dummy.sh
