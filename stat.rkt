@@ -389,11 +389,14 @@
   (define info-file (format "~a/best.info" dir))
   (pretty-display `(get-best-info ,info-file ,(file-exists? info-file)))
   (if (file-exists? info-file)
-      (let* ([in-port (open-input-file info-file)]
-	     [cost (read-line in-port)]
-	     [len (read-line in-port)]
-	     [time (read-line in-port)]
-	     [id (read-line in-port)])
-	(close-input-port in-port)
-	(values (string->number cost) (string->number len) time id))
+      (with-handlers* 
+       ([exn?
+         (lambda (e) (values #f #f #f #f))])
+       (let* ([in-port (open-input-file info-file)]
+              [cost (read-line in-port)]
+              [len (read-line in-port)]
+              [time (read-line in-port)]
+              [id (read-line in-port)])
+         (close-input-port in-port)
+         (values (string->number cost) (string->number len) time id)))
       (values #f #f #f #f)))

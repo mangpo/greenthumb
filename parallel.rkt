@@ -187,11 +187,15 @@
 			    time-limit))
           (define (update-stats)
             (sleep 10)
-            (when (and (< (- (current-seconds) t) limit)
-		       (or (empty? processes-stoch)
-                           (ormap (lambda (sp) (equal? (subprocess-status sp) 'running)) processes-stoch))
-                       (or (empty? processes-solver)
-                           (andmap (lambda (sp) (equal? (subprocess-status sp) 'running)) processes-solver)))
+            (when (< (- (current-seconds) t) limit)
+                  (for ([id (length processes-stoch)]
+                        [sp processes-stoch])
+                       (unless (equal? (subprocess-status sp) 'running)
+                               (pretty-display (format "driver-~a is dead." id))))
+                  (for ([id (length processes-solver)]
+                        [sp processes-solver])
+                       (unless (equal? (subprocess-status sp) 'running)
+                               (pretty-display (format "driver-~a is dead." (+ cores-stoch id)))))
                   (get-stats)
                   (update-stats)))
 
@@ -293,6 +297,8 @@
                       #:start-prog [start-prog #f])
       (when (and (equal? search-type `hybrid) (< cores 8))
 	    (raise "Cannot run hybrid search when # of cores < 12"))
+      (when (and (equal? search-type `solver) (equal? mode `partial) (< cores 4))
+	    (raise "Cannot run solver partial search when # of cores < 4"))
 
       (if (> (vector-length code-org) 0)
           (if need-filter

@@ -300,12 +300,17 @@
            ([exn:fail? 
              (lambda (e) 
                (pretty-display "catch error")
-               (if (or (regexp-match #rx"synthesize: synthesis failed" (exn-message e))
-                       (regexp-match #rx"assert: cost" (exn-message e)))
-                   (values #f cost)
-                   (begin
-                    (pretty-display (exn-message e))
-                    (raise e))))])
+               ;; (if (or (regexp-match #rx"synthesize: synthesis failed" (exn-message e))
+               ;;         (regexp-match #rx"assert: cost" (exn-message e)))
+               ;;     (values #f cost)
+               ;;     (begin
+               ;;      (pretty-display (exn-message e))
+               ;;      (raise e)))
+               (when (and (not (regexp-match #rx"synthesize: synthesis failed" (exn-message e)))
+                          (not (regexp-match #rx"assert: cost" (exn-message e))))
+                     (pretty-display (exn-message e)))
+               (values #f cost)
+               )])
            (synthesize-from-sketch (vector-append prefix spec postfix)
                                    (vector-append prefix sketch postfix)
                                    constraint extra cost time-limit
