@@ -19,6 +19,9 @@
 (define encoded-sketch (send printer encode sketch))
 (send printer print-struct encoded-code)
 
+(send printer get-constants encoded-sketch)
+
+#|
 (define input
    (cdar (send machine get-states-from-file "data-fff/inputs")))
 (define output
@@ -29,6 +32,7 @@
 
 (define live-in
   (send solver get-live-in encoded-code (constraint (data 0) s t memory) 0))
+|#
 
 ;; (define (sym-input)
 ;;   (define-symbolic* input number?)

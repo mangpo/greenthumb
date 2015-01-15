@@ -10,7 +10,8 @@
   (class printer%
     (super-new)
     (inherit-field machine report-mutations)
-    (override encode-inst decode-inst print-struct-inst print-syntax-inst)
+    (override encode-inst decode-inst print-struct-inst print-syntax-inst
+              get-constants)
     (set! report-mutations (vector-append report-mutations '#(shf cond-type)))
 
     (define (print-struct-inst x [indent ""])
@@ -123,4 +124,50 @@
        [(member opcode '(bfc)) (make-inst reg imm imm)]
        [(equal? opcode `nop) (arm-inst "nop" (vector) #f #f "")]
        [else (raise (format "decode-inst: undefined for ~a" opcode))]))
+
+    (define (get-constants-inst x)
+      (define opcode (send machine get-inst-name (inst-op x)))
+      (define args (inst-args x))
+      (define class-id (send machine get-class-id opcode))
+
+      (define-syntax-rule (collect x ...)
+        (collect-main (list x ...)))
+
+      (define (collect-main fs)
+        ;; Don't care about shf because shfarg is bit-range.
+        (define op2-set (set))
+        (define const-set (set))
+        (for ([f fs] 
+              [arg args])
+             (cond
+              [(equal? f `op2) (set! op2-set (set-add op2-set arg))]
+              [(equal? f `const) (set! const-set (set-add const-set arg))]))
+        (cons op2-set const-set))
+
+      (define reg #f)
+      (define bit #f)
+      (define op2 `op2) 
+      (define const `const)
+
+      (cond
+       [(equal? class-id 0) (collect reg reg reg)]
+       [(equal? class-id 1) (collect reg reg op2)]
+       [(equal? class-id 2) (collect reg reg)]
+       [(equal? class-id 3) (collect reg const)]
+       [(equal? class-id 4) (collect reg reg reg reg)]
+       [(equal? class-id 5) (collect reg reg bit bit)]
+       [(equal? class-id 6) (collect reg #f bit)]
+       [(member opcode '(bfc)) (collect reg bit bit)]
+       [(equal? opcode `nop) (cons (list) (list))]
+       [else (raise (format "decode-inst: undefined for ~a" opcode))]))
+
+    (define (get-constants code)
+      (define op2-set (set))
+      (define const-set (set))
+      (for ([x code])
+           (let ([ans (get-constants-inst x)])
+             (set! op2-set (set-union op2-set (car ans)))
+             (set! const-set (set-union const-set (cdr ans)))))
+      (cons op2-set const-set))
+      
     ))

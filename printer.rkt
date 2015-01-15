@@ -11,7 +11,7 @@
     (public encode decode 
             print-struct print-struct-inst
             print-syntax print-syntax-inst)
-    (abstract encode-inst decode-inst)
+    (abstract encode-inst decode-inst get-constants)
 
     (define (encode code)
       (traverse code inst? encode-inst))

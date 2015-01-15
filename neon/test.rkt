@@ -67,3 +67,5 @@ vst1.32	{d6,d7}, [r2]
 ;(send simulator performance-cost encoded-code)
 (send machine display-state 
       (send simulator interpret encoded-code state))
+
+(send printer get-constants encoded-code)

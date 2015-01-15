@@ -15,7 +15,7 @@
     (override correctness-cost get-arg-ranges 
 	      get-mutations random-instruction mutate-other
 	      inst-copy-with-op inst-copy-with-args
-              get-operand-live)
+              get-operand-live add-constants)
 
     (set! solver (new arm-solver% [machine machine] [printer printer]))
     (set! simulator (new arm-simulator-racket% [machine machine]))
@@ -34,22 +34,31 @@
 
     (define reg-range (list->vector (range nregs)))
     (define operand2-range
-      (list->vector
-       (append (range bit) (list #x3f #xff0000 #xff00 (- #xff000000) (- #x80000000)))))
-    ;; (for/list ([i (range 5 (sub1 bit))]) 
-    ;;           (arithmetic-shift 1 i))
-    ;; (list (- (arithmetic-shift 1 (sub1 bit)))))))
+      (list->vector (range bit)))
+      ;; (list->vector
+      ;;  (append (range bit) (list #x3f #xff0000 #xff00 (- #xff000000) (- #x80000000)))))
+
     (define const-range
-      (list->vector
-       (append (range 17) (list (sub1 bit) 
-                                #x1111 #x3333 #x5555 #xaaaa #xcccc
-                                #xf0f0 #x0f0f #x3f 
-				#xffff #xaaab #x2aaa #xfff4))))
-    ;; (for/list ([i (range 5 (quotient bit 2))]) 
-    ;;           (arithmetic-shift 1 i)))))
+      (list->vector (append (range 17) (list (sub1 bit)))))
+      ;; (list->vector
+      ;;  (append (range 17) (list (sub1 bit) 
+      ;;                           #x1111 #x3333 #x5555 #xaaaa #xcccc
+      ;;                           #xf0f0 #x0f0f #x3f 
+      ;;   			#xffff #xaaab #x2aaa #xfff4))))
     
     (define bit-range (list->vector (range bit)))
     (define mem-range (list->vector (for/list ([i (range 1 11)]) (- i))))
+
+    (define (add-constants pair)
+      ;; Not include mem-range
+      (set! operand2-range 
+            (list->vector 
+             (set->list (set-union (list->set (vector->list operand2-range))
+                                   (car pair)))))
+      (set! const-range 
+            (list->vector 
+             (set->list (set-union (list->set (vector->list const-range))
+                                   (cdr pair))))))
 
     (define (inst-copy-with-op x op) 
       (define opname (vector-ref inst-id op))

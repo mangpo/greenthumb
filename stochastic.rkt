@@ -14,7 +14,7 @@
             random-instruction print-mutation-info
 	    random-args-from-op
             get-operand-live update-live adjust)
-    (abstract correctness-cost get-arg-ranges)
+    (abstract correctness-cost get-arg-ranges add-constants)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
     (init-field machine printer syn-mode
@@ -51,6 +51,7 @@
                            #:assume [assumption (send machine no-assumption)]
                            #:input-file [input-file #f]
                            #:start-prog [start #f])
+      (add-constants (send printer get-constants spec))
       (set! live-in (get-operand-live this-live-in))
       (pretty-display (format "Base-cost: ~a" base-cost))
       ;; Generate testcases

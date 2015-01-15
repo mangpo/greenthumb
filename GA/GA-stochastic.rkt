@@ -16,7 +16,7 @@
     (inherit adjust)
     (init-field [forward #t])
     (override get-mutations mutate-operand mutate-other
-              correctness-cost get-arg-ranges random-instruction)
+              correctness-cost get-arg-ranges random-instruction add-constants)
 
     (set! mutate-dist 
       #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1) (rotate . 1)))
@@ -34,12 +34,16 @@
 	  '(opcode swap instruction rotate)))
 
     (define const-range 
-          (list->vector
-           (append (range -16 17) (list (sub1 bit) UP DOWN LEFT RIGHT IO 32639 65535 65536 #x3f #x15555 #x33333))))
-    ;; (for/list ([i (range 5 (sub1 (quotient bit 2)))]) 
-    ;;           (arithmetic-shift 1 i))
-    ;; (list (- (arithmetic-shift 1 (sub1 (quotient bit 2))))))))
+      (list->vector (append (range -16 17) (list (sub1 bit)))))
+      ;; (list->vector
+      ;;  (append (range -16 17) (list (sub1 bit) UP DOWN LEFT RIGHT IO 32639 65535 65536 #x3f #x15555 #x33333))))
+
     
+    (define (add-constants c)
+      (set! const-range 
+            (list->vector 
+             (set->list (set-union (list->set (vector->list const-range)) c)))))
+
     (define (mutate-other index entry p type)
       (cond
        [(equal? type `rotate) (mutate-rotate index entry p)]

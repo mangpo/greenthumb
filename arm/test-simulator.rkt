@@ -21,45 +21,23 @@
                                (vector 0 0 0 0 0 0 0) -1 6))
 
 ;; Section 1: Concrete program
-#|
-(define code
-(send parser ast-from-string "
-	uxth	r5, r0
-	mov	r3, r0, asr #16
-	uxth	r4, r1
-	mov	r1, r1, asr #16
-	mul	r2, r4, r5
-	mul	r4, r4, r3
-	mul	r0, r1, r5
-	add	r2, r4, r2, asr #16
-	uxtah	r0, r0, r2
-	mov	r2, r2, asr #16
-	add	r0, r2, r0, asr #16
-	mla	r0, r1, r3, r0
-"))|#
-
 
 (define code
 (send parser ast-from-string "
-	str     r0, [fp, #-24]
-	ldr     r3, [fp, #-24]
-	sub     r3, r3, #1
-	str     r3, [fp, #-16]
-	ldr     r2, [fp, #-16]
-	ldr     r3, [fp, #-24]
-	and     r3, r2, r3
-	str     r3, [fp, #-16]
-	ldr     r3, [fp, #-16]
-	cmp     r3, #0
-	movne	r3, #0
-        moveq	r3, #1
-	str     r3, [fp, #-12]
-	ldr     r3, [fp, #-12]
-        ldr	r2, [fp, #-24]
-        cmp     r2, #0
-        moveq   r2, #0
-        andne	r2, r3, #1
-        mov     r0, r2
+	cmp	r1, #-2147483648
+	add	r3, r1, #7
+	mov	r5, r1, asr #31
+	movcc	r3, r1
+	cmp	r2, #0
+	mov	r2, r3, asr #3
+	mov	r3, r5, lsr #29
+	mov	r4, #1
+	add	r1, r1, r3
+	and	r1, r1, #7
+	rsb	r3, r3, r1
+	orrne	r1, r0, r4, asl r3
+	biceq	r1, r0, r4, asl r3
+	uxtbne	r1, r1
 "))
 
 (send printer print-struct code)
@@ -68,17 +46,15 @@
 (send printer print-syntax (send printer decode encoded-code))
 
 #|
-(send machine display-state
-(send solver get-live-in encoded-code 
-      (constraint machine [reg 0] [mem]) #f))|#
-
 (define output-state
   (send simulator-racket interpret encoded-code input-state #:dep #t))
 (pretty-display "Output from simulator in rosette.")
 (send machine display-state output-state)
 (newline)
 
-(send simulator-racket performance-cost encoded-code)
+(send simulator-racket performance-cost encoded-code)|#
+
+(send printer get-constants encoded-code)
 
 ;; ;; Section 2: Unknown program
 ;; ;; ? = one instruction

@@ -15,7 +15,8 @@
               get-arg-ranges 
               inst-copy-with-op inst-copy-with-args
               random-instruction
-              get-mutations mutate-operand-specific mutate-other)
+              get-mutations mutate-operand-specific mutate-other
+              add-constants)
 
     (set! mutate-dist 
       #hash((opcode . 2) (operand . 2) (swap . 2) (instruction . 2) (byte . 1) (type . 1)))
@@ -41,6 +42,9 @@
     
     (define (inst-copy-with-op x op) (struct-copy neon-inst x [op #:parent inst op]))
     (define (inst-copy-with-args x args) (struct-copy neon-inst x [args #:parent inst args]))
+
+    (define (add-constants c)
+      (set! const-range (list->vector (set->list (set-union (list->set (vector->list const-range)) c)))))
     
     ;; TODO: better way to define this
     (define (get-arg-ranges opcode-name entry)
