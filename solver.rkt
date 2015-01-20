@@ -16,7 +16,8 @@
                 [simulator #f] 
 		[stat (new stat% [printer printer])]
                 [bit (get-field bit machine)]
-                [random-input-bit (get-field random-input-bit machine)])
+                [random-input-bit (get-field random-input-bit machine)]
+                [pure-symbolic #t])
     (abstract get-sym-vars evaluate-state
               assume assert-output len-limit window-size)
     (public proper-machine-config generate-input-states
@@ -43,6 +44,7 @@
       input
       )
 
+
     (define (sym-op)
       (define-symbolic* op number?)
       (assert (and (>= op 0) (< op ninsts)))
@@ -51,16 +53,6 @@
     (define (sym-arg)
       (define-symbolic* arg number?)
       arg)
-
-    (define (assume-relax state assumption)
-      (assume state assumption))
-
-    (define (evaluate-inst x model)
-      (inst (evaluate (inst-op x) model)
-            (evaluate (inst-args x) model)))
-
-    (define (evaluate-program code model)
-      (traverse code inst? (lambda (x) (evaluate-inst x model))))
 
     (define (encode-sym-inst x)
       (if (inst-op x)
@@ -72,6 +64,16 @@
 
     (define (sym-insts size)
       (encode-sym (for/vector ([i size]) (inst #f #f))))
+
+    (define (assume-relax state assumption)
+      (assume state assumption))
+
+    (define (evaluate-inst x model)
+      (inst (evaluate (inst-op x) model)
+            (evaluate (inst-args x) model)))
+
+    (define (evaluate-program code model)
+      (traverse code inst? (lambda (x) (evaluate-inst x model))))
 
     (define (interpret-spec spec start-state assumption)
       (assume start-state assumption)
@@ -636,6 +638,63 @@
     ;; assume-interpret: always true (for now)
     ;; assume: input assumption
     (define (synthesize-from-sketch spec sketch constraint extra 
+				    cost time-limit
+                                    #:hard-prefix [hard-prefix (vector)] 
+                                    #:hard-postfix [hard-postfix (vector)]
+				    #:assume-interpret [assume-interpret #t]
+				    #:assume [assumption (send machine no-assumption)])
+      (if pure-symbolic 
+          (synth-symbolic-from-sketch 
+           spec sketch constraint extra cost time-limit
+            #:hard-prefix hard-prefix #:hard-postfix hard-postfix 
+            #:assume-interpret assume-interpret #:assume assumption)
+          (synth-mix-from-sketch 
+           spec sketch constraint extra cost time-limit
+            #:hard-prefix hard-prefix #:hard-postfix hard-postfix 
+            #:assume-interpret assume-interpret #:assume assumption)))
+
+    ;; Mutate sketch from index 'from' to 'to'
+    (define (partial-random-sketch sketch from to)
+      (for ([i (range from to)])
+           (set-inst-op! (vector-ref sketch i) (random ninsts))))
+      
+    ;; Caution: mutate sketch at symbolic instructions
+    (define (synth-mix-from-sketch spec sketch constraint extra 
+                                   [cost #f] [time-limit 3600]
+                                   #:hard-prefix [hard-prefix (vector)] 
+                                   #:hard-postfix [hard-postfix (vector)]
+                                   #:assume-interpret [assume-interpret #t]
+                                   #:assume [assumption (send machine no-assumption)])
+
+      (define indexs (list))
+      (for ([i (vector-length sketch)]
+            [x sketch])
+           (when (term? (inst-op x)) (set! indexs (cons i indexs))))
+      (define from (last indexs))
+      (define to (add1 (first indexs))) ;; exclusive
+      (pretty-display `(from-to ,from ,to))
+
+      ;; TODO: Break when best correct program is updated.
+      (define (loop)
+        (partial-random-sketch sketch from to)
+        (send printer print-struct sketch)
+
+        (with-handlers* 
+         ([exn:fail? 
+           (lambda (e)
+             (if  (or (regexp-match #rx"synthesize: synthesis failed" (exn-message e))
+                      (regexp-match #rx"assert: cost" (exn-message e)))
+                  (loop)
+                  (raise e)))])
+         (synth-symbolic-from-sketch 
+          spec sketch constraint extra cost time-limit
+          #:hard-prefix hard-prefix #:hard-postfix hard-postfix 
+          #:assume-interpret assume-interpret #:assume assumption)
+         ))
+
+      (loop))
+
+    (define (synth-symbolic-from-sketch spec sketch constraint extra 
 				    [cost #f]
 				    [time-limit 3600]
                                     #:hard-prefix [hard-prefix (vector)] 
