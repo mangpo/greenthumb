@@ -1,6 +1,6 @@
 extra=livein+half
 
-for name in p22_parity_o0 p23_count_o0 p24_roundpower_o0 #p17_off_right_o0 
+for name in p10_nlz_eq_o0 p11_nlz_lt_o0 p12_nlz_le_o0 p16_max_o0 p18_is_power_o0
 do
     for type in hybrid
     do

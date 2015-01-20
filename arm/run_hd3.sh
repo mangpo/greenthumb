@@ -1,6 +1,6 @@
 extra=livein+half
 
-for name in p21_cycle_o0
+for name in p20_next_higher_o0 p25_smmul_o0
 do
     for type in hybrid
     do
