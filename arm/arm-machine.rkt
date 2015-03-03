@@ -108,7 +108,7 @@
                      mul mla mls
                      smull umull
                      smmul smmla smmls
-                     ;; sdiv udiv
+                     sdiv udiv
 		     uxtah uxth uxtb
                      bfc bfi
                      sbfx ubfx
@@ -125,7 +125,7 @@
 			and orr eor bic orn
 			asr lsl lsr 
                         mul
-			;; sdiv udiv 
+			sdiv udiv 
                         smmul 
                         uxtah
                         ) ;; rrr
@@ -154,7 +154,7 @@
     (init-field [branch-inst-id '#(beq bne j jal b jr jr jalr bal)]
                 [shf-inst-id '#(nop asr lsl lsr asr# lsl# lsr#)]
 		[inst-with-shf '(add sub rsb and orr eor bic orn mov mvn)]
-		[cond-inst-id '#(eq ne ls hi cc cs)]
+		[cond-inst-id '#(nop eq ne ls hi cc cs)]
 		)
 
     (define nregs 5)
@@ -271,6 +271,7 @@
     (define (clean-code code [prefix (vector)])
       (set! code (vector-filter-not (lambda (x) (= (inst-op x) nop-id)) code))
       (define z-flag #f)
+      (define cond-type-nop (vector-member `nop cond-inst-id))
       (for ([x prefix])
 	   (let ([op (inst-op x)])
 	     (when (member (vector-ref inst-id op) '(tst cmp tst# cmp#))
@@ -280,8 +281,8 @@
 		 [cond-type (inst-cond x)])
 	     (when (member (vector-ref inst-id op) '(tst cmp tst# cmp#))
 		   (set! z-flag #t))
-	     (if (or z-flag (equal? cond-type -1))
+	     (if (or z-flag (equal? cond-type cond-type-nop))
 		 x
-		 (arm-inst op (inst-args x) (inst-shfop x) (inst-shfarg x) -1)))))
+		 (arm-inst op (inst-args x) (inst-shfop x) (inst-shfarg x) cond-type-nop)))))
 
     ))

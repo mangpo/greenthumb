@@ -152,8 +152,8 @@
 	(define cond-type (inst-cond entry))
 	(define new-cond-type 
 	  (if (member cmp '(tst tst#))
-	      (random-from-list-ex (range -1 2) cond-type)
-	      (random-from-list-ex (range -1 6) cond-type)))
+	      (random-from-list-ex (range 3) cond-type)
+	      (random-from-list-ex (range 7) cond-type)))
 	(define new-entry (struct-copy arm-inst entry [cond new-cond-type]))
 	(when debug
 	      (pretty-display (format " --> cond-type = ~a --> ~a" cond-type new-cond-type)))
@@ -165,14 +165,16 @@
 
     (define (random-instruction live-in [opcode-id (random (vector-length inst-id))])
       
-      (define opcode-name (vector-ref inst-id opcode-id))
-      (define args (random-args-from-op opcode-name live-in))
-      (define shf? (and (member opcode-name inst-with-shf) (< (random) 0.3)))
-      (define shfop (and shf? (random (vector-length shf-inst-id))))
-      (define shfarg-range (and shf? (get-shfarg-range shfop live-in)))
-      (define shfarg (and shf? (vector-ref shfarg-range (random (vector-length shfarg-range)))))
-      (define cond-type (sub1 (random 7)))
-      (arm-inst opcode-id args shfop shfarg cond-type))
+      ;; (define opcode-name (vector-ref inst-id opcode-id))
+      ;; (define args (random-args-from-op opcode-name live-in))
+      ;; (define shf? (and (member opcode-name inst-with-shf) (< (random) 0.3)))
+      ;; (define shfop (and shf? (random (vector-length shf-inst-id))))
+      ;; (define shfarg-range (and shf? (get-shfarg-range shfop live-in)))
+      ;; (define shfarg (and shf? (vector-ref shfarg-range (random (vector-length shfarg-range)))))
+      ;; (define cond-type (random 7))
+      ;; (arm-inst opcode-id args shfop shfarg cond-type)
+      (arm-inst 50 (vector 0 0) #f #f 0)
+      )
 
     (define (get-shfarg-range shfop-id live-in)
       (define shfop-name (vector-ref shf-inst-id shfop-id))

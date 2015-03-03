@@ -16,6 +16,7 @@
     (define nop-id (send machine get-inst-id `nop))
     (define inst-id (get-field inst-id machine))
     (define shf-inst-id (get-field shf-inst-id machine))
+    (define cond-inst-id (get-field cond-inst-id machine))
     (define ninsts (vector-length inst-id))
     (define n-shf-insts (vector-length shf-inst-id))
 
@@ -519,8 +520,8 @@
            [(inst-eq `smull) (ddrr bvmul bvsmmul)]
            [(inst-eq `umull) (ddrr bvmul bvummul)]
 
-           ;; [(inst-eq `sdiv) (rrr quotient)]
-           ;; [(inst-eq `udiv) (rrr bvudiv)]
+           [(inst-eq `sdiv) (rrr quotient)]
+           [(inst-eq `udiv) (rrr bvudiv)]
 
            [(inst-eq `uxtah) (rrr uxtah)]
            [(inst-eq `uxth) (rr uxth)]
@@ -565,27 +566,27 @@
 	;; cond: eq 0, ne 1, ls 2, hi 3, cc 4, cs 5
 	(define-syntax-rule (assert-op) (assert (and (>= op 0) (< op ninsts))))
         (cond
-         [(or (equal? z -1) (equal? cond-type -1)
+         [(or (equal? z -1) (equal? cond-type 0)
               (inst-eq `tst `cmp `tst# `cmp#))
-	  (assert (and (>= cond-type -1) (<= cond-type 5)))
+	  (assert (and (>= cond-type 0) (<= cond-type 6)))
           (exec #f)]
 
-	 [(equal? cond-type 0) ;; eq
+	 [(equal? cond-type 1) ;; eq
 	  (if (equal? z 0) (exec z-dep) (assert-op))]
 
-	 [(equal? cond-type 1) ;; ne
+	 [(equal? cond-type 2) ;; ne
 	  (if (member z (list 1 2 3)) (exec z-dep) (assert-op))]
 
-	 [(equal? cond-type 2) ;; ls
+	 [(equal? cond-type 3) ;; ls
 	  (if (member z (list 0 2)) (exec z-dep) (assert-op))]
 
-	 [(equal? cond-type 3) ;; hi
+	 [(equal? cond-type 4) ;; hi
 	  (if (equal? z 3) (exec z-dep) (assert-op))]
 
-	 [(equal? cond-type 4) ;; cc
+	 [(equal? cond-type 5) ;; cc
 	  (if (equal? z 2) (exec z-dep) (assert-op))]
 
-	 [(equal? cond-type 5) ;; cs
+	 [(equal? cond-type 6) ;; cs
 	  (if (member z (list 0 3)) (exec z-dep) (assert-op))]
 	 
          [else (assert #f (format "illegal cond-type ~a" cond-type))]

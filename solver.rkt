@@ -117,6 +117,7 @@
       (solve-until-valid config))
     
     (define (generate-inputs-inner n spec start-state assumption)
+      (set! n 1)
       (when debug
             (pretty-display `(generate-inputs-inner ,n ,assumption ,random-input-bit)))
       ;; (print-struct spec)

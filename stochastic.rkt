@@ -87,7 +87,7 @@
 
       ;; MCMC sampling
       (define-syntax-rule (get-sketch) 
-        (random-insts (if size size (vector-length spec))))
+        (random-insts 10));(random-insts (if size size (vector-length spec))))
       (mcmc-main prefix postfix spec 
                  (cond
                   [start start]
@@ -442,7 +442,7 @@
                 ]
               ))
         (define t1 (current-milliseconds))
-        (define proposal (mutate current))
+        (define proposal current);(mutate current))
         (define t2 (current-milliseconds))
         (send stat mutate (- t2 t1))
         (when debug
@@ -468,7 +468,7 @@
             (begin
               (when debug
                     (pretty-display "================ ACCEPT! =================")
-                    (print-struct proposal))
+                    (send printer print-struct proposal))
               (send stat inc-accept)
               (when (> proposal-cost current-cost) 
                     (send stat inc-accept-higher))

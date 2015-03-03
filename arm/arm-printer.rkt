@@ -69,7 +69,7 @@
                   (and shfop (send machine get-shf-inst-id (string->symbol shfop)))
                   (and shfarg (name->id shfarg))
 		  (if (equal? cond-type "")
-		      -1
+		      (send machine get-cond-inst-id `nop)
 		      (send machine get-cond-inst-id (string->symbol cond-type))))))
                 
 
@@ -107,7 +107,9 @@
         (arm-inst (convert-op opcode) new-args
 		  (and shfop (convert-op shfop))
 		  (and shfarg (convert-shfarg shfarg shfop))
-		  (if (= cond-type -1) "" (send machine get-cond-inst-name cond-type))))
+		  (if (= cond-type (send machine get-cond-inst-id `nop))
+		      "" 
+		      (send machine get-cond-inst-name cond-type))))
 
       (define (reg x) (format "r~a" x))
       (define imm number->string)
