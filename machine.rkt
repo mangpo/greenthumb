@@ -15,12 +15,13 @@
               adjust-config finalize-config config-exceed-limit?
               output-constraint-string
               progstate->vector vector->progstate
+	      get-arg-ranges add-constants
 	      window-size)
     (public get-class-id print-line no-assumption
             get-inst-id get-inst-name
             output-assume-string get-state-liveness
             display-state-text parse-state-text get-states-from-file syntax-equal?
-	    clean-code)
+	    clean-code state-eq? update-live filter-live get-operand-live)
 
     (define (get-inst-id opcode)
       (vector-member opcode inst-id))
@@ -82,4 +83,42 @@
 
     (define (clean-code code [prefix (vector)])
       (vector-filter-not (lambda (x) (= (inst-op x) nop-id)) code))
+
+    (define (state-eq? state1 state2 pred)
+      ;(pretty-display `(state-eq? ,state1 ,state2 ,pred))
+      (cond
+       [(equal? pred #t)
+	(equal? state1 state2)]
+       [(equal? pred #f)
+	#t]
+       [(number? pred)
+	(for/and ([i pred]
+		  [s1 state1]
+		  [s2 state2])
+		 (equal? s1 s2))]
+       [else
+	(for/and ([i pred]
+		  [s1 state1]
+		  [s2 state2])
+		 (state-eq? s1 s2 i))]))
+
+    (define (update-live live x)
+      (define (add-live ele lst)
+        (if (member ele lst) lst (cons ele lst)))
+      (and live
+           (cond
+            [(= (vector-length (inst-args x)) 0) live]
+            [else
+             (let ([def (vector-ref (inst-args x) 0)])
+               (if (number? def)
+                   (add-live def live)
+                   (foldl add-live live def)))])))
+
+    (define (filter-live range live)
+      (if live
+          (vector-filter (lambda (x) (member x live)) range)
+          range))
+
+    (define (get-operand-live constraint) #f)
+    
     ))

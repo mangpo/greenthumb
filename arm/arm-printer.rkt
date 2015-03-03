@@ -131,6 +131,9 @@
       (define opcode (send machine get-inst-name (inst-op x)))
       (define args (inst-args x))
       (define class-id (send machine get-class-id opcode))
+      (define shf (member opcode (get-field inst-with-shf machine)))
+      (define shfop (and shf (inst-shfop x) (send machine get-shf-inst-name (inst-shfop x))))
+      (define shfarg (and shf (inst-shfarg x)))
 
       (define-syntax-rule (collect x ...)
         (collect-main (list x ...)))
@@ -139,12 +142,17 @@
         ;; Don't care about shf because shfarg is bit-range.
         (define op2-set (set))
         (define const-set (set))
+	(define shf-set
+	  (if (and shf (not (equal? shfop `nop)))
+	      (set shfarg)
+	      (set)))
+
         (for ([f fs] 
               [arg args])
              (cond
               [(equal? f `op2) (set! op2-set (set-add op2-set arg))]
               [(equal? f `const) (set! const-set (set-add const-set arg))]))
-        (cons op2-set const-set))
+        (list op2-set const-set shf-set))
 
       (define reg #f)
       (define bit #f)
@@ -166,10 +174,11 @@
     (define (get-constants code)
       (define op2-set (set))
       (define const-set (set))
+      (define shf-set (set))
       (for ([x code])
            (let ([ans (get-constants-inst x)])
-             (set! op2-set (set-union op2-set (car ans)))
-             (set! const-set (set-union const-set (cdr ans)))))
-      (cons op2-set const-set))
-      
+             (set! op2-set (set-union op2-set (first ans)))
+             (set! const-set (set-union const-set (second ans)))
+             (set! shf-set (set-union const-set (third ans)))))
+      (list op2-set const-set shf-set)) 
     ))

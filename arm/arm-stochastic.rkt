@@ -11,11 +11,10 @@
   (class stochastic%
     (super-new)
     (inherit-field machine printer solver simulator stat mutate-dist live-in base-cost)
-    (inherit random-args-from-op mutate filter-live update-live adjust)
-    (override correctness-cost get-arg-ranges 
+    (inherit random-args-from-op mutate adjust)
+    (override correctness-cost 
 	      get-mutations random-instruction mutate-other
-	      inst-copy-with-op inst-copy-with-args
-              get-operand-live add-constants)
+	      inst-copy-with-op inst-copy-with-args)
 
     (set! solver (new arm-solver% [machine machine] [printer printer]))
     (set! simulator (new arm-simulator-racket% [machine machine]))
@@ -32,33 +31,8 @@
     (define nregs (send machine get-nregs))
     (define nmems (send machine get-nmems))
 
-    (define reg-range (list->vector (range nregs)))
-    (define operand2-range
-      (list->vector (range bit)))
-      ;; (list->vector
-      ;;  (append (range bit) (list #x3f #xff0000 #xff00 (- #xff000000) (- #x80000000)))))
-
-    (define const-range
-      (list->vector (append (range 17) (list (sub1 bit)))))
-      ;; (list->vector
-      ;;  (append (range 17) (list (sub1 bit) 
-      ;;                           #x1111 #x3333 #x5555 #xaaaa #xcccc
-      ;;                           #xf0f0 #x0f0f #x3f 
-      ;;   			#xffff #xaaab #x2aaa #xfff4))))
-    
-    (define bit-range (list->vector (range bit)))
-    (define mem-range (list->vector (for/list ([i (range 1 11)]) (- i))))
-
-    (define (add-constants pair)
-      ;; Not include mem-range
-      (set! operand2-range 
-            (list->vector 
-             (set->list (set-union (list->set (vector->list operand2-range))
-                                   (car pair)))))
-      (set! const-range 
-            (list->vector 
-             (set->list (set-union (list->set (vector->list const-range))
-                                   (cdr pair))))))
+    (define-syntax-rule (get-shfarg-range shfop my-live-in)
+      (send machine get-shfarg-range shfop my-live-in))
 
     (define (inst-copy-with-op x op) 
       (define opname (vector-ref inst-id op))
@@ -68,16 +42,6 @@
 
     (define (inst-copy-with-args x args) 
       (arm-inst (inst-op x) args (inst-shfop x) (inst-shfarg x) (inst-cond x)))
-
-    (define (get-operand-live state)
-      (and state
-           (let ([regs (progstate-regs state)]
-                 [live (list)])
-             (for ([i (vector-length regs)]
-                   [r regs])
-                  (when r (set! live (cons i live))))
-             live)))
-          
 
     (define (get-mutations opcode-name)
       ;;(pretty-display `(get-mutations ,opcode-name ,(vector-member opcode-name shf-inst-id) ,shf-inst-id))
@@ -113,7 +77,7 @@
        [(or (equal? shfop-name #f) (equal? shfop-name `nop) (< rand 0.5))
         (define my-live-in live-in)
         (for ([i index])
-             (set! my-live-in (update-live my-live-in (vector-ref p i))))
+             (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
 	(set! shfop (vector-member (random-from-vec-ex shf-inst-id `nop) shf-inst-id))
 	(set! shfarg (random-from-vec (get-shfarg-range shfop my-live-in)))]
 
@@ -127,7 +91,7 @@
        [(< rand 0.8) ;; arg
         (define my-live-in live-in)
         (for ([i index])
-             (set! my-live-in (update-live my-live-in (vector-ref p i))))
+             (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
 	(set! shfarg (random-from-vec-ex (get-shfarg-range shfop my-live-in) shfarg))]
 
        [else ;; nop
@@ -175,28 +139,6 @@
       ;; (arm-inst opcode-id args shfop shfarg cond-type)
       (arm-inst 50 (vector 0 0) #f #f 0)
       )
-
-    (define (get-shfarg-range shfop-id live-in)
-      (define shfop-name (vector-ref shf-inst-id shfop-id))
-      (if (member shfop-name '(asr lsr lsl)) (filter-live reg-range live-in) bit-range))
-
-    ;; nargs, ranges
-    (define (get-arg-ranges opcode-name entry live-in)
-      (define-syntax-rule (reg)
-        (filter-live reg-range live-in))
-      (define class-id (send machine get-class-id opcode-name))
-      ;;(pretty-display `(get-arg-ranges ,opcode-name ,class-id))
-      (cond
-       [(equal? class-id 0) (vector reg-range (reg) (reg))]
-       [(equal? class-id 1) (vector reg-range (reg) operand2-range)]
-       ;[(equal? class-id 2) (vector reg-range (reg) bit-range)]
-       [(equal? class-id 2) (vector reg-range (reg))]
-       [(equal? class-id 3) (vector reg-range const-range)]
-       [(equal? class-id 4) (vector reg-range reg-range (reg) (reg))]
-       [(equal? class-id 5) (vector reg-range (reg) bit-range bit-range)]
-       [(equal? class-id 6) (vector reg-range reg-range mem-range)]
-       [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range)]
-       [else (vector)]))
 
     ;; state1: reference
     ;; state2: proposal

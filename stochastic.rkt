@@ -8,13 +8,12 @@
   (class object%
     (super-new)
     (public superoptimize inst-copy-with-op inst-copy-with-args
-            get-mutations mutate filter-live
+            get-mutations mutate 
             mutate-opcode mutate-operand
             mutate-operand-specific mutate-other
             random-instruction print-mutation-info
-	    random-args-from-op
-            get-operand-live update-live adjust)
-    (abstract correctness-cost get-arg-ranges add-constants)
+	    random-args-from-op adjust)
+    (abstract correctness-cost)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
     (init-field machine printer syn-mode
@@ -51,8 +50,8 @@
                            #:assume [assumption (send machine no-assumption)]
                            #:input-file [input-file #f]
                            #:start-prog [start #f])
-      (add-constants (send printer get-constants spec))
-      (set! live-in (get-operand-live this-live-in))
+      (send machine add-constants (send printer get-constants spec))
+      (set! live-in (send machine get-operand-live this-live-in))
       (pretty-display (format "Base-cost: ~a" base-cost))
       ;; Generate testcases
       (when debug 
@@ -96,32 +95,13 @@
                  inputs outputs 
 		 (send solver get-live-in postfix constraint extra-info)
 		 assumption time-limit extra-info))
-
-    (define (get-operand-live constraint) #f)
-
-    (define (update-live live x)
-      (define (add-live ele lst)
-        (if (member ele lst) lst (cons ele lst)))
-      (and live
-           (cond
-            [(= (vector-length (inst-args x)) 0) live]
-            [else
-             (let ([def (vector-ref (inst-args x) 0)])
-               (if (number? def)
-                   (add-live def live)
-                   (foldl add-live live def)))])))
           
     (define (random-insts n)
       (define my-live-in live-in)
       (for/vector ([i n]) 
         (let ([x (random-instruction my-live-in)])
-          (set! my-live-in (update-live my-live-in x)) ;; TODO
+          (set! my-live-in (send machine update-live my-live-in x)) ;; TODO
           x)))
-
-    (define (filter-live range live)
-      (if live
-          (vector-filter (lambda (x) (member x live)) range)
-          range))
 
     ;; Generic across architectures
     (define (mutate-swap index entry p)
@@ -164,8 +144,8 @@
       (define args (vector-copy (inst-args entry)))
       (define my-live-in live-in)
       (for ([i index])
-           (set! my-live-in (update-live my-live-in (vector-ref p i))))
-      (define ranges (get-arg-ranges opcode-name entry my-live-in))
+           (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
+      (define ranges (send machine get-arg-ranges opcode-name entry my-live-in))
       (cond
        [(> (vector-length ranges) 0)
         (define args (vector-copy (inst-args entry)))
@@ -206,7 +186,7 @@
             (pretty-display (format " >> mutate instruction ~a" (vector-ref inst-id new-opcode-id))))
       (define my-live-in live-in)
       (for ([i index])
-           (set! my-live-in (update-live my-live-in (vector-ref p i))))
+           (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
       (define new-entry (random-instruction my-live-in new-opcode-id))
       (vector-set! new-p index new-entry)
       new-p)
@@ -217,7 +197,7 @@
       (inst opcode-id args))
     
     (define (random-args-from-op opcode-name live-in)
-      (define ranges (get-arg-ranges opcode-name #f live-in))
+      (define ranges (send machine get-arg-ranges opcode-name #f live-in))
       (when debug (pretty-display (format " --> ranges ~a" ranges)))
       (for/vector ([i (vector-length ranges)])
                 (random-from-vec (vector-ref ranges i))))

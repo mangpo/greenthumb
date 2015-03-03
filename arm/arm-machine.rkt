@@ -83,14 +83,16 @@
   (class machine%
     (super-new)
     (inherit-field bit random-input-bit inst-id classes classes-len perline nop-id)
-    (inherit print-line)
+    (inherit print-line get-class-id filter-live update-live)
     (override set-config get-config set-config-string
               adjust-config finalize-config config-exceed-limit?
               get-state get-state-liveness display-state
               output-constraint-string
               display-state-text parse-state-text
               progstate->vector vector->progstate
+	      get-arg-ranges add-constants get-operand-live
 	      window-size clean-code)
+    (public get-shfarg-range)
 
     (set! bit 32)
     (set! random-input-bit 32)
@@ -160,6 +162,14 @@
     (define nregs 5)
     (define nmems 1)
     (define fp 0)
+ 
+    (define reg-range #f)
+    (define operand2-range #f)
+    (define const-range #f)
+    (define shf-range #f)
+    (define bit-range #f)
+    (define bit-range-no-0 #f)
+    (define mem-range #f)
 
     (define/public (get-nregs) nregs)
     (define/public (get-nmems) nmems)
@@ -183,7 +193,39 @@
       (set! nregs (first info))
       (set! nmems (second info))
       (set! fp (third info))
+      
+      (set! reg-range (list->vector (range nregs)))
+      (set! operand2-range (vector 0 1))
+      ;; (list->vector
+      ;;  (append (range bit) (list #x3f #xff0000 #xff00 (- #xff000000) (- #x80000000)))))
+
+      (set! const-range (vector 0 1)) ;; 0-7, 31
+      ;; (list->vector
+      ;;  (append (range 17) (list (sub1 bit) 
+      ;;                           #x1111 #x3333 #x5555 #xaaaa #xcccc
+      ;;                           #xf0f0 #x0f0f #x3f 
+      ;;   			#xffff #xaaab #x2aaa #xfff4))))
+      
+      (set! shf-range (vector 1))
+      (set! bit-range (vector 0 1))
+      (set! bit-range-no-0 (vector 1))
+      (set! mem-range (list->vector (for/list ([i nmems]) (- i fp))))
       )
+
+    (define (add-constants l)
+      ;; Not include mem-range
+      (set! operand2-range 
+            (list->vector 
+             (set->list (set-union (list->set (vector->list operand2-range))
+                                   (first l)))))
+      (set! const-range 
+            (list->vector 
+             (set->list (set-union (list->set (vector->list const-range))
+                                   (second l)))))
+      (set! shf-range 
+            (list->vector 
+             (set->list (set-union (list->set (vector->list shf-range))
+                                   (third l))))))
 
     ;; info: (list nregs nmem)
     (define (set-config-string info)
@@ -284,5 +326,37 @@
 	     (if (or z-flag (equal? cond-type cond-type-nop))
 		 x
 		 (arm-inst op (inst-args x) (inst-shfop x) (inst-shfarg x) cond-type-nop)))))
+
+
+    (define (get-operand-live state)
+      (and state
+           (let ([regs (progstate-regs state)]
+                 [live (list)])
+             (for ([i (vector-length regs)]
+                   [r regs])
+                  (when r (set! live (cons i live))))
+             live)))
+    
+    ;; nargs, ranges
+    (define (get-arg-ranges opcode-name entry live-in)
+      (define-syntax-rule (reg)
+        (filter-live reg-range live-in))
+      (define class-id (get-class-id opcode-name))
+      ;(pretty-display `(get-arg-ranges ,opcode-name ,class-id ,live-in))
+      (cond
+       [(equal? class-id 0) (vector reg-range (reg) (reg))]
+       [(equal? class-id 1) (vector reg-range (reg) operand2-range)]
+       ;[(equal? class-id 2) (vector reg-range (reg) bit-range)]
+       [(equal? class-id 2) (vector reg-range (reg))]
+       [(equal? class-id 3) (vector reg-range const-range)]
+       [(equal? class-id 4) (vector reg-range reg-range (reg) (reg))]
+       [(equal? class-id 5) (vector reg-range (reg) bit-range bit-range-no-0)]
+       [(equal? class-id 6) (vector reg-range reg-range mem-range)]
+       [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range-no-0)]
+       [else (vector)]))
+
+    (define (get-shfarg-range shfop-id live-in)
+      (define shfop-name (vector-ref shf-inst-id shfop-id))
+      (if (member shfop-name '(asr lsr lsl)) (filter-live reg-range live-in) shf-range))
 
     ))
