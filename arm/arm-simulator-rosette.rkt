@@ -193,8 +193,8 @@
     ;; state: initial progstate
     ;; policy: a procedure that enforces a policy to speed up synthesis. Default to nothing.
     (define (interpret program state [is-candidate #f] #:dep [dep #f])
-      ;(define inst-pool (get-field inst-pool machine))
-      (pretty-display `(interpret ,inst-pool))
+      (define inst-pool (get-field inst-pool machine))
+      ;(pretty-display `(interpret ,inst-pool))
       (define regs (vector-copy (progstate-regs state)))
       (define memory (vector-copy (progstate-memory state)))
       (define z (progstate-z state))
