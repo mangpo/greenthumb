@@ -5,11 +5,9 @@
 ;(require rosette/solver/smt/z3)
 (require rosette/solver/kodkod/kodkod)
 
-(provide solver%)
+(provide validator%)
 
-(struct exn:restart exn (program))
-
-(define solver%
+(define validator%
   (class object%
     (super-new)
     (init-field machine printer 
@@ -17,10 +15,10 @@
                 [bit (get-field bit machine)]
                 [random-input-bit (get-field random-input-bit machine)])
     (abstract get-sym-vars evaluate-state
-              assume assert-output)
-    (public proper-machine-config generate-input-states
+              assume assert-state-eq)
+    (public proper-machine-config generate-input-states generate-inputs-inner
             counterexample
-            sym-op sym-arg 
+            sym-op sym-arg sym-insts ;; do really need sym-insts
             evaluate-inst encode-sym-inst encode-sym
             assume-relax get-live-in)
     
@@ -259,7 +257,7 @@
         
         ;;(pretty-display "check output")
         ;; (pretty-display constraint)
-        (assert-output spec-state program-state constraint)
+        (assert-state-eq spec-state program-state constraint)
         ;;(pretty-display "done check output")
         )
 

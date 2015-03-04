@@ -7,7 +7,7 @@
 (define parallel%
   (class object%
     (super-new)
-    (init-field meta parser machine printer compress solver search-type mode base-cost
+    (init-field meta parser machine printer compress validator search-type mode base-cost
                 [window #f])
     ;; search = `solver, `stoch, `hybrid
     ;; mode = `linear, `binary, `syn, `opt
@@ -34,7 +34,7 @@
       (pretty-display ">>> compressed-code:")
       (send printer print-syntax code)
       ;; machine-info from compress-reg-space is only accurate for reg but not memory. This will adjust the rest of the machine info.
-      (set! machine-info (send solver proper-machine-config code machine-info extra-info))
+      (set! machine-info (send validator proper-machine-config code machine-info extra-info))
       (pretty-display (format ">>> machine-info: ~a" machine-info))
       (pretty-display (format ">>> live-in: ~a" live-in))
       (pretty-display (format ">>> live-out: ~a" live-out))
@@ -51,7 +51,7 @@
           (define (req file)
             (format "(file \"~a/~a\")" srcpath (send meta required-module file)))
           (define required-files
-            (string-join (map req '(parser machine printer stochastic solver))))
+            (string-join (map req '(parser machine printer stochastic symbolic))))
           (with-output-to-file 
               #:exists 'truncate (format "~a-~a.rkt" path id)
               (thunk
@@ -71,7 +71,7 @@
                             (equal? mode `syn) base-cost))
                    (pretty-display 
                     (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode `~a]))" 
-                            (send meta get-class-name "solver") 
+                            (send meta get-class-name "symbolic") 
                             mode)))
 
                (pretty-display "(define prefix (send parser ast-from-string \"")

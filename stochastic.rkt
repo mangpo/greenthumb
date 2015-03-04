@@ -18,7 +18,7 @@
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
     (init-field machine printer syn-mode
                 [parser #f]
-                [solver #f]
+                [validator #f]
                 [simulator #f]
                 [base-cost #f]
                 [stat (new stat% [printer printer])]
@@ -66,7 +66,7 @@
       (define inits 
         (if input-file
             (map cdr (send machine get-states-from-file input-file))
-            (send solver generate-input-states ntests (vector-append prefix spec postfix)
+            (send validator generate-input-states ntests (vector-append prefix spec postfix)
                   assumption extra-info)))
 
       (define inputs (map (lambda (x) (send simulator interpret prefix x #:dep #f)) inits))
@@ -93,7 +93,7 @@
                   [syn-mode (get-sketch)]
                   [else spec])
                  inputs outputs 
-		 (send solver get-live-in postfix constraint extra-info)
+		 (send validator get-live-in postfix constraint extra-info)
 		 assumption time-limit extra-info))
           
     (define (random-insts n)
@@ -342,7 +342,7 @@
         (when (and (number? correct) (= correct 0))
               (send stat inc-validate)
               (define t1 (current-milliseconds))
-              (set! ce (send solver counterexample 
+              (set! ce (send validator counterexample 
                              (vector-append prefix target postfix) (vector-append prefix program postfix)
                              constraint extra-info
                              #:assume assumption))

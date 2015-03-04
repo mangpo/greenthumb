@@ -3,20 +3,20 @@
 (require "../stochastic.rkt"
          "../ast.rkt" "arm-ast.rkt"
          "../machine.rkt" "arm-machine.rkt" 
-         "arm-simulator-racket.rkt" "arm-solver.rkt")
+         "arm-simulator-racket.rkt" "arm-validator.rkt")
 
 (provide arm-stochastic%)
 
 (define arm-stochastic%
   (class stochastic%
     (super-new)
-    (inherit-field machine printer solver simulator stat mutate-dist live-in base-cost)
+    (inherit-field machine printer validator simulator stat mutate-dist live-in base-cost)
     (inherit random-args-from-op mutate adjust)
     (override correctness-cost 
 	      get-mutations random-instruction mutate-other
 	      inst-copy-with-op inst-copy-with-args)
 
-    (set! solver (new arm-solver% [machine machine] [printer printer]))
+    (set! validator (new arm-validator% [machine machine] [printer printer]))
     (set! simulator (new arm-simulator-racket% [machine machine]))
 
     (set! mutate-dist

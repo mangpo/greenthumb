@@ -1,18 +1,18 @@
 #lang s-exp rosette
 
-(require "../solver.rkt"
+(require "../validator.rkt"
          "../ast.rkt" "arm-ast.rkt"
          "../machine.rkt" "arm-machine.rkt" "arm-simulator-rosette.rkt")
-(provide arm-solver%)
+(provide arm-validator%)
 
-(define arm-solver%
-  (class solver%
+(define arm-validator%
+  (class validator%
     (super-new)
     (inherit-field printer machine simulator)
     (inherit sym-op sym-arg encode-sym)
     (override get-sym-vars evaluate-state
               encode-sym-inst 
-              assume assert-output)
+              assume assert-state-eq)
 
     (set! simulator (new arm-simulator-rosette% [machine machine]))
 
@@ -66,7 +66,7 @@
                 (evaluate (inst-shfarg x) model)
                 (evaluate (inst-cond x) model)))
 
-    (define (assert-output state1 state2 constraint)
+    (define (assert-state-eq state1 state2 constraint)
       (when debug (pretty-display "start assert-output"))
       (define regs (progstate-regs constraint))
       (define memory (progstate-memory constraint))
