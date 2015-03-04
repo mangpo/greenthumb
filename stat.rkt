@@ -21,7 +21,7 @@
                 [best-correct-time 0]
                 [best-program #f]
                 [best-cost (arithmetic-shift 1 32)]
-                [current-mutate 0]
+                [current-mutate #f]
                 [iter-count 0]
                 [misalign-count 0]
                 [validate-count 0]
@@ -142,7 +142,7 @@
       (set! time (- (current-seconds) start-time))
       (with-output-to-file #:exists 'truncate (format "~a.stat" name)
         (thunk (print-stat)))
-      (print-stat)
+      ;;(print-stat)
       )
 
     (define/public (print-stat)
@@ -168,18 +168,18 @@
       (define proposed (foldl + 0 (vector->list propose-stat)))
       (define accepted (foldl + 0 (vector->list accept-stat)))
 
-      ;; (pretty-display (format "Mutate\tProposed\t\tAccepted\t\tAccepted/Proposed"))
-      ;; (for ([i n])
-      ;;      (pretty-display (format "~a\t~a\t~a\t~a" 
-      ;;                              (vector-ref stat-mutations i)
-      ;;                              (exact->inexact (/ (vector-ref propose-stat i) proposed))
-      ;;                              (exact->inexact (/ (vector-ref accept-stat i) proposed))
-      ;;                              (if (> (vector-ref propose-stat i) 0)
-      ;;                                  (exact->inexact (/ (vector-ref accept-stat i) (vector-ref propose-stat i)))
-      ;;                                  0))))
-      ;; (newline)
-      ;; (pretty-display (format "acceptance-rate:\t~a" 
-      ;;                         (exact->inexact (/ accepted proposed))))
+      (pretty-display (format "Mutate\tProposed\t\tAccepted\t\tAccepted/Proposed"))
+      (for ([i n])
+           (pretty-display (format "~a\t~a\t~a\t~a" 
+                                   (vector-ref stat-mutations i)
+                                   (exact->inexact (/ (vector-ref propose-stat i) proposed))
+                                   (exact->inexact (/ (vector-ref accept-stat i) proposed))
+                                   (if (> (vector-ref propose-stat i) 0)
+                                       (exact->inexact (/ (vector-ref accept-stat i) (vector-ref propose-stat i)))
+                                       0))))
+      (newline)
+      (pretty-display (format "acceptance-rate:\t~a" 
+                              (exact->inexact (/ accepted proposed))))
       (pretty-display (format "accept-count:\t~a" accept-count))
       (pretty-display (format "accept-higher-count:\t~a" accept-higher-count))
       ;; (pretty-display (format "accept-higher-percent:\t~a" 
