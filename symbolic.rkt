@@ -44,7 +44,7 @@
 			       #:assume-interpret [assume-interpret #t]
 			       #:assume [assumption (send machine no-assumption)])
       
-      ;(send machine analyze-code prefix spec postfix) ;; set inst-pool
+      (send machine analyze-code prefix spec postfix) ;; set inst-pool
       ;(reduce-inst-space sketch) ;; use inst-pool
       (if pure-symbolic 
           (synthesize-from-sketch 

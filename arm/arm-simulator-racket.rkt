@@ -107,27 +107,27 @@
       (finitize-bit (bitwise-ior (bitwise-and to low-mask) (shl c byte2))))
 
     (define (setbit d a width shift)
-      (assert (and (>= shift 0) (<= shift bit)))
-      (assert (and (>= width 0) (<= width bit)))
+      (assert (and (>= shift 0) (< shift bit)))
+      (assert (and (> width 0) (<= (+ width shift) bit)))
       (let* ([mask (sub1 (shl 1 width))]
              [keep (bitwise-and d (bitwise-not (shl mask shift)))]
              [insert (bvshl (bitwise-and a mask) shift)])
         (finitize-bit (bitwise-ior keep insert))))
 
     (define (clrbit d width shift)
-      (assert (and (>= shift 0) (<= shift bit)))
-      (assert (and (>= width 0) (<= width bit)))
+      (assert (and (>= shift 0) (< shift bit)))
+      (assert (and (> width 0) (<= (+ width shift) bit)))
       (let* ([keep (bitwise-not (shl (sub1 (shl 1 width)) shift))])
         (finitize-bit (bitwise-and keep d))))
 
     (define (ext d a width shift)
-      (assert (and (>= shift 0) (<= shift bit)))
-      (assert (and (>= width 0) (<= width bit)))
+      (assert (and (>= shift 0) (< shift bit)))
+      (assert (and (> width 0) (<= (+ width shift) bit)))
       (finitize-bit (bitwise-and (>> a shift) (sub1 (shl 1 width)))))
 
     (define (sext d a width shift)
-      (assert (and (>= shift 0) (<= shift bit)))
-      (assert (and (>= width 0) (<= width bit)))
+      (assert (and (>= shift 0) (< shift bit)))
+      (assert (and (> width 0) (<= (+ width shift) bit)))
       (let ([keep (bitwise-and (>> a shift) (sub1 (shl 1 width)))])
 	(bitwise-ior
 	 (if (= (bitwise-bit-field keep (sub1 width) width) 1)
@@ -193,6 +193,7 @@
     ;; state: initial progstate
     ;; policy: a procedure that enforces a policy to speed up synthesis. Default to nothing.
     (define (interpret program state [is-candidate #f] #:dep [dep #f])
+      (define inst-pool (get-field inst-pool machine))
       ;;(pretty-display `(interpret))
       (define regs (vector-copy (progstate-regs state)))
       (define memory (vector-copy (progstate-memory state)))
@@ -219,13 +220,13 @@
         (define cond-type (arm-inst-cond step))
         (define shfop (arm-inst-shfop step))
         ;;(pretty-display `(interpret-step ,z ,op ,cond-type))
-        
+
         (define-syntax inst-eq
           (syntax-rules ()
-            ((inst-eq x) (equal? op (vector-member x inst-id)))
-            ((inst-eq a b ...) (or (equal? op (vector-member a inst-id))
-                                   (equal? op (vector-member b inst-id))
-                                   ...))))
+            ((inst-eq x) 
+	     (let ([my-id (vector-member x inst-id)])
+	       (and (equal? op my-id) (or (equal? inst-pool #f) (member my-id inst-pool)))))
+            ((inst-eq a b ...) (or (inst-eq a) (inst-eq b) ...))))
 
         (define-syntax-rule (args-ref args i) (vector-ref args i))
 
