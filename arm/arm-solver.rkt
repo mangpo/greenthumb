@@ -11,14 +11,10 @@
     (inherit-field printer machine simulator)
     (inherit sym-op sym-arg encode-sym)
     (override get-sym-vars evaluate-state
-              encode-sym-inst evaluate-inst
-              assume assert-output 
-              len-limit window-size)
+              encode-sym-inst 
+              assume assert-output)
 
     (set! simulator (new arm-simulator-rosette% [machine machine]))
-
-    (define (len-limit) 1)
-    (define (window-size) 2)
 
     (define (get-sym-vars state)
       (define lst (list))
