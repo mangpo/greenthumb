@@ -82,7 +82,9 @@
 (define arm-machine%
   (class machine%
     (super-new)
-    (inherit-field bit random-input-bit inst-id classes classes-len perline nop-id)
+    (inherit-field bit random-input-bit inst-id inst-pool
+		   classes classes-len classes-filtered
+		   perline nop-id)
     (inherit print-line get-class-id filter-live update-live)
     (override set-config get-config set-config-string
               adjust-config finalize-config config-exceed-limit?
@@ -91,7 +93,7 @@
               display-state-text parse-state-text
               progstate->vector vector->progstate
 	      get-arg-ranges add-constants get-operand-live
-	      window-size clean-code)
+	      window-size clean-code analyze-code)
     (public get-shfarg-range)
 
     (set! bit 32)
@@ -359,4 +361,64 @@
       (define shfop-name (vector-ref shf-inst-id shfop-id))
       (if (member shfop-name '(asr lsr lsl)) (filter-live reg-range live-in) shf-range))
 
+    (define (code-has code inst-list)
+      (for/or ([i code])
+              (let ([opcode-name (vector-ref inst-id (inst-op i))])
+                (member opcode-name inst-list))))
+
+    (define (analyze-code prefix code postfix)
+      (set! code (vector-append prefix code postfix))
+      (define inst-choice '(nop))
+      (when (code-has code '(add sub rsb 
+				 add# sub# rsb#
+				 and orr eor bic orn
+				 and# orr# eor# bic# orn#
+				 mov mvn
+				 mov# mvn# movw# movt#
+				 rev rev16 revsh rbit
+				 asr lsl lsr
+				 asr# lsl# lsr#
+				 uxtah uxth uxtb
+				 bfc bfi
+				 sbfx ubfx
+				 clz))
+            (set! inst-choice '(add sub rsb 
+				    add# 
+				    sub# rsb#
+				    and orr eor bic orn
+				    and# orr# eor# bic# orn#
+				    mov mvn
+				    mov# mvn# movw# movt#
+				    rev rev16 revsh rbit
+				    asr lsl lsr
+				    asr# lsl# lsr#
+				    uxtah uxth uxtb
+				    bfc bfi
+				    sbfx ubfx
+				    clz
+				    )))
+      (when (code-has code '(mul mla mls
+                                 smull umull
+                                 smmul smmla smmls))
+            (set! inst-choice (append inst-choice '(mul mla mls
+                                                        smull umull
+                                                        smmul smmla smmls))))
+      (when (code-has code '(sdiv udiv))
+            (set! inst-choice (append inst-choice '(sdiv udiv))))
+      (when (code-has code '(ldr#))
+            (set! inst-choice (append inst-choice '(ldr#))))
+      (when (code-has code '(str#))
+            (set! inst-choice (append inst-choice '(str#))))
+      (when (code-has code '(tst cmp tst# cmp#))
+            (set! inst-choice (append inst-choice '(tst cmp tst# cmp#))))
+      (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
+      (set! classes-filtered 
+            (for/vector ([c classes])
+                        (map (lambda (x) (vector-member x inst-id))
+                             (filter (lambda (x) (member x inst-choice)) c))))
+      (when debug
+	    (pretty-display `(inst-choice ,inst-choice))
+	    (pretty-display `(classes-filtered ,classes-filtered)))
+      )
+                          
     ))

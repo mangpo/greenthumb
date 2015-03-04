@@ -51,6 +51,7 @@
                            #:input-file [input-file #f]
                            #:start-prog [start #f])
       (send machine add-constants (send printer get-constants spec))
+      (send machine analyze-code (vector) spec (vector))
       (set! live-in (send machine get-operand-live this-live-in))
       (pretty-display (format "Base-cost: ~a" base-cost))
       ;; Generate testcases
@@ -120,7 +121,7 @@
       (define opcode-id (inst-op entry))
       (define opcode-name (vector-ref inst-id opcode-id))
       (define class-id (send machine get-class-id opcode-name))
-      (define class (and class-id (vector-ref classes class-id)))
+      (define class (and class-id (vector-ref (get-field classes-filtered machine) class-id)))
       (when debug
             (pretty-display (format " >> mutate opcode"))
             (pretty-display (format " --> org = ~a ~a" opcode-name opcode-id))
@@ -181,7 +182,7 @@
             (begin (send stat inc-propose `nop) 
                    nop-id)
             (begin (send stat inc-propose `inst) 
-                   (random-from-list-ex (range (vector-length inst-id)) opcode-id))))
+		   (random-from-list (get-field inst-pool machine)))))
       (when debug
             (pretty-display (format " >> mutate instruction ~a" (vector-ref inst-id new-opcode-id))))
       (define my-live-in live-in)
@@ -191,7 +192,7 @@
       (vector-set! new-p index new-entry)
       new-p)
     
-    (define (random-instruction live-in [opcode-id (random (vector-length inst-id))])
+    (define (random-instruction live-in [opcode-id (random-from-list (get-field inst-pool machine))])
       (define opcode-name (vector-ref inst-id opcode-id))
       (define args (random-args-from-op opcode-name live-in))
       (inst opcode-id args))

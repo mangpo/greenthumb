@@ -8,7 +8,8 @@
 (define machine%
   (class object%
     (super-new)
-    (init-field [bit #f] [random-input-bit #f] [inst-id #f] [classes #f] [classes-len #f] 
+    (init-field [bit #f] [random-input-bit #f] [inst-id #f] [inst-pool #f] 
+		[classes #f] [classes-len #f] [classes-filtered #f]
 		[perline 8] [nop-id #f])
     (abstract set-config get-config set-config-string
               get-state display-state
@@ -21,7 +22,8 @@
             get-inst-id get-inst-name
             output-assume-string get-state-liveness
             display-state-text parse-state-text get-states-from-file syntax-equal?
-	    clean-code state-eq? update-live filter-live get-operand-live)
+	    clean-code state-eq? update-live filter-live get-operand-live
+	    analyze-code)
 
     (define (get-inst-id opcode)
       (vector-member opcode inst-id))
@@ -121,4 +123,7 @@
 
     (define (get-operand-live constraint) #f)
     
+    (define (analyze-code prefix code postfix)
+      (set! inst-pool (vector->list inst-id))
+      (set! classes-filtered classes))
     ))

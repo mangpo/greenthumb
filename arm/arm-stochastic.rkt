@@ -127,7 +127,7 @@
 	new-p]
        [else (mutate p)]))
 
-    (define (random-instruction live-in [opcode-id (random (vector-length inst-id))])
+    (define (random-instruction live-in [opcode-from-list (get-field inst-pool machine)])
       
       ;; (define opcode-name (vector-ref inst-id opcode-id))
       ;; (define args (random-args-from-op opcode-name live-in))
