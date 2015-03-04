@@ -149,12 +149,14 @@
       
       ;; Random in const list
       (define input-random-const
-        (for/list ([i (- n m 1)])
+        ;; (for/list ([i (- n m 1)])
+        (for/list ([i (- n m)])
                   (generate-one-input 
                    (lambda () 
                      (vector-ref const-range (random const-range-len))))))
       
-      (define inputs (append input-zero input-random input-random-const))
+      ;;(define inputs (append input-zero input-random input-random-const))
+      (define inputs (append input-random input-random-const))
       ;; (when debug
       ;;       (pretty-display "Test simulate with symbolic inputs...")
       ;;       (assume-relax start-state assumption)
