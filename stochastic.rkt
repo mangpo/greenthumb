@@ -128,7 +128,6 @@
             (pretty-display (format " --> class = ~a" class)))
       (cond
        [class
-        (set! class (remove* (list #f) (map (lambda (x) (send machine get-inst-id x)) class)))
         (define new-opcode-id (random-from-list-ex class opcode-id))
         (define new-p (vector-copy p))
         (when debug
