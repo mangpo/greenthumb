@@ -2,7 +2,7 @@
 
 (require "arm-validator.rkt" "arm-machine.rkt" "arm-printer.rkt"
          "arm-parser.rkt" "arm-ast.rkt" "arm-simulator-rosette.rkt" 
-         "arm-enumerate.rkt" "arm-symbolic.rkt" "arm-stochastic.rkt")
+         "arm-enumerative.rkt" "arm-symbolic.rkt" "arm-stochastic.rkt")
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
@@ -10,7 +10,7 @@
 (define printer (new arm-printer% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 (define validator (new arm-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
-(define enum (new arm-enumerate% [machine machine] [printer printer] [parser parser]))
+(define enum (new arm-enumerative% [machine machine] [printer printer] [parser parser]))
 (define symbolic (new arm-symbolic% [machine machine] [printer printer] [parser parser]))
 (define stoch (new arm-stochastic% [machine machine] [printer printer] [parser parser] [syn-mode #t]))
 
@@ -24,7 +24,6 @@
 
 (define code
 (send parser ast-from-string "
-orr r1, r0, r0, lsl 1
 sub r1, r0, r1
 and r0, r0, r1
 "))
