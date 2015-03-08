@@ -14,13 +14,16 @@
                 [simulator #f] 
                 [bit (get-field bit machine)]
                 [random-input-bit (get-field random-input-bit machine)])
-    (abstract get-sym-vars evaluate-state
-              assume assert-state-eq)
+    ;; (abstract get-sym-vars evaluate-state
+    ;;           assume assert-state-eq)
     (public proper-machine-config generate-input-states generate-inputs-inner
             counterexample
             sym-op sym-arg sym-insts ;; do really need sym-insts
             evaluate-inst encode-sym-inst encode-sym
-            assume-relax get-live-in)
+            assume-relax get-live-in
+            get-sym-vars evaluate-state
+            assume assert-state-eq
+            )
     
     ;; (if syn-mode
     ;;     (current-solver (new kodkod%))
@@ -62,6 +65,11 @@
 
     (define (assume-relax state assumption)
       (assume state assumption))
+
+    ;; Default: no assumption
+    (define (assume state assumption)
+      (when assumption
+            (raise "No support for assumption")))
 
     (define (evaluate-inst x model)
       (inst (evaluate (inst-op x) model)
@@ -331,5 +339,58 @@
 
       (send machine vector->progstate (extract-live vec-live-out vec-input)))
       
+  
+    (define (assert-state-eq state1 state2 pred)
+      (define (inner state1 state2 pred)
+	(cond
+	 [(equal? pred #t)
+	  (assert (equal? state1 state2))]
+	 [(equal? pred #f)
+	  (void)]
+	 [(number? pred)
+	  (for/and ([i pred]
+		    [s1 state1]
+		    [s2 state2])
+		   (assert (equal? s1 s2)))]
+	 [else
+	  (for/and ([i pred]
+		    [s1 state1]
+		    [s2 state2])
+		   (inner s1 s2 i))])
+	)
+      (inner (send machine progstate->vector state1)
+	     (send machine progstate->vector state2)
+	     (send machine progstate->vector pred))
+      )
+
+    (define (evaluate-state state sol)
+      (define-syntax-rule (eval x model)
+        (let ([ans (evaluate x model)])
+          (if (term? ans) 0 ans)))
+
+      (define (inner x)
+	(cond
+	 [(vector? x) (for/vector ([i x]) (inner i))]
+	 [(list? x) (for/vector ([i x]) (inner i))]
+	 [(pair? x) (cons (inner (car x)) (inner (cdr x)))]
+	 [else (eval x sol)]))
+      (send machine vector->progstate
+	    (inner (send machine progstate->vector state))))
+
+    (define (get-sym-vars state)
+      (define lst (list))
+      (define (add x)
+        (when (term? x)
+              (set! lst (cons x lst))))
+
+      (define (inner x)
+	(cond
+	 [(or (list? x) (vector? x))
+	  (for ([i x]) (inner i))]
+	 [(pair? x)
+	  (inner (car x)) (inner (cdr x))]
+	 [else (add x)]))
+      (inner (send machine progstate->vector state))
+      lst)
     
     ))

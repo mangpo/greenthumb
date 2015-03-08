@@ -39,7 +39,7 @@ and r0, r0, r1
 (define encoded-sketch (send validator encode-sym sketch))
 
 (define t (current-seconds))
-(send enum synthesize-window
+(send symbolic synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
       encoded-prefix encoded-postfix
