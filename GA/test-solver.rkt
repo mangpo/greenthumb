@@ -1,21 +1,21 @@
 #lang s-exp rosette
 
-(require "GA-solver.rkt" "GA-machine.rkt" "GA-printer.rkt"
+(require "GA-validator.rkt" "GA-machine.rkt" "GA-printer.rkt" "GA-simulator-rosette.rkt" 
          "GA-parser.rkt")
 
 (define parser (new GA-parser%))
 (define machine (new GA-machine%))
 (send machine set-config 4)
 (define printer (new GA-printer% [machine machine]))
-(define solver (new GA-solver% [machine machine] [printer printer] 
-                    [parser parser] [syn-mode `binary]))
+(define simulator-rosette (new GA-simulator-rosette% [machine machine]))
+(define validator (new GA-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
 
 (define code
 (send parser ast-from-string 
-      "2 b! dup a! !b @+ @ - over + -"))
+      "0 a! !+ !+ push pop dup 1 b! @b and over 0 b! @b and or 1 b! @b 0 b! @b and or push drop pop"))
 
 (define sketch (send parser ast-from-string 
-      "? ? ? ? ? ?"))
+      "over over and push or and pop or "))
 ;2/ dup a! over dup over dup drop a 2/ 325 a! @+ + 65535 and
 ;size = 16, 
 ;opt = 10
@@ -25,12 +25,15 @@
 ; 10 ? => > 2s, 
 
 (define encoded-code (send printer encode code))
-(define encoded-sketch (send solver encode-sym sketch))
+(define encoded-sketch (send validator encode-sym sketch))
 
-#|
-(send solver counterexample encoded-code encoded-sketch 
-      (constraint r s t)
-      1)|#
+(define ce
+  (send validator counterexample encoded-code encoded-sketch 
+        (constraint r s t)
+        0))
+(send machine display-state ce)
+(send machine display-state (send simulator-rosette interpret encoded-code ce #:dep #f))
+(send machine display-state (send simulator-rosette interpret encoded-sketch ce #:dep #f))
 
 #|
 (define t (current-seconds))
@@ -40,7 +43,3 @@
  (send solver synthesize-from-sketch encoded-code encoded-sketch
        (constraint s t r) 1))
 (pretty-display `(time ,(- (current-seconds) t)))|#
-
-(define x
-(send solver superoptimize encoded-code 
-      (constraint s t) "./foo" 3600 #f 1))

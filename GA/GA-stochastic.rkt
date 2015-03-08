@@ -3,7 +3,7 @@
 (require "../stochastic.rkt"
          "../ast.rkt"
          "../machine.rkt" "GA-machine.rkt" 
-         "GA-simulator-racket.rkt" "GA-solver.rkt")
+         "GA-simulator-racket.rkt" "GA-validator.rkt")
 
 (provide GA-stochastic%)
 
@@ -12,17 +12,20 @@
 (define GA-stochastic%
   (class stochastic%
     (super-new)
-    (inherit-field machine printer solver simulator stat mutate-dist nop-mass)
+    (inherit-field machine printer simulator validator 
+		   stat mutate-dist nop-mass)
     (inherit adjust)
     (init-field [forward #t])
-    (override get-mutations mutate-operand mutate-other
-              correctness-cost get-arg-ranges random-instruction add-constants)
+    (override correctness-cost 
+	      get-mutations mutate-operand mutate-other
+              random-instruction)
 
     (set! mutate-dist 
       #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1) (rotate . 1)))
     (set! nop-mass 0.4)
-    (set! solver (new GA-solver% [machine machine] [printer printer]))
+
     (set! simulator (new GA-simulator-racket% [machine machine]))
+    (set! validator (new GA-validator% [machine machine] [printer printer]))
 
     (define bit (get-field bit machine))
     (define inst-id (get-field inst-id machine))
@@ -33,16 +36,6 @@
 	  '(operand swap instruction rotate)
 	  '(opcode swap instruction rotate)))
 
-    (define const-range 
-      (list->vector (append (range -16 17) (list (sub1 bit)))))
-      ;; (list->vector
-      ;;  (append (range -16 17) (list (sub1 bit) UP DOWN LEFT RIGHT IO 32639 65535 65536 #x3f #x15555 #x33333))))
-
-    
-    (define (add-constants c)
-      (set! const-range 
-            (list->vector 
-             (set->list (set-union (list->set (vector->list const-range)) c)))))
 
     (define (mutate-other index entry p type)
       (cond
@@ -66,16 +59,14 @@
       (define opcode-id (inst-op entry))
       (define arg (inst-args entry))
       (define new-p (vector-copy p))
-      (vector-set! new-p index (inst opcode-id (random-from-vec-ex const-range arg)))
+      (vector-set! new-p index 
+		   (inst opcode-id (random-from-vec-ex (get-field const-range machine) arg)))
       new-p)
     
     (define (random-instruction live-in [opcode-id (random (vector-length inst-id))])
       (define opcode-name (vector-ref inst-id opcode-id))
-      (define arg (and (equal? opcode-name `@p) (random-from-vec const-range)))
+      (define arg (and (equal? opcode-name `@p) (random-from-vec (get-field const-range machine))))
       (inst opcode-id arg))
-    
-    (define (get-arg-ranges opcode-name entry live-in)
-      (raise "GA: get-arg-ranges should not be called."))
 
     ;; state1: reference
     ;; state2: check

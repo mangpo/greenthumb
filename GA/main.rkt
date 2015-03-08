@@ -3,7 +3,7 @@
 (require "../parallel.rkt" "../fitness-learner.rkt" "../ast.rkt"
          "GA-parser.rkt" "GA-meta.rkt" "GA-machine.rkt" 
          "GA-printer.rkt" "../compress.rkt" 
-         "GA-solver.rkt" "GA-stochastic.rkt"
+         "GA-validator.rkt" "GA-stochastic.rkt"
          "GA-simulator-racket.rkt")
 
 (provide optimize)
@@ -14,7 +14,7 @@
 (send machine set-config 4)
 (define printer (new GA-printer% [machine machine]))
 (define compress (new compress% [machine machine]))
-(define solver (new GA-solver% [machine machine] [printer printer]))
+(define validator (new GA-validator% [machine machine] [printer printer]))
 (define backward-stochastic (new GA-stochastic% [machine machine] [printer printer] [syn-mode #t] [forward #f]))
 
 (define simulator (new GA-simulator-racket% [machine machine]))
@@ -31,7 +31,7 @@
                   #:start-prog [start-prog #f])
 
   (define parallel (new parallel% [meta meta] [parser parser] [machine machine] 
-                        [printer printer] [compress compress] [solver solver]
+                        [printer printer] [compress compress] [validator validator]
                         [search-type search-type] [mode mode] [base-cost base-cost]
                         [window window]))
   (send parallel optimize code live-out #f
@@ -44,7 +44,7 @@
 
 (define (GA-generate-inputs code extra-info dir #:assume [assume #f])
   (generate-inputs (send printer encode code) extra-info dir 
-                   machine printer solver #:assume (constrain-stack machine assume)))
+                   machine printer validator #:assume (constrain-stack machine assume)))
 
 (define (GA-generate-outputs-steps code dir subdir)
   (generate-outputs-steps (send printer encode code) dir subdir

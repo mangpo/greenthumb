@@ -1,25 +1,24 @@
 #lang s-exp rosette
 
-(require "GA-parser.rkt" "GA-printer.rkt" "GA-machine.rkt" 
-         "GA-simulator-racket.rkt" "GA-solver.rkt" "GA-stochastic.rkt")
+(require "GA-parser.rkt" "GA-printer.rkt" "GA-machine.rkt" "GA-validator.rkt"
+         "GA-simulator-rosette.rkt")
 
 (define parser (new GA-parser%))
 (define machine (new GA-machine%))
 (send machine set-config 4)
 (define printer (new GA-printer% [machine machine]))
-(define simulator (new GA-simulator-racket% [machine machine]))
-(define solver (new GA-solver% [machine machine] [printer printer]))
-(define stochastic (new GA-stochastic% [machine machine] [printer printer] [syn-mode #t]))
+(define simulator-rosette (new GA-simulator-rosette% [machine machine]))
+(define validator (new GA-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
 
 (define code (send parser ast-from-string 
-                   "push over - push and pop pop and over 65535 or and or"))
+                   "2 b! dup a! !b @+ @ - over + -"))
 (define sketch (send parser ast-from-string 
-                     "1 2 3 4 5"))
+                     "? ? ? ? ? ?"))
 (define encoded-code (send printer encode code))
-(define encoded-sketch (send printer encode sketch))
+(define encoded-sketch (send validator encode-sym sketch))
 (send printer print-struct encoded-code)
 
-(send printer get-constants encoded-sketch)
+(send printer get-constants encoded-code)
 
 #|
 (define input
@@ -34,10 +33,11 @@
   (send solver get-live-in encoded-code (constraint (data 0) s t memory) 0))
 |#
 
-;; (define (sym-input)
-;;   (define-symbolic* input number?)
-;;   input)
-;; (define state (default-state machine 1 (lambda () (random 100))))
+(define (sym-input)
+  (define-symbolic* input number?)
+   input)
+(define state (default-state machine 1 sym-input))
+(send machine display-state (send simulator-rosette interpret encoded-sketch state #:dep #f))
 ;; (send machine display-state state)
 #|
 (define inputs 

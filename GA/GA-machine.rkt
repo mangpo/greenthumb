@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../machine.rkt" "../ops-racket.rkt")
+(require "../ast.rkt" "../machine.rkt" "../ops-racket.rkt")
 
 (provide GA-machine% (all-defined-out))
 
@@ -122,7 +122,7 @@
 (define GA-machine%
   (class machine%
     (super-new)
-    (inherit-field bit nop-id random-input-bit inst-id classes classes-len perline)
+    (inherit-field bit random-input-bit inst-id nop-id classes classes-len perline)
     (inherit print-line)
     (override set-config get-config set-config-string
               adjust-config finalize-config config-exceed-limit?
@@ -131,14 +131,16 @@
 	      no-assumption
               display-state-text parse-state-text
               progstate->vector vector->progstate
+	      get-arg-ranges add-constants
 	      window-size)
+    (init-field [const-range (vector 0 1)])
 
     (set! bit 18)
     (set! random-input-bit 16)
-    (set! nop-id 0)
     (set! inst-id '#(nop @p @+ @b @ !+ !b ! +* 2* 
 			 2/ - + and or drop dup pop over a 
 			 push b! a!))
+    (set! nop-id 0)
 
     ;; Instruction classes
     (set! classes 
@@ -188,6 +190,11 @@
       (struct-copy progstate constraint-none [a a] [b b] [memory memory]
 		   [t (>= data 1)] [s (>= data 2)] [data (and (> (- data 2) 0) (- data 2))]
 		   [r (>= return 1)] [return (and (> (- return 1) 0) (- return 1))]))
+
+
+    (define (add-constants l)
+      (set! const-range 
+	    (list->vector (set->list (set-union (list->set (vector->list const-range)) l)))))
 
     (define (get-state init recv-n) ;; TODO: track all get-state
       (default-state this recv-n init))
@@ -329,4 +336,9 @@
 
     (define (no-assumption)
       (default-state this))
+
+    (define (get-arg-ranges opcode-name entry live-in)
+      (raise "GA: get-arg-ranges should not be called."))
+		    
+
     ))

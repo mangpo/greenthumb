@@ -1,35 +1,71 @@
 #lang s-exp rosette
 
-(require "../solver.rkt"
-         "../ast.rkt"
-         "../machine.rkt" "GA-machine.rkt" "GA-simulator-rosette.rkt")
-(provide GA-solver%)
+(require "../validator.rkt"
+	 "../ast.rkt" "../machine.rkt" "GA-machine.rkt" "GA-simulator-rosette.rkt")
 
-(define GA-solver%
-  (class solver%
+(provide GA-validator%)
+
+(define GA-validator%
+  (class validator%
     (super-new)
-    (inherit-field printer machine simulator)
+    (inherit-field machine printer simulator)
     (inherit sym-op sym-arg)
-    (override get-sym-vars evaluate-state
-              assume assume-relax assert-output len-limit window-size)
-
+    (override assume get-sym-vars evaluate-state assert-state-eq)
     (set! simulator (new GA-simulator-rosette% [machine machine]))
 
-    (define (len-limit) 8)
-    (define (window-size) 14)
+    ;; Assert assumption about start-state
+    (define (assume state constraint)
+      (define (check item assumption)
+	(when (pair? assumption)
+	      (cond
+	       [(member (car assumption) (list "=" '=))
+		(if (list? (cdr assumption))
+		    (assert (member item (cdr assumption)))
+		    (assert (equal? item (cdr assumption))))]
+	       [(member (car assumption) (list "<=" '<=))
+		(assert (and (<= item (cdr assumption)) (>= item 0)))])
+	      ))
 
+      (define (check-reg progstate-x)
+	(check (progstate-x state) (progstate-x constraint)))
+      
+      (define (check-stack progstate-x)
+	(when (progstate-x constraint)
+	      (for ([i (in-range 8)])
+		   (check (get-stack (progstate-x state) i)
+			  (get-stack (progstate-x constraint) i)))))
+      
+      (define (check-mem)
+	(define mem-state (progstate-memory state))
+	(define mem-constraint (progstate-memory constraint))
+	(when (= (vector-length mem-constraint)
+		 (vector-length mem-state))
+	      (for ([i (in-range 0 (vector-length mem-state))])
+		   (check (vector-ref mem-state i) (vector-ref mem-constraint i)))))
+
+      (when constraint
+            (check-reg progstate-a)
+            (check-reg progstate-b)
+            (check-reg progstate-r)
+            (check-reg progstate-s)
+            (check-reg progstate-t)
+            (check-stack progstate-data)
+            (check-stack progstate-return)
+            (check-mem)))
+
+    
     (define (get-sym-vars state)
       (define lst (list))
       (define (add x)
-	(when (term? x)
-	      (set! lst (cons x lst))))
+    	(when (term? x)
+    	      (set! lst (cons x lst))))
 
       (define (add-var progstate-x)
-	(add (progstate-x state)))
+    	(add (progstate-x state)))
 
       (define (add-vector body)
-	(for ([i (in-range (vector-length body))])
-	     (add (vector-ref body i))))
+    	(for ([i (in-range (vector-length body))])
+    	     (add (vector-ref body i))))
 
       (add-var progstate-a)
       (add-var progstate-b)
@@ -42,7 +78,7 @@
       (add-vector (stack-body (progstate-return state)))
       (add-vector (progstate-memory state))
       (for ([x (progstate-recv state)])
-	   (add x))
+    	   (add x))
 
       lst)
 
@@ -57,16 +93,17 @@
       (define s (eval (progstate-s state)))
       (define t (eval (progstate-t state)))
       (define data (stack (eval (stack-sp (progstate-data state)))
-			  (vector-map eval (stack-body (progstate-data state)))))
+    			  (vector-map eval (stack-body (progstate-data state)))))
       (define return (stack (eval (stack-sp (progstate-return state)))
-			    (vector-map eval (stack-body (progstate-return state)))))
+    			    (vector-map eval (stack-body (progstate-return state)))))
       (define memory (vector-map eval (progstate-memory state)))
       
       (define recv (map eval (progstate-recv state)))
       (define comm (map (lambda (xy) (cons (eval (car xy)) (eval (cdr xy)))) (progstate-comm state)))
       (progstate a b r s t data return memory recv comm))
 
-    (define (assert-output state1 state2 constraint)
+    
+    (define (assert-state-eq state1 state2 constraint)
       (define (check-reg progstate-x)
 	(when (progstate-x constraint)
 	      ;;(pretty-display `(check-reg ,(equal? (progstate-x state1) (progstate-x state2))))
@@ -122,88 +159,4 @@
       (check-comm)
       )
 
-    (define (assume-relax state constraint)
-      (define (check item assumption)
-	(when (pair? assumption)
-	      (cond
-	       [(member (car assumption) (list "=" '=))
-		(if (list? (cdr assumption))
-		    (assert (member item (cdr assumption)))
-		    (assert (equal? item (cdr assumption))))]
-               ;; different from normal assume here
-	       [(and (member (car assumption) (list "<=" '<=))
-                     (< (cdr assumption) #xffff))
-		(assert (and (<= item (cdr assumption)) (>= item 0)))])
-	      ))
-
-      (define (check-reg progstate-x)
-	(check (progstate-x state) (progstate-x constraint)))
-      
-      (define (check-stack progstate-x)
-	(when (progstate-x constraint)
-	      (for ([i (in-range 8)])
-		   (check (get-stack (progstate-x state) i)
-			  (get-stack (progstate-x constraint) i)))))
-      
-      (define (check-mem)
-	(define mem-state (progstate-memory state))
-	(define mem-constraint (progstate-memory constraint))
-	(when (= (vector-length mem-constraint)
-		 (vector-length mem-state))
-	      (for ([i (in-range 0 (vector-length mem-state))])
-		   (check (vector-ref mem-state i) (vector-ref mem-constraint i)))))
-
-      (when constraint
-            (check-reg progstate-a)
-            (check-reg progstate-b)
-            (check-reg progstate-r)
-            (check-reg progstate-s)
-            (check-reg progstate-t)
-            (check-stack progstate-data)
-            (check-stack progstate-return)
-            (check-mem))
-      )
-    
-
-    ;; Assert assumption about start-state
-    (define (assume state constraint)
-      (define (check item assumption)
-	(when (pair? assumption)
-	      (cond
-	       [(member (car assumption) (list "=" '=))
-		(if (list? (cdr assumption))
-		    (assert (member item (cdr assumption)))
-		    (assert (equal? item (cdr assumption))))]
-	       [(member (car assumption) (list "<=" '<=))
-		(assert (and (<= item (cdr assumption)) (>= item 0)))])
-	      ))
-
-      (define (check-reg progstate-x)
-	(check (progstate-x state) (progstate-x constraint)))
-      
-      (define (check-stack progstate-x)
-	(when (progstate-x constraint)
-	      (for ([i (in-range 8)])
-		   (check (get-stack (progstate-x state) i)
-			  (get-stack (progstate-x constraint) i)))))
-      
-      (define (check-mem)
-	(define mem-state (progstate-memory state))
-	(define mem-constraint (progstate-memory constraint))
-	(when (= (vector-length mem-constraint)
-		 (vector-length mem-state))
-	      (for ([i (in-range 0 (vector-length mem-state))])
-		   (check (vector-ref mem-state i) (vector-ref mem-constraint i)))))
-
-      (when constraint
-            (check-reg progstate-a)
-            (check-reg progstate-b)
-            (check-reg progstate-r)
-            (check-reg progstate-s)
-            (check-reg progstate-t)
-            (check-stack progstate-data)
-            (check-stack progstate-return)
-            (check-mem))
-      )
-      
     ))
