@@ -3,102 +3,40 @@
 (require "../stochastic.rkt"
          "../ast.rkt" "neon-ast.rkt"
          "../machine.rkt" "neon-machine.rkt" 
-         "neon-simulator-racket.rkt" "neon-solver.rkt")
+         "neon-simulator-racket.rkt" "neon-validator.rkt")
 
 (provide neon-stochastic%)
 
 (define neon-stochastic%
   (class stochastic%
     (super-new)
-    (inherit-field machine printer solver simulator stat mutate-dist)
+    (inherit-field machine printer validator simulator stat mutate-dist)
     (override correctness-cost 
-              get-arg-ranges 
               inst-copy-with-op inst-copy-with-args
               random-instruction
-              get-mutations mutate-operand-specific mutate-other
-              add-constants)
+              get-mutations mutate-operand-specific mutate-other)
 
     (set! mutate-dist 
       #hash((opcode . 2) (operand . 2) (swap . 2) (instruction . 2) (byte . 1) (type . 1)))
-    (set! solver (new neon-solver% [machine machine] [printer printer]))
+    (set! validator (new neon-validator% [machine machine] [printer printer]))
     (set! simulator (new neon-simulator-racket% [machine machine]))
 
     (define inst-id (get-field inst-id machine))
     (define nregs-d (send machine get-nregs-d))
     (define nregs-r (send machine get-nregs-r))
     (define nmems (send machine get-nmems))
-    
-    (define dreg-range (list->vector (range nregs-d)))
-    (define qreg-range (list->vector (range 32 (+ 32 (quotient nregs-d 2)))))
-    (define rreg-range (list->vector (range nregs-r)))
-    (define const-range 
-          (list->vector
-           (append (range -16 17) (list 31 65)
-                   ;; 24 #xffff #x3fff 490 655 -500)
-                   (for/list ([i (range 5 31)]) 
-                             (arithmetic-shift 1 i))
-                   (list (- (arithmetic-shift 1 31))))))
-    (define index-range (list->vector (range 1 8)))
+
+    (define-syntax-rule (get-arg-ranges opcode-name entry)
+      (send machine get-arg-ranges opcode-name entry #f))
     
     (define (inst-copy-with-op x op) (struct-copy neon-inst x [op #:parent inst op]))
     (define (inst-copy-with-args x args) (struct-copy neon-inst x [args #:parent inst args]))
-
-    (define (add-constants c)
-      (set! const-range (list->vector (set->list (set-union (list->set (vector->list const-range)) c)))))
-    
-    ;; TODO: better way to define this
-    (define (get-arg-ranges opcode-name entry)
-      (define args (inst-args entry))
-      (cond
-       [(member opcode-name '(nop))
-        (vector)]
-
-       [(member opcode-name '(vld1 vld1! vld2 vld2! vst1 vst1! vst2 vst2!)) 
-        (vector #f rreg-range)]
-
-       [(member opcode-name '(vmov# vand# vorr#)) ;; TODO: different const-range for mvni
-        (if (< (vector-ref args 0) nregs-d)
-            (vector dreg-range const-range)
-            (vector qreg-range const-range))]
-
-       [(member opcode-name '(vmov vtrn vzip vuzp vswp))
-        (if (< (vector-ref args 0) nregs-d)
-            (vector dreg-range dreg-range)
-            (vector qreg-range qreg-range))]
-
-       [(member opcode-name '(vmla vand vorr vbsl vadd vsub vhadd vhsub))
-        (if (< (vector-ref args 0) nregs-d)
-            (vector dreg-range dreg-range dreg-range)
-            (vector qreg-range qreg-range qreg-range))]
-       
-       [(member opcode-name '(vmla@ vext#))
-        (define byte (inst-byte entry))
-        (define index-range (list->vector (range (quotient 8 byte))))
-        (if (< (vector-ref args 0) nregs-d)
-            (vector dreg-range dreg-range dreg-range index-range)
-            (vector qreg-range qreg-range qreg-range index-range))]
-       
-       [(member opcode-name '(vmlal))
-        (vector qreg-range dreg-range dreg-range)]
-       
-       [(member opcode-name '(vmlal@))
-        (define byte (inst-byte entry))
-        (define index-range (list->vector (range (quotient 8 byte))))
-        (vector qreg-range dreg-range dreg-range index-range)]
-
-       [(member opcode-name '(vshr#))
-        (if (< (vector-ref args 0) nregs-d)
-            (vector dreg-range dreg-range const-range)
-            (vector qreg-range qreg-range const-range))]
-
-       ))
-
     (define (random-type-from-op opcode-name)
       (cond
        [(member opcode-name '(vmla vmla@ vmlal vmlal@ vhadd vhsub vshr#)) (random 2)]
        [else #f]))
 
-    (define (random-instruction [opcode-id (random (vector-length inst-id))])
+    (define (random-instruction live-in [opcode-id (random-from-list (get-field inst-pool machine))])
       ;;(pretty-display `(random-instruction ,opcode-id ,(send machine get-inst-name opcode-id)))
       (define opcode-name (vector-ref inst-id opcode-id))
       ;;(define byte (arithmetic-shift 1 (random 4)))
@@ -167,7 +105,7 @@
                       (random-from-vec (vector-ref ranges i))))
         (neon-inst opcode-id args byte type-id)]))
 
-    (define (mutate-operand-specific opcode-name args index)
+    (define (mutate-operand-specific opcode-name args index live-in)
       (when debug `(mutate-operand-specific ,opcode-name ,args ,index))
 
       (cond

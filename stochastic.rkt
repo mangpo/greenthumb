@@ -98,9 +98,12 @@
 		 assumption time-limit extra-info))
           
     (define (random-insts n)
+      (when debug 
+            (pretty-display (format "Create ~a random instructions" n)))
       (define my-live-in live-in)
       (for/vector ([i n]) 
         (let ([x (random-instruction my-live-in)])
+          (when debug (pretty-display (format "inst #~a: ~a" i (inst-op x))))
           (set! my-live-in (send machine update-live my-live-in x)) ;; TODO
           x)))
 
@@ -146,13 +149,15 @@
       (for ([i index])
            (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
       (define ranges (send machine get-arg-ranges opcode-name entry my-live-in))
+      (pretty-display `(ranges ,ranges))
       (cond
        [(> (vector-length ranges) 0)
         (define args (vector-copy (inst-args entry)))
         (define okay-indexes (list))
         (for ([range ranges]
               [i (vector-length ranges)])
-             (when (> (vector-length range) 1) (set! okay-indexes (cons i okay-indexes))))
+             (when (or (equal? range #f) (> (vector-length range) 1))
+                   (set! okay-indexes (cons i okay-indexes))))
         (define change (random-from-list okay-indexes))
         (define valid-vals (vector-ref ranges change))
         (define new-val 
@@ -192,6 +197,7 @@
       new-p)
     
     (define (random-instruction live-in [opcode-id (random-from-list (get-field inst-pool machine))])
+      (pretty-display `(random-instruction ,opcode-id))
       (define opcode-name (vector-ref inst-id opcode-id))
       (define args (random-args-from-op opcode-name live-in))
       (inst opcode-id args))
@@ -259,8 +265,8 @@
       (pretty-display ">>> Phase 3: stochastic search")
       (pretty-display "start-program:")
       (send printer print-struct init)
-      (pretty-display "constraint:")
-      (send machine display-state constraint)
+      ;; (pretty-display "constraint:")
+      ;; (send machine display-state constraint)
       (define syn-mode #t)
 
       (define (reduce-one p vec-len)

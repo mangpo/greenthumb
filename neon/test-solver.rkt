@@ -1,6 +1,6 @@
 #lang s-exp rosette
 
-(require "neon-solver.rkt" "neon-machine.rkt" "neon-printer.rkt"
+(require "neon-symbolic.rkt" "neon-validator.rkt" "neon-machine.rkt" "neon-printer.rkt"
          "neon-parser.rkt" "neon-ast.rkt")
 
 (define (sym-len)
@@ -31,7 +31,8 @@
 (define parser (new neon-parser%))
 (define machine (new neon-machine%))
 (define printer (new neon-printer% [machine machine]))
-(define solver (new neon-solver% [machine machine] [printer printer]))
+(define validator (new neon-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
+(define symbolic (new neon-symbolic% [machine machine] [printer printer] [parser parser]))
 
 (define code
 (send parser ast-from-string "
@@ -54,7 +55,7 @@ vst1.32	{d0,d1}, [r2]
 "))
 
 (define encoded-code (send printer encode code))
-(define encoded-sketch (send solver encode-sym sketch))
+(define encoded-sketch (send validator encode-sym sketch))
 (define encoded-sketch2 
   (vector (neon-inst (send machine get-inst-id `vtrn)
                      (vector (sym-arg) (sym-arg))
@@ -65,8 +66,8 @@ vst1.32	{d0,d1}, [r2]
 (send printer print-struct encoded-sketch2)
 
 (define t (current-seconds))
-;(define x (send solver counterexample encoded-code encoded-sketch 
+;(define x (send validator counterexample encoded-code encoded-sketch 
 ;                (constraint machine [dreg] [rreg 1 2] [mem-all])))
-(send solver synthesize-from-sketch encoded-code encoded-sketch 
+(send symbolic synthesize-from-sketch encoded-code encoded-sketch 
       (constraint machine [dreg] [rreg] [mem-all]) 9)
 (pretty-display `(time ,(- (current-seconds) t)))

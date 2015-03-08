@@ -1,6 +1,6 @@
 #lang s-exp rosette
 
-(require "neon-solver.rkt" "neon-stochastic.rkt" 
+(require "neon-stochastic.rkt" 
          "neon-machine.rkt" "neon-printer.rkt"
          "neon-parser.rkt")
 

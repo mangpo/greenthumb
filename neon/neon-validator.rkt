@@ -1,24 +1,21 @@
 #lang s-exp rosette
 
-(require "../solver.rkt"
-         "../ast.rkt" "neon-ast.rkt" 
+(require "../validator.rkt"
+         "../ast.rkt" "neon-ast.rkt"
          "../machine.rkt" "neon-machine.rkt" "neon-simulator-rosette.rkt")
-(provide neon-solver%)
+(provide neon-validator%)
 
-(define neon-solver%
-  (class solver%
+(define neon-validator%
+  (class validator%
     (super-new)
     (inherit-field printer machine simulator)
-    (inherit sym-op sym-arg)
+    (inherit sym-op sym-arg encode-sym)
     (override get-sym-vars evaluate-state
-              encode-sym-inst evaluate-inst
-              assume assert-output
-              assume-relax len-limit window-size)
+              encode-sym-inst 
+              assume assert-state-eq
+              assume-relax)
 
     (set! simulator (new neon-simulator-rosette% [machine machine]))
-
-    (define (len-limit) 1)
-    (define (window-size) 2)
 
     (define (get-sym-vars state)
       (define lst (list))
@@ -90,14 +87,8 @@
              (sym-byte)
              (sym-type))
             )))
-    
-    (define (evaluate-inst x)
-      (neon-inst (evaluate (inst-op x) model)
-                 (vector-map (lambda (a) (evaluate a model)) (inst-args x))
-                 (evaluate (inst-byte x) model)
-                 (evaluate (inst-type x) model)))
 
-    (define (assert-output state1 state2 constraint)
+    (define (assert-state-eq state1 state2 constraint)
       (when debug (pretty-display "start assert-output"))
       (define dregs (progstate-dregs constraint))
       (define rregs (progstate-rregs constraint))

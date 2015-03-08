@@ -1,14 +1,14 @@
 #lang racket
 
 (require "neon-parser.rkt" "neon-printer.rkt" "neon-machine.rkt" 
-         "neon-simulator-rosette.rkt" "neon-solver.rkt")
+         "neon-simulator-rosette.rkt" "neon-validator.rkt")
 
 (define parser (new neon-parser%))
 (define machine (new neon-machine%))
 (send machine set-config (list 24 4 4))
 (define printer (new neon-printer% [machine machine]))
 (define simulator (new neon-simulator-rosette% [machine machine]))
-(define solver (new neon-solver% [machine machine] [printer printer]))
+(define validator (new neon-validator% [machine machine] [printer printer]))
 
 (define code
 (send parser ast-from-string "
@@ -24,7 +24,7 @@ vst1.32	{d6,d7}, [r2]
   (send parser ast-from-string "?"))
 
 (define encoded-code (send printer encode code))
-(define encoded-code2 (send solver encode-sym code2))
+(define encoded-code2 (send validator encode-sym code2))
 
 (send printer print-struct encoded-code)
 

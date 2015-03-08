@@ -124,6 +124,8 @@
     (define (get-operand-live constraint) #f)
     
     (define (analyze-code prefix code postfix)
-      (set! inst-pool (vector->list inst-id))
-      (set! classes-filtered classes))
+      (set! inst-pool (range (vector-length inst-id)))
+      (set! classes-filtered 
+            (for/vector ([c classes])
+                        (map (lambda (x) (vector-member x inst-id)) c))))
     ))

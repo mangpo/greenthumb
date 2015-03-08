@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../machine.rkt")
+(require "../machine.rkt" "../ast.rkt" "neon-ast.rkt")
 
 (provide neon-machine% (all-defined-out))
 
@@ -71,6 +71,7 @@
               get-state display-state
               output-constraint-string
               progstate->vector vector->progstate
+	      get-arg-ranges add-constants
 	      window-size)
 
     ;; Initize common fields for neon
@@ -108,6 +109,12 @@
     (define nregs-d 10)
     (define nregs-r 4)
     (define nmems 4)
+    
+    (define dreg-range #f)
+    (define qreg-range #f)
+    (define rreg-range #f)
+    (define const-range #f)
+    (define index-range #f)
 
     (define/public (get-nregs-d) nregs-d)
     (define/public (get-nregs-r) nregs-r)
@@ -128,7 +135,16 @@
       (set! nregs-d (first info))
       (set! nregs-r (second info))
       (set! nmems (third info))
+      (set! dreg-range (list->vector (range nregs-d)))
+      (set! qreg-range (list->vector (range 32 (+ 32 (quotient nregs-d 2)))))
+      (set! rreg-range (list->vector (range nregs-r)))
+      (set! const-range (vector 0 1))
+      (set! index-range (list->vector (range 1 8)))
       )
+
+    (define (add-constants c)
+      (set! const-range (list->vector (set->list (set-union (list->set (vector->list const-range)) c)))))
+    
 
     ;; TODO
     ;; info: (list nregs nmem)
@@ -188,5 +204,54 @@
 
     (define/public (get-type-name id)
       (vector-ref type-id id))
+
+    
+    ;; TODO: better way to define this
+    (define (get-arg-ranges opcode-name entry live-in)
+      (define args (inst-args entry))
+      (cond
+       [(member opcode-name '(nop))
+        (vector)]
+
+       [(member opcode-name '(vld1 vld1! vld2 vld2! vst1 vst1! vst2 vst2!)) 
+        (vector #f rreg-range)]
+
+       [(member opcode-name '(vmov# vand# vorr#)) ;; TODO: different const-range for mvni
+        (if (< (vector-ref args 0) nregs-d)
+            (vector dreg-range const-range)
+            (vector qreg-range const-range))]
+
+       [(member opcode-name '(vmov vtrn vzip vuzp vswp))
+        (if (< (vector-ref args 0) nregs-d)
+            (vector dreg-range dreg-range)
+            (vector qreg-range qreg-range))]
+
+       [(member opcode-name '(vmla vand vorr vbsl vadd vsub vhadd vhsub))
+        (if (< (vector-ref args 0) nregs-d)
+            (vector dreg-range dreg-range dreg-range)
+            (vector qreg-range qreg-range qreg-range))]
+       
+       [(member opcode-name '(vmla@ vext#))
+        (define byte (inst-byte entry))
+        (define index-range (list->vector (range (quotient 8 byte))))
+        (if (< (vector-ref args 0) nregs-d)
+            (vector dreg-range dreg-range dreg-range index-range)
+            (vector qreg-range qreg-range qreg-range index-range))]
+       
+       [(member opcode-name '(vmlal))
+        (vector qreg-range dreg-range dreg-range)]
+       
+       [(member opcode-name '(vmlal@))
+        (define byte (inst-byte entry))
+        (define index-range (list->vector (range (quotient 8 byte))))
+        (vector qreg-range dreg-range dreg-range index-range)]
+
+       [(member opcode-name '(vshr#))
+        (if (< (vector-ref args 0) nregs-d)
+            (vector dreg-range dreg-range const-range)
+            (vector qreg-range qreg-range const-range))]
+
+       ))
+
     
     ))

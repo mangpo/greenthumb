@@ -38,13 +38,13 @@
 (define encoded-sketch (send validator encode-sym sketch))
 
 (define t (current-seconds))
-(send enum synthesize-window
+#|(send symbolic synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
       encoded-prefix encoded-postfix
-      (constraint r s t) 0 #f 36000)
-#|(send stoch superoptimize encoded-code 
+      (constraint r s t) 0 #f 36000)|#
+(send stoch superoptimize encoded-code 
       (constraint r s t) ;; constraint
       #f ;; live-in
-      "./driver-0" 3600 #f 0)|#
+      "./driver-0" 3600 #f 0)
 (pretty-display `(time ,(- (current-seconds) t)))

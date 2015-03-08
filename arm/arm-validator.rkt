@@ -58,14 +58,6 @@
                     (sym-arg)
                     (sym-op))))
 
-    (define (evaluate-inst x model)
-      (arm-inst (evaluate (inst-op x) model)
-                (vector-map 
-                 (lambda (a) (evaluate a model)) (inst-args x))
-                (evaluate (inst-shfop x) model)
-                (evaluate (inst-shfarg x) model)
-                (evaluate (inst-cond x) model)))
-
     (define (assert-state-eq state1 state2 constraint)
       (when debug (pretty-display "start assert-output"))
       (define regs (progstate-regs constraint))
