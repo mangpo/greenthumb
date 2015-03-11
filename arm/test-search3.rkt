@@ -46,11 +46,11 @@ smull r3, r2, r2, r0
 (define encoded-sketch (send validator encode-sym sketch))
 
 (define t (current-seconds))
-(send symbolic synthesize-window
+(send enum synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
       encoded-prefix encoded-postfix
-      (constraint machine [reg 0] [mem]) #f #f 36000)
+      (constraint machine [reg 0 1] [mem]) #f #f 36000)
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem 0]) ;; constraint
       (constraint machine [reg 0] [mem]) ;; live-in

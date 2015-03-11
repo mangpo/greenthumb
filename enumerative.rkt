@@ -22,7 +22,8 @@
                                #:hard-postfix [hard-postfix (vector)]
                                #:assume-interpret [assume-interpret #t]
                                #:assume [assumption (send machine no-assumption)])
-      (send machine add-constants (send printer get-constants spec))
+      (send machine add-constants (send printer get-constants 
+                                        (vector-append prefix spec postfix)))
       (send machine analyze-code prefix spec postfix)
 
       (define live2 (send validator get-live-in postfix constraint extra))

@@ -220,7 +220,9 @@
       (set! operand2-range 
             (list->vector 
              (set->list (set-union (list->set (vector->list operand2-range))
-                                   (first l)))))
+                                   (first l)
+                                   (second l)
+                                   ))))
       (set! shf-range 
             (list->vector 
 	     (filter (lambda (x) (and (> x 0) (<= x 32)))
@@ -229,7 +231,9 @@
       (set! const-range 
             (list->vector 
              (set->list (set-union (list->set (vector->list const-range))
-                                   (second l)))))
+                                   (second l)
+                                   (first l)
+                                   ))))
       (set! bit-range 
             (list->vector 
 	     (set->list (set-union (list->set (vector->list bit-range))
