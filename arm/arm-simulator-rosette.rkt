@@ -56,6 +56,7 @@
 
     (define-syntax-rule (bvshift op)
       (lambda (x y)
+	;;(pretty-display `(bvshift assert ,y))
 	(assert (and (>= y 0) (<= y bit)))
         (finitize-bit (op x y))))
 

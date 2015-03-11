@@ -16,25 +16,30 @@
 
 (define prefix
 (send parser ast-from-string "
+str r0, fp, -16
+str r1, fp, -20
+ldr r2, fp, -16
+ldr r3, fp, -20
+and r3, r2, r3
+str r3, fp, -12
+ldr r2, fp, -16
+ldr r3, fp, -20
+eor r3, r2, r3
+str r3, fp, -8
+ldr r2, fp, -8
+ldr r3, fp, -12
+cmp r2, r3
 "))
 
 (define postfix
 (send parser ast-from-string "
-ldr r3, fp, -20
-and r3, r2, r3
-str r3, fp, -12
-eor r3, r2, r1, lsl 0
-ldr r2, fp, -12
-cmpcs r3, r2
-movls r0, 1
-lslhi r0, r2, 32
 "))
 
 (define code
 (send parser ast-from-string "
-str r0, fp, -16
-str r1, fp, -20
-ldr r2, fp, -16
+movhi r3, 0
+movls r3, 1
+mov r0, r3
 "))
 
 (define sketch
@@ -48,11 +53,11 @@ ldr r2, fp, -16
 (define encoded-sketch (send validator encode-sym sketch))
 
 (define t (current-seconds))
-(send symbolic synthesize-window
+(send enum synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
       encoded-prefix encoded-postfix
-      (constraint machine [reg 0] [mem]) #f #f 36000)
+      (constraint machine [reg 0] [mem 0]) #f #f 36000)
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem 0]) ;; constraint
       (constraint machine [reg 0] [mem]) ;; live-in

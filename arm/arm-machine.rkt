@@ -370,7 +370,7 @@
        [(equal? class-id 3) (vector reg-range const-range)]
        [(equal? class-id 4) (vector reg-range reg-range (reg) (reg))]
        [(equal? class-id 5) (vector reg-range (reg) bit-range bit-range-no-0)]
-       [(equal? class-id 6) (vector reg-range reg-range mem-range)]
+       [(equal? class-id 6) (vector reg-range (vector "fp") mem-range)]
        [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range-no-0)]
        [else (vector)]))
 
@@ -433,7 +433,7 @@
             (for/vector ([c classes])
                         (map (lambda (x) (vector-member x inst-id))
                              (filter (lambda (x) (member x inst-choice)) c))))
-      (when debug
+      (when #t
 	    (pretty-display `(inst-choice ,inst-choice))
 	    (pretty-display `(classes-filtered ,classes-filtered)))
       )

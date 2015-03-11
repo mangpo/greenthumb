@@ -54,7 +54,7 @@
 					 (send machine get-arg-ranges opcode-name #f live-in))]
 			    [cond-bound (if (= z -1) 1  cond-type-len)])
 		       ;; (pretty-display "here2")
-		       ;; (pretty-display `(arg-ranges ,arg-ranges))
+		       ;; (pretty-display `(iterate ,shf? ,arg-ranges ,cond-bound))
 		       (for ([cond-type cond-bound])
 			    (if shf?
 				(begin

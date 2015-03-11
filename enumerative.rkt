@@ -42,6 +42,9 @@
 	(map (lambda (x) 
 	       (send machine progstate->vector 
 		     (send simulator interpret spec x #:dep #f))) states1))
+      (pretty-display `(states1-vec ,states1-vec))
+      (pretty-display `(states2-vec-spec ,states2-vec-spec))
+      (pretty-display `(live2-vec ,live2-vec))
       ;; key = (cons list of output-vec, liveout-vec)
       (hash-set! prev-classes (cons states1-vec (send machine get-operand-live live1)) 
 		 (list (vector)))
@@ -64,8 +67,17 @@
 	     (let ([key (cons states-vec my-liveout-vec)])
 	       (if (hash-has-key? classes key)
 		   (hash-set! classes key (cons prog (hash-ref classes key)))
-		   (hash-set! classes key (list prog))))
+		   (hash-set! classes key (list prog)))
+	       ;; (pretty-display `(insert-table))
+	       ;; (print-concat (hash-ref classes key))
+	       )
 
+	     ;; (when (concat? prog) 
+	     ;; 	   (let ([x (concat-inst prog)])
+	     ;; 	     (when (and (equal? `cmp (vector-ref (get-field inst-id machine) (inst-op x)))
+	     ;; 			(equal? 2 (vector-ref (inst-args x) 0))
+	     ;; 			(equal? 3 (vector-ref (inst-args x) 1)))
+	     ;; 		   (pretty-display `(states-vec ,states-vec)))))
 	     (when
 	      (for/and ([state-spec states-vec-spec]
 			[state states-vec])
@@ -154,6 +166,8 @@
 		  ;; (pretty-display `(key ,(car key) ,(cdr key)))
 		  ;; Initialize enumeration one instruction process
 		  (reset-generate-inst outputs live-list)
+		  ;; (pretty-display `(ENUM!!!!!!!!!!!!! ,progs-collection ,(vector? progs-collection)))
+		  ;; (print-concat progs-collection)
 		  (enumerate outputs progs-collection)))
 	   (when (< iter 2)
 		 (set! prev-classes classes)
@@ -168,15 +182,19 @@
       (define (inner x [indent ""])
 	(cond
 	 [(concat? x)
+	  (pretty-display (format "~a[concat" indent))
 	  (inner (concat-collection x) (string-append indent "  "))
-	  (send printer print-syntax-inst (send printer decode-inst (concat-inst x)) indent)]
+	  (send printer print-syntax-inst (send printer decode-inst (concat-inst x)) (string-append indent "  "))
+	  ;;(send printer print-struct-inst (concat-inst x) (string-append indent "  "))
+	  (pretty-display (format "~a]" indent))
+	  ]
 
 	 [(list? x)
 	  (for ([i x])
 	       (inner i indent))]
 
 	 [else
-	  (pretty-display x)])
+	  (pretty-display (format "~a~a" indent x))])
 	)
       (inner collection))
     

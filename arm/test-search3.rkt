@@ -6,7 +6,7 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 4 4 5))
+(send machine set-config (list 4 1 0))
 (define printer (new arm-printer% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 (define validator (new arm-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
@@ -16,25 +16,23 @@
 
 (define prefix
 (send parser ast-from-string "
+movw r2, 43691
+movt r2, 10922
 "))
 
 (define postfix
 (send parser ast-from-string "
-ldr r3, fp, -20
-and r3, r2, r3
-str r3, fp, -12
-eor r3, r2, r1, lsl 0
-ldr r2, fp, -12
-cmpcs r3, r2
-movls r0, 1
-lslhi r0, r2, 32
+mov r3, r0, asr 31
+rsb r2, r3, r2, asr 10
+add r2, r2, r2, lsl 1
+sub r0, r0, r2, lsl 11
 "))
 
 (define code
 (send parser ast-from-string "
-str r0, fp, -16
-str r1, fp, -20
-ldr r2, fp, -16
+movw r1, 65524
+movt r1, 65535
+smull r3, r2, r2, r0
 "))
 
 (define sketch
