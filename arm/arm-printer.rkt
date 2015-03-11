@@ -134,16 +134,16 @@
       (define shf (member opcode (get-field inst-with-shf machine)))
       (define shfop (and shf (inst-shfop x) (send machine get-shf-inst-name (inst-shfop x))))
       (define shfarg (and shf (inst-shfarg x)))
+      ;; (pretty-display `(shf ,shf ,shfop))
 
       (define-syntax-rule (collect x ...)
         (collect-main (list x ...)))
 
       (define (collect-main fs)
-        ;; Don't care about shf because shfarg is bit-range.
-        (define op2-set (set))
         (define const-set (set))
-	(define shf-set
-	  (if (and shf (not (equal? shfop `nop)))
+        (define bit-set (set))
+	(define op2-set
+	  (if (and shfop (not (equal? shfop `nop)))
 	      (set shfarg)
 	      (set)))
 
@@ -151,11 +151,13 @@
               [arg args])
              (cond
               [(equal? f `op2) (set! op2-set (set-add op2-set arg))]
-              [(equal? f `const) (set! const-set (set-add const-set arg))]))
-        (list op2-set const-set shf-set))
+              [(equal? f `const) (set! const-set (set-add const-set arg))]
+              [(equal? f `bit) (set! bit-set (set-add bit-set arg))]
+	      ))
+        (list op2-set const-set bit-set))
 
       (define reg #f)
-      (define bit #f)
+      (define bit `bit)
       (define op2 `op2) 
       (define const `const)
 
@@ -166,7 +168,7 @@
        [(equal? class-id 3) (collect reg const)]
        [(equal? class-id 4) (collect reg reg reg reg)]
        [(equal? class-id 5) (collect reg reg bit bit)]
-       [(equal? class-id 6) (collect reg #f bit)]
+       [(equal? class-id 6) (collect reg #f #f)]
        [(member opcode '(bfc)) (collect reg bit bit)]
        [(equal? opcode `nop) (cons (list) (list))]
        [else (raise (format "decode-inst: undefined for ~a" opcode))]))
@@ -174,11 +176,13 @@
     (define (get-constants code)
       (define op2-set (set))
       (define const-set (set))
-      (define shf-set (set))
+      (define bit-set (set))
       (for ([x code])
            (let ([ans (get-constants-inst x)])
+	     ;; (print-struct-inst x)
+	     ;; (pretty-display `(const ,(set->list (first ans)) ,(set->list (second ans)) ,(set->list (third ans))))
              (set! op2-set (set-union op2-set (first ans)))
              (set! const-set (set-union const-set (second ans)))
-             (set! shf-set (set-union const-set (third ans)))))
-      (list op2-set const-set shf-set)) 
+             (set! bit-set (set-union bit-set (third ans)))))
+      (list op2-set const-set bit-set)) 
     ))

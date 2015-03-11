@@ -50,9 +50,14 @@
       (lambda (x y) 
         (bool->num (if (equal? (< x 0) (< y 0)) (op x y) (op y x)))))
 
+    ;; (define-syntax-rule (bvshift op)
+    ;;   (lambda (x y)
+    ;;     (finitize-bit (op x (bitwise-and byte-mask y)))))
+
     (define-syntax-rule (bvshift op)
       (lambda (x y)
-        (finitize-bit (op x (bitwise-and byte-mask y)))))
+	(assert (and (>= y 0) (<= y bit)))
+        (finitize-bit (op x y))))
 
     (define-syntax-rule (bvbit op)
       (lambda (a b)

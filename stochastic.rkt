@@ -149,7 +149,6 @@
       (for ([i index])
            (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
       (define ranges (send machine get-arg-ranges opcode-name entry my-live-in))
-      (pretty-display `(ranges ,ranges))
       (cond
        [(> (vector-length ranges) 0)
         (define args (vector-copy (inst-args entry)))
@@ -424,6 +423,7 @@
                       (send printer encode
                             (send parser ast-from-file 
                                   (format "~a/best.s" (get-field dir stat)))))
+		(send machine add-constants (send printer get-constants current))
                 (set! current-cost best-cost)
                 ]
               ))

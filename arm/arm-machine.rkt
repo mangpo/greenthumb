@@ -215,19 +215,36 @@
       )
 
     (define (add-constants l)
+      (pretty-display `(add-constants ,l))
       ;; Not include mem-range
       (set! operand2-range 
             (list->vector 
              (set->list (set-union (list->set (vector->list operand2-range))
                                    (first l)))))
+      (set! shf-range 
+            (list->vector 
+	     (filter (lambda (x) (and (> x 0) (<= x 32)))
+		     (set->list (set-union (list->set (vector->list shf-range))
+					   (first l))))))
       (set! const-range 
             (list->vector 
              (set->list (set-union (list->set (vector->list const-range))
                                    (second l)))))
-      (set! shf-range 
+      (set! bit-range 
             (list->vector 
-             (set->list (set-union (list->set (vector->list shf-range))
-                                   (third l))))))
+	     (set->list (set-union (list->set (vector->list bit-range))
+				   (third l)))))
+      (set! bit-range-no-0 
+            (list->vector 
+	     (remove* (list 0)
+		      (set->list (set-union (list->set (vector->list bit-range-no-0))
+					    (third l))))))
+      (pretty-display `(operand2-range ,operand2-range))
+      (pretty-display `(const-range ,const-range))
+      (pretty-display `(shf-range ,shf-range))
+      (pretty-display `(bit-range ,bit-range))
+      (pretty-display `(bit-range-no-0 ,bit-range-no-0))
+      )
 
     ;; info: (list nregs nmem)
     (define (set-config-string info)
