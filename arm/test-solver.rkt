@@ -5,23 +5,50 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 4 1 1))
+(send machine set-config (list 4 4 5))
 (define printer (new arm-printer% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 (define validator (new arm-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
 
 (define code
 (send parser ast-from-string "
-	rsb	r3, r0, #0
-	mov	r0, r0, asr #31
-	orr	r0, r0, r3, asr #31
+str r0, fp, -16
+str r1, fp, -20
+ldr r2, fp, -16
+ldr r3, fp, -20
+and r3, r2, r3
+str r3, fp, -12
+ldr r2, fp, -16
+ldr r3, fp, -20
+eor r3, r2, r3
+str r3, fp, -8
+ldr r2, fp, -8
+ldr r3, fp, -12
+cmp r2, r3
+movhi r3, 0
+movls r3, 1
+mov r0, r3
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-rsb r3, r0, r0, lsr 1
-mov r0, r3, asr 31
+str r0, fp, -16
+str r1, fp, -20
+ldr r2, fp, -16
+ldr r3, fp, -20
+and r3, r2, r3
+str r3, fp, -12
+ldr r2, fp, -16
+ldr r3, fp, -20
+eor r3, r2, r3
+str r3, fp, -8
+ldr r2, fp, -8
+ldr r3, fp, -12
+cmp r2, r3
+movne r0, 0
+addls r0, r0, 1
+
 "))
 ;; 1 hole
 ; random = 12, 13, 5 | 25, 78
@@ -41,7 +68,7 @@ mov r0, r3, asr 31
 
 (define ex 
   (send validator counterexample encoded-code encoded-sketch 
-        (constraint machine [reg 0] [mem])))
+        (constraint machine [reg 0] [mem 0])))
 
 (pretty-display "Counterexample:")
 (if ex 

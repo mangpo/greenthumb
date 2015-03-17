@@ -92,8 +92,8 @@
               output-constraint-string
               display-state-text parse-state-text
               progstate->vector vector->progstate
-	      get-arg-ranges add-constants get-operand-live
-	      window-size clean-code analyze-code)
+	      get-arg-ranges get-operand-live
+	      window-size clean-code analyze-opcode analyze-args)
     (public get-shfarg-range)
 
     (set! bit 32)
@@ -214,35 +214,39 @@
       (set! mem-range (list->vector (for/list ([i nmems]) (- i fp))))
       )
 
-    (define (add-constants l)
-      (pretty-display `(add-constants ,l))
+    (define (update-arg-ranges op2 const bit reg mem)
+      ;;(pretty-display `(add-constants ,l))
       ;; Not include mem-range
       (set! operand2-range 
             (list->vector 
              (set->list (set-union (list->set (vector->list operand2-range))
-                                   (first l)
-                                   (second l)
+                                   op2 const
                                    ))))
       (set! shf-range 
             (list->vector 
 	     (filter (lambda (x) (and (> x 0) (<= x 32)))
 		     (set->list (set-union (list->set (vector->list shf-range))
-					   (first l))))))
+					   op2)))))
       (set! const-range 
             (list->vector 
              (set->list (set-union (list->set (vector->list const-range))
-                                   (second l)
-                                   (first l)
-                                   ))))
+                                   op2 const))))
+
       (set! bit-range 
             (list->vector 
 	     (set->list (set-union (list->set (vector->list bit-range))
-				   (third l)))))
+				   bit))))
       (set! bit-range-no-0 
             (list->vector 
 	     (remove* (list 0)
 		      (set->list (set-union (list->set (vector->list bit-range-no-0))
-					    (third l))))))
+					    bit)))))
+
+      (set! reg-range (list->vector (set->list reg)))
+      (set! mem-range (list->vector (set->list mem)))
+
+      (pretty-display `(reg-range ,reg-range))
+      (pretty-display `(mem-range ,mem-range))
       (pretty-display `(operand2-range ,operand2-range))
       (pretty-display `(const-range ,const-range))
       (pretty-display `(shf-range ,shf-range))
@@ -387,7 +391,7 @@
               (let ([opcode-name (vector-ref inst-id (inst-op i))])
                 (member opcode-name inst-list))))
 
-    (define (analyze-code prefix code postfix)
+    (define (analyze-opcode prefix code postfix)
       (set! code (vector-append prefix code postfix))
       (define inst-choice '(nop))
       (when (code-has code '(add sub rsb 
@@ -441,5 +445,83 @@
 	    (pretty-display `(inst-choice ,inst-choice))
 	    (pretty-display `(classes-filtered ,classes-filtered)))
       )
+
+
+    (define (analyze-args-inst x) ;; TODO: move this to machine.rkt
+      (define opcode (vector-ref inst-id (inst-op x)))
+      (define args (inst-args x))
+      (define class-id (get-class-id opcode))
+      (define shf (member opcode inst-with-shf))
+      (define shfop (and shf (inst-shfop x) (vector-ref shf-inst-id (inst-shfop x))))
+      (define shfarg (and shf (inst-shfarg x)))
+      ;; (pretty-display `(shf ,shf ,shfop))
+
+      (define-syntax-rule (collect x ...)
+        (collect-main (list x ...)))
+
+      (define (collect-main fs)
+	(define reg-set (set))
+	(define mem-set (set))
+        (define const-set (set))
+        (define bit-set (set))
+	(define op2-set
+	  (if (and shfop (not (equal? shfop `nop)))
+	      (set shfarg)
+	      (set)))
+
+        (for ([f fs] 
+              [arg args])
+             (cond
+              [(equal? f `reg) (set! reg-set (set-add reg-set arg))]
+              [(equal? f `op2) (set! op2-set (set-add op2-set arg))]
+              [(equal? f `const) (set! const-set (set-add const-set arg))]
+              [(equal? f `bit) (set! bit-set (set-add bit-set arg))]
+              [(equal? f `mem) (set! reg-set (set-add mem-set arg))]
+	      ))
+        (list op2-set const-set bit-set reg-set mem-set))
+
+      (define reg `reg)
+      (define mem `mem)
+      (define bit `bit)
+      (define op2 `op2) 
+      (define const `const)
+
+      (cond
+       [(equal? class-id 0) (collect reg reg reg)]
+       [(equal? class-id 1) (collect reg reg op2)]
+       [(equal? class-id 2) (collect reg reg)]
+       [(equal? class-id 3) (collect reg const)]
+       [(equal? class-id 4) (collect reg reg reg reg)]
+       [(equal? class-id 5) (collect reg reg bit bit)]
+       [(equal? class-id 6) (collect reg #f mem)]
+       [(member opcode '(bfc)) (collect reg bit bit)]
+       [(equal? opcode `nop) (cons (list) (list))]
+       [else (raise (format "decode-inst: undefined for ~a" opcode))]))
+
+    (define (analyze-args prefix code postfix)
+      (define reg-set (set))
+      (define mem-set (set))
+      (define op2-set (set))
+      (define const-set (set))
+      (define bit-set (set))
+      (for ([x (vector-append prefix postfix)])
+           (let ([ans (analyze-args-inst x)])
+	     ;; (print-struct-inst x)
+	     ;; (pretty-display `(const ,(set->list (first ans)) ,(set->list (second ans)) ,(set->list (third ans))))
+             (set! op2-set (set-union op2-set (first ans)))
+             (set! const-set (set-union const-set (second ans)))
+             (set! bit-set (set-union bit-set (third ans)))
+	     ))
+      (for ([x code])
+           (let ([ans (analyze-args-inst x)])
+	     ;; (print-struct-inst x)
+	     ;; (pretty-display `(const ,(set->list (first ans)) ,(set->list (second ans)) ,(set->list (third ans))))
+             (set! op2-set (set-union op2-set (first ans)))
+             (set! const-set (set-union const-set (second ans)))
+             (set! bit-set (set-union bit-set (third ans)))
+             (set! reg-set (set-union reg-set (fourth ans)))
+             (set! mem-set (set-union mem-set (fifth ans)))
+	     ))
+      (update-arg-ranges op2-set const-set bit-set reg-set mem-set))
                           
     ))

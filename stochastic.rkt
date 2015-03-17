@@ -50,8 +50,8 @@
                            #:assume [assumption (send machine no-assumption)]
                            #:input-file [input-file #f]
                            #:start-prog [start #f])
-      (send machine add-constants (send printer get-constants spec))
-      (send machine analyze-code (vector) spec (vector))
+      (send machine analyze-args (vector) spec (vector))
+      (send machine analyze-opcode (vector) spec (vector))
       (set! live-in (send machine get-operand-live this-live-in))
       (pretty-display (format "Base-cost: ~a" base-cost))
       ;; Generate testcases

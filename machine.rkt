@@ -16,14 +16,14 @@
               adjust-config finalize-config config-exceed-limit?
               output-constraint-string
               progstate->vector vector->progstate
-	      get-arg-ranges add-constants
+	      get-arg-ranges 
 	      window-size)
     (public get-class-id print-line no-assumption
             get-inst-id get-inst-name
             output-assume-string get-state-liveness
             display-state-text parse-state-text get-states-from-file syntax-equal?
 	    clean-code state-eq? update-live filter-live get-operand-live
-	    analyze-code)
+	    analyze-opcode analyze-args)
 
     (define (get-inst-id opcode)
       (vector-member opcode inst-id))
@@ -123,9 +123,13 @@
 
     (define (get-operand-live constraint) #f)
     
-    (define (analyze-code prefix code postfix)
+    (define (analyze-opcode prefix code postfix)
       (set! inst-pool (range (vector-length inst-id)))
       (set! classes-filtered 
             (for/vector ([c classes])
                         (map (lambda (x) (vector-member x inst-id)) c))))
+
+    (define (analyze-args prefix code postfix)
+      (void))
+
     ))

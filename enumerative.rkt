@@ -22,9 +22,8 @@
                                #:hard-postfix [hard-postfix (vector)]
                                #:assume-interpret [assume-interpret #t]
                                #:assume [assumption (send machine no-assumption)])
-      (send machine add-constants (send printer get-constants 
-                                        (vector-append prefix spec postfix)))
-      (send machine analyze-code prefix spec postfix)
+      (send machine analyze-args prefix spec postfix)
+      (send machine analyze-opcode prefix spec postfix)
 
       (define live2 (send validator get-live-in postfix constraint extra))
       (define live2-vec (send machine progstate->vector live2))
@@ -102,6 +101,13 @@
 		       (when #t 
 			     (pretty-display "[2] all correct")
 			     (pretty-display `(ce-list ,(length ce-list)))
+			     (when (= (length ce-list) 100)
+				   (for ([i 10]
+					 [ce ce-list])
+					(send machine display-state (car ce)))
+				   (send printer print-syntax (send printer decode p))
+				   (raise "done")
+				   )
 			     )
 		       
 		       (define ce (send validator counterexample 
@@ -110,11 +116,12 @@
 					constraint extra #:assume assumption))
 
 		       (if ce
-			   (let ([ce-output-vec
+			   (let* ([ce-input (send simulator interpret prefix ce #:dep #f)]
+				  [ce-output-vec
 				  (send machine progstate->vector
-					(send simulator interpret spec ce #:dep #f))])
+					(send simulator interpret spec ce-input #:dep #f))])
 			     (pretty-display "[3] counterexample")
-			     (set! ce-list (cons (cons ce ce-output-vec) ce-list)))
+			     (set! ce-list (cons (cons ce-input ce-output-vec) ce-list)))
 			   (begin
 			     (pretty-display "[4] FOUND!!!")
 			     (let ([groups (hash-keys classes)])
