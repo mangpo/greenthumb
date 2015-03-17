@@ -10,7 +10,7 @@
     (super-new)
     (inherit-field machine report-mutations)
     (override print-struct-inst print-syntax-inst
-              encode-inst decode-inst get-constants)
+              encode-inst decode-inst)
     (set! report-mutations (vector-append report-mutations '#(byte type)))
 
     (define (print-struct-inst x [indent ""])
@@ -147,29 +147,5 @@
         (make-inst type byte dreg dreg imm)]
        
        [else (raise (format "decode-inst: undefined for ~a" opcode))]))
-
-    (define (get-constants-inst x)
-      (define opcode (send machine get-inst-name (inst-op x)))
-      (define args (inst-args x))
-
-      (define-syntax-rule (collect x ...)
-        (collect-inst (list x ...)))
-
-      (define (collect-inst fs)
-        (define constants (list))
-        (for ([f fs]
-              [arg args])
-             (when f (set! constants (cons arg constants))))
-        constants)
-
-      (cond
-       [(member opcode '(vmov# vand# vorr#))
-        (collect #f #t)]
-       [(member opcode '(vshr#))
-        (collect #f #f #t)]
-       [else (list)]))
-
-    (define (get-constants code)
-      (list->set (flatten (for/list ([x code]) (get-constants-inst x)))))
 
     ))

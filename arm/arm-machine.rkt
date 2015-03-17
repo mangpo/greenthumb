@@ -476,7 +476,7 @@
               [(equal? f `op2) (set! op2-set (set-add op2-set arg))]
               [(equal? f `const) (set! const-set (set-add const-set arg))]
               [(equal? f `bit) (set! bit-set (set-add bit-set arg))]
-              [(equal? f `mem) (set! reg-set (set-add mem-set arg))]
+              [(equal? f `mem) (set! mem-set (set-add mem-set arg))]
 	      ))
         (list op2-set const-set bit-set reg-set mem-set))
 

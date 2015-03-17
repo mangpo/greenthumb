@@ -10,7 +10,7 @@
   (class printer%
     (super-new)
     (inherit-field machine report-mutations)
-    (override encode-inst decode-inst print-syntax-inst get-constants)
+    (override encode-inst decode-inst print-syntax-inst)
     (set! report-mutations (vector-append report-mutations '#(rotate)))
 
     (define encode-port-dict (hash "up" UP "down" DOWN "left" LEFT "right" RIGHT "io" IO))
@@ -34,10 +34,4 @@
           (display (inst-op x)))
       (display " "))
 
-    (define (get-constants code)
-      (define constants (list))
-      (for ([x code])
-           (when (equal? (send machine get-inst-name (inst-op x)) `@p)
-                 (set! constants (cons (inst-args x) constants))))
-      (list->set constants))
     ))

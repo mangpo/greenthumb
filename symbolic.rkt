@@ -44,7 +44,7 @@
 			       #:assume-interpret [assume-interpret #t]
 			       #:assume [assumption (send machine no-assumption)])
       
-      (send machine analyze-code prefix spec postfix)
+      (send machine analyze-opcode prefix spec postfix)
       (if pure-symbolic 
           (synthesize-from-sketch 
            (vector-append prefix spec postfix) 

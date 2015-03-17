@@ -71,8 +71,7 @@
               get-state display-state
               output-constraint-string
               progstate->vector vector->progstate
-	      get-arg-ranges add-constants
-	      window-size)
+	      get-arg-ranges window-size analyze-args)
 
     ;; Initize common fields for neon
     (set! bit 32)
@@ -141,10 +140,6 @@
       (set! const-range (vector 0 1))
       (set! index-range (list->vector (range 1 8)))
       )
-
-    (define (add-constants c)
-      (set! const-range (list->vector (set->list (set-union (list->set (vector->list const-range)) c)))))
-    
 
     ;; TODO
     ;; info: (list nregs nmem)
@@ -252,6 +247,30 @@
             (vector qreg-range qreg-range const-range))]
 
        ))
+
+    (define (get-constants-inst x)
+      (define opcode (send machine get-inst-name (inst-op x)))
+      (define args (inst-args x))
+
+      (define-syntax-rule (collect x ...)
+        (collect-inst (list x ...)))
+
+      (define (collect-inst fs)
+        (define constants (list))
+        (for ([f fs]
+              [arg args])
+             (when f (set! constants (cons arg constants))))
+        constants)
+
+      (cond
+       [(member opcode '(vmov# vand# vorr#))
+        (collect #f #t)]
+       [(member opcode '(vshr#))
+        (collect #f #f #t)]
+       [else (list)]))
+
+    (define (analyze-args prefix code postfix)
+      (list->set (flatten (for/list ([x code]) (get-constants-inst x)))))
 
     
     ))
