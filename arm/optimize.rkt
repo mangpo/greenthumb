@@ -21,20 +21,6 @@
 (define file-to-optimize
   (command-line
    #:once-each
-   ;; [("-r" "--register") r
-   ;;                      "Number of registers (default=5)"
-   ;;                      (nregs (string->number r))]
-   ;; [("-m" "--memory")   m
-   ;;                      "Memory size (default=1)"
-   ;;                      (nmems (string->number m))]
-   ;; [("--live-out")      live-o
-   ;;                      "A list of live-out registers separated by , with no space (default=none)"
-   ;;                      (live-out (map string->number (string-split live-o ",")))]
-   ;; [("--live-in")       live-i
-   ;;                      "A list of live-in registers separated by , with no space (default=none)"
-   ;;                      (live-in (map string->number (string-split live-i ",")))]
-   ;; [("--dead-mem")      "Memory is not live-out."
-   ;;                      (live-mem #f)]
    [("-c" "--core")      c
                         "Number of cores to run on (default=12)"
                         (cores (string->number c))]
@@ -42,16 +28,16 @@
                         "Output directory (default=output)"
                         (dir d)]
    [("-t" "--time-limit") t
-                        "Time limit in seconds (default=36000)."
+                        "Time limit in seconds (default=3600)."
                         (time-limit t)]
    [("-n" "--size")     n
-                        "Time limit in seconds (default=36000)."
+                        "Code size limit. (default=#f)."
                         (size n)]
    [("-i" "--input")    i
-                        "Path to inputs."
+                        "Path to inputs. (default=#f)."
                         (input-file i)]
    [("-w" "--window")    w
-                        "Path to inputs."
+                        "Window size."
                         (window (string->number w))]
    #:once-any
    [("--solver") "Use solver-based search."

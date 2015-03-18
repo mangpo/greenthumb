@@ -44,7 +44,7 @@ raco make <list_of_flies_to_be_compiled>
 0
 0,1
 ```
-The first line indicates live-out registers, and the second line indicates live-in regsiters. In this example, a live-out register is R0, and live-in registers are R0 and R1. Note that currently the tool does not support R registers.
+The first line indicates live-out registers, and the second line indicates live-in regsiters. In this example, a live-out register is R0, and live-in registers are R0 and R1. Note that currently the tool only supports R registers.
 
 ### Run
 
