@@ -51,7 +51,7 @@ The first line indicates live-out registers, and the second line indicates live-
 You can superoptimize one of the example programs or your own program by running
 ```
 cd arm
-racket optimize.rkt <search-type> <symbolic-mode> <mutate-mode> <cost-function> 
+racket optimize.rkt <search-type> <symbolic-mode> <mutate-mode> <cost-function> \
 -c <number-of-cores> -t <time-limit-in-sec> <file_to_optimize>
 ```
 
