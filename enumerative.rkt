@@ -6,7 +6,7 @@
 (provide enumerative%)
 
 (struct concat (collection inst))
-(struct entry (input outputvec table))
+(struct entry (progs vreg))
 
 (define enumerative%
   (class decomposer%
@@ -22,7 +22,9 @@
                                #:hard-postfix [hard-postfix (vector)]
                                #:assume-interpret [assume-interpret #t]
                                #:assume [assumption (send machine no-assumption)])
-      (send machine analyze-args prefix spec postfix)
+      (define spec-len (vector-length spec))
+      (define org-nregs (send machine get-nregs)) ;; TODO
+      (send machine analyze-args prefix spec postfix #:vreg spec-len)
       (send machine analyze-opcode prefix spec postfix)
 
       (define live2 (send validator get-live-in postfix constraint extra))
@@ -46,8 +48,9 @@
       (pretty-display `(states2-vec-spec ,states2-vec-spec))
       (pretty-display `(live2-vec ,live2-vec))
       ;; key = (cons list of output-vec, liveout-vec)
-      (hash-set! prev-classes (cons states1-vec (send machine get-operand-live live1)) 
-		 (list (vector)))
+      (hash-set! prev-classes 
+		 (cons states1-vec (send machine get-operand-live live1)) 
+		 (entry (list (vector)) org-nregs))
 
       (for ([i states1])
 	   (send machine display-state i))
@@ -62,15 +65,17 @@
 	   (define classes (make-hash))
 	   (define ce-list (list))
 
-	   (define (build-table prog my-liveout-vec liveout-vec states-vec-spec states-vec)
+	   (define (build-table prog my-liveout-vec my-vreg liveout-vec states-vec-spec states-vec)
 	     
 	     (let ([key (cons states-vec my-liveout-vec)])
 	       (if (hash-has-key? classes key)
-		   (hash-set! classes key (cons prog (hash-ref classes key)))
-		   (hash-set! classes key (list prog)))
+		   (let ([val (hash-ref classes key key)])
+		     (hash-set! classes key (entry (cons prog (entry-progs val)) 
+						   (max my-vreg (entry-vreg val)))))
+		   (hash-set! classes key (entry (list prog) my-vreg))))
 	       ;; (pretty-display `(insert-table))
 	       ;; (print-concat (hash-ref classes key))
-	       )
+	       
 
 	     ;; (when (concat? prog) 
 	     ;; 	   (let ([x (concat-inst prog)])
@@ -81,11 +86,16 @@
 	     (when
 	      (for/and ([state-spec states-vec-spec]
 			[state states-vec])
-		       (send machine state-eq? state-spec state liveout-vec))
+		       ;(send machine state-eq? state-spec state liveout-vec))
+		       (send machine relaxed-state-eq? state-spec state liveout-vec))
 	      (when debug (pretty-display "[1] correct on first query"))
 
 	      (define iterator (get-collection-iterator prog))
 	      (define (loop p)
+		(newline)
+		(send printer print-syntax (send printer decode p))
+		(pretty-display `(states-vec ,states-vec))
+		(raise "done")
 		(when p
 		      (when
 		       (for/and ([input-output ce-list])
@@ -131,14 +141,19 @@
 		       )
 		      (loop (iterator))))
 	      (loop (iterator)))
-	     )
+	     ) ;; End build table
 
 	   ;; Enmerate all possible program of one instruction
 	   (define (enumerate states progs-collection) 
 	     (define (inner)
+               (when debug (pretty-display `(inner1)))
 	       ;; Call instruction generator
-	       (define inst-liveout (generate-inst))
-               (when debug (pretty-display `(inner ,inst-liveout)))
+	       (define inst-liveout-vreg (generate-inst))
+               (when debug (pretty-display `(inner2)))
+	       (define my-inst (first inst-liveout-vreg))
+	       (define my-liveout (second inst-liveout-vreg))
+	       (define my-vreg (third inst-liveout-vreg))
+               (when debug (pretty-display `(inner ,inst-liveout-vreg)))
 	       (set! count (add1 count))
 	       (when (= count 100000)
 		     (define t1 (current-seconds))
@@ -147,42 +162,41 @@
 		     (set! count 0)
 		     (set! t0 t1))
                (when 
-                inst-liveout
+                my-inst
                 
-		(when debug
-		      (send printer print-syntax-inst (send printer decode-inst (car inst-liveout)))) 
+		(when #t
+		      (send printer print-syntax-inst (send printer decode-inst my-inst))) 
 		(let ([states2-vec 
 		       (with-handlers*
 			([exn? (lambda (e) #f)])
 			(map (lambda (x) 
 			       (send machine progstate->vector 
-				     (send simulator interpret (vector (car inst-liveout))
+				     (send simulator interpret (vector my-inst)
 					   x #:dep #f))) states))]
-		      [prog (concat progs-collection (car inst-liveout))])
+		      [prog (concat progs-collection my-inst)])
 		  (when debug (pretty-display `(after-interpret ,(list? states2-vec))))
 		  
 		  (when states2-vec 
-			(build-table prog (cdr inst-liveout) live2-vec
+			(build-table prog my-liveout my-vreg live2-vec
 				     states2-vec-spec states2-vec)))
 		(inner)))
 	     (inner))
 	   
 	   (for ([key (hash-keys prev-classes)])
-		(let ([progs-collection (hash-ref prev-classes key)]
+		(let ([val (hash-ref prev-classes key)]
 		      [outputs (map (lambda (x) (send machine vector->progstate x)) (car key))]
 		      [live-list (cdr key)])
-		  ;; (pretty-display `(key ,(car key) ,(cdr key)))
+		  ;;(pretty-display `(key ,(car key) ,(cdr key)))
 		  ;; Initialize enumeration one instruction process
-		  (reset-generate-inst outputs live-list)
-		  ;; (pretty-display `(ENUM!!!!!!!!!!!!! ,progs-collection ,(vector? progs-collection)))
-		  ;; (print-concat progs-collection)
-		  (enumerate outputs progs-collection)))
-	   (when (< iter 2)
+		  (reset-generate-inst outputs live-list (entry-vreg val))
+		  (pretty-display `(ENUM!!!!!!!!!!!!! ,(entry-progs val)))
+		  (print-concat (entry-progs val))
+		  (enumerate outputs (entry-progs val))))
+	   (when (< iter spec-len)
 		 (set! prev-classes classes)
 		 (loop (add1 iter))))
 	 (loop 0)))
 
-      ;; TODO: verify
       (print-concat (candidate-gen))
       )
 
@@ -234,6 +248,8 @@
 	 #f))
       iterate-collection)
      
+#|
+    (struct entry (input outputvec table))
     (define (build-table2 prefix spec postfix constraint extra assumption
 			 classes prog my-liveout-vec liveout-vec states-vec-spec states-vec)
 
@@ -329,7 +345,7 @@
       (when debug (pretty-display `(insert-table ,prog)))
       (insert-table classes (cons states-vec my-liveout-vec) prog states-vec-spec states-vec)
 
-      )
+      )|#
 
 		
 

@@ -22,7 +22,8 @@
             get-inst-id get-inst-name
             output-assume-string get-state-liveness
             display-state-text parse-state-text get-states-from-file syntax-equal?
-	    clean-code state-eq? update-live filter-live get-operand-live
+	    clean-code state-eq? relaxed-state-eq?
+	    update-live filter-live get-operand-live
 	    analyze-opcode analyze-args)
 
     (define (get-inst-id opcode)
@@ -103,6 +104,9 @@
 		  [s1 state1]
 		  [s2 state2])
 		 (state-eq? s1 s2 i))]))
+
+    (define (relaxed-state-eq? state1 state2 pred)
+      (state-eq? state1 state2 pred))
 
     (define (update-live live x)
       (define (add-live ele lst)

@@ -85,7 +85,7 @@
     (inherit-field bit random-input-bit inst-id inst-pool
 		   classes classes-len classes-filtered
 		   perline nop-id)
-    (inherit print-line get-class-id filter-live update-live)
+    (inherit print-line get-class-id filter-live update-live state-eq?)
     (override set-config get-config set-config-string
               adjust-config finalize-config config-exceed-limit?
               get-state get-state-liveness display-state
@@ -93,8 +93,9 @@
               display-state-text parse-state-text
               progstate->vector vector->progstate
 	      get-arg-ranges get-operand-live
-	      window-size clean-code analyze-opcode analyze-args)
-    (public get-shfarg-range)
+	      window-size clean-code 
+	      analyze-opcode analyze-args)
+    (public get-shfarg-range get-arg-ranges-enum)
 
     (set! bit 32)
     (set! random-input-bit 32)
@@ -214,7 +215,7 @@
       (set! mem-range (list->vector (for/list ([i nmems]) (- i fp))))
       )
 
-    (define (update-arg-ranges op2 const bit reg mem)
+    (define (update-arg-ranges op2 const bit reg mem [vreg 0])
       ;;(pretty-display `(add-constants ,l))
       ;; Not include mem-range
       (set! operand2-range 
@@ -242,7 +243,10 @@
 		      (set->list (set-union (list->set (vector->list bit-range-no-0))
 					    bit)))))
 
-      (set! reg-range (list->vector (set->list reg)))
+      (set! reg-range (list->vector (append (set->list reg) 
+					    (range nregs (+ nregs vreg)))))
+      (set! nregs (+ nregs vreg)) ;; Same if enum = 0
+
       (set! mem-range (list->vector (set->list mem)))
 
       (pretty-display `(reg-range ,reg-range))
@@ -381,6 +385,25 @@
        [(equal? class-id 6) (vector reg-range (vector "fp") mem-range)]
        [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range-no-0)]
        [else (vector)]))
+    
+    ;; CAUTION: doesn't work with all predicate inst cases.
+    (define (get-arg-ranges-enum opcode-name entry live-in)
+      (define-syntax-rule (reg)
+        (filter-live reg-range live-in))
+      (define class-id (get-class-id opcode-name))
+      (pretty-display `(get-arg-ranges ,opcode-name ,class-id ,reg-range ,live-in))
+      (cond
+       [(equal? class-id 0) (vector #f (reg) (reg))]
+       [(equal? class-id 1) (vector #f (reg) operand2-range)]
+       ;[(equal? class-id 2) (vector #f (reg) bit-range)]
+       [(equal? class-id 2) (vector #f (reg))]
+       [(equal? class-id 3) (vector #f const-range)]
+       [(equal? class-id 4) (vector #f #f (reg) (reg))]
+       [(equal? class-id 5) (vector #f (reg) bit-range bit-range-no-0)]
+       [(equal? opcode-name `ldr#) (vector #f (vector "fp") mem-range)]
+       [(equal? opcode-name `str#) (vector (reg) (vector "fp") mem-range)]
+       [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range-no-0)]
+       [else (vector)]))
 
     (define (get-shfarg-range shfop-id live-in)
       (define shfop-name (vector-ref shf-inst-id shfop-id))
@@ -406,7 +429,8 @@
 				 uxtah uxth uxtb
 				 bfc bfi
 				 sbfx ubfx
-				 clz))
+				 clz
+				 ))
             (set! inst-choice (append inst-choice '(add sub rsb 
 							add# 
 							sub# rsb#
@@ -498,7 +522,7 @@
        [(equal? opcode `nop) (cons (list) (list))]
        [else (raise (format "decode-inst: undefined for ~a" opcode))]))
 
-    (define (analyze-args prefix code postfix)
+    (define (analyze-args prefix code postfix #:vreg [vreg 0])
       (define reg-set (set))
       (define mem-set (set))
       (define op2-set (set))
@@ -522,6 +546,21 @@
              (set! reg-set (set-union reg-set (fourth ans)))
              (set! mem-set (set-union mem-set (fifth ans)))
 	     ))
-      (update-arg-ranges op2-set const-set bit-set reg-set mem-set))
+      (update-arg-ranges op2-set const-set bit-set reg-set mem-set vreg))
+
+    (define (relaxed-state-eq? state1 state2 pred)
+      (define res
+	(for/and ([i (range (vector-length state1))])
+		 (state-eq? (vector-ref state1 i) (vector-ref state2 i) (vector-ref pred i))))
+
+      (define regs-pred (vector-ref pred 0))
+      (define regs1 (vector-ref state1 0))
+      (define regs2 (vector-ref state2 0))
+      (define reg-res
+	(for/and ([i regs-pred]
+		  [r regs1])
+		 (or (not i) (vector-member r regs2))))
+      (and reg-res res))
+	   
                           
     ))

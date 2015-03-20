@@ -50,7 +50,7 @@ smull r3, r2, r2, r0
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
       encoded-prefix encoded-postfix
-      (constraint machine [reg 0 1] [mem]) #f #f 36000)
+      (constraint machine [reg 0 1] [mem]) #f #f 3600)
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem 0]) ;; constraint
       (constraint machine [reg 0] [mem]) ;; live-in
