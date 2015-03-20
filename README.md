@@ -18,11 +18,6 @@ Clone the repository:
 git clone https://github.com/mangpo/greenthumb.git
 ```
 
-Check out 'dev' branch. 'master' branch is very out-of-date, but I have a reason to keep it around for now.
-```
-git checkout dev
-```
-
 After obtaining all the source code, under supertopimizer directory run 
 ```
 make
