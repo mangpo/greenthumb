@@ -6,7 +6,7 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 1 1 4))
+(send machine set-config (list 2 1 4))
 (define printer (new arm-printer% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 (define validator (new arm-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
@@ -24,8 +24,9 @@
 
 (define code
 (send parser ast-from-string "
-add r0, r0, 1
-str	r0, [fp, #-16]
+orr r1, r0, r0, lsl 1
+sub r1, r0, r1
+and r0, r0, r1
 "))
 
 (define sketch
@@ -43,7 +44,7 @@ str	r0, [fp, #-16]
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
       encoded-prefix encoded-postfix
-      (constraint machine [reg] [mem 0]) #f #f 36000)
+      (constraint machine [reg 0] [mem]) #f #f 36000)
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem 0]) ;; constraint
       (constraint machine [reg 0] [mem]) ;; live-in

@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../enumerative.rkt" "../machine.rkt" 
+(require "../ast.rkt" "../enumerative.rkt" "../machine.rkt" "../ops-racket.rkt"
 	 "arm-ast.rkt" "arm-machine.rkt" "arm-simulator-racket.rkt" "arm-validator.rkt")
 (require racket/generator)
 
@@ -10,7 +10,8 @@
   (class enumerative%
     (super-new)
     (inherit-field machine printer simulator validator generate-inst)
-    (override len-limit window-size reset-generate-inst)
+    (override len-limit window-size reset-generate-inst 
+	      get-register-mapping get-renaming-iterator)
 
     (define (len-limit) 2)
     (define (window-size) 4)
@@ -84,5 +85,151 @@
 				(recurse-args opcode-id 0 #f cond-type (list) arg-ranges regs)))))))
 	     (yield (list #f #f #f)))))
 
+    (define (get-register-mapping org-nregs states-vec-spec states-vec liveout-vec)
+      ;;(pretty-display `(get-register-mapping ,states-vec-spec ,states-vec ,liveout-vec))
+      (define all-nregs (send machine get-nregs))
+      (define regs-spec (map (lambda (x) (vector-ref x 0)) states-vec-spec)) ;; list
+      (define regs (map (lambda (x) (vector-ref x 0)) states-vec))
+      (define liveout (vector-ref liveout-vec 0))
+      (define mapping (make-vector org-nregs #f))
+      (define break #f)
+
+      (for ([i org-nregs] #:break break)
+      	   (when 
+      	    (vector-ref liveout i)
+      	    (vector-set! mapping i (list))
+      	    (let ([regs-spec-i (map (lambda (x) (vector-ref x i)) regs-spec)])
+      	      (for ([j all-nregs])
+      		   (let* ([regs-j (map (lambda (x) (vector-ref x j)) regs)]
+      			  [compare
+      			   (for/and ([spec regs-spec-i]
+      			   	     [my regs-j])
+      			   	    (= spec my))])
+      		     (when compare
+      		     	   (vector-set! mapping i (cons j (vector-ref mapping i)))))))
+      	    (when (empty? (vector-ref mapping i))
+      		  (set! break #t))))
+      
+      ;;(pretty-display `(get-register-mapping ,(and (not break) mapping)))
+      (and (not break) mapping))
     
+    (define (check-later-use prog org index len)
+      (define (inner x)
+	(define opcode (inst-op x))
+	(define opcode-name (send machine get-inst-name opcode))
+	(define args (inst-args x))
+	(define class-id (send machine get-class-id opcode-name))
+        
+	(define-syntax-rule (check x ...)
+	  (check-main (list x ...)))
+        
+        (define (check-main fs)
+	  (for/and ([f fs] 
+                    [arg args])
+		   ;;(pretty-display `(check-main ,f ,arg ,reg))
+            (or (not f) (not (= arg org)))))
+        
+        (define reg #t) (define imm #f) (define id #f)
+        
+        (cond
+	 [(equal? class-id 0) (check reg reg reg)]
+	 [(equal? class-id 1) (check reg reg imm)]
+	 ;;[(equal? class-id 2) (check #f reg imm)]
+	 [(equal? class-id 2) (check reg reg)]
+	 [(equal? class-id 3) (check reg imm)]
+	 [(equal? class-id 4) (check reg reg reg reg)]
+	 [(equal? class-id 5) (check reg reg imm imm)]
+	 [(equal? class-id 6) (check reg id imm)]
+	 [(member opcode-name '(bfc)) (check reg imm imm)]
+	 [(equal? opcode-name `nop) #t]
+	 [else (raise (format "rename: undefined for ~a" opcode-name))]))
+      
+      (for/and ([i (range (add1 index) len)])
+        (inner (vector-ref prog i))))
+
+
+    (define (rename prog assigned)
+      (pretty-display `(rename ,assigned))
+      (define len (vector-length prog))
+      (define valid #t)
+      (define table (make-vector (send machine get-nregs) #f))
+      (for ([x assigned]
+	    [i (length assigned)])
+	   (when x (vector-set! table x i)))
+
+      (define (rename-inst x index)
+	(define opcode (inst-op x))
+	(define opcode-name (send machine get-inst-name opcode))
+	(define class-id (send machine get-class-id opcode-name))
+	(define args (inst-args x))
+	(define cond-type (inst-cond x))
+	(define shfop (inst-shfop x))
+	(define shfarg (inst-shfarg x))
+
+	(define-syntax-rule (make-inst x ...)
+	  (make-inst-main (list x ...)))
+	
+	(define (make-inst-main fs)
+	  (define new-args 
+	    (for/vector ([f fs] 
+			 [arg args])
+			(if f 
+			    (let ([to (vector-ref table arg)])
+			      (if to 
+                                  (let ([res (or (= arg to) (check-later-use prog to index len))])
+				    ;;(pretty-display `(make-inst-main ,res ,arg, to))
+                                    (set! valid (and valid res))
+                                    to)
+                                  arg))
+			    arg)))
+	  
+	  (arm-inst opcode new-args shfop shfarg cond-type))
+
+	(define reg #t) (define imm #f) (define id #f)
+
+	(cond
+	 [(equal? class-id 0) (make-inst reg reg reg)]
+	 [(equal? class-id 1) (make-inst reg reg imm)]
+	 ;;[(equal? class-id 2) (make-inst reg reg imm)]
+	 [(equal? class-id 2) (make-inst reg reg)]
+	 [(equal? class-id 3) (make-inst reg imm)]
+	 [(equal? class-id 4) (make-inst reg reg reg reg)]
+	 [(equal? class-id 5) (make-inst reg reg imm imm)]
+	 [(equal? class-id 6) (make-inst reg id imm)]
+	 [(member opcode-name '(bfc)) (make-inst reg imm imm)]
+	 [(equal? opcode-name `nop) inst]
+	 [else (raise (format "rename: undefined for ~a" opcode-name))]))
+
+      (let ([new-x
+             (for/vector ([x prog]
+                          [i (vector-length prog)]
+                          #:break (not valid))
+			 ;;(pretty-display `(rename-inst ,i))
+               (rename-inst x i))])
+        (unless valid
+          (pretty-display "Rename: invalid")
+          (send printer print-syntax (send printer decode prog))
+          ;;(raise "done")
+          )
+        (and valid new-x))
+      )
+
+    (define (get-renaming-iterator prog mapping)
+      (pretty-display `(get-renaming-iterator ,mapping))
+      (generator
+       ()
+       (define (recurse index assigned mapping)
+	 (cond
+	  [(empty? mapping)
+           (define renamed (rename prog (reverse assigned)))
+           (when renamed (yield renamed))]
+	  [(car mapping)
+	   (for ([choice (car mapping)])
+		(recurse (add1 index) (cons choice assigned) (cdr mapping)))]
+
+	  [else (recurse (add1 index) (cons #f assigned) (cdr mapping))]
+	  ))
+       (recurse 0 (list) (vector->list mapping))
+       (yield #f)))
+
     ))

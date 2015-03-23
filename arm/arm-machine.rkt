@@ -94,7 +94,7 @@
               progstate->vector vector->progstate
 	      get-arg-ranges get-operand-live
 	      window-size clean-code 
-	      analyze-opcode analyze-args)
+	      analyze-opcode analyze-args relaxed-state-eq?)
     (public get-shfarg-range get-arg-ranges-enum)
 
     (set! bit 32)
@@ -391,7 +391,7 @@
       (define-syntax-rule (reg)
         (filter-live reg-range live-in))
       (define class-id (get-class-id opcode-name))
-      (pretty-display `(get-arg-ranges ,opcode-name ,class-id ,reg-range ,live-in))
+      ;;(pretty-display `(get-arg-ranges ,opcode-name ,class-id ,reg-range ,live-in))
       (cond
        [(equal? class-id 0) (vector #f (reg) (reg))]
        [(equal? class-id 1) (vector #f (reg) operand2-range)]
@@ -432,19 +432,18 @@
 				 clz
 				 ))
             (set! inst-choice (append inst-choice '(add sub rsb 
-							add# 
-							sub# rsb#
-							and orr eor bic orn
-							and# orr# eor# bic# orn#
-							mov mvn
-							mov# mvn# movw# movt#
-							rev rev16 revsh rbit
-							asr lsl lsr
-							asr# lsl# lsr#
-							uxtah uxth uxtb
-							bfc bfi
-							sbfx ubfx
-							clz
+						    	add# sub# rsb#
+						    	and orr eor bic orn
+						    	and# orr# eor# bic# orn#
+						    	mov mvn
+						    	mov# mvn# movw# movt#
+						    	rev rev16 revsh rbit
+						    	asr lsl lsr
+						    	asr# lsl# lsr#
+						    	uxtah uxth uxtb
+						    	bfc bfi
+						    	sbfx ubfx
+						    	clz
 							))))
       (when (code-has code '(mul mla mls
                                  smull umull
@@ -549,18 +548,16 @@
       (update-arg-ranges op2-set const-set bit-set reg-set mem-set vreg))
 
     (define (relaxed-state-eq? state1 state2 pred)
-      (define res
-	(for/and ([i (range (vector-length state1))])
-		 (state-eq? (vector-ref state1 i) (vector-ref state2 i) (vector-ref pred i))))
-
-      (define regs-pred (vector-ref pred 0))
-      (define regs1 (vector-ref state1 0))
-      (define regs2 (vector-ref state2 0))
-      (define reg-res
-	(for/and ([i regs-pred]
-		  [r regs1])
-		 (or (not i) (vector-member r regs2))))
-      (and reg-res res))
-	   
+      (and 
+       ;; Use normal state-eq? for everything else that is not regs.
+       (for/and ([i (range 1 (vector-length state1))])
+		(state-eq? (vector-ref state1 i) (vector-ref state2 i) (vector-ref pred i)))
+       ;; Check regs.
+       (let ([regs-pred (vector-ref pred 0)]
+	     [regs1 (vector-ref state1 0)]
+	     [regs2 (vector-ref state2 0)])
+	 (for/and ([i regs-pred]
+		   [r regs1])
+		  (or (not i) (vector-member r regs2))))))
                           
     ))

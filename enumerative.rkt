@@ -15,6 +15,7 @@
     (inherit-field machine printer validator simulator)
     (override synthesize-window)
     (abstract reset-generate-inst)
+    (public get-register-mapping get-renaming-iterator)
 
     (define (synthesize-window spec sketch prefix postfix constraint extra 
                                [cost #f] [time-limit 3600]
@@ -23,7 +24,7 @@
                                #:assume-interpret [assume-interpret #t]
                                #:assume [assumption (send machine no-assumption)])
       (define spec-len (vector-length spec))
-      (define org-nregs (send machine get-nregs)) ;; TODO
+      (define org-nregs (send machine get-nregs)) ;; TODO: get-nregs is machine-dependent.
       (send machine analyze-args prefix spec postfix #:vreg spec-len)
       (send machine analyze-opcode prefix spec postfix)
 
@@ -75,14 +76,15 @@
 		   (hash-set! classes key (entry (list prog) my-vreg))))
 	       ;; (pretty-display `(insert-table))
 	       ;; (print-concat (hash-ref classes key))
-	       
 
 	     ;; (when (concat? prog) 
 	     ;; 	   (let ([x (concat-inst prog)])
-	     ;; 	     (when (and (equal? `cmp (vector-ref (get-field inst-id machine) (inst-op x)))
-	     ;; 			(equal? 2 (vector-ref (inst-args x) 0))
-	     ;; 			(equal? 3 (vector-ref (inst-args x) 1)))
-	     ;; 		   (pretty-display `(states-vec ,states-vec)))))
+	     ;; 	     (when (and (equal? `sub (vector-ref (get-field inst-id machine) (inst-op x)))
+	     ;; 			(equal? 3 (vector-ref (inst-args x) 0))
+	     ;; 			(equal? 0 (vector-ref (inst-args x) 1))
+	     ;; 			(equal? 2 (vector-ref (inst-args x) 2)))
+	     ;; 		   (pretty-display `(states-vec ,states-vec
+	     ;; 						,states-vec-spec)))))
 	     (when
 	      (for/and ([state-spec states-vec-spec]
 			[state states-vec])
@@ -90,13 +92,11 @@
 		       (send machine relaxed-state-eq? state-spec state liveout-vec))
 	      (when debug (pretty-display "[1] correct on first query"))
 
-	      (define iterator (get-collection-iterator prog))
-	      (define (loop p)
-		(newline)
-		(send printer print-syntax (send printer decode p))
-		(pretty-display `(states-vec ,states-vec))
-		(raise "done")
+	      (define (inner-loop iterator)
+		(define p (iterator))
 		(when p
+		      (pretty-display "After renmaing")
+		      (send printer print-syntax (send printer decode p))
 		      (when
 		       (for/and ([input-output ce-list])
 				(let* ([input (car input-output)]
@@ -139,9 +139,28 @@
 			       (pretty-display `(groups ,(length groups))))
 			     (yield p)))
 		       )
-		      (loop (iterator))))
-	      (loop (iterator)))
-	     ) ;; End build table
+		      (inner-loop iterator)))
+
+	      (define mapping 
+		(get-register-mapping org-nregs states-vec-spec states-vec liveout-vec))
+
+	      (define (loop iterator)
+		(define p (iterator))
+		(when p 
+		      (newline)
+		      (pretty-display "Before renaming")
+		      (send printer print-syntax (send printer decode p))
+		      (when mapping
+			    (define iterator2 (get-renaming-iterator p mapping))
+			    ;; (pretty-display "After renaming")
+			    ;; (send printer print-syntax (send printer decode (iterator2)))
+			    (inner-loop iterator2)
+			    )
+		      (loop iterator))
+		)
+
+	      (when mapping (loop (get-collection-iterator prog)))
+	     )) ;; End build table
 
 	   ;; Enmerate all possible program of one instruction
 	   (define (enumerate states progs-collection) 
@@ -164,7 +183,7 @@
                (when 
                 my-inst
                 
-		(when #t
+		(when debug
 		      (send printer print-syntax-inst (send printer decode-inst my-inst))) 
 		(let ([states2-vec 
 		       (with-handlers*
@@ -189,10 +208,12 @@
 		  ;;(pretty-display `(key ,(car key) ,(cdr key)))
 		  ;; Initialize enumeration one instruction process
 		  (reset-generate-inst outputs live-list (entry-vreg val))
-		  (pretty-display `(ENUM!!!!!!!!!!!!! ,(entry-progs val)))
-		  (print-concat (entry-progs val))
+		  (when debug 
+			(pretty-display `(ENUM!!!!!!!!!!!!! ,(entry-progs val)))
+			(print-concat (entry-progs val)))
 		  (enumerate outputs (entry-progs val))))
 	   (when (< iter spec-len)
+		 (pretty-display `(iter ,iter ,spec-len))
 		 (set! prev-classes classes)
 		 (loop (add1 iter))))
 	 (loop 0)))
@@ -248,105 +269,13 @@
 	 #f))
       iterate-collection)
      
-#|
-    (struct entry (input outputvec table))
-    (define (build-table2 prefix spec postfix constraint extra assumption
-			 classes prog my-liveout-vec liveout-vec states-vec-spec states-vec)
-
-      (define (check-and-insert-new classes prog states-vec-spec states-vec)
-	(when debug (pretty-display `(check-and-insert-new ,states-vec-spec ,states-vec)))
-
-	(cond
-	 [(for/and ([state-spec states-vec-spec]
-		    [state states-vec])
-		   (send machine state-eq? state-spec state liveout-vec))
-	  (pretty-display "[1] all correct")
-	  ;; validate equivalence
-	  (define first-prog (get-first-program prog))
-	  (define ce (send validator counterexample 
-			   (vector-append prefix spec postfix)
-			   (vector-append prefix first-prog postfix)
-			   constraint extra #:assume assumption))
-	  
-	  (cond
-	   [ce
-	    (when debug (pretty-display "[1.1] counterexample"))
-	    (define key (cons states-vec my-liveout-vec))
-	    (define input (send simulator interpret prefix ce #:dep #f))
-	    (define expected-output (send simulator interpret spec input #:dep #f))
-	    (define expected-output-vec (send machine progstate->vector expected-output))
-	    (define my-classes (make-hash))
-	    (define iterator (get-collection-iterator prog))
-	    (define (loop p)
-	      (when p
-		    (define output 
-		      (with-handlers*
-		       ([exn? (lambda (e) #f)])
-		       (send simulator interpret p input #:dep #f)))
-		    (when 
-		     output
-		     (hash-set! my-classes 
-				(cons (list (send machine progstate->vector output)) my-liveout-vec)
-				(list p)))
-		    (loop (iterator))))
-	    (loop (iterator))
-	    (hash-set! classes key (entry input expected-output-vec my-classes))
-	    ]
-
-	   [else
-	    (pretty-display "[1.2] FOUND!!!!")
-	    (define groups (hash-keys classes))
-	    (pretty-display `(groups ,(length groups)))
-	    (send printer print-syntax (send printer decode first-prog))
-	    (yield first-prog)])
-          ]
-
-	 [else
-	  (when debug (pretty-display "[2] incorrect"))
-	  (let ([key (cons states-vec my-liveout-vec)])
-	    (hash-set! classes key (list prog)))]))
-
-      (define (insert-table table key collection states-vec-spec states-vec)
-	(define live-out (cdr key))
-
-	(define (insert-extra input expected-output-vec small-table)
-	  (when debug 
-		(pretty-display `(insert-extra))
-		(send machine display-state input))
-	  (define iterator (get-collection-iterator collection))
-	  (define (loop prog)
-	    (when prog
-		  (define output 
-		    (with-handlers*
-		     ([exn? (lambda (e) #f)])
-		     (send simulator interpret prog input #:dep #f)))
-		  (when output
-			(define output-vec (send machine progstate->vector output))
-			(define small-key (cons (list output-vec) live-out))
-			(insert-table small-table small-key prog 
-				      (list expected-output-vec) (list output-vec)))
-		  (loop (iterator))))
-	  (loop (iterator)))
-	
-	(if (hash-has-key? table key)
-	    (let ([val (hash-ref table key)])
-	      (if (list? val)
-		  (begin
-		    (when debug (pretty-display "[a] append to list"))
-		    (hash-set! table key (cons collection (hash-ref table key)))
-		    )
-		  (begin
-		    (when debug (pretty-display "[b] expand table"))
-		    (insert-extra (entry-input val) (entry-outputvec val) (entry-table val)))))
-	    (begin
-	      (when debug (pretty-display "[c] new entry"))
-	      (check-and-insert-new table collection states-vec-spec states-vec))))
-
-      (when debug (pretty-display `(insert-table ,prog)))
-      (insert-table classes (cons states-vec my-liveout-vec) prog states-vec-spec states-vec)
-
-      )|#
-
-		
+    (define (get-register-mapping nregs states-vec-spec states-vec liveout-vec)
+      #f)
+     
+    (define (get-renaming-iterator prog mapping)
+      (generator
+       ()
+       (yield prog)
+       (yield #f)))
 
     ))
