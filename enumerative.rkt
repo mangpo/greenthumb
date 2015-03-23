@@ -56,6 +56,7 @@
       (for ([i states1])
 	   (send machine display-state i))
 
+      (define t-start (current-seconds))
       (define t0 (current-seconds))
       (define count 0)
       (define candidate-gen
@@ -110,6 +111,7 @@
 				       (send machine state-eq? output-vec my-output-vec liveout-vec))))
 		       (when #t 
 			     (pretty-display "[2] all correct")
+			     (pretty-display `(time ,(- (current-seconds) t-start)))
 			     (pretty-display `(ce-list ,(length ce-list)))
 			     (when (= (length ce-list) 100)
 				   (for ([i 10]
