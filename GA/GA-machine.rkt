@@ -334,12 +334,16 @@
     (define (get-arg-ranges opcode-name entry live-in)
       (raise "GA: get-arg-ranges should not be called."))
     
-    (define (analyze-args prefix code postfix)
+    (define (analyze-args prefix code postfix #:vreg [vreg 0])
       (define constants (list))
       (for ([x (vector-append prefix code postfix)])
            (when (equal? (vector-ref inst-id (inst-op x)) `@p)
                  (set! constants (cons (inst-args x) constants))))
-      (list->set constants))
+      (set! const-range
+            (list->vector
+             (set->list (set-union (list->set (vector->list const-range)) 
+                                   (list->set constants)))))
+      (pretty-display `(const-range ,const-range)))
 	    
 
     ))

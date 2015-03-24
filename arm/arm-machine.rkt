@@ -94,7 +94,7 @@
               progstate->vector vector->progstate
 	      get-arg-ranges get-operand-live
 	      window-size clean-code 
-	      analyze-opcode analyze-args relaxed-state-eq?)
+	      analyze-opcode analyze-args relaxed-state-eq? get-nregs)
     (public get-shfarg-range get-arg-ranges-enum)
 
     (set! bit 32)
@@ -174,7 +174,7 @@
     (define bit-range-no-0 #f)
     (define mem-range #f)
 
-    (define/public (get-nregs) nregs)
+    (define (get-nregs) nregs)
     (define/public (get-nmems) nmems)
     (define/public (get-fp) fp)
     (define/public (get-shf-inst-id x)

@@ -24,7 +24,7 @@
                                #:assume-interpret [assume-interpret #t]
                                #:assume [assumption (send machine no-assumption)])
       (define spec-len (vector-length spec))
-      (define org-nregs (send machine get-nregs)) ;; TODO: get-nregs is machine-dependent.
+      (define org-nregs (send machine get-nregs)) ;; #f is default
       (send machine analyze-args prefix spec postfix #:vreg spec-len)
       (send machine analyze-opcode prefix spec postfix)
 
@@ -80,12 +80,14 @@
 
 	     ;; (when (concat? prog) 
 	     ;; 	   (let ([x (concat-inst prog)])
-	     ;; 	     (when (and (equal? `sub (vector-ref (get-field inst-id machine) (inst-op x)))
-	     ;; 			(equal? 3 (vector-ref (inst-args x) 0))
-	     ;; 			(equal? 0 (vector-ref (inst-args x) 1))
-	     ;; 			(equal? 2 (vector-ref (inst-args x) 2)))
+	     ;; 	     (when (and (equal? `@p 
+             ;;                            (vector-ref (get-field inst-id machine) 
+             ;;                                        (inst-op x)))
+	     ;; 			(equal? 3 (inst-args x)))
+             ;;               (newline)
 	     ;; 		   (pretty-display `(states-vec ,states-vec
-	     ;; 						,states-vec-spec)))))
+	     ;; 						,states-vec-spec))
+             ;;               (newline))))
 	     (when
 	      (for/and ([state-spec states-vec-spec]
 			[state states-vec])
@@ -96,7 +98,7 @@
 	      (define (inner-loop iterator)
 		(define p (iterator))
 		(when p
-		      (pretty-display "After renmaing")
+		      (pretty-display "After renaming")
 		      (send printer print-syntax (send printer decode p))
 		      (when
 		       (for/and ([input-output ce-list])
@@ -210,7 +212,7 @@
 		  ;;(pretty-display `(key ,(car key) ,(cdr key)))
 		  ;; Initialize enumeration one instruction process
 		  (reset-generate-inst outputs live-list (entry-vreg val))
-		  (when debug 
+		  (when debug
 			(pretty-display `(ENUM!!!!!!!!!!!!! ,(entry-progs val)))
 			(print-concat (entry-progs val)))
 		  (enumerate outputs (entry-progs val))))
@@ -272,7 +274,7 @@
       iterate-collection)
      
     (define (get-register-mapping nregs states-vec-spec states-vec liveout-vec)
-      #f)
+      #t)
      
     (define (get-renaming-iterator prog mapping)
       (generator

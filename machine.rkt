@@ -24,13 +24,15 @@
             display-state-text parse-state-text get-states-from-file syntax-equal?
 	    clean-code state-eq? relaxed-state-eq?
 	    update-live filter-live get-operand-live
-	    analyze-opcode analyze-args)
+	    analyze-opcode analyze-args get-nregs)
 
     (define (get-inst-id opcode)
       (vector-member opcode inst-id))
 
     (define (get-inst-name id)
       (vector-ref inst-id id))
+
+    (define (get-nregs) 0)
 
     (define (no-assumption) #f)
 
