@@ -1,6 +1,6 @@
 #lang racket
 
-(require "ast.rkt" "machine.rkt" "decomposer.rkt")
+(require "ast.rkt" "machine.rkt" "decomposer.rkt" "arm/arm-psql.rkt")
 (require racket/generator)
 
 (provide enumerative%)
@@ -15,7 +15,7 @@
     (inherit-field machine printer validator simulator)
     (override synthesize-window)
     (abstract reset-generate-inst)
-    (public get-register-mapping get-renaming-iterator)
+    (public get-register-mapping get-renaming-iterator build-db)
 
     (define (synthesize-window spec sketch prefix postfix constraint extra 
                                [cost #f] [time-limit 3600]
@@ -281,5 +281,32 @@
        ()
        (yield prog)
        (yield #f)))
+        
+    ;; 1 instruction: 75 s (woonsen)
+    (define (build-db)
+      (send machine reset-inst-pool)
+      (define psql (new arm-psql% [machine machine] [printer printer]))
+      (define all-states (send psql get-all-states))
+      (send psql db-connect)
+      (send psql init (length all-states))
+      (send psql create-table 1 (length all-states))
 
+      ;; Make sure z of (car all-states) is not -1
+      (reset-generate-inst all-states (range (send machine get-nregs)) #f)
+
+      (define (inner p)
+        (define all-states-out 
+          (for/list ([state all-states])
+                    (with-handlers*
+                     ([exn? (lambda (e) #f)])
+                     (send simulator interpret (vector p) state #:dep #f))))
+        (send psql insert 
+              1 (send simulator performance-cost (vector p))
+              all-states all-states-out (vector p))
+        (define next (first (generate-inst)))
+        (when next (inner next))
+        )
+      (inner (first (generate-inst)))
+      (send psql db-disconnect))
+      
     ))

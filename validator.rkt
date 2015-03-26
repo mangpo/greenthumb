@@ -119,7 +119,9 @@
       
       (solve-until-valid config))
     
-    (define (generate-inputs-inner n spec start-state assumption)
+    (define (generate-inputs-inner 
+             n spec start-state assumption
+             [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))])
       (when debug
             (pretty-display `(generate-inputs-inner ,n ,assumption ,random-input-bit)))
       ;; (print-struct spec)
@@ -149,8 +151,7 @@
       (define input-random
         (for/list ([i m])
                   (generate-one-input 
-                   (lambda () (let ([rand (random (min 4294967087 
-                                                       (<< 1 random-input-bit)))])
+                   (lambda () (let ([rand (rand-func)])
                                 (if (>= rand (<< 1 (sub1 bit)))
                                     (- rand (<< 1 bit))
                                     rand))))))
@@ -219,10 +220,13 @@
       (values sym-vars 
               (map (lambda (x) (sat (make-immutable-hash (hash->list x)))) inputs)))
 
-    (define (generate-input-states n spec assumption [extra #f])
+    (define (generate-input-states 
+             n spec assumption [extra #f]
+             #:rand-func 
+             [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))])
       (define start-state (send machine get-state sym-input extra))
       (define-values (sym-vars sltns)
-        (generate-inputs-inner n spec start-state assumption))
+        (generate-inputs-inner n spec start-state assumption rand-func))
       (map (lambda (x) (evaluate-state start-state x)) sltns))
 
     ;; Returns a counterexample if spec and program are different.

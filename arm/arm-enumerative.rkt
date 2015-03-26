@@ -22,7 +22,6 @@
     (define inst-with-shf (get-field inst-with-shf machine))
     (define cond-type-len (vector-length (get-field cond-inst-id machine)))
     (define shf-inst-len (vector-length (get-field shf-inst-id machine)))
-                     
 
     (define (reset-generate-inst states live-in regs)
       (define z (progstate-z (car states))) ;; enough to look at one state.
@@ -62,27 +61,35 @@
 							 ,(send machine get-arg-ranges-enum 
 								opcode-name #f live-in))))
 		     (let* ([shf? (member opcode-name inst-with-shf)]
-			    [arg-ranges (vector->list 
-					 (send machine get-arg-ranges-enum opcode-name #f live-in))]
+			    [arg-ranges 
+                             (if regs
+                                 (vector->list 
+                                  (send machine get-arg-ranges-enum opcode-name #f live-in))
+                                 (vector->list
+                                  (send machine get-arg-ranges opcode-name #f live-in)))]
 			    [cond-bound (if (= z -1) 1  cond-type-len)])
 		       ;;(pretty-display "here2")
 		       (when debug (pretty-display `(iterate ,shf? ,arg-ranges ,cond-bound)))
 		       (for ([cond-type cond-bound])
 			    (if shf?
 				(begin
-				  (recurse-args opcode-id 0 #f cond-type (list) arg-ranges regs)
+				  (recurse-args opcode-id 0 #f cond-type (list) 
+                                                arg-ranges regs)
 				  (for* ([shfop (range 1 shf-inst-len)]
 					 [shfarg (send machine get-shfarg-range shfop live-in)])
 					;;(pretty-display "here3")
 					(recurse-args opcode-id shfop shfarg cond-type (list) 
 						      arg-ranges regs)
 					(when debug
-					      (pretty-display `(call-recurse ,opcode-name ,opcode-id 
-									     ,shfop ,shfarg 
+					      (pretty-display `(call-recurse ,opcode-name 
+                                                                             ,opcode-id 
+									     ,shfop 
+                                                                             ,shfarg 
 									     ,cond-type 
 									     ,arg-ranges)))
 					))
-				(recurse-args opcode-id 0 #f cond-type (list) arg-ranges regs)))))))
+				(recurse-args opcode-id 0 #f cond-type (list) 
+                                              arg-ranges regs)))))))
 	     (yield (list #f #f #f)))))
 
     (define (get-register-mapping org-nregs states-vec-spec states-vec liveout-vec)
@@ -231,5 +238,6 @@
 	  ))
        (recurse 0 (list) (vector->list mapping))
        (yield #f)))
+      
 
     ))

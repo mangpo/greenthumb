@@ -6,7 +6,7 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 2 1 4))
+(send machine set-config (list 2 0 4))
 (define printer (new arm-printer% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 (define validator (new arm-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
@@ -25,8 +25,7 @@
 (define code
 (send parser ast-from-string "
 orr r1, r0, r0, lsl 1
-sub r1, r0, r1
-and r0, r0, r1
+sub r0, r0, r1
 "))
 
 (define sketch
@@ -40,13 +39,13 @@ and r0, r0, r1
 (define encoded-sketch (send validator encode-sym sketch))
 
 (define t (current-seconds))
-(send enum synthesize-window
+#|(send symbolic synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
       encoded-prefix encoded-postfix
-      (constraint machine [reg 0] [mem]) #f #f 36000)
-#|(send stoch superoptimize encoded-code 
-      (constraint machine [reg 0] [mem 0]) ;; constraint
+      (constraint machine [reg 0] [mem]) #f #f 36000)|#
+(send stoch superoptimize encoded-code 
+      (constraint machine [reg 0] [mem]) ;; constraint
       (constraint machine [reg 0] [mem]) ;; live-in
-      "./driver-0" 3600 #f)|#
+      "./driver-0" 3600 #f)
 (pretty-display `(time ,(- (current-seconds) t)))

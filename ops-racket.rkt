@@ -7,7 +7,7 @@
 (define-syntax-rule (<< x y bit)
   (if (and (>= y 0) (< y bit))
       (let ([mask (sub1 (arithmetic-shift 1 (- bit y)))])
-        (arithmetic-shift (bitwise-and x mask) y))
+        (finitize (arithmetic-shift (bitwise-and x mask) y) bit))
       0))
 
 (define-syntax-rule (>> x y)

@@ -88,7 +88,7 @@
     (inherit print-line get-class-id filter-live update-live state-eq?)
     (override set-config get-config set-config-string
               adjust-config finalize-config config-exceed-limit?
-              get-state get-state-liveness display-state
+              get-state get-state-liveness display-state 
               output-constraint-string
               display-state-text parse-state-text
               progstate->vector vector->progstate
@@ -468,6 +468,10 @@
 	    (pretty-display `(inst-choice ,inst-choice))
 	    (pretty-display `(classes-filtered ,classes-filtered)))
       )
+
+    ;; (define (reset-inst-pool)
+    ;;   (define inst-choice '(sbfx))
+    ;;   (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
 
 
     (define (analyze-args-inst x) ;; TODO: move this to machine.rkt

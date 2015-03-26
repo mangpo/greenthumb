@@ -135,11 +135,11 @@
       (assert (and (>= shift 0) (< shift bit)))
       (assert (and (> width 0) (<= (+ width shift) bit)))
       (let ([keep (bitwise-and (>> a shift) (sub1 (shl 1 width)))])
-	(bitwise-ior
-	 (if (= (bitwise-bit-field keep (sub1 width) width) 1)
-	     (shl -1 width)
-	     0)
-	 (finitize-bit keep))))
+        (bitwise-ior
+         (if (= (bitwise-bit-field keep (sub1 width) width) 1)
+             (shl -1 width)
+             0)
+         (finitize-bit keep))))
 
     (define (clz x)
       (let ([mask (shl 1 (sub1 bit))]

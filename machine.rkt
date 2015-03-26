@@ -16,26 +16,20 @@
               adjust-config finalize-config config-exceed-limit?
               output-constraint-string
               progstate->vector vector->progstate
-	      get-arg-ranges 
-	      window-size)
+	      get-arg-ranges window-size)
     (public get-class-id print-line no-assumption
             get-inst-id get-inst-name
             output-assume-string get-state-liveness
             display-state-text parse-state-text get-states-from-file syntax-equal?
 	    clean-code state-eq? relaxed-state-eq?
 	    update-live filter-live get-operand-live
-	    analyze-opcode analyze-args get-nregs)
+	    analyze-opcode analyze-args get-nregs
+            reset-inst-pool)
 
-    (define (get-inst-id opcode)
-      (vector-member opcode inst-id))
-
-    (define (get-inst-name id)
-      (vector-ref inst-id id))
-
+    (define (get-inst-id opcode) (vector-member opcode inst-id))
+    (define (get-inst-name id) (vector-ref inst-id id))
     (define (get-nregs) 0)
-
     (define (no-assumption) #f)
-
     (define (get-state-liveness f extra) (get-state f extra))
 
     ;; x: name in form of symbol
@@ -135,7 +129,8 @@
             (for/vector ([c classes])
                         (map (lambda (x) (vector-member x inst-id)) c))))
 
-    (define (analyze-args prefix code postfix)
-      (void))
+    (define (analyze-args prefix code postfix) (void))
+    (define (reset-inst-pool)
+      (set! inst-pool (range (vector-length inst-id))))
 
     ))
