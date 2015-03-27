@@ -121,7 +121,9 @@
     
     (define (generate-inputs-inner 
              n spec start-state assumption
-             [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))])
+             #:rand-func
+             [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))]
+             #:db [db #f])
       (when debug
             (pretty-display `(generate-inputs-inner ,n ,assumption ,random-input-bit)))
       ;; (print-struct spec)
@@ -146,7 +148,7 @@
       ;; All 0s
       (define input-zero (list (generate-one-input (lambda () 0))))
       
-      (define m (quotient n 2))
+      (define m (if db n (quotient n 2)))
       ;; Random
       (define input-random
         (for/list ([i m])
@@ -223,10 +225,13 @@
     (define (generate-input-states 
              n spec assumption [extra #f]
              #:rand-func 
-             [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))])
+             [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))]
+             #:db [db #f])
       (define start-state (send machine get-state sym-input extra))
       (define-values (sym-vars sltns)
-        (generate-inputs-inner n spec start-state assumption rand-func))
+        (generate-inputs-inner n spec start-state assumption 
+                               #:rand-func rand-func
+                               #:db db))
       (map (lambda (x) (evaluate-state start-state x)) sltns))
 
     ;; Returns a counterexample if spec and program are different.

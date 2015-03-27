@@ -14,14 +14,14 @@
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 
 ;; Input machine state
-(define input-state (progstate (vector -3 -3)
+(define input-state (progstate (vector 2 3)
                                (vector) -1 1))
 
 ;; Section 1: Concrete program
 
 (define code
 (send parser ast-from-string "
-sbfx r0, r0, 0, 1
+orr r1, r0, r0, lsl 1
 "))
 
 (send printer print-struct code)
@@ -35,7 +35,7 @@ sbfx r0, r0, 0, 1
 (send machine display-state output-state)
 (newline)
 
-(send simulator-racket performance-cost encoded-code)
+;(send simulator-racket performance-cost encoded-code)
 
 ;; ;; Section 2: Unknown program
 ;; ;; ? = one instruction
