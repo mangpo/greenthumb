@@ -50,11 +50,11 @@
       (lambda (x y) 
         (bool->num (if (equal? (< x 0) (< y 0)) (op x y) (op y x)))))
 
-    ;; (define-syntax-rule (bvshift op)
-    ;;   (lambda (x y)
-    ;;     (finitize-bit (op x (bitwise-and byte-mask y)))))
-
     (define-syntax-rule (bvshift op)
+      (lambda (x y)
+        (finitize-bit (op x (bitwise-and byte-mask y)))))
+
+    (define-syntax-rule (bvshift# op)
       (lambda (x y)
 	;;(pretty-display `(bvshift assert ,y))
 	(assert (and (>= y 0) (<= y bit)))
@@ -85,6 +85,10 @@
     (define bvshl  (bvshift shl))
     (define bvshr  (bvshift >>))
     (define bvushr (bvshift ushr))
+
+    (define bvshl#  (bvshift# shl))
+    (define bvshr#  (bvshift# >>))
+    (define bvushr# (bvshift# ushr))
 
     (define uxtah (bvop (lambda (x y) (+ x (bitwise-and y low-mask)))))
     (define uxth (lambda (x) (finitize-bit (bitwise-and x low-mask))))
@@ -117,7 +121,7 @@
       (assert (and (> width 0) (<= (+ width shift) bit)))
       (let* ([mask (sub1 (shl 1 width))]
              [keep (bitwise-and d (bitwise-not (shl mask shift)))]
-             [insert (bvshl (bitwise-and a mask) shift)])
+             [insert (bvshl# (bitwise-and a mask) shift)])
         (finitize-bit (bitwise-ior keep insert))))
 
     (define (clrbit d width shift)
@@ -200,7 +204,7 @@
     ;; policy: a procedure that enforces a policy to speed up synthesis. Default to nothing.
     (define (interpret program state [is-candidate #f] #:dep [dep #f])
       (define inst-pool (get-field inst-pool machine))
-      ;(pretty-display `(interpret ,inst-pool))
+      ;;(pretty-display `(interpret))
       (define regs (vector-copy (progstate-regs state)))
       (define memory (vector-copy (progstate-memory state)))
       (define z (progstate-z state))
@@ -233,7 +237,7 @@
 	     (let ([my-id (vector-member x inst-id)])
 	       (and (equal? op my-id) (or (equal? inst-pool #f) (member my-id inst-pool)))))
             ((inst-eq a b ...) (or (inst-eq a) (inst-eq b) ...))))
-	
+
         (define-syntax-rule (args-ref args i) (vector-ref args i))
 
         (define (exec cond-dep)
@@ -266,9 +270,9 @@
              [(shf-inst-eq `lsl) (rr bvshl)]
              
              ;; shift i
-             [(shf-inst-eq `lsr#) (ri bvushr)]
-             [(shf-inst-eq `asr#) (ri bvshr)]
-             [(shf-inst-eq `lsl#) (ri bvshl)]
+             [(shf-inst-eq `lsr#) (ri bvushr#)]
+             [(shf-inst-eq `asr#) (ri bvshr#)]
+             [(shf-inst-eq `lsl#) (ri bvshl#)]
              [else
               (assert #f (format "undefine optional shift: ~a" op))]
              )
@@ -541,9 +545,9 @@
            [(inst-eq `lsl) (rrr bvshl)]
            
            ;; shift i
-           [(inst-eq `lsr#) (rrb bvushr)]
-           [(inst-eq `asr#) (rrb bvshr)]
-           [(inst-eq `lsl#) (rrb bvshl)]
+           [(inst-eq `lsr#) (rrb bvushr#)]
+           [(inst-eq `asr#) (rrb bvshr#)]
+           [(inst-eq `lsl#) (rrb bvshl#)]
 
            ;; bit
            [(inst-eq `bfc)  (r!bb  clrbit)]
