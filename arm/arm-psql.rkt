@@ -1,14 +1,12 @@
 #lang racket
 
 (require db data/queue)
-(require "../ast.rkt" "arm-machine.rkt" 
-         "arm-simulator-racket.rkt" "arm-validator.rkt")
+(require "../ast.rkt" "../graph.rkt" "arm-machine.rkt" 
+         "arm-simulator-racket.rkt" "arm-validator.rkt" "arm-parser.rkt")
 
 (provide arm-psql%)
 
 (struct entry (prog states))
-;(struct concat (a b))
-(struct arrow (from step))
 
 (define arm-psql%
   (class object% ;; TODO arm-enumerative%
@@ -222,29 +220,29 @@
     ;;    [else
     ;;     (for ([i x]) (print-concat i indent))]))
 
-    (define (print-arrow table ins-id x)
+    (define (print-graph ins-id x)
       (define visit (set))
       (define (inner x indent)
         (cond
-         [(arrow? x)
+         [(neighbor? x)
           (cond 
-           [(equal? (arrow-from x) ins-id)
-            (display (format "~a|||~a" indent (arrow-step x)))]
+           [(equal? (vertex-ids (neighbor-node x)) ins-id)
+            (display (format "~a|||~a" indent (neighbor-edge x)))]
 
-           [(set-member? visit (arrow-from x))
-            (display (format "~a(.)~a" indent (arrow-step x)))]
+           [(set-member? visit (neighbor-node x))
+            (display (format "~a(.)~a" indent (neighbor-edge x)))]
            
            [else
-            (set! visit (set-add visit (arrow-from x)))
-            (inner (hash-ref table (arrow-from x)) (string-append indent "  "))
-            (display (format "~a~a" indent (arrow-step x)))])]
+            (set! visit (set-add visit (neighbor-node x)))
+            (inner (vertex-from (neighbor-node x)) (string-append indent "  "))
+            (display (format "~a~a" indent (neighbor-edge x)))])]
            
          [(equal? x #f) (pretty-display (format "~a|||" indent))]
 
          [(list? x) (for ([i x]) (inner i indent))]
 
          [else (pretty-display (format "~a~a" indent x))]))
-      (inner x ""))
+      (inner (vertex-from x) ""))
         
     
     ;; Convert DB response into list of (entry program states)
@@ -266,12 +264,16 @@
       ;;(pretty-display `(parsed ,(vector-ref resp index) ,(reverse states)))
       (entry (vector-ref resp index) (reverse states)))
 
+    (define start-ids #f)
+    (define ids2node (make-hash))
+
     (define/public (synthesize-window spec sketch prefix postfix constraint extra 
                                [cost #f] [time-limit 3600]
                                #:hard-prefix [hard-prefix (vector)] 
                                #:hard-postfix [hard-postfix (vector)]
                                #:assume-interpret [assume-interpret #t]
                                #:assume [assumption (send machine no-assumption)])
+
       (define spec-len (vector-length spec))
       (define ntests 16)
       (define inits
@@ -298,17 +300,28 @@
       (pretty-display `(states1-id ,states1-id))
       (for ([i states2-spec])
            (send machine display-state i))
+      (set! start-ids states1-id)
+
+      (define graph (new graph% 
+                         [machine machine] [validator validator] 
+                         [simulator simulator] [printer printer] [parser (new arm-parser%)]
+                         [spec spec] [constraint constraint] 
+                         [extra extra] [assumption assumption]
+                         [start-ids states1-id]))
 
       (define queue (make-queue))
       (define level (make-queue))
-      (enqueue! queue states1-id)
-      (enqueue! level 1)
-      (define mapping (make-hash))
-      (hash-set! mapping states1-id #f)
-      (db-connect)
+      (let ([first-node (vertex states1-id (list) (list) #f (make-hash) #f)])
+        (enqueue! queue first-node)
+        (enqueue! level 1)
+        ;; (define mapping (make-hash))
+        ;; (hash-set! mapping states1-id #f)
+        (set! ids2node (make-hash))
+        (hash-set! ids2node states1-id first-node)
+        (db-connect))
 
-      (define (enqueue ins-id my-level)
-        (define prog-states-list (select-from-in 1 ins-id))
+      (define (enqueue in-node my-level)
+        (define prog-states-list (select-from-in 1 (vertex-ids in-node)))
         (pretty-display `(enqueue-more ,(length prog-states-list)))
         ;; TODO enqueue!
         (for ([prog-states prog-states-list])
@@ -320,45 +333,58 @@
                        ;;       (pretty-display `(OUT ,ins-id ,current-progs ,prog))
                        ;;       (raise "out")
                        ;;       )
-                       (if (hash-has-key? mapping ids)
-                           (let ([val (hash-ref mapping ids)])
-                             (hash-set! mapping ids 
-                                        (cons (arrow ins-id prog) val)))
-                           (begin
-                             (hash-set! mapping ids (list (arrow ins-id prog)))
-                             (enqueue! queue ids)
+                       (if (hash-has-key? ids2node ids)
+                           (let ([my-node (hash-ref ids2node ids)])
+                             (set-vertex-from! my-node 
+                                             (cons (neighbor in-node prog) ;; TODO: in-node
+                                                   (vertex-from my-node))))
+                           (let ([my-node (vertex ids (list (neighbor in-node prog)) (list) 
+                                                #f (make-hash) #f)])
+                             (hash-set! ids2node ids my-node)
+                             (enqueue! queue my-node)
                              (enqueue! level (add1 my-level))
                              )))))
         )
       
       (define (loop)
-        (define ins-id (dequeue! queue))
+        (define in-node (dequeue! queue))
+        (define ins-id (vertex-ids in-node))
         (define my-level (dequeue! level))
-        (define current-prog (hash-ref mapping ins-id))
         (newline)
         (pretty-display `(my-level ,my-level))
         (pretty-display `(number-of-pairs ,(length (filter number? ins-id))))
         (cond
          [(= 0 (length (filter number? ins-id)))
           ;; post-pone this for later
-          (enqueue! queue ins-id)
+          (enqueue! queue in-node)
           (enqueue! level my-level)]
 
          [else
-          (define progs (hash-ref mapping ins-id))
           (define prog-list (map (lambda (x) (vector-ref x 0))
                                  (select-from-in-out 1 ins-id states2-spec live2)))
           (pretty-display `(match ,(length prog-list)))
           (unless (empty? prog-list)
                   (pretty-display `(ins-id ,ins-id))
                   (pretty-display `(current))
-                  (print-arrow mapping states1-id current-prog)
+                  (print-graph states1-id in-node)
                   (pretty-display prog-list)
-                  (raise "done"))
-          ;; TODO check against ce-list
-          ;; TODO verify
+                  ;(raise "done")
+                  
+                  (define my-node 
+                    (vertex #t (map (lambda (x) (neighbor in-node x)) prog-list) (list) 
+                          #f (make-hash) #f))
+                  (define iterator (send graph get-correct-iterator my-node))
 
-          (enqueue ins-id my-level)])
+                  (define (loop p)
+                    (when p
+                          (send printer print-syntax (send printer decode p))
+                          (loop (iterator))))
+                  (loop (iterator))
+                  (raise "done")
+
+                  )
+
+          (enqueue in-node my-level)])
         (loop)
         )
 
