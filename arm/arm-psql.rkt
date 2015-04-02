@@ -377,7 +377,7 @@
 
                   (define (loop p)
                     (when p
-                          (send printer print-syntax (send printer decode p))
+                          ;;(send printer print-syntax (send printer decode p))
                           (loop (iterator))))
                   (loop (iterator))
                   (raise "done")
