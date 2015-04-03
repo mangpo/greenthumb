@@ -28,15 +28,19 @@
       ;; (vector-set! ce-input 0 (send machine progstate->vector in))
       ;; (vector-set! ce-output 0 (send machine progstate->vector out))
       
-      (generator () (dfs my-node (vector) 0 0 (list)) #f))
+      (generator () (dfs my-node 0 0 (list)) #f))
     
     ;; Return #t if that node has ce.
-    (define (dfs my-node prog cost level path)
+    (define (dfs my-node cost level path)
       (pretty-display `(dfs ,(vertex-ids my-node) ,cost ,level))
       (cond
        [(equal? (vertex-ids my-node) start-ids)
         (when (vector-ref ce-output level)
               (raise (format "graph% already has counterexample for level ~a" level)))
+	
+	(define prog (vector))
+	(for ([x path])
+	     (set! prog (vector-append prog (neighbor-edge x))))
 
 	(send printer print-syntax (send printer decode prog))
         (define ce (send validator counterexample spec prog constraint extra 
@@ -75,10 +79,11 @@
                (pretty-display (format "  ~a" (vertex-ids my-node)))
                (pretty-display (format "  --> ~a [~a]" (vertex-ids node-prev) self-loop))
 
-               ;; TODO: set-node-to! properly
-	       (when (hash-empty? children-table)
-		     (set-vertex-to! node-prev (cons (neighbor my-node p-prev) (vertex-to node-prev)))
-		     (add-forward-edges my-node path))
+	       ;; If this path merges with the graph with ce, add forward egdes.
+	       (unless (hash-empty? children-table)
+		       (set-vertex-to! node-prev 
+				       (cons (neighbor my-node p-prev) (vertex-to node-prev)))
+		       (add-forward-edges my-node path))
 			  
                (for ([pair (hash->list children-table)])
                     (let* ([c-state-vec (car pair)]
@@ -94,7 +99,7 @@
                           (not self-loop)
                           (<= (+ cost this-cost) best-cost))
                      ;; Same level DFS
-                     (let ([ret (dfs node-prev (vector-append p-prev prog) 
+                     (let ([ret (dfs node-prev
                                      (+ cost this-cost) level 
 				     (cons (neighbor my-node p-prev) path))])
                        (set! ce (and ce ret))))
@@ -104,12 +109,11 @@
         ]))
 
     (define (add-forward-edges this-node path)
-      (let* ([step (car path)]
-	     [p-next (neighbor-edge step)]
-	     [node-next (nieghbor-node step)])
-	(set-vertex-to! this-node (cons step (vertex-to this-node)))
-	(when (and (hash-empty? (vertex-children node-next)) 
-		   (> (length path) 1))
+      (pretty-display (format "  (add-forward-edges ~a)" (vertex-ids this-node)))
+      (when (and (hash-empty? (vertex-children this-node)) (>= (length path) 1))
+	    (let* ([step (car path)]
+		   [node-next (neighbor-node step)])
+	      (set-vertex-to! this-node (cons step (vertex-to this-node)))
 	      (add-forward-edges node-next (cdr path)))))
     
 
@@ -143,11 +147,11 @@
 		  (set-vertex-from! matched-node
 				    (cons (neighbor c-prev-node p-prev) 
 					  (vertex-from matched-node))))
-            (when (vertex-status matched-node)
+            (when (vertex-status matched-node) ;; correct candidate
                 ;; Correct -> DFS
                 (let ([path (vertex-status matched-node)])
                   ;; +1 level DFS
-                  (dfs matched-node path (vertex-cost matched-node) (add1 level) path) ;;TODO path & path
+                  (dfs matched-node (vertex-cost matched-node) (add1 level) path)
                   (set! ret-path path)
                   )
                 ))
@@ -164,12 +168,11 @@
 	      (when (send machine state-eq? 
 			  (vector-ref ce-output level) 
 			  my-state-vec 
-			  liveout-vec))
-	      (set-vertex-status! new-node (list))
-	      ;; Correct -> DFS
-	      (dfs new-node (vector) 0 (add1 level) (list)) ;; +1 level DFS
-	      (set! ret-path (list))
-	      )
+			  liveout-vec)
+		    (set-vertex-status! new-node (list))
+		    ;; Correct -> DFS
+		    (dfs new-node 0 (add1 level) (list)) ;; +1 level DFS
+		    (set! ret-path (list)))
 	     ]
 	     
 	     [else
@@ -185,7 +188,9 @@
 			  )
 		     ;; TODO: check
 		     (when ret
-			   (let ([my-cost (+ perf (vertex-cost (neighbor-node (car ret))))]
+			   (let ([my-cost (if (> (length ret) 0)
+					      (+ perf (vertex-cost (neighbor-node (car ret))))
+					      perf)]
 				 [step (neighbor new-node p-next)])
 			     (when (< my-cost min-cost)
 				   (set! min-cost my-cost)
@@ -194,7 +199,7 @@
 				   (set-vertex-status! new-node ret-path)
 				   )))
 		     ))
-	      ]))
+	      ])))
       ret-path
       )
     
