@@ -1,11 +1,18 @@
 #lang racket
 
-(provide graph% (struct-out vertex) (struct-out neighbor))
+(provide graph% make-vertex (struct-out vertex) (struct-out neighbor))
 (require racket/generator)
 
-(struct vertex (ids from to status children cost) #:mutable)
+(struct vertex (ids from to status children cost-from cost-to) #:mutable)
 ;; children is a hash table that maps state -> child node (refinement)
 (struct neighbor (node edge))
+
+(define-syntax make-vertex
+  (syntax-rules ()
+    ((make-vertex ids) (vertex ids (list) (list) #f (make-hash) #f #f))
+    ((make-vertex ids f) (vertex ids f (list) #f (make-hash) #f #f))
+    ))
+    
 
 (define graph%
   (class object%
@@ -20,7 +27,7 @@
     ;; (define ce-n 1)
     ;; (define ce-input (make-vector 16 #f))
     (define ce-output (make-vector 16 #f))
-    (define best-cost 1000)
+    (define best-cost 4)
 
     (define (get-correct-iterator my-node)
       ;; (define in (car (send validator generate-input-states 1 spec assumption extra)))
@@ -32,7 +39,7 @@
     
     ;; Return #t if that node has ce.
     (define (dfs my-node cost level path)
-      (pretty-display `(dfs ,(vertex-ids my-node) ,cost ,level))
+      (pretty-display (format "[dfs] start ~a cost=~a level=~a" (vertex-ids my-node) cost level))
       (cond
        [(equal? (vertex-ids my-node) start-ids)
         (when (vector-ref ce-output level)
@@ -45,58 +52,69 @@
 	(send printer print-syntax (send printer decode prog))
         (define ce (send validator counterexample spec prog constraint extra 
                          #:assume assumption))
-        (pretty-display (format "Graph: level = ~a, ce = ~a" level ce))
+        (pretty-display (format "[dfs] level=~a ce=~a" level ce))
         (if ce
             (begin
               (vector-set! ce-output level 
                            (send machine progstate->vector
                                  (send simulator interpret spec ce #:dep #f)))
 	      (add-forward-edges my-node path)
-              (exec-forward my-node ce #f #f level) ;; Same level DFS
+              (exec-forward my-node ce 0 #f #f level) ;; Same level DFS
               (set! visit (set-add visit my-node))
-              #t
               )
             (begin
               (yield prog)
-              (when (< cost best-cost) (set! best-cost cost))
-              #f))]
+              (when (< cost best-cost) (set! best-cost cost))))]
 
        [else
         (define my-children-table (vertex-children my-node))
-        (define ce #t)
+
+        (define (func edge)
+          (let* ([node-prev (neighbor-node edge)]
+                 [self-loop (equal? my-node node-prev)]
+                 [raw-p-prev (neighbor-edge edge)]
+                 [p-prev 
+                  (if (= level 0) ;; haven't converted.
+                      (send printer encode (send parser ast-from-string raw-p-prev))
+                      raw-p-prev)]
+                 [this-cost (send simulator performance-cost p-prev)]
+                 [total-cost (+ cost this-cost)]
+                 [children-table (vertex-children node-prev)])
+            (pretty-display (format "  level=~a self-loop=~a"
+                                    level self-loop))
+            (pretty-display (format "  ~a" (vertex-ids my-node)))
+            (pretty-display (format "  --> ~a empty=~a cost=~a" 
+                                    (vertex-ids node-prev) 
+                                    (hash-empty? children-table)
+                                    total-cost))
+
+            (when (<= total-cost best-cost)
+                  (if (hash-empty? children-table)
+                      (unless self-loop
+                              (dfs node-prev total-cost level 
+                                   (cons (neighbor my-node p-prev) path)))
+                      (connect-graph my-node node-prev p-prev children-table path 
+                                     total-cost level)))
+            ))
+          
+        ;; Reverse the list because the small programs are usually added to
+        ;; the list first.
+
+        ;; Visit not self-loop first.
         (for ([edge (reverse (vertex-from my-node))])
-             ;; Reverse the list because the small programs are usually added to
-             ;; the list first.
              (let* ([node-prev (neighbor-node edge)]
-                    [raw-p-prev (neighbor-edge edge)]
-                    [p-prev 
-                     (if (= level 0) ;; haven't converted.
-                         (send printer encode (send parser ast-from-string raw-p-prev))
-                         raw-p-prev)]
-                    [this-cost (send simulator performance-cost p-prev)]
-                    [total-cost (+ cost this-cost)]
-                    [children-table (vertex-children node-prev)]
                     [self-loop (equal? my-node node-prev)])
-               (pretty-display (format "  l=~a ~a" level (vertex-ids my-node)))
-               (pretty-display (format "  --> ~a [~a]" (vertex-ids node-prev) self-loop))
+               (when (not self-loop) (func edge))))
 
-               ;; If this path merges with the graph with ce, add forward egdes.
-	       (unless (hash-empty? children-table)
-		       (connect-graph my-node node-prev p-prev children-table path total-cost level))
-
-               (when (and (not (set-member? visit node-prev)) 
-                          (not self-loop)
-                          (<= total-cost best-cost))
-                     ;; Same level DFS
-                     (let ([ret (dfs node-prev total-cost level 
-				     (cons (neighbor my-node p-prev) path))])
-                       (set! ce (and ce ret))))
-               ))
-        (when ce (set! visit (set-add visit my-node)))
-        ce
+        ;; Visit self-loop.
+        (for ([edge (reverse (vertex-from my-node))])
+             (let* ([node-prev (neighbor-node edge)]
+                    [self-loop (equal? my-node node-prev)])
+               (when self-loop (func edge))))
         ]))
 
     (define (connect-graph my-node node-prev p-prev children-table path total-cost level)
+      (pretty-display (format "[connect] ~a level=~a" (vertex-ids my-node) level))
       ;; If this path merges with the graph with ce, add forward egdes.
       (set-vertex-to! node-prev 
                       (cons (neighbor my-node p-prev) (vertex-to node-prev)))
@@ -106,23 +124,27 @@
            (let* ([c-state-vec (car pair)]
                   [c-state (send machine vector->progstate c-state-vec)]
                   [c-node (cdr pair)]
+                  [c-cost (vertex-cost-from c-node)]
                   [my-state (send simulator interpret p-prev c-state #:dep #f)]
-                  [my-state-vec (send machine progstate->vector my-state)])
-             (let-values ([(new-path new-node) 
-                           (exec-forward my-node my-state c-node p-prev level)])
-               (when new-path
-                     (let ([c-children-table (vertex-children c-node)])
-                       (if (hash-empty? c-children-table)
-                           (when (<= total-cost best-cost)
-                                 (dfs c-node total-cost (add1 level) 
-                                      (cons (neighbor new-node p-prev) new-path)))
-                           (connect-graph new-node c-node p-prev c-children-table new-path 
-                                          (add1 level))
-                           )))))))
+                  [my-state-vec (send machine progstate->vector my-state)]
+                  [perf (send simulator performance-cost p-prev)])
+             (when
+              (<= (+ c-cost perf) best-cost)
+              (let-values ([(new-path new-node) 
+                            (exec-forward my-node my-state (+ c-cost perf) 
+                                          c-node p-prev level)])
+                (when new-path
+                      (let ([c-children-table (vertex-children c-node)])
+                        (if (hash-empty? c-children-table)
+                            (when (<= total-cost best-cost)
+                                  (dfs c-node total-cost (add1 level) 
+                                       (cons (neighbor new-node p-prev) new-path)))
+                            (connect-graph new-node c-node p-prev c-children-table new-path 
+                                           (add1 level)))))
+                )))))
   
 
     (define (add-forward-edges this-node path)
-      (pretty-display (format "  (add-forward-edges ~a)" (vertex-ids this-node)))
       (when (and (hash-empty? (vertex-children this-node)) (>= (length path) 1))
 	    (let* ([step (car path)]
 		   [node-next (neighbor-node step)])
@@ -130,34 +152,42 @@
 	      (add-forward-edges node-next (cdr path)))))
 	    
     ;; Return path if find correct paths.
-    (define (exec-forward my-node my-state c-prev-node p-prev level)
-      (pretty-display (format "   (exec ~a ~a)" (vertex-ids my-node) level))
+    ;; TODO: ~A* on cost
+    (define (exec-forward my-node my-state my-cost c-prev-node p-prev level)
+      (pretty-display "[exec]")
       (send machine display-state my-state)
       (define my-children-table (vertex-children my-node))
       (define my-state-vec (send machine progstate->vector my-state))
       (define ret-path #f)
       (if (hash-has-key? my-children-table my-state-vec)
           (let ([matched-node (hash-ref my-children-table my-state-vec)])
-	    (pretty-display (format "   (hash-has-key)"))
+            (when (< my-cost (vertex-cost-from matched-node)) ;; Update cost.
+                  ;;(raise "graph: vertex-cost-from decreases!!!")
+                  ;; TODO: fix this!!!
+                  (set-vertex-cost-from! matched-node my-cost))
 	    (when c-prev-node ;; If not source node.
 		  (set-vertex-from! matched-node
 				    (cons (neighbor c-prev-node p-prev) 
 					  (vertex-from matched-node))))
-            (when (vertex-status matched-node) ;; correct candidate
+            (if (vertex-status matched-node) ;; correct candidate
                 ;; Correct -> DFS
                 (let ([path (vertex-status matched-node)])
-                  ;; +1 level DFS
-                  ;;(dfs matched-node (vertex-cost matched-node) (add1 level) path)
                   (set! ret-path path)
+                  (pretty-display (format "[exec] has-correct level=~a ~a"  
+                                          level (vertex-ids my-node)))
                   )
+                (pretty-display (format "[exec] has-wrong level=~a ~a" 
+                                        level (vertex-ids my-node)))
                 )
+            
             (values ret-path matched-node)
             )
           (let ([new-node (vertex (vertex-ids my-node)
                                   (if c-prev-node
                                       (list (neighbor c-prev-node p-prev))
                                       (list))
-                                  (list) #f (make-hash) 0)])
+                                  (list) #f (make-hash) my-cost 0)
+                                  ])
             (hash-set! my-children-table my-state-vec new-node)
 
 	    (cond
@@ -168,35 +198,43 @@
 			  my-state-vec 
 			  liveout-vec)
 		    (set-vertex-status! new-node (list))
-		    ;; Correct -> DFS
-		    ;;(dfs new-node 0 (add1 level) (list)) ;; +1 level DFS
 		    (set! ret-path (list)))
 	     ]
 	     
 	     [else
 	      (define min-cost 100000)
 	      (for ([edge (vertex-to my-node)])
-		   (pretty-display (format "   [Push ~a]" (equal? (neighbor-node edge) my-node)))
-		   (let* ([node-next (neighbor-node edge)]
-			  [p-next (neighbor-edge edge)]
-			  [state-next (send simulator interpret p-next my-state #:dep #f)]
-			  [perf (send simulator performance-cost p-next)])
-                          
-                     ;; Call exec-forward
-                     (let-values ([(ret dummy) (exec-forward node-next state-next new-node p-next level)])
-                       ;; TODO: check
-                       (when ret
-                             (let ([my-cost (if (> (length ret) 0)
-                                                (+ perf (vertex-cost (neighbor-node (car ret))))
-                                                perf)]
-                                   [step (neighbor new-node p-next)])
-                               (when (< my-cost min-cost)
-                                     (set! min-cost my-cost)
-                                     (set! ret-path (cons step ret))
-                                     (set-vertex-cost! new-node min-cost)
-                                     (set-vertex-status! new-node ret-path)
-                                     ))))
-		     ))
+                   (pretty-display (format "[exec] push self-loop=~a level=~a ~a" 
+                                           (equal? (neighbor-node edge) my-node)
+                                           level (vertex-ids my-node)
+                                           ))
+                   (when 
+                    (<= my-cost best-cost)
+                    (let* ([node-next (neighbor-node edge)]
+                           [p-next (neighbor-edge edge)]
+                           [state-next (send simulator interpret p-next my-state #:dep #f)]
+                           [perf (send simulator performance-cost p-next)])
+                      
+                      ;; Call exec-forward
+                      (let-values ([(ret dummy) 
+                                    (exec-forward node-next state-next (+ my-cost perf)
+                                                  new-node p-next level)])
+                        ;; TODO: check
+                        (when ret
+                              (let ([my-cost-back
+                                     (if (> (length ret) 0)
+                                         (+ perf (vertex-cost-to 
+                                                  (neighbor-node (car ret))))
+                                         perf)]
+                                    [step (neighbor new-node p-next)])
+                                (when (< my-cost-back min-cost)
+                                      (set! min-cost my-cost-back)
+                                      (set! ret-path (cons step ret))
+                                      (set-vertex-cost-to! new-node min-cost)
+                                      (set-vertex-status! new-node ret-path)
+                                      )))))
+                    )
+                   )
 	      ])
             (values ret-path new-node)
             )

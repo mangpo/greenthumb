@@ -275,7 +275,7 @@
                                #:assume [assumption (send machine no-assumption)])
 
       (define spec-len (vector-length spec))
-      (define ntests 16)
+      (define ntests 8)
       (define inits
         (send validator generate-input-states ntests (vector-append prefix spec postfix)
               assumption extra 
@@ -311,7 +311,8 @@
 
       (define queue (make-queue))
       (define level (make-queue))
-      (let ([first-node (vertex states1-id (list) (list) #f (make-hash) #f)])
+      (let ([first-node (make-vertex states1-id)])
+             ;;(vertex states1-id (list) (list) #f (make-hash) #f)])
         (enqueue! queue first-node)
         (enqueue! level 1)
         ;; (define mapping (make-hash))
@@ -338,8 +339,9 @@
                              (set-vertex-from! my-node 
                                              (cons (neighbor in-node prog) ;; TODO: in-node
                                                    (vertex-from my-node))))
-                           (let ([my-node (vertex ids (list (neighbor in-node prog)) (list) 
-                                                #f (make-hash) #f)])
+                           (let ([my-node (make-vertex ids (list (neighbor in-node prog)))])
+                                  ;; (vertex ids (list (neighbor in-node prog)) (list) 
+                                  ;;         #f (make-hash) #f)])
                              (hash-set! ids2node ids my-node)
                              (enqueue! queue my-node)
                              (enqueue! level (add1 my-level))
@@ -371,8 +373,9 @@
                   ;(raise "done")
                   
                   (define my-node 
-                    (vertex #t (map (lambda (x) (neighbor in-node x)) prog-list) (list) 
-                          #f (make-hash) #f))
+                    (make-vertex #t (map (lambda (x) (neighbor in-node x)) prog-list)))
+                    ;; (vertex #t (map (lambda (x) (neighbor in-node x)) prog-list) (list) 
+                    ;;       #f (make-hash) #f))
                   (define iterator (send graph get-correct-iterator my-node))
 
                   (define (loop p)
