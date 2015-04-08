@@ -321,6 +321,15 @@
         (hash-set! ids2node states1-id first-node)
         (db-connect))
 
+
+      (define found #f)
+
+      (define (iterate iterator)
+	(define p (iterator))
+	(when p
+	      (set! found #t)
+	      (iterate iterator)))
+
       (define (enqueue in-node my-level)
         (define prog-states-list (select-from-in 1 (vertex-ids in-node)))
         (pretty-display `(enqueue-more ,(length prog-states-list)))
@@ -337,11 +346,15 @@
                        (if (hash-has-key? ids2node ids)
                            (let ([my-node (hash-ref ids2node ids)])
                              (set-vertex-from! my-node 
-                                             (cons (neighbor in-node prog) ;; TODO: in-node
-                                                   (vertex-from my-node))))
+                                             (cons (neighbor in-node prog)
+                                                   (vertex-from my-node)))
+			     ;; TODO: get-correct-iterator => either dfs in-node or connect-graph
+			     ;; path doesn't have to be complete
+			     (unless (hash-empty? (vertex-children my-node))
+				     (iterate (send graph get-correct-iterator my-node 
+						    (neighbor in-node prog)))) ;; TODO: check
+			     )
                            (let ([my-node (make-vertex ids (list (neighbor in-node prog)))])
-                                  ;; (vertex ids (list (neighbor in-node prog)) (list) 
-                                  ;;         #f (make-hash) #f)])
                              (hash-set! ids2node ids my-node)
                              (enqueue! queue my-node)
                              (enqueue! level (add1 my-level))
@@ -370,20 +383,11 @@
                   (pretty-display `(current))
                   (print-graph states1-id in-node)
                   (pretty-display prog-list)
-                  ;(raise "done")
                   
                   (define my-node 
                     (make-vertex #t (map (lambda (x) (neighbor in-node x)) prog-list)))
-                    ;; (vertex #t (map (lambda (x) (neighbor in-node x)) prog-list) (list) 
-                    ;;       #f (make-hash) #f))
-                  (define iterator (send graph get-correct-iterator my-node))
-
-                  (define (loop p)
-                    (when p
-                          ;;(send printer print-syntax (send printer decode p))
-                          (loop (iterator))))
-                  (loop (iterator))
-                  (raise "done")
+                  (iterate (send graph get-correct-iterator my-node))
+                  (when found (raise "done"))
 
                   )
 

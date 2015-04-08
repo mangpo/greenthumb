@@ -29,13 +29,12 @@
     (define ce-output (make-vector 16 #f))
     (define best-cost 4)
 
-    (define (get-correct-iterator my-node)
-      ;; (define in (car (send validator generate-input-states 1 spec assumption extra)))
-      ;; (define out (send simulator interpret spec init #:dep #f))
-      ;; (vector-set! ce-input 0 (send machine progstate->vector in))
-      ;; (vector-set! ce-output 0 (send machine progstate->vector out))
-      
-      (generator () (dfs my-node 0 0 (list)) #f))
+    (define (get-correct-iterator my-node [edge #f])
+      (if edge
+	  (generator () (dfs-edge my-node 1 0 (list) edge) #f)
+	  (generator () (dfs my-node 0 0 (list)) #f)
+       )
+      )
     
     ;; Return #t if that node has ce.
     (define (dfs my-node cost level path)
@@ -67,35 +66,8 @@
               (when (< cost best-cost) (set! best-cost cost))))]
 
        [else
-        (define my-children-table (vertex-children my-node))
-
-        (define (func edge)
-          (let* ([node-prev (neighbor-node edge)]
-                 [self-loop (equal? my-node node-prev)]
-                 [raw-p-prev (neighbor-edge edge)]
-                 [p-prev 
-                  (if (= level 0) ;; haven't converted.
-                      (send printer encode (send parser ast-from-string raw-p-prev))
-                      raw-p-prev)]
-                 [this-cost (send simulator performance-cost p-prev)]
-                 [total-cost (+ cost this-cost)]
-                 [children-table (vertex-children node-prev)])
-            (pretty-display (format "  level=~a self-loop=~a"
-                                    level self-loop))
-            (pretty-display (format "  ~a" (vertex-ids my-node)))
-            (pretty-display (format "  --> ~a empty=~a cost=~a" 
-                                    (vertex-ids node-prev) 
-                                    (hash-empty? children-table)
-                                    total-cost))
-
-            (when (<= total-cost best-cost)
-                  (if (hash-empty? children-table)
-                      (unless self-loop
-                              (dfs node-prev total-cost level 
-                                   (cons (neighbor my-node p-prev) path)))
-                      (connect-graph my-node node-prev p-prev children-table path 
-                                     total-cost level)))
-            ))
+        (define-syntax-rule (func edge) 
+	  (dfs-edge my-node cost level path edge))
           
         ;; Reverse the list because the small programs are usually added to
         ;; the list first.
@@ -112,6 +84,36 @@
                     [self-loop (equal? my-node node-prev)])
                (when self-loop (func edge))))
         ]))
+
+    
+    ;; Return #t if that node has ce.
+    (define (dfs-edge my-node cost level path edge)
+	(let* ([node-prev (neighbor-node edge)]
+	       [self-loop (equal? my-node node-prev)]
+	       [raw-p-prev (neighbor-edge edge)]
+	       [p-prev 
+		(if (= level 0) ;; haven't converted.
+		    (send printer encode (send parser ast-from-string raw-p-prev))
+		    raw-p-prev)]
+	       [this-cost (send simulator performance-cost p-prev)]
+	       [total-cost (+ cost this-cost)]
+	       [children-table (vertex-children node-prev)])
+	  (pretty-display (format "  level=~a self-loop=~a"
+				  level self-loop))
+	  (pretty-display (format "  ~a" (vertex-ids my-node)))
+	  (pretty-display (format "  --> ~a empty=~a cost=~a" 
+				  (vertex-ids node-prev) 
+				  (hash-empty? children-table)
+				  total-cost))
+
+	  (when (<= total-cost best-cost)
+		(if (hash-empty? children-table)
+		    (unless self-loop
+			    (dfs node-prev total-cost level 
+				 (cons (neighbor my-node p-prev) path)))
+		    (connect-graph my-node node-prev p-prev children-table path 
+				   total-cost level)))
+	  ))
 
     (define (connect-graph my-node node-prev p-prev children-table path total-cost level)
       (pretty-display (format "[connect] ~a level=~a" (vertex-ids my-node) level))
