@@ -469,9 +469,9 @@
 	    (pretty-display `(classes-filtered ,classes-filtered)))
       )
 
-    (define/override (reset-inst-pool)
-      (define inst-choice '(orr sub))
-      (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
+    ;; (define/override (reset-inst-pool)
+    ;;   (define inst-choice '(orr sub))
+    ;;   (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
 
 
     (define (analyze-args-inst x) ;; TODO: move this to machine.rkt

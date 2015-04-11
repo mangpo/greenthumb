@@ -12,18 +12,15 @@
 
 (define code
 (send parser ast-from-string "
-and r2, r0, r0, lsl 1
-rsb r3, r0, r2, lsr 1
-and r0, r0, r3, lsl 1
-
+orr r1, r0, r0, lsl 1
+sub r0, r0, r1
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-bic r2, r0, r0, lsr 1
-rsb r3, r2, 0
-and r0, r0, r3, lsl 1
+and r1, r0, r0, lsl 1
+sub r0, r1, r0, lsl 1
 "))
 ;; 1 hole
 ; random = 12, 13, 5 | 25, 78

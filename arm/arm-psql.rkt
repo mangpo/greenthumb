@@ -1,7 +1,8 @@
 #lang racket
 
 (require db data/queue)
-(require "../ast.rkt" "../graph.rkt" "arm-machine.rkt" 
+(require "../ast.rkt" "../graph.rkt" 
+         "arm-machine.rkt" 
          "arm-simulator-racket.rkt" "arm-validator.rkt" "arm-parser.rkt")
 
 (provide arm-psql%)
@@ -16,7 +17,9 @@
 
     (define simulator (new arm-simulator-racket% [machine machine]))
     (define validator (new arm-validator% [machine machine] [printer printer]))
+    (define parser (new arm-parser%))
 
+    (define debug #t)
     (define pgc #f)
     (define nregs (send machine get-nregs))
     (define nmems (send machine get-nmems))
@@ -71,7 +74,7 @@
 
     ;; p is inst.
     (define (insert size cost states-in states-out p)
-      
+      ;;(send printer print-syntax (send printer decode p))
       (define keys (list))
       (define vals (list))
       (for ([col state-cols]
@@ -88,14 +91,56 @@
        (parameterize ([current-output-port o])
                      (send printer print-syntax (send printer decode p)))
        (pretty-display (get-output-string o))
-       
-       (define query
-        (format "insert into ~a_size~a (~a,cost,program) values (~a,~a,'~a')" 
-                table-name size
-                (string-join keys ",") (string-join vals ",")
-                cost (get-output-string o)))
-       ;;(pretty-display (format "query: ~a" query))
-       (query-exec pgc query)))
+
+       (define unique #t)
+       (define act #t)
+       (define constraint-all (constraint machine all))
+       (define filtered-ids (list))
+       (define filtered-states-out (list))
+       (for ([i (length states-out)]
+             [out states-out])
+            (when out 
+                  (set! filtered-ids (cons i filtered-ids))
+                  (set! filtered-states-out (cons out filtered-states-out))))
+
+       (for ([i (range 1 (add1 size))] #:break (not unique))
+            (let ([rets 
+                   (select-from-in-out i 
+                                       (reverse filtered-ids)
+                                       (reverse filtered-states-out)
+                                       constraint-all)])
+              (for ([ret rets])
+                   (let* ([str (vector-ref ret 0)]
+                          [ret-prog (send printer encode 
+                                          (send parser ast-from-string str))]
+                          [ret-cost (vector-ref ret 1)]
+                          [ce (send validator counterexample ret-prog p
+                                    constraint-all #f)]) 
+                     ;; TODO constraint, extra
+                     (unless 
+                      ce
+                      (set! unique #f)
+                      (pretty-display "--------- same ----------")
+                      (send printer print-syntax (send printer decode p))
+                      (pretty-display "---")
+                      (pretty-display str)
+                      (if (<= ret-cost cost)
+                          (set! act #f)
+                          (let ([query
+                                 (format "delete from ~a_size~a where program='~a'"
+                                         table-name size str)])
+                            (query-exec pgc query))))
+                     ))))
+              
+       (when unique
+             (define query
+               (format "insert into ~a_size~a (~a,cost,program) values (~a,~a,'~a')" 
+                       table-name size
+                       (string-join keys ",") (string-join vals ",")
+                       cost (get-output-string o)))
+             ;;(pretty-display (format "query: ~a" query))
+             (query-exec pgc query))
+       ))
 
     (define (select-one-state-in-out in-id out live)
       (define reg-out (progstate-regs out))
@@ -113,7 +158,7 @@
         (define query 
           (format "select program from ~a_size~a"
                   table-name size))
-        (pretty-display (format "query: ~a" query))
+        (when debug (pretty-display (format "query: ~a" query)))
         (query-rows pgc query)
         ]
 
@@ -124,9 +169,9 @@
              (when (number? in-id) 
                    (set! lst (cons (select-one-state-in-out in-id out live) lst)))) ;; TODO
         (define query 
-          (format "select program from ~a_size~a where ~a"
+          (format "select program, cost from ~a_size~a where ~a"
                   table-name size (string-join lst " and ")))
-        (pretty-display (format "query: ~a" query))
+        ;;(when debug (pretty-display (format "query: ~a" query)))
         (query-rows pgc query)]))
 
     (define (select-from-in size states-in-id)
@@ -140,7 +185,7 @@
       (define query
         (format "select ~a,program from ~a_size~a" 
                 (string-join (reverse lst) ",") table-name size))
-      (pretty-display (format "query: ~a" query))
+      (when debug (pretty-display (format "query: ~a" query)))
       (map (lambda (x) (db->prog-progstates x states-in-id)) (query-rows pgc query)))
     
     (define/public (get-all-states)
@@ -205,21 +250,6 @@
         id]
        [else state]))
 
-    ;; (define (print-concat x [indent ""])
-    ;;   (cond
-    ;;    [(string? x) (display (format "~a~a" indent x))]
-    ;;    [(concat? x) 
-    ;;     (pretty-display (format "~a(concat" indent))
-    ;;     (pretty-display (format "~a:a[" indent))
-    ;;     (print-concat (concat-a x) (string-append indent "    "))
-    ;;     (pretty-display (format "~a  ]" indent))
-    ;;     (pretty-display (format "~a:b]" indent))
-    ;;     (print-concat (concat-b x) (string-append indent "    "))
-    ;;     (pretty-display (format "~a  ]" indent))
-    ;;     ]
-    ;;    [else
-    ;;     (for ([i x]) (print-concat i indent))]))
-
     (define (print-graph ins-id x)
       (define visit (set))
       (define (inner x indent)
@@ -275,7 +305,7 @@
                                #:assume [assumption (send machine no-assumption)])
 
       (define spec-len (vector-length spec))
-      (define ntests 8)
+      (define ntests 16)
       (define inits
         (send validator generate-input-states ntests (vector-append prefix spec postfix)
               assumption extra 
@@ -295,16 +325,17 @@
 	(map (lambda (x) (send simulator interpret spec x #:dep #f)) states1))
       (define states1-id
         (map (lambda (x) (progstate->id x)) states1))
-      (for ([i states1])
-           (send machine display-state i))
-      (pretty-display `(states1-id ,states1-id))
-      (for ([i states2-spec])
-           (send machine display-state i))
+      (when #t
+            (for ([i states1])
+                 (send machine display-state i))
+            (pretty-display `(states1-id ,states1-id))
+            (for ([i states2-spec])
+                 (send machine display-state i)))
       (set! start-ids states1-id)
 
       (define graph (new graph% 
                          [machine machine] [validator validator] 
-                         [simulator simulator] [printer printer] [parser (new arm-parser%)]
+                         [simulator simulator] [printer printer] [parser parser]
                          [spec spec] [constraint constraint] 
                          [extra extra] [assumption assumption]
                          [start-ids states1-id]))
@@ -332,7 +363,7 @@
 
       (define (enqueue in-node my-level)
         (define prog-states-list (select-from-in 1 (vertex-ids in-node)))
-        (pretty-display `(enqueue-more ,(length prog-states-list)))
+        (pretty-display `(enqueue-new ,(length prog-states-list)))
         ;; TODO enqueue!
         (for ([prog-states prog-states-list])
              (let* ([prog (entry-prog prog-states)]
@@ -343,6 +374,7 @@
                        ;;       (pretty-display `(OUT ,ins-id ,current-progs ,prog))
                        ;;       (raise "out")
                        ;;       )
+                       ;;(pretty-display `(hash-has-key? ,(hash-has-key? ids2node ids)))
                        (if (hash-has-key? ids2node ids)
                            (let ([my-node (hash-ref ids2node ids)])
                              (set-vertex-from! my-node 
@@ -365,9 +397,10 @@
         (define in-node (dequeue! queue))
         (define ins-id (vertex-ids in-node))
         (define my-level (dequeue! level))
-        (newline)
-        (pretty-display `(my-level ,my-level))
-        (pretty-display `(number-of-pairs ,(length (filter number? ins-id))))
+        (when debug
+              (newline)
+              (pretty-display `(my-level ,my-level))
+              (pretty-display `(number-of-pairs ,(length (filter number? ins-id)))))
         (cond
          [(= 0 (length (filter number? ins-id)))
           ;; post-pone this for later
@@ -377,12 +410,12 @@
          [else
           (define prog-list (map (lambda (x) (vector-ref x 0))
                                  (select-from-in-out 1 ins-id states2-spec live2)))
-          (pretty-display `(match ,(length prog-list)))
           (unless (empty? prog-list)
                   (pretty-display `(ins-id ,ins-id))
                   (pretty-display `(current))
                   (print-graph states1-id in-node)
                   (pretty-display prog-list)
+                  (pretty-display "------------------------------------")
                   
                   (define my-node 
                     (make-vertex #t (map (lambda (x) (neighbor in-node x)) prog-list)))

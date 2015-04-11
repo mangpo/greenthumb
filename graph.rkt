@@ -22,6 +22,7 @@
                 start-ids [dest-ids #t])
     (public get-correct-iterator)
 
+    (define debug #f)
     (define liveout-vec (send machine progstate->vector constraint))
     (define visit (set))
     ;; (define ce-n 1)
@@ -38,7 +39,9 @@
     
     ;; Return #t if that node has ce.
     (define (dfs my-node cost level path)
-      (pretty-display (format "[dfs] start ~a cost=~a level=~a" (vertex-ids my-node) cost level))
+      (when debug 
+            (pretty-display (format "[dfs] start ~a cost=~a level=~a" 
+                                    (vertex-ids my-node) cost level)))
       (cond
        [(equal? (vertex-ids my-node) start-ids)
         (when (vector-ref ce-output level)
@@ -98,13 +101,14 @@
 	       [this-cost (send simulator performance-cost p-prev)]
 	       [total-cost (+ cost this-cost)]
 	       [children-table (vertex-children node-prev)])
-	  (pretty-display (format "  level=~a self-loop=~a"
-				  level self-loop))
-	  (pretty-display (format "  ~a" (vertex-ids my-node)))
-	  (pretty-display (format "  --> ~a empty=~a cost=~a" 
-				  (vertex-ids node-prev) 
-				  (hash-empty? children-table)
-				  total-cost))
+          (when debug
+                (pretty-display (format "  level=~a self-loop=~a"
+                                        level self-loop))
+                (pretty-display (format "  ~a" (vertex-ids my-node)))
+                (pretty-display (format "  --> ~a empty=~a cost=~a" 
+                                        (vertex-ids node-prev) 
+                                        (hash-empty? children-table)
+                                        total-cost)))
 
 	  (when (<= total-cost best-cost)
 		(if (hash-empty? children-table)
@@ -116,7 +120,8 @@
 	  ))
 
     (define (connect-graph my-node node-prev p-prev children-table path total-cost level)
-      (pretty-display (format "[connect] ~a level=~a" (vertex-ids my-node) level))
+      (when debug
+            (pretty-display (format "[connect] ~a level=~a" (vertex-ids my-node) level)))
       ;; If this path merges with the graph with ce, add forward egdes.
       (set-vertex-to! node-prev 
                       (cons (neighbor my-node p-prev) (vertex-to node-prev)))
@@ -142,7 +147,7 @@
                                   (dfs c-node total-cost (add1 level) 
                                        (cons (neighbor new-node p-prev) new-path)))
                             (connect-graph new-node c-node p-prev c-children-table new-path 
-                                           (add1 level)))))
+                                           total-cost (add1 level)))))
                 )))))
   
 
@@ -156,8 +161,9 @@
     ;; Return path if find correct paths.
     ;; TODO: ~A* on cost
     (define (exec-forward my-node my-state my-cost c-prev-node p-prev level)
-      (pretty-display "[exec]")
-      (send machine display-state my-state)
+      (when debug 
+            (pretty-display "[exec]")
+            (send machine display-state my-state))
       (define my-children-table (vertex-children my-node))
       (define my-state-vec (send machine progstate->vector my-state))
       (define ret-path #f)
@@ -175,11 +181,13 @@
                 ;; Correct -> DFS
                 (let ([path (vertex-status matched-node)])
                   (set! ret-path path)
-                  (pretty-display (format "[exec] has-correct level=~a ~a"  
-                                          level (vertex-ids my-node)))
+                  (when debug
+                        (pretty-display (format "[exec] has-correct level=~a ~a"  
+                                                level (vertex-ids my-node))))
                   )
-                (pretty-display (format "[exec] has-wrong level=~a ~a" 
-                                        level (vertex-ids my-node)))
+                (when debug
+                      (pretty-display (format "[exec] has-wrong level=~a ~a" 
+                                              level (vertex-ids my-node))))
                 )
             
             (values ret-path matched-node)
@@ -206,10 +214,12 @@
 	     [else
 	      (define min-cost 100000)
 	      (for ([edge (vertex-to my-node)])
-                   (pretty-display (format "[exec] push self-loop=~a level=~a ~a" 
-                                           (equal? (neighbor-node edge) my-node)
-                                           level (vertex-ids my-node)
-                                           ))
+                   (when
+                    debug
+                    (pretty-display (format "[exec] push self-loop=~a level=~a ~a" 
+                                            (equal? (neighbor-node edge) my-node)
+                                            level (vertex-ids my-node)
+                                            )))
                    (when 
                     (<= my-cost best-cost)
                     (let* ([node-next (neighbor-node edge)]
