@@ -423,7 +423,7 @@
                       (send printer encode
                             (send parser ast-from-file 
                                   (format "~a/best.s" (get-field dir stat)))))
-		(send machine add-constants (send printer get-constants current))
+		(send machine analyze-args (vector) current (vector))
                 (set! current-cost best-cost)
                 ]
               ))
