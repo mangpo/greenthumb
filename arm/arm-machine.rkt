@@ -89,7 +89,7 @@
     (override set-config get-config set-config-string
               adjust-config finalize-config config-exceed-limit?
               get-state get-state-liveness display-state 
-              output-constraint-string
+              output-constraint-string constraint-all
               display-state-text parse-state-text
               progstate->vector vector->progstate
 	      get-arg-ranges get-operand-live
@@ -216,7 +216,6 @@
       )
 
     (define (update-arg-ranges op2 const bit reg mem [vreg 0])
-      ;;(pretty-display `(add-constants ,l))
       ;; Not include mem-range
       (set! operand2-range 
             (list->vector 
@@ -285,6 +284,8 @@
             (format "(constraint ~a [reg ~a] [mem])" machine-var live-regs-str))]
        [else #f]))
 
+    (define (constraint-all) (constraint this all))
+
     ;; live-out: a list of live registers' ids
     ;; output: a progstate object. #t elements indicate live.
     (define/public (output-constraint live-out)
@@ -336,10 +337,10 @@
       (cons #t (progstate regs memory z fp)))
 
     (define (progstate->vector x)
-      (vector (progstate-regs x) (progstate-memory x) (progstate-z x) (progstate-fp x)))
+      (and x (vector (progstate-regs x) (progstate-memory x) (progstate-z x) (progstate-fp x))))
 
     (define (vector->progstate x)
-      (progstate (vector-ref x 0) (vector-ref x 1) (vector-ref x 2) (vector-ref x 3)))
+      (and x (progstate (vector-ref x 0) (vector-ref x 1) (vector-ref x 2) (vector-ref x 3))))
 
     (define (clean-code code [prefix (vector)])
       (set! code (vector-filter-not (lambda (x) (= (inst-op x) nop-id)) code))

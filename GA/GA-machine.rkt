@@ -127,7 +127,7 @@
     (override set-config get-config set-config-string
               adjust-config finalize-config config-exceed-limit?
               get-state display-state 
-              output-constraint-string output-assume-string
+              output-constraint-string output-assume-string constriant-all
 	      no-assumption
               display-state-text parse-state-text
               progstate->vector vector->progstate
@@ -190,6 +190,9 @@
 		   [t (>= data 1)] [s (>= data 2)] [data (and (> (- data 2) 0) (- data 2))]
 		   [r (>= return 1)] [return (and (> (- return 1) 0) (- return 1))]))
 
+    (define (constraint-all)
+      (progstate #t #t #t #t #t 8 8 (make-vector nmems #t) #f #t))
+
     (define (get-state init recv-n) ;; TODO: track all get-state
       (default-state this recv-n init))
       
@@ -244,28 +247,30 @@
           x))
     
     (define (progstate->vector x)
-      (vector (progstate-a x)
-              (progstate-b x)
-              (progstate-r x)
-              (progstate-s x)
-              (progstate-t x)
-              (stack->vector (progstate-data x))
-              (stack->vector (progstate-return x))
-              (progstate-memory x)
-              (progstate-recv x)
-              (progstate-comm x)))
+      (and x
+           (vector (progstate-a x)
+                   (progstate-b x)
+                   (progstate-r x)
+                   (progstate-s x)
+                   (progstate-t x)
+                   (stack->vector (progstate-data x))
+                   (stack->vector (progstate-return x))
+                   (progstate-memory x)
+                   (progstate-recv x)
+                   (progstate-comm x))))
 
     (define (vector->progstate x)
-      (progstate (vector-ref x 0)
-                 (vector-ref x 1)
-                 (vector-ref x 2)
-                 (vector-ref x 3)
-                 (vector-ref x 4)
-                 (vector->stack (vector-ref x 5))
-                 (vector->stack (vector-ref x 6))
-                 (vector-ref x 7)
-                 (vector-ref x 8)
-                 (vector-ref x 9)))
+      (and x
+           (progstate (vector-ref x 0)
+                      (vector-ref x 1)
+                      (vector-ref x 2)
+                      (vector-ref x 3)
+                      (vector-ref x 4)
+                      (vector->stack (vector-ref x 5))
+                      (vector->stack (vector-ref x 6))
+                      (vector-ref x 7)
+                      (vector-ref x 8)
+                      (vector-ref x 9))))
 
     (define (display-state-text pair)
       (display (format "~a," (car pair)))

@@ -13,7 +13,7 @@
   (class object% ;; TODO arm-enumerative%
     (super-new)
     (init-field machine printer)
-    (public db-connect db-disconnect init create-table insert)
+    (public db-connect db-disconnect init create-table insert check-delete)
 
     (define simulator (new arm-simulator-racket% [machine machine]))
     (define validator (new arm-validator% [machine machine] [printer printer]))
@@ -25,6 +25,11 @@
     (define nmems (send machine get-nmems))
     (define fp (send machine get-fp))
     (define state-cols #f)
+
+    (define ce-list (list))
+    (define constraint-all (send machine constraint-all))
+    (define constraint-all-vec (send machine progstate->vector constraint-all))
+
     (define reg-range-db
       (cond
        [(= nregs 1) (list->vector (range -31 33))]
@@ -72,9 +77,9 @@
         )
       (set! state-cols (list->vector (reverse tmp))))
 
-    ;; p is inst.
     (define (insert size cost states-in states-out p)
-      ;;(send printer print-syntax (send printer decode p))
+      (pretty-display "insert: start")
+      (send printer print-syntax (send printer decode p))
       (define keys (list))
       (define vals (list))
       (for ([col state-cols]
@@ -90,11 +95,74 @@
        (define o (open-output-string))
        (parameterize ([current-output-port o])
                      (send printer print-syntax (send printer decode p)))
-       (pretty-display (get-output-string o))
+       ;;(pretty-display (get-output-string o))
+
+       (define query
+         (format "insert into ~a_size~a (~a,cost,program) values (~a,~a,'~a')" 
+                 table-name size
+                 (string-join keys ",") (string-join vals ",")
+                 cost (get-output-string o)))
+       ;;(pretty-display (format "query: ~a" query))
+       (query-exec pgc query)
+       (pretty-display "insert: done")
+       ))
+
+
+    (define (same? x y)
+      (define 
+        all-correct
+        (for/and ([ce ce-list])
+                 (let ([x-out 
+                        (with-handlers*
+                         ([exn? (lambda (e) #f)])
+                         (send simulator interpret x ce #:dep #f))]
+                       [y-out
+                        (with-handlers*
+                         ([exn? (lambda (e) #f)])
+                         (send simulator interpret y ce #:dep #f))])
+                   (if
+                    (and x-out y-out)
+                    (let ([x-out-vec (send machine progstate->vector x-out)]
+                          [y-out-vec (send machine progstate->vector y-out)])
+                      (send machine state-eq? x-out-vec y-out-vec constraint-all-vec))
+                    (and (not x-out) (not y-out))))))
+
+      (when all-correct (pretty-display "CE: search"))
+
+      (with-handlers* 
+       ([exn:break? (lambda (e) (pretty-display "CE: timeout") #f)])
+       (if all-correct
+           (let ([ce (timeout 120 (send validator counterexample x y constraint-all #f))])
+             (when all-correct (pretty-display "CE: done"))
+             (if ce
+                 (begin
+                   (pretty-display `(ce-list ,(length ce-list)))
+                   (set! ce-list (cons ce ce-list))
+                   #f)
+                 #t))
+           #f)))
+
+    (define (check-delete size cost states-in states-out p)
+      (pretty-display "check: start")
+      (define keys (list))
+      (define vals (list))
+      (for ([col state-cols]
+            [out states-out])
+           (when out
+                 (set! keys (cons col keys))
+                 (set! vals (cons (progstate->string out) vals))))
+      (unless 
+       (empty? keys)
+       (set! keys (reverse keys))
+       (set! vals (reverse vals))
+       
+       (define o (open-output-string))
+       (parameterize ([current-output-port o])
+                     (send printer print-syntax (send printer decode p)))
+       ;;(pretty-display (get-output-string o))
 
        (define unique #t)
        (define act #t)
-       (define constraint-all (constraint machine all))
        (define filtered-ids (list))
        (define filtered-states-out (list))
        (for ([i (length states-out)]
@@ -103,22 +171,23 @@
                   (set! filtered-ids (cons i filtered-ids))
                   (set! filtered-states-out (cons out filtered-states-out))))
 
-       (for ([i (range 1 (add1 size))] #:break (not unique))
+       (for ([i (range 1 size)] #:break (not unique))
             (let ([rets 
                    (select-from-in-out i 
                                        (reverse filtered-ids)
                                        (reverse filtered-states-out)
                                        constraint-all)])
-              (for ([ret rets])
+              (pretty-display (format "check: ~a" (length rets)))
+              (for ([ret rets] #:break (not unique))
                    (let* ([str (vector-ref ret 0)]
                           [ret-prog (send printer encode 
                                           (send parser ast-from-string str))]
                           [ret-cost (vector-ref ret 1)]
-                          [ce (send validator counterexample ret-prog p
-                                    constraint-all #f)]) 
+                          [same (same? ret-prog p)]) 
+                     (pretty-display "check: done")
                      ;; TODO constraint, extra
-                     (unless 
-                      ce
+                     (when 
+                      same
                       (set! unique #f)
                       (pretty-display "--------- same ----------")
                       (send printer print-syntax (send printer decode p))
@@ -129,17 +198,13 @@
                           (let ([query
                                  (format "delete from ~a_size~a where program='~a'"
                                          table-name size str)])
-                            (query-exec pgc query))))
+                            (pretty-display "delete: start")
+                            (query-exec pgc query)
+                            (pretty-display "delete: done")
+                            )))
                      ))))
               
-       (when unique
-             (define query
-               (format "insert into ~a_size~a (~a,cost,program) values (~a,~a,'~a')" 
-                       table-name size
-                       (string-join keys ",") (string-join vals ",")
-                       cost (get-output-string o)))
-             ;;(pretty-display (format "query: ~a" query))
-             (query-exec pgc query))
+       act
        ))
 
     (define (select-one-state-in-out in-id out live)

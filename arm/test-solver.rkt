@@ -12,15 +12,15 @@
 
 (define code
 (send parser ast-from-string "
-orr r1, r0, r0, lsl 1
-sub r0, r0, r1
+mul r1, r0, r0
+smull r0, r1, r1, r0
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-and r1, r0, r0, lsl 1
-sub r0, r1, r0, lsl 1
+mul r1, r0, r0
+smull r0, r1, r0, r1
 "))
 ;; 1 hole
 ; random = 12, 13, 5 | 25, 78
@@ -40,7 +40,7 @@ sub r0, r1, r0, lsl 1
 
 (define ex 
   (send validator counterexample encoded-code encoded-sketch 
-        (constraint machine [reg 0] [mem])))
+        (constraint machine [reg 0 1] [mem])))
 
 (pretty-display "Counterexample:")
 (if ex 
