@@ -333,6 +333,7 @@
 
       
       (define (same? x y)
+        ;(pretty-display "same?")
         (define 
           all-correct
           (for/and ([ce ce-list])
@@ -344,6 +345,8 @@
                           (with-handlers*
                            ([exn? (lambda (e) #f)])
                            (send simulator interpret y ce #:dep #f))])
+                     (send machine display-state ce)
+                     ;(pretty-display `(out ,x-out ,y-out))
                      (if
                       (and x-out y-out)
                       (let ([x-out-vec (send machine progstate->vector x-out)]
@@ -411,13 +414,17 @@
                               (with-handlers*
                                ([exn? (lambda (e) #f)])
                                (send simulator interpret (vector my-inst) state #:dep #f)))])
-               (for ([x prog-cost-list])
-                    (let* ([old-prog (progcost-prog x)]
-                           [old-cost (progcost-cost x)]
-                           [prog (vector-append old-prog (vector my-inst))]
-                           [cost (+ old-cost 
-                                    (send simulator performance-cost (vector my-inst)))])
-                      (build-table prog cost out-states))))
+               ;(pretty-display `(legal ,(for/or ([x out-states]) x)))
+               (when 
+                (for/or ([x out-states]) x)
+                ;; If everything is false => illegal program, exclude from table
+                (for ([x prog-cost-list])
+                     (let* ([old-prog (progcost-prog x)]
+                            [old-cost (progcost-cost x)]
+                            [prog (vector-append old-prog (vector my-inst))]
+                            [cost (+ old-cost 
+                                     (send simulator performance-cost (vector my-inst)))])
+                       (build-table prog cost out-states)))))
              (inner)))
           (inner))
             
