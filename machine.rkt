@@ -129,7 +129,7 @@
             (for/vector ([c classes])
                         (map (lambda (x) (vector-member x inst-id)) c))))
 
-    (define (analyze-args prefix code postfix)
+    (define (analyze-args prefix code postfix #:only-const [x #f])
       (void))
 
     ))

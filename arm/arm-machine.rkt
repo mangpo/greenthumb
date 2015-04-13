@@ -214,7 +214,7 @@
       (set! mem-range (list->vector (for/list ([i nmems]) (- i fp))))
       )
 
-    (define (update-arg-ranges op2 const bit reg mem)
+    (define (update-arg-ranges op2 const bit reg mem only-const)
       ;;(pretty-display `(add-constants ,l))
       ;; Not include mem-range
       (set! operand2-range 
@@ -242,8 +242,9 @@
 		      (set->list (set-union (list->set (vector->list bit-range-no-0))
 					    bit)))))
 
-      (set! reg-range (list->vector (set->list reg)))
-      (set! mem-range (list->vector (set->list mem)))
+      (unless only-const
+              (set! reg-range (list->vector (set->list reg)))
+              (set! mem-range (list->vector (set->list mem))))
 
       (pretty-display `(reg-range ,reg-range))
       (pretty-display `(mem-range ,mem-range))
@@ -498,7 +499,7 @@
        [(equal? opcode `nop) (cons (list) (list))]
        [else (raise (format "decode-inst: undefined for ~a" opcode))]))
 
-    (define (analyze-args prefix code postfix)
+    (define (analyze-args prefix code postfix #:only-const [only-const #f])
       (define reg-set (set))
       (define mem-set (set))
       (define op2-set (set))
@@ -522,6 +523,6 @@
              (set! reg-set (set-union reg-set (fourth ans)))
              (set! mem-set (set-union mem-set (fifth ans)))
 	     ))
-      (update-arg-ranges op2-set const-set bit-set reg-set mem-set))
+      (update-arg-ranges op2-set const-set bit-set reg-set mem-set only-const))
                           
     ))
