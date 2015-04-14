@@ -5,21 +5,63 @@
          "arm-machine.rkt" 
          "arm-simulator-racket.rkt" "arm-validator.rkt" "arm-parser.rkt")
 
-(provide arm-psql%)
+(provide arm-psql% time%)
 
 (struct entry (prog states))
+
+(define time%
+  (class object%
+    (super-new)
+    (init-field total-start)
+    
+    (define total 0)
+    (define normal-test 0)
+    (define extra-test 0)
+    (define solver 0)
+
+    (define normal-test-start #f)
+    (define extra-test-start #f)
+    (define solver-start #f)
+    
+    (define/public (start) (set! total-start (current-seconds)))
+    (define/public (end) (set! total (- (current-seconds) total-start)))
+
+    (define/public (start-normal-test) (set! normal-test-start (current-seconds)))
+    (define/public (start-extra-test) (set! extra-test-start (current-seconds)))
+    (define/public (start-solver) (set! solver-start (current-seconds)))
+
+    (define/public (end-normal-test) 
+      (set! normal-test (+ normal-test (- (current-seconds) normal-test-start)))
+      (set! normal-test-start #f))
+
+    (define/public (end-extra-test) 
+      (set! extra-test (+ extra-test (- (current-seconds) extra-test-start)))
+      (set! extra-test-start #f))
+
+    (define/public (end-solver) 
+      (set! solver (+ solver (- (current-seconds) solver-start)))
+      (set! solver-start #f))
+
+    (define/public (print-stat)
+      (pretty-display (format "normal-test:\t~a" (exact->inexact (/ normal-test total))))
+      (pretty-display (format "extra-test:\t~a" (exact->inexact (/ extra-test total))))
+      (pretty-display (format "solver:\t~a" (exact->inexact (/ solver total))))
+      (pretty-display 
+       (format "other:\t~a" 
+               (exact->inexact (/ (- total (+ normal-test extra-test solver)) total)))))
+    ))
 
 (define arm-psql%
   (class object% ;; TODO arm-enumerative%
     (super-new)
-    (init-field machine printer)
+    (init-field machine printer time)
     (public db-connect db-disconnect init create-table insert check-delete)
 
     (define simulator (new arm-simulator-racket% [machine machine]))
     (define validator (new arm-validator% [machine machine] [printer printer]))
     (define parser (new arm-parser%))
 
-    (define debug #t)
+    (define debug #f)
     (define pgc #f)
     (define nregs (send machine get-nregs))
     (define nmems (send machine get-nmems))
@@ -112,6 +154,7 @@
       (define 
         all-correct
         (for/and ([ce ce-list])
+                 (send time start-extra-test)
                  (let ([x-out 
                         (with-handlers*
                          ([exn? (lambda (e) #f)])
@@ -120,6 +163,7 @@
                         (with-handlers*
                          ([exn? (lambda (e) #f)])
                          (send simulator interpret y ce #:dep #f))])
+                   (send time end-extra-test)
                    (if
                     (and x-out y-out)
                     (let ([x-out-vec (send machine progstate->vector x-out)]
@@ -127,23 +171,27 @@
                       (send machine state-eq? x-out-vec y-out-vec constraint-all-vec))
                     (and (not x-out) (not y-out))))))
 
-      (when all-correct (pretty-display "CE: search"))
+      (when all-correct 
+            (when debug (pretty-display "CE: search"))
+            (send time start-solver)
+            )
 
       (with-handlers* 
        ([exn:break? (lambda (e) (pretty-display "CE: timeout") #f)])
        (if all-correct
            (let ([ce (timeout 120 (send validator counterexample x y constraint-all #f))])
-             (when all-correct (pretty-display "CE: done"))
+             (send time end-solver)
+             (when debug (when all-correct (pretty-display "CE: done")))
              (if ce
                  (begin
-                   (pretty-display `(ce-list ,(length ce-list)))
+                   (when debug (pretty-display `(ce-list ,(length ce-list))))
                    (set! ce-list (cons ce ce-list))
                    #f)
                  #t))
            #f)))
 
     (define (check-delete size cost states-in states-out p)
-      (pretty-display "check: start")
+      (when debug (pretty-display "check: start"))
       (define keys (list))
       (define vals (list))
       (for ([col state-cols]
@@ -177,14 +225,14 @@
                                        (reverse filtered-ids)
                                        (reverse filtered-states-out)
                                        constraint-all)])
-              (pretty-display (format "check: ~a" (length rets)))
+              (when debug (pretty-display (format "check: ~a" (length rets))))
               (for ([ret rets] #:break (not unique))
                    (let* ([str (vector-ref ret 0)]
                           [ret-prog (send printer encode 
                                           (send parser ast-from-string str))]
                           [ret-cost (vector-ref ret 1)]
                           [same (same? ret-prog p)]) 
-                     (pretty-display "check: done")
+                     (when debug (pretty-display "check: done"))
                      ;; TODO constraint, extra
                      (when 
                       same

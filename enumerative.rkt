@@ -317,7 +317,8 @@
       (define constraint-all-vec (send machine progstate->vector constraint-all))
       (define live-list (send machine get-operand-live constraint-all))
       
-      (define psql (new arm-psql% [machine machine] [printer printer]))
+      (define time (new time% [total-start (current-seconds)]))
+      (define psql (new arm-psql% [machine machine] [printer printer] [time time]))
       (define all-states (send psql get-all-states))
       (define all-states-vec 
         (map (lambda (x) (send machine progstate->vector x)) all-states))
@@ -330,13 +331,15 @@
       (hash-set! prev-classes all-states-vec (list (progcost (vector) 0)))
 
       (define ce-list (list))
-
+      (define count 0)
+      
       
       (define (same? x y)
         ;(pretty-display "same?")
         (define 
           all-correct
           (for/and ([ce ce-list])
+                   (send time start-extra-test)
                    (let ([x-out 
                           (with-handlers*
                            ([exn? (lambda (e) #f)])
@@ -345,7 +348,8 @@
                           (with-handlers*
                            ([exn? (lambda (e) #f)])
                            (send simulator interpret y ce #:dep #f))])
-                     (send machine display-state ce)
+                     (send time end-extra-test)
+                     ;(send machine display-state ce)
                      ;(pretty-display `(out ,x-out ,y-out))
                      (if
                       (and x-out y-out)
@@ -354,13 +358,17 @@
                         (send machine state-eq? x-out-vec y-out-vec constraint-all-vec))
                       (and (not x-out) (not y-out))))))
 
-        (when all-correct (pretty-display "CE: search"))
+        (when all-correct 
+              (when debug (pretty-display "CE: search"))
+              (send time start-solver)
+              )
 
         (with-handlers* 
          ([exn:break? (lambda (e) (pretty-display "CE: timeout") #f)])
          (if all-correct
              (let ([ce (timeout 120 (send validator counterexample x y constraint-all #f))])
-               (when all-correct (pretty-display "CE: done"))
+               (send time end-solver)
+               (when debug (when all-correct (pretty-display "CE: done")))
                (if ce
                    (begin
                      (pretty-display `(ce-list ,(length ce-list)))
@@ -374,23 +382,23 @@
         (define classes (make-hash))
 
         (define (build-table prog perf out-states) ;; TODO: prog is a list of programs.
-          (send printer print-syntax (send printer decode prog))
+          (when debug (send printer print-syntax (send printer decode prog)))
           (define key
             (map (lambda (x) (send machine progstate->vector x)) out-states))
           (if (hash-has-key? classes key)
               (let ([rets (hash-ref classes key)])
-                (pretty-display (format "validate: ~a" (length rets)))
+                (when debug (pretty-display (format "validate: ~a" (length rets))))
                 (let ([same (for/or ([ret rets])
                               (and (same? (progcost-prog ret) prog) ret))])
-                  (pretty-display "validate: done")
+                  (when debug (pretty-display "validate: done"))
                   (if same
                       (let ([same-perf (progcost-cost same)])
-                        (pretty-display "[not unique]")
+                        (when debug (pretty-display "[not unique]"))
                         (when (< perf same-perf)
                           (hash-set! classes key 
                                      (cons (progcost prog perf) (remove same rets)))))
                       (let ([act (send psql check-delete len perf all-states out-states prog)])
-                        (pretty-display "[unique]")
+                        (when debug (pretty-display "[unique]"))
                         (when act (hash-set! classes key (cons (progcost prog perf) rets)))))))
               (let ([act (send psql check-delete len perf all-states out-states prog)])
                 (when act (hash-set! classes key (list (progcost prog perf))))))
@@ -409,15 +417,18 @@
              
              (when debug
                    (send printer print-syntax-inst (send printer decode-inst my-inst))) 
+             (send time start-normal-test)
              (let ([out-states 
                     (for/list ([state all-states])
                               (with-handlers*
                                ([exn? (lambda (e) #f)])
                                (send simulator interpret (vector my-inst) state #:dep #f)))])
+               (send time end-normal-test)
                ;(pretty-display `(legal ,(for/or ([x out-states]) x)))
                (when 
                 (for/or ([x out-states]) x)
                 ;; If everything is false => illegal program, exclude from table
+                (set! count (add1 count))
                 (for ([x prog-cost-list])
                      (let* ([old-prog (progcost-prog x)]
                             [old-cost (progcost-cost x)]
@@ -446,11 +457,15 @@
                     (send psql insert len (progcost-cost x) all-states outputs (progcost-prog x)))))
 
         (set! prev-classes classes)
-        (when (< len 2)
+        (when (< len 1)
               (pretty-display `(iter ,len))
               (loop (add1 len))))
       
       (loop 1)
+      (newline)
+      (send time end)
+      (send time print-stat)
+      (pretty-display `(total-count ,count))
 
       )
 
