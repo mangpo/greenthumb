@@ -15,31 +15,30 @@
     (init-field total-start)
     
     (define total 0)
-    (define normal-test 0)
-    (define extra-test 0)
+
+    (define types '#(normal-test extra-test db-insert db-delete db-select))
+    (define times (make-vector (vector-length types) 0))
+    (define times-start (make-vector (vector-length types) #f))
+
+    (define solver-start #f)
     (define solver-ce 0)
     (define solver-noce 0)
     (define ce 0)
     (define noce 0)
+   
+    (define/public (terminate) (set! total (- (current-seconds) total-start)))
 
-    (define normal-test-start #f)
-    (define extra-test-start #f)
-    (define solver-start #f)
-    
-    (define/public (start) (set! total-start (current-seconds)))
-    (define/public (end) (set! total (- (current-seconds) total-start)))
+    (define/public (start type)
+      (vector-set! times-start (vector-member type types) (current-seconds)))
 
-    (define/public (start-normal-test) (set! normal-test-start (current-seconds)))
-    (define/public (start-extra-test) (set! extra-test-start (current-seconds)))
+    (define/public (end type)
+      (define index (vector-member type types))
+      (vector-set! times index (+ (vector-ref times index)
+                                  (- (current-seconds) (vector-ref times-start index))))
+      (vector-set! times-start index #f)
+      )
+
     (define/public (start-solver) (set! solver-start (current-seconds)))
-
-    (define/public (end-normal-test) 
-      (set! normal-test (+ normal-test (- (current-seconds) normal-test-start)))
-      (set! normal-test-start #f))
-
-    (define/public (end-extra-test) 
-      (set! extra-test (+ extra-test (- (current-seconds) extra-test-start)))
-      (set! extra-test-start #f))
 
     (define/public (end-solver type) 
       (if type
@@ -53,19 +52,19 @@
 
     (define/public (print-stat)
       (newline)
-      (pretty-display (format "normal-test:\t~a" (exact->inexact (/ normal-test total))))
-      (pretty-display (format "extra-test:\t~a" (exact->inexact (/ extra-test total))))
-      (pretty-display (format "solver-ce:\t~a" (exact->inexact (/ solver-ce total))))
-      (pretty-display (format "solver-noce:\t~a" (exact->inexact (/ solver-noce total))))
-      (pretty-display 
-       (format "other:\t\t~a" 
-               (exact->inexact (/ (- total 
-                                     (+ normal-test extra-test solver-ce solver-noce)) 
-                                  total))))
-
-      (newline)
       (pretty-display (format "#ce:\t~a" ce))
       (pretty-display (format "#no-ce:\t~a" noce))
+      (newline)
+      (pretty-display (format "solver-ce:\t~a" (exact->inexact (/ solver-ce total))))
+      (pretty-display (format "solver-noce:\t~a" (exact->inexact (/ solver-noce total))))
+
+      (define other total)
+      (for ([type types]
+            [time times])
+           (pretty-display (format "~a:\t~a" 
+                                   type (exact->inexact (/ time total))))
+           (set! other (- other time)))
+      (pretty-display (format "other:\t\t~a" (exact->inexact (/ other total))))
       )
     
     ))
@@ -139,7 +138,7 @@
       (set! state-cols (list->vector (reverse tmp))))
 
     (define (insert size cost states-in states-out p)
-      (pretty-display "insert: start")
+      (when debug (pretty-display "insert: start"))
       (send printer print-syntax (send printer decode p))
       (define keys (list))
       (define vals (list))
@@ -164,8 +163,10 @@
                  (string-join keys ",") (string-join vals ",")
                  cost (get-output-string o)))
        ;;(pretty-display (format "query: ~a" query))
+       (send time start `db-insert)
        (query-exec pgc query)
-       (pretty-display "insert: done")
+       (send time end `db-insert)
+       (when debug (pretty-display "insert: done"))
        ))
 
 
@@ -173,7 +174,7 @@
       (define 
         all-correct
         (for/and ([ce ce-list])
-                 (send time start-extra-test)
+                 (send time start `extra-test)
                  (let ([x-out 
                         (with-handlers*
                          ([exn? (lambda (e) #f)])
@@ -182,7 +183,7 @@
                         (with-handlers*
                          ([exn? (lambda (e) #f)])
                          (send simulator interpret y ce #:dep #f))])
-                   (send time end-extra-test)
+                   (send time end `extra-test)
                    (if
                     (and x-out y-out)
                     (let ([x-out-vec (send machine progstate->vector x-out)]
@@ -244,14 +245,14 @@
                                        (reverse filtered-ids)
                                        (reverse filtered-states-out)
                                        constraint-all)])
-              (when debug (pretty-display (format "check: ~a" (length rets))))
+              (when #t (pretty-display (format "check: ~a" (length rets))))
               (for ([ret rets] #:break (not unique))
                    (let* ([str (vector-ref ret 0)]
                           [ret-prog (send printer encode 
                                           (send parser ast-from-string str))]
                           [ret-cost (vector-ref ret 1)]
                           [same (same? ret-prog p)]) 
-                     (when debug (pretty-display "check: done"))
+                     (when #t (pretty-display "check: done"))
                      ;; TODO constraint, extra
                      (when 
                       same
@@ -266,7 +267,9 @@
                                  (format "delete from ~a_size~a where program='~a'"
                                          table-name size str)])
                             (pretty-display "delete: start")
+                            (send time start `db-delete)
                             (query-exec pgc query)
+                            (send time end `db-delete)
                             (pretty-display "delete: done")
                             )))
                      ))))
@@ -282,6 +285,9 @@
             [r reg-out]
             [r-live reg-live])
            (when r-live (set! lst (cons (format "o~a_r~a = ~a" in-id i r) lst))))
+
+      (when (progstate-z live)
+            (set! lst (cons (format "o~a_z = ~a" in-id (progstate-z out)) lst)))
       (string-join lst " and "))
 
     (define (select-from-in-out size states-in-id states-out live)
@@ -291,7 +297,10 @@
           (format "select program from ~a_size~a"
                   table-name size))
         (when debug (pretty-display (format "query: ~a" query)))
-        (query-rows pgc query)
+        (send time start `db-select)
+        (define ret (query-rows pgc query))
+        (send time end `db-select)
+        ret
         ]
 
        [else
@@ -303,8 +312,12 @@
         (define query 
           (format "select program, cost from ~a_size~a where ~a"
                   table-name size (string-join lst " and ")))
-        ;;(when debug (pretty-display (format "query: ~a" query)))
-        (query-rows pgc query)]))
+        (when debug (pretty-display (format "query: ~a" query)))
+        (send time start `db-select)
+        (define ret (query-rows pgc query))
+        (send time end `db-select)
+        ret
+        ]))
 
     (define (select-from-in size states-in-id)
       (define lst (list))

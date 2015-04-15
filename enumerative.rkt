@@ -338,7 +338,7 @@
         (define 
           all-correct
           (for/and ([ce ce-list])
-                   (send time start-extra-test)
+                   (send time start `extra-test)
                    (let ([x-out 
                           (with-handlers*
                            ([exn? (lambda (e) #f)])
@@ -347,7 +347,7 @@
                           (with-handlers*
                            ([exn? (lambda (e) #f)])
                            (send simulator interpret y ce #:dep #f))])
-                     (send time end-extra-test)
+                     (send time end `extra-test)
                      ;(send machine display-state ce)
                      ;(pretty-display `(out ,x-out ,y-out))
                      (if
@@ -378,15 +378,16 @@
         
 
       (define (loop len)
-        (send psql create-table 1 (length all-states))
         (define classes (make-hash))
 
         (define (build-table prog perf out-states) ;; TODO: prog is a list of programs.
-          (when debug (send printer print-syntax (send printer decode prog)))
+          (when #t 
+                (newline)
+                (send printer print-syntax (send printer decode prog)))
           (define key
             (map (lambda (x) (send machine progstate->vector x)) out-states))
           (if (hash-has-key? classes key)
-              (let ([rets (hash-ref classes key)])
+              (let ([rets (hash-ref classes key)]) ;; TODO: append with prev-classes
                 (when debug (pretty-display (format "validate: ~a" (length rets))))
                 (let ([same (for/or ([ret rets])
                               (and (same? (progcost-prog ret) prog) ret))])
@@ -417,13 +418,13 @@
              
              (when debug
                    (send printer print-syntax-inst (send printer decode-inst my-inst))) 
-             (send time start-normal-test)
+             (send time start `normal-test)
              (let ([out-states 
                     (for/list ([state all-states])
                               (with-handlers*
                                ([exn? (lambda (e) #f)])
                                (send simulator interpret (vector my-inst) state #:dep #f)))])
-               (send time end-normal-test)
+               (send time end `normal-test)
                ;(pretty-display `(legal ,(for/or ([x out-states]) x)))
                (when 
                 (for/or ([x out-states]) x)
@@ -451,18 +452,21 @@
                (enumerate outputs val)))
         
         ;; Add this batch of programs into persistent DB.
-        (for ([key (hash-keys prev-classes)])
+        (send psql create-table len (length all-states))
+        (for ([key (hash-keys classes)])
              (let ([outputs (map (lambda (x) (send machine vector->progstate x)) key)])
-               (for ([x (hash-ref prev-classes key)])
+               (for ([x (hash-ref classes key)])
                     (send psql insert len (progcost-cost x) all-states outputs (progcost-prog x)))))
 
         (set! prev-classes classes)
-        (when (< len 2)
-              (pretty-display `(iter ,len))
-              (loop (add1 len))))
+
+        (when (< len 2) (loop (add1 len)))
+        )
       
-      (loop 1)
-      (send time end)
+      (with-handlers
+       ([exn:break? (lambda (e) (void))])
+       (loop 1))
+      (send time terminate)
       (send time print-stat)
       (pretty-display `(total-count ,count))
 
