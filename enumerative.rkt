@@ -325,7 +325,6 @@
       
       (send psql db-connect)
       (send psql init (length all-states))
-      (send psql create-table 1 (length all-states))
       
       (define prev-classes (make-hash))
       (hash-set! prev-classes all-states-vec (list (progcost (vector) 0)))
@@ -367,7 +366,7 @@
          ([exn:break? (lambda (e) (pretty-display "CE: timeout") #f)])
          (if all-correct
              (let ([ce (timeout 120 (send validator counterexample x y constraint-all #f))])
-               (send time end-solver)
+               (send time end-solver (if ce #t #f))
                (when debug (when all-correct (pretty-display "CE: done")))
                (if ce
                    (begin
@@ -379,6 +378,7 @@
         
 
       (define (loop len)
+        (send psql create-table 1 (length all-states))
         (define classes (make-hash))
 
         (define (build-table prog perf out-states) ;; TODO: prog is a list of programs.
@@ -457,12 +457,11 @@
                     (send psql insert len (progcost-cost x) all-states outputs (progcost-prog x)))))
 
         (set! prev-classes classes)
-        (when (< len 1)
+        (when (< len 2)
               (pretty-display `(iter ,len))
               (loop (add1 len))))
       
       (loop 1)
-      (newline)
       (send time end)
       (send time print-stat)
       (pretty-display `(total-count ,count))

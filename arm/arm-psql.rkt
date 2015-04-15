@@ -17,7 +17,10 @@
     (define total 0)
     (define normal-test 0)
     (define extra-test 0)
-    (define solver 0)
+    (define solver-ce 0)
+    (define solver-noce 0)
+    (define ce 0)
+    (define noce 0)
 
     (define normal-test-start #f)
     (define extra-test-start #f)
@@ -38,17 +41,33 @@
       (set! extra-test (+ extra-test (- (current-seconds) extra-test-start)))
       (set! extra-test-start #f))
 
-    (define/public (end-solver) 
-      (set! solver (+ solver (- (current-seconds) solver-start)))
+    (define/public (end-solver type) 
+      (if type
+          (begin
+            (set! solver-ce (+ solver-ce (- (current-seconds) solver-start)))
+            (set! ce (add1 ce)))
+          (begin
+            (set! solver-noce (+ solver-noce (- (current-seconds) solver-start)))
+            (set! noce (add1 noce))))
       (set! solver-start #f))
 
     (define/public (print-stat)
+      (newline)
       (pretty-display (format "normal-test:\t~a" (exact->inexact (/ normal-test total))))
       (pretty-display (format "extra-test:\t~a" (exact->inexact (/ extra-test total))))
-      (pretty-display (format "solver:\t~a" (exact->inexact (/ solver total))))
+      (pretty-display (format "solver-ce:\t~a" (exact->inexact (/ solver-ce total))))
+      (pretty-display (format "solver-noce:\t~a" (exact->inexact (/ solver-noce total))))
       (pretty-display 
-       (format "other:\t~a" 
-               (exact->inexact (/ (- total (+ normal-test extra-test solver)) total)))))
+       (format "other:\t\t~a" 
+               (exact->inexact (/ (- total 
+                                     (+ normal-test extra-test solver-ce solver-noce)) 
+                                  total))))
+
+      (newline)
+      (pretty-display (format "#ce:\t~a" ce))
+      (pretty-display (format "#no-ce:\t~a" noce))
+      )
+    
     ))
 
 (define arm-psql%
@@ -180,7 +199,7 @@
        ([exn:break? (lambda (e) (pretty-display "CE: timeout") #f)])
        (if all-correct
            (let ([ce (timeout 120 (send validator counterexample x y constraint-all #f))])
-             (send time end-solver)
+             (send time end-solver (if ce #t #f))
              (when debug (when all-correct (pretty-display "CE: done")))
              (if ce
                  (begin
