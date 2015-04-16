@@ -384,25 +384,56 @@
           (when #t 
                 (newline)
                 (send printer print-syntax (send printer decode prog)))
-          (define key
-            (map (lambda (x) (send machine progstate->vector x)) out-states))
-          (if (hash-has-key? classes key)
-              (let ([rets (hash-ref classes key)]) ;; TODO: append with prev-classes
-                (when debug (pretty-display (format "validate: ~a" (length rets))))
-                (let ([same (for/or ([ret rets])
-                              (and (same? (progcost-prog ret) prog) ret))])
-                  (when debug (pretty-display "validate: done"))
-                  (if same
-                      (let ([same-perf (progcost-cost same)])
-                        (when debug (pretty-display "[not unique]"))
-                        (when (< perf same-perf)
-                          (hash-set! classes key 
-                                     (cons (progcost prog perf) (remove same rets)))))
-                      (let ([act (send psql check-delete len perf all-states out-states prog)])
-                        (when debug (pretty-display "[unique]"))
-                        (when act (hash-set! classes key (cons (progcost prog perf) rets)))))))
-              (let ([act (send psql check-delete len perf all-states out-states prog)])
-                (when act (hash-set! classes key (list (progcost prog perf))))))
+	  (define unique #t)
+	  (define key (map (lambda (x) (send machine progstate->vector x)) out-states))
+	  (define (check-table x)
+	    (when (hash-has-key? x key)
+		  (let ([rets (hash-ref x key)])
+		    (when #t (pretty-display (format "validate: ~a" (length rets))))
+		    (let ([same (for/or ([ret rets])
+					(and (same? (progcost-prog ret) prog) ret))])
+		      (when #t (pretty-display "validate: done"))
+		      (when same
+			    (set! unique #f)
+			    (let ([same-perf (progcost-cost same)])
+			      (when #t (pretty-display "[not unique]"))
+			      (when (< perf same-perf)
+				    (hash-set! x key (remove same rets))
+				    (if (hash-has-key? classes key)
+					(hash-set! classes key (cons (progcost prog perf)
+								     (hash-ref classes key)))
+					(hash-set! classes key (list (progcost prog perf)))))))))))
+
+	  (pretty-display "Check current table.")
+	  (check-table classes)
+	  (when unique 
+		(pretty-display "Check previous table.")
+		(check-table prev-classes))
+	  (when (and unique (send psql check-delete len perf all-states out-states prog))
+		(when #t (pretty-display "[unique]"))
+		(if (hash-has-key? classes key)
+		    (hash-set! classes key (cons (progcost prog perf)
+						 (hash-ref classes key)))
+		    (hash-set! classes key (list (progcost prog perf)))))
+	  (pretty-display `(size ,(length (hash-keys classes))))
+
+          ;; (if (hash-has-key? classes key)
+          ;;     (let ([rets (hash-ref classes key)]) ;; TODO: append with prev-classes
+          ;;       (when debug (pretty-display (format "validate: ~a" (length rets))))
+          ;;       (let ([same (for/or ([ret rets])
+          ;;                     (and (same? (progcost-prog ret) prog) ret))])
+          ;;         (when debug (pretty-display "validate: done"))
+          ;;         (if same
+          ;;             (let ([same-perf (progcost-cost same)])
+          ;;               (when debug (pretty-display "[not unique]"))
+          ;;               (when (< perf same-perf)
+          ;;                 (hash-set! classes key 
+          ;;                            (cons (progcost prog perf) (remove same rets)))))
+          ;;             (let ([act (send psql check-delete len perf all-states out-states prog)])
+          ;;               (when debug (pretty-display "[unique]"))
+          ;;               (when act (hash-set! classes key (cons (progcost prog perf) rets)))))))
+          ;;     (let ([act (send psql check-delete len perf all-states out-states prog)])
+          ;;       (when act (hash-set! classes key (list (progcost prog perf))))))
           )
 
         ;; Enmerate all possible program of one instruction
@@ -451,17 +482,36 @@
                      (pretty-display `(ENUM!!!!!!!!!!!!! ,val)))
                (enumerate outputs val)))
         
+	(pretty-display (format "PREV-CLASSES: ~a" (length (hash-values prev-classes))))
+	(pretty-display (format "CLASSES: ~a" (length (hash-values classes))))
         ;; Add this batch of programs into persistent DB.
-        (send psql create-table len (length all-states))
-        (for ([key (hash-keys classes)])
+        (send psql create-table (sub1 len) (length all-states))
+	(send psql bulk-insert-start)
+        (for ([key (hash-keys prev-classes)])
              (let ([outputs (map (lambda (x) (send machine vector->progstate x)) key)])
-               (for ([x (hash-ref classes key)])
-                    (send psql insert len (progcost-cost x) all-states outputs (progcost-prog x)))))
+               (for ([x (hash-ref prev-classes key)])
+                    ;; (send psql insert (sub1 len) (progcost-cost x) all-states outputs 
+		    ;; 	  (progcost-prog x))
+                    (send psql bulk-insert (progcost-cost x) all-states outputs 
+			  (progcost-prog x))
+		    )))
+	(send psql bulk-insert-end (sub1 len))
 
         (set! prev-classes classes)
+	(pretty-display (format "NEW-PREV-CLASSES: ~a" (length (hash-values prev-classes))))
 
-        (when (< len 2) (loop (add1 len)))
-        )
+        (if (< len 2) 
+	    (loop (add1 len))
+	    (begin
+	      ;; Add this batch of programs into persistent DB.
+	      ;; (send psql create-table len (length all-states))
+	      ;; (for ([key (hash-keys prev-classes)])
+	      ;; 	   (let ([outputs (map (lambda (x) (send machine vector->progstate x)) key)])
+	      ;; 	     (for ([x (hash-ref prev-classes key)])
+	      ;; 		  (send psql insert len (progcost-cost x) all-states outputs (progcost-prog x)))))
+	      (void)
+	    )
+        ))
       
       (with-handlers
        ([exn:break? (lambda (e) (void))])

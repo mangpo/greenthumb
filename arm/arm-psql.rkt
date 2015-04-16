@@ -55,16 +55,16 @@
       (pretty-display (format "#ce:\t~a" ce))
       (pretty-display (format "#no-ce:\t~a" noce))
       (newline)
-      (pretty-display (format "solver-ce:\t~a" (exact->inexact (/ solver-ce total))))
-      (pretty-display (format "solver-noce:\t~a" (exact->inexact (/ solver-noce total))))
+      (pretty-display (format "solver-ce:\t~a\t~a" solver-ce (exact->inexact (/ solver-ce total))))
+      (pretty-display (format "solver-noce:\t~a\t~a" solver-noce (exact->inexact (/ solver-noce total))))
 
       (define other total)
       (for ([type types]
             [time times])
-           (pretty-display (format "~a:\t~a" 
-                                   type (exact->inexact (/ time total))))
+           (pretty-display (format "~a:\t~a\t~a" 
+                                   type time (exact->inexact (/ time total))))
            (set! other (- other time)))
-      (pretty-display (format "other:\t\t~a" (exact->inexact (/ other total))))
+      (pretty-display (format "other:\t\t~a\t~a" other (exact->inexact (/ other total))))
       )
     
     ))
@@ -139,7 +139,7 @@
 
     (define (insert size cost states-in states-out p)
       (when debug (pretty-display "insert: start"))
-      (send printer print-syntax (send printer decode p))
+      ;(send printer print-syntax (send printer decode p))
       (define keys (list))
       (define vals (list))
       (for ([col state-cols]
@@ -169,6 +169,22 @@
        (when debug (pretty-display "insert: done"))
        ))
 
+    (define bulk-port #f)
+    (define/public (bulk-insert-start) 
+      (set! bulk-port (open-output-file "tmp.csv" #:exists 'truncate)))
+    (define/public (bulk-insert-end size) (close-output-port bulk-port))
+    (define/public (bulk-insert cost states-in states-out p)
+      (for ([out states-out])
+	   (display (progstate->string out) bulk-port)
+	   (display "," bulk-port))
+      (display (format "~a,\"" cost) bulk-port)
+      (parameterize ([current-output-port bulk-port])
+		    (send printer print-syntax (send printer decode p)))
+      (pretty-display "\"" bulk-port))
+    
+    ;COPY arm_r2_m0_size1 FROM '/home/mangpo/work/modular-optimizer/arm/tmp.csv' WITH (FORMAT csv);
+
+      
 
     (define (same? x y)
       (define 
@@ -239,7 +255,7 @@
                   (set! filtered-ids (cons i filtered-ids))
                   (set! filtered-states-out (cons out filtered-states-out))))
 
-       (for ([i (range 1 size)] #:break (not unique))
+       (for ([i (range 1 (sub1 size))] #:break (not unique))
             (let ([rets 
                    (select-from-in-out i 
                                        (reverse filtered-ids)
@@ -268,7 +284,7 @@
                                          table-name size str)])
                             (pretty-display "delete: start")
                             (send time start `db-delete)
-                            (query-exec pgc query)
+                            ;(query-exec pgc query)
                             (send time end `db-delete)
                             (pretty-display "delete: done")
                             )))
@@ -296,7 +312,7 @@
         (define query 
           (format "select program from ~a_size~a"
                   table-name size))
-        (when debug (pretty-display (format "query: ~a" query)))
+        (when #t (pretty-display (format "query: ~a" query)))
         (send time start `db-select)
         (define ret (query-rows pgc query))
         (send time end `db-select)
@@ -312,7 +328,7 @@
         (define query 
           (format "select program, cost from ~a_size~a where ~a"
                   table-name size (string-join lst " and ")))
-        (when debug (pretty-display (format "query: ~a" query)))
+        (when #t (pretty-display (format "query: ~a" query)))
         (send time start `db-select)
         (define ret (query-rows pgc query))
         (send time end `db-select)
@@ -356,13 +372,25 @@
       (reverse states))
 
     (define (progstate->string state)
-      (define regs (progstate-regs state))
-      (define memory (progstate-memory state))
-      (define regs-str (string-join (map number->string (vector->list regs)) ","))
-      (define memory-str (string-join (map number->string (vector->list memory)) ","))
-      (if (= (vector-length memory) 0)
-          (format "~a,~a" regs-str (progstate-z state))
-          (format "~a,~a,~a" regs-str memory-str (progstate-z state))))
+      (cond
+       [state
+	(define regs (progstate-regs state))
+	(define memory (progstate-memory state))
+	(define regs-str (string-join (map number->string (vector->list regs)) ","))
+	(define memory-str (string-join (map number->string (vector->list memory)) ","))
+	(if (= (vector-length memory) 0)
+	    (format "~a,~a" regs-str (progstate-z state))
+	    (format "~a,~a,~a" regs-str memory-str (progstate-z state)))]
+
+       [else
+
+	(define regs-str (string-join (build-list nregs (lambda (x) "null")) ","))
+	(define memory-str (string-join (build-list nregs (lambda (x) "null")) ","))
+	(if (= nmems 0)
+	    (format "~a,null" regs-str)
+	    (format "~a,~a,null" regs-str memory-str))
+	])
+      )
 
 
     (define (power b p)
