@@ -1,13 +1,14 @@
 #lang racket
 
 (require db data/queue)
-(require "../ast.rkt" "../graph.rkt" 
+(require "../path.rkt" "../ast.rkt" "../graph.rkt" 
          "arm-machine.rkt" 
          "arm-simulator-racket.rkt" "arm-validator.rkt" "arm-parser.rkt")
 
-(provide arm-psql% time%)
+(provide arm-psql% time% (struct-out progcost))
 
 (struct entry (prog states))
+(struct progcost (prog cost))
 
 (define time%
   (class object%
@@ -58,7 +59,7 @@
       (pretty-display (format "solver-ce:\t~a\t~a" solver-ce (exact->inexact (/ solver-ce total))))
       (pretty-display (format "solver-noce:\t~a\t~a" solver-noce (exact->inexact (/ solver-noce total))))
 
-      (define other total)
+      (define other (- total solver-ce solver-noce))
       (for ([type types]
             [time times])
            (pretty-display (format "~a:\t~a\t~a" 
@@ -73,7 +74,7 @@
   (class object% ;; TODO arm-enumerative%
     (super-new)
     (init-field machine printer time)
-    (public db-connect db-disconnect init create-table insert check-delete)
+    (public db-connect db-disconnect init create-table insert)
 
     (define simulator (new arm-simulator-racket% [machine machine]))
     (define validator (new arm-validator% [machine machine] [printer printer]))
@@ -81,12 +82,17 @@
 
     (define debug #f)
     (define pgc #f)
-    (define nregs (send machine get-nregs))
-    (define nmems (send machine get-nmems))
+    (define bit (get-field bit machine)) ;; machine specific
+    (define nregs (send machine get-nregs)) ;; machine specific
+    (define nmems (send machine get-nmems)) ;; machine specific
     (define fp (send machine get-fp))
     (define state-cols #f)
 
-    (define ce-list (list))
+    (define ce-list 
+      (send validator generate-input-states 16 (vector) (send machine no-assumption) #f))
+       
+    ;; extra
+      
     (define constraint-all (send machine constraint-all))
     (define constraint-all-vec (send machine progstate->vector constraint-all))
 
@@ -171,8 +177,16 @@
 
     (define bulk-port #f)
     (define/public (bulk-insert-start) 
-      (set! bulk-port (open-output-file "tmp.csv" #:exists 'truncate)))
-    (define/public (bulk-insert-end size) (close-output-port bulk-port))
+      (set! bulk-port (open-output-file (format "~a/tmp.csv" srcpath) #:exists 'truncate)))
+    (define/public (bulk-insert-end size) 
+      (close-output-port bulk-port)
+      (define query
+        (format "copy ~a_size~a from '~a/tmp.csv' with (format csv)" 
+                table-name size srcpath))
+      (send time start `db-insert)
+      (query-exec pgc query)
+      (send time end `db-insert)
+      )
     (define/public (bulk-insert cost states-in states-out p)
       (for ([out states-out])
 	   (display (progstate->string out) bulk-port)
@@ -184,9 +198,7 @@
     
     ;COPY arm_r2_m0_size1 FROM '/home/mangpo/work/modular-optimizer/arm/tmp.csv' WITH (FORMAT csv);
 
-      
-
-    (define (same? x y)
+    (define/public (same? x y)
       (define 
         all-correct
         (for/and ([ce ce-list])
@@ -215,18 +227,24 @@
       (with-handlers* 
        ([exn:break? (lambda (e) (pretty-display "CE: timeout") #f)])
        (if all-correct
-           (let ([ce (timeout 120 (send validator counterexample x y constraint-all #f))])
+           (let ([ce (timeout 5 (send validator counterexample x y constraint-all #f))])
              (send time end-solver (if ce #t #f))
              (when debug (when all-correct (pretty-display "CE: done")))
              (if ce
                  (begin
-                   (when debug (pretty-display `(ce-list ,(length ce-list))))
+                   (when debug
+                         (send printer print-syntax (send printer decode x))
+                         (pretty-display "===========")
+                         (send printer print-syntax (send printer decode y))
+                         (pretty-display `(ce-list ,(length ce-list))))
                    (set! ce-list (cons ce ce-list))
                    #f)
                  #t))
-           #f)))
+           #f)
+       )
+      )
 
-    (define (check-delete size cost states-in states-out p)
+    (define/public (check-db size cost states-in states-out p)
       (when debug (pretty-display "check: start"))
       (define keys (list))
       (define vals (list))

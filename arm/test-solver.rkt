@@ -5,7 +5,7 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 4 1 4))
+(send machine set-config (list 2 1 4))
 (define printer (new arm-printer% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 (define validator (new arm-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
@@ -38,7 +38,7 @@ smull r0, r1, r0, r1
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send validator encode-sym sketch))
 
-(define ex 
+#|(define ex 
   (send validator counterexample encoded-code encoded-sketch 
         (constraint machine [reg 0 1] [mem])))
 
@@ -46,7 +46,7 @@ smull r0, r1, r0, r1
 (if ex 
   (send machine display-state ex)
   (pretty-display "No"))
-(newline) 
+(newline) |#
 #|
 ;; Counterexample:
 (define input-state (progstate (vector 242087795 -1555402324 0 0 0 0)
@@ -69,3 +69,11 @@ smull r0, r1, r0, r1
       (constraint machine [reg 1] [mem]) #f #f 36000)
   )
 (pretty-display `(time ,(- (current-seconds) t)))|#
+
+(define states
+(send validator generate-input-states 8 (vector) (send machine no-assumption) #f
+             #:rand-func (lambda () 
+                           (if (= (random 2) 0) (random 32) (- (random 32))))))
+
+(for ([state states])
+  (send machine display-state state))
