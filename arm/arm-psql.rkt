@@ -224,10 +224,19 @@
             (send time start-solver)
             )
 
+      ;; (when all-correct
+      ;; (with-handlers* 
+      ;;  ([exn:break? (lambda (e) 
+      ;;                 (if (send validator counterexample x y constraint-all #f)
+      ;;                     (pretty-display "TO: ce")
+      ;;                     (pretty-display "TO: no")))])
+      ;;  (timeout 1 (send validator counterexample x y constraint-all #f))))
+
       (with-handlers* 
-       ([exn:break? (lambda (e) (pretty-display "CE: timeout") #f)])
+       ;; when timeout, usually thiere is no CE => same
+       ([exn:break? (lambda (e) (when debug (pretty-display "CE: timeout")) #t)])
        (if all-correct
-           (let ([ce (timeout 5 (send validator counterexample x y constraint-all #f))])
+           (let ([ce (timeout 1 (send validator counterexample x y constraint-all #f))])
              (send time end-solver (if ce #t #f))
              (when debug (when all-correct (pretty-display "CE: done")))
              (if ce

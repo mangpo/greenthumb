@@ -472,7 +472,7 @@
 
     ;; (define/override (reset-inst-pool)
     ;;   (define inst-choice '( 
-    ;;                  add ;;sub rsb
+    ;;                  add sub ;;rsb
     ;;                  ;; add# sub# rsb#
     ;;                  ;; and orr eor bic orn
     ;;                  ;; and# orr# eor# bic# orn#
