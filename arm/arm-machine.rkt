@@ -160,6 +160,7 @@
                 [shf-inst-id '#(nop asr lsl lsr asr# lsl# lsr#)]
 		[inst-with-shf '(add sub rsb and orr eor bic orn mov mvn)]
 		[cond-inst-id '#(nop eq ne ls hi cc cs)]
+                [time #f]
 		)
 
     (define nregs 5)
@@ -337,10 +338,18 @@
       (cons #t (progstate regs memory z fp)))
 
     (define (progstate->vector x)
-      (and x (vector (progstate-regs x) (progstate-memory x) (progstate-z x) (progstate-fp x))))
+      (send time start `vector)
+      (define ret (and x (vector (progstate-regs x) (progstate-memory x) (progstate-z x) (progstate-fp x))))
+      (send time end `vector)
+      ret
+      )
 
     (define (vector->progstate x)
-      (and x (progstate (vector-ref x 0) (vector-ref x 1) (vector-ref x 2) (vector-ref x 3))))
+      (send time start `vector)
+      (define ret (and x (progstate (vector-ref x 0) (vector-ref x 1) (vector-ref x 2) (vector-ref x 3))))
+      (send time end `vector)
+      ret
+      )
 
     (define (clean-code code [prefix (vector)])
       (set! code (vector-filter-not (lambda (x) (= (inst-op x) nop-id)) code))
@@ -470,32 +479,32 @@
 	    (pretty-display `(classes-filtered ,classes-filtered)))
       )
 
-    ;; (define/override (reset-inst-pool)
-    ;;   (define inst-choice '( 
-    ;;                  add sub ;;rsb
-    ;;                  ;; add# sub# rsb#
-    ;;                  ;; and orr eor bic orn
-    ;;                  ;; and# orr# eor# bic# orn#
-    ;;                  ;; mov mvn
-    ;;                  ;; mov# mvn# movw# movt#
-    ;;                  ;; rev rev16 revsh rbit
-    ;;                  ;; asr lsl lsr
-    ;;                  ;; asr# lsl# lsr#
-    ;;                  ;; mul mla mls
-    ;;                  ;smull umull
-    ;;                  ;smmul smmla smmls
-    ;;                  ;; sdiv udiv
-    ;;     	     ;; uxtah uxth uxtb
-    ;;                  ;; bfc bfi
-    ;;                  ;; sbfx ubfx
-    ;;                  ;; clz
-    ;;                  ;;ldr str
-    ;;                  ;; ldr# str#
-    ;;                  ;; tst cmp
-    ;;                  ;; tst# cmp#
-    ;;                  ))
+    (define/override (reset-inst-pool)
+      (define inst-choice '( 
+                     add sub ;;rsb
+                     ;; add# sub# rsb#
+                     ;; and orr eor bic orn
+                     ;; and# orr# eor# bic# orn#
+                     ;; mov mvn
+                     ;; mov# mvn# movw# movt#
+                     ;; rev rev16 revsh rbit
+                     ;; asr lsl lsr
+                     ;; asr# lsl# lsr#
+                     ;; mul mla mls
+                     ;smull umull
+                     ;smmul smmla smmls
+                     ;; sdiv udiv
+        	     ;; uxtah uxth uxtb
+                     ;; bfc bfi
+                     ;; sbfx ubfx
+                     ;; clz
+                     ;;ldr str
+                     ;; ldr# str#
+                     ;; tst cmp
+                     ;; tst# cmp#
+                     ))
                                 
-    ;;   (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
+      (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
 
 
     (define (analyze-args-inst x) ;; TODO: move this to machine.rkt

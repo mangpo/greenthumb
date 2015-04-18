@@ -38,5 +38,10 @@ and r0, r0, r1
 (define encoded-sketch (send validator encode-sym sketch))
 
 (define t (current-seconds))
-(send enum build-db)
+(define (f)
+  (send enum build-db))
+(f)
 (pretty-display `(time ,(- (current-seconds) t)))
+
+;(require profile)
+;(profile-thunk f)

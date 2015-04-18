@@ -17,7 +17,7 @@
     
     (define total 0)
 
-    (define types '#(normal-test extra-test db-insert db-delete db-select))
+    (define types '#(normal-test extra-test db-insert db-delete db-select hash string vector))
     (define times (make-vector (vector-length types) 0))
     (define times-start (make-vector (vector-length types) #f))
 
@@ -27,27 +27,28 @@
     (define ce 0)
     (define noce 0)
    
+    (define/public (reset) (set! total-start (current-seconds)))
     (define/public (terminate) (set! total (- (current-seconds) total-start)))
 
     (define/public (start type)
-      (vector-set! times-start (vector-member type types) (current-seconds)))
+      (vector-set! times-start (vector-member type types) (current-milliseconds)))
 
     (define/public (end type)
       (define index (vector-member type types))
       (vector-set! times index (+ (vector-ref times index)
-                                  (- (current-seconds) (vector-ref times-start index))))
+                                  (- (current-milliseconds) (vector-ref times-start index))))
       (vector-set! times-start index #f)
       )
 
-    (define/public (start-solver) (set! solver-start (current-seconds)))
+    (define/public (start-solver) (set! solver-start (current-milliseconds)))
 
     (define/public (end-solver type) 
       (if type
           (begin
-            (set! solver-ce (+ solver-ce (- (current-seconds) solver-start)))
+            (set! solver-ce (+ solver-ce (- (current-milliseconds) solver-start)))
             (set! ce (add1 ce)))
           (begin
-            (set! solver-noce (+ solver-noce (- (current-seconds) solver-start)))
+            (set! solver-noce (+ solver-noce (- (current-milliseconds) solver-start)))
             (set! noce (add1 noce))))
       (set! solver-start #f))
 
@@ -56,16 +57,18 @@
       (pretty-display (format "#ce:\t~a" ce))
       (pretty-display (format "#no-ce:\t~a" noce))
       (newline)
-      (pretty-display (format "solver-ce:\t~a\t~a" solver-ce (exact->inexact (/ solver-ce total))))
-      (pretty-display (format "solver-noce:\t~a\t~a" solver-noce (exact->inexact (/ solver-noce total))))
+      (pretty-display (format "solver-ce:\t~a\t~a" 
+                              solver-ce (exact->inexact (/ solver-ce 1000 total))))
+      (pretty-display (format "solver-noce:\t~a\t~a" 
+                              solver-noce (exact->inexact (/ solver-noce 1000 total))))
 
-      (define other (- total solver-ce solver-noce))
+      (define other (- (* 1000 total) solver-ce solver-noce))
       (for ([type types]
             [time times])
            (pretty-display (format "~a:\t~a\t~a" 
-                                   type time (exact->inexact (/ time total))))
+                                   type time (exact->inexact (/ time 1000 total))))
            (set! other (- other time)))
-      (pretty-display (format "other:\t\t~a\t~a" other (exact->inexact (/ other total))))
+      (pretty-display (format "other:\t\t~a\t~a" other (exact->inexact (/ other 1000 total))))
       )
     
     ))
@@ -89,7 +92,7 @@
     (define state-cols #f)
 
     (define ce-list 
-      (send validator generate-input-states 16 (vector) (send machine no-assumption) #f))
+      (send validator generate-input-states 64 (vector) (send machine no-assumption) #f))
        
     ;; extra
       
@@ -191,10 +194,13 @@
       (for ([out states-out])
 	   (display (progstate->string out) bulk-port)
 	   (display "," bulk-port))
+      (send time start `db-insert)
       (display (format "~a,\"" cost) bulk-port)
       (parameterize ([current-output-port bulk-port])
 		    (send printer print-syntax (send printer decode p)))
-      (pretty-display "\"" bulk-port))
+      (pretty-display "\"" bulk-port)
+      (send time end `db-insert)
+      )
     
     ;COPY arm_r2_m0_size1 FROM '/home/mangpo/work/modular-optimizer/arm/tmp.csv' WITH (FORMAT csv);
 
@@ -232,25 +238,29 @@
       ;;                     (pretty-display "TO: no")))])
       ;;  (timeout 1 (send validator counterexample x y constraint-all #f))))
 
-      (with-handlers* 
-       ;; when timeout, usually thiere is no CE => same
-       ([exn:break? (lambda (e) (when debug (pretty-display "CE: timeout")) #t)])
-       (if all-correct
-           (let ([ce (timeout 1 (send validator counterexample x y constraint-all #f))])
-             (send time end-solver (if ce #t #f))
-             (when debug (when all-correct (pretty-display "CE: done")))
-             (if ce
-                 (begin
-                   (when debug
-                         (send printer print-syntax (send printer decode x))
-                         (pretty-display "===========")
-                         (send printer print-syntax (send printer decode y))
-                         (pretty-display `(ce-list ,(length ce-list))))
-                   (set! ce-list (cons ce ce-list))
-                   #f)
-                 #t))
-           #f)
-       )
+      ;; (with-handlers* 
+      ;;  ;; when timeout, usually thiere is no CE => same
+      ;;  ([exn:break? (lambda (e) 
+      ;;                 (when debug (pretty-display "CE: timeout")) 
+      ;;                 (send time end-solver #f)
+      ;;                 #f)])
+      ;;  (if all-correct
+      ;;      (let ([ce (timeout 5 (send validator counterexample x y constraint-all #f))])
+      ;;        (send time end-solver (if ce #t #f))
+      ;;        (when debug (when all-correct (pretty-display "CE: done")))
+      ;;        (if ce
+      ;;            (begin
+      ;;              (when debug
+      ;;                    (send printer print-syntax (send printer decode x))
+      ;;                    (pretty-display "===========")
+      ;;                    (send printer print-syntax (send printer decode y))
+      ;;                    (pretty-display `(ce-list ,(length ce-list))))
+      ;;              (set! ce-list (cons ce ce-list))
+      ;;              #f)
+      ;;            #t))
+      ;;      #f)
+      ;;  )
+      all-correct
       )
 
     (define/public (check-db size cost states-in states-out p)
@@ -399,6 +409,8 @@
       (reverse states))
 
     (define (progstate->string state)
+      (send time start `string)
+      (define ret
       (cond
        [state
 	(define regs (progstate-regs state))
@@ -407,16 +419,19 @@
 	(define memory-str (string-join (map number->string (vector->list memory)) ","))
 	(if (= (vector-length memory) 0)
 	    (format "~a,~a" regs-str (progstate-z state))
-	    (format "~a,~a,~a" regs-str memory-str (progstate-z state)))]
+	    (format "~a,~a,~a" regs-str memory-str (progstate-z state)))
+        ]
 
        [else
 
 	(define regs-str (string-join (build-list nregs (lambda (x) "null")) ","))
-	(define memory-str (string-join (build-list nregs (lambda (x) "null")) ","))
+	(define memory-str (string-join (build-list nmems (lambda (x) "null")) ","))
 	(if (= nmems 0)
 	    (format "~a,null" regs-str)
 	    (format "~a,~a,null" regs-str memory-str))
-	])
+	]))
+      (send time end `string)
+      ret
       )
 
 
