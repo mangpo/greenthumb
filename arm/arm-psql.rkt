@@ -184,7 +184,7 @@
     (define/public (bulk-insert-end size) 
       (close-output-port bulk-port)
       (define query
-        (format "copy ~a_size~a from '~a/tmp.csv' with (format csv)" 
+        (format "copy ~a_size~a from '~a/tmp.csv' with (format csv, null 'null')" 
                 table-name size srcpath))
       (send time start `db-insert)
       (query-exec pgc query)
