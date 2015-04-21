@@ -464,7 +464,7 @@
                 ;; Add this batch of programs into persistent DB.
                 (send psql create-table len (length all-states))
                 (send psql bulk-insert-start)
-                (for ([pair (hash->list prev-classes)])
+                (for ([pair pairs])
                      (let* ([key (car pair)]
                             [outputs (map (lambda (x) (send machine vector->progstate x)) 
                                           key)])

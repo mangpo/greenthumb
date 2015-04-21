@@ -91,8 +91,10 @@
     (define fp (send machine get-fp))
     (define state-cols #f)
 
-    (define ce-list 
+    (define fixed-list
       (send validator generate-input-states 64 (vector) (send machine no-assumption) #f))
+    (define ce-list (list))
+    (define ce-len 64)
        
     ;; extra
       
@@ -180,20 +182,27 @@
 
     (define bulk-port #f)
     (define/public (bulk-insert-start) 
-      (set! bulk-port (open-output-file (format "~a/tmp.csv" srcpath) #:exists 'truncate)))
+      (send time start `db-insert)
+      (set! bulk-port (open-output-file (format "~a/tmp.csv" srcpath) #:exists 'truncate))
+      (send time end `db-insert)
+      )
     (define/public (bulk-insert-end size) 
+      (send time start `db-insert)
       (close-output-port bulk-port)
       (define query
         (format "copy ~a_size~a from '~a/tmp.csv' with (format csv, null 'null')" 
                 table-name size srcpath))
-      (send time start `db-insert)
       (query-exec pgc query)
       (send time end `db-insert)
       )
     (define/public (bulk-insert cost states-in states-out p)
       (for ([out states-out])
-	   (display (progstate->string out) bulk-port)
-	   (display "," bulk-port))
+           (let ([str (progstate->string out)])
+             (send time start `db-insert)
+             (display (progstate->string out) bulk-port)
+             (display "," bulk-port)
+             (send time end `db-insert)
+           ))
       (send time start `db-insert)
       (display (format "~a,\"" cost) bulk-port)
       (parameterize ([current-output-port bulk-port])
@@ -207,7 +216,7 @@
     (define/public (same? x y)
       (define 
         all-correct
-        (for/and ([ce ce-list])
+        (for/and ([ce (append ce-list fixed-list)])
                  (send time start `extra-test)
                  (let ([x-out 
                         (with-handlers*
@@ -222,7 +231,13 @@
                     (and x-out y-out)
                     (let ([x-out-vec (send machine progstate->vector x-out)]
                           [y-out-vec (send machine progstate->vector y-out)])
-                      (send machine state-eq? x-out-vec y-out-vec constraint-all-vec))
+                      
+                      (send time start `extra-test)
+                      (let ([ret (send machine state-eq? x-out-vec y-out-vec 
+                                       constraint-all-vec)])
+                        (send time end `extra-test)
+                        ret
+                      ))
                     (and (not x-out) (not y-out))))))
 
       (when all-correct 
@@ -238,29 +253,31 @@
       ;;                     (pretty-display "TO: no")))])
       ;;  (timeout 1 (send validator counterexample x y constraint-all #f))))
 
-      ;; (with-handlers* 
-      ;;  ;; when timeout, usually thiere is no CE => same
-      ;;  ([exn:break? (lambda (e) 
-      ;;                 (when debug (pretty-display "CE: timeout")) 
-      ;;                 (send time end-solver #f)
-      ;;                 #f)])
-      ;;  (if all-correct
-      ;;      (let ([ce (timeout 5 (send validator counterexample x y constraint-all #f))])
-      ;;        (send time end-solver (if ce #t #f))
-      ;;        (when debug (when all-correct (pretty-display "CE: done")))
-      ;;        (if ce
-      ;;            (begin
-      ;;              (when debug
-      ;;                    (send printer print-syntax (send printer decode x))
-      ;;                    (pretty-display "===========")
-      ;;                    (send printer print-syntax (send printer decode y))
-      ;;                    (pretty-display `(ce-list ,(length ce-list))))
-      ;;              (set! ce-list (cons ce ce-list))
-      ;;              #f)
-      ;;            #t))
-      ;;      #f)
-      ;;  )
-      all-correct
+      (with-handlers* 
+       ;; when timeout, usually thiere is no CE => same
+       ([exn:break? (lambda (e) 
+                      (when debug (pretty-display "CE: timeout")) 
+                      (send time end-solver #f)
+                      #f)])
+       (if all-correct
+           (let ([ce (timeout 5 (send validator counterexample x y constraint-all #f))])
+             (send time end-solver (if ce #t #f))
+             (when debug (when all-correct (pretty-display "CE: done")))
+             (if ce
+                 (begin
+                   (when #t
+                         (send printer print-syntax (send printer decode x))
+                         (pretty-display "===========")
+                         (send printer print-syntax (send printer decode y))
+                         (pretty-display `(ce-list ,(length ce-list))))
+                   (if (= (length ce-list) ce-len)
+                       (set! ce-list (cons ce (remove (last ce-list) ce-list)))
+                       (set! ce-list (cons ce ce-list)))
+                   #f)
+                 #t))
+           #f)
+       )
+      ;all-correct
       )
 
     (define/public (check-db size cost states-in states-out p)
