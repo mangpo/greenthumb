@@ -92,9 +92,9 @@
     (define state-cols #f)
 
     (define fixed-list
-      (send validator generate-input-states 64 (vector) (send machine no-assumption) #f))
+      (send validator generate-input-states 4 (vector) (send machine no-assumption) #f))
     (define ce-list (list))
-    (define ce-len 64)
+    (define ce-len 32)
        
     ;; extra
       
@@ -199,7 +199,7 @@
       (for ([out states-out])
            (let ([str (progstate->string out)])
              (send time start `db-insert)
-             (display (progstate->string out) bulk-port)
+             (display str bulk-port)
              (display "," bulk-port)
              (send time end `db-insert)
            ))
@@ -265,7 +265,7 @@
              (when debug (when all-correct (pretty-display "CE: done")))
              (if ce
                  (begin
-                   (when #t
+                   (when debug
                          (send printer print-syntax (send printer decode x))
                          (pretty-display "===========")
                          (send printer print-syntax (send printer decode y))
