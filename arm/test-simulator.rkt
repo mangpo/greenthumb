@@ -44,8 +44,8 @@ orr r1, r0, r0, lsl 1
 (send parser ast-from-string "
 ? ?
 "))
-;; Use solver to encode unknown program instead of printer
-(define encoded-code? (send solver encode-sym code?))
+;; Use validator to encode unknown program instead of printer
+(define encoded-code? (send validator encode-sym code?))
 (pretty-display "Interpret unknown program using simulator written in rosette...")
 (define output-state?
   (send simulator-rosette interpret encoded-code? input-state))

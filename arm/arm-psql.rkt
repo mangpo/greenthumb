@@ -229,15 +229,17 @@
                    (send time end `extra-test)
                    (if
                     (and x-out y-out)
-                    (let ([x-out-vec (send machine progstate->vector x-out)]
-                          [y-out-vec (send machine progstate->vector y-out)])
-                      
-                      (send time start `extra-test)
-                      (let ([ret (send machine state-eq? x-out-vec y-out-vec 
-                                       constraint-all-vec)])
-                        (send time end `extra-test)
-                        ret
-                      ))
+                    (begin
+                      (send time start `vector)
+                      (let ([x-out-vec (send machine progstate->vector x-out)]
+                            [y-out-vec (send machine progstate->vector y-out)])
+                        (send time end `vector)
+                        (send time start `extra-test)
+                        (let ([ret (send machine state-eq? x-out-vec y-out-vec 
+                                         constraint-all-vec)])
+                          (send time end `extra-test)
+                          ret
+                          )))
                     (and (not x-out) (not y-out))))))
 
       (when all-correct 

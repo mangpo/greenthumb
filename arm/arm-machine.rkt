@@ -160,7 +160,6 @@
                 [shf-inst-id '#(nop asr lsl lsr asr# lsl# lsr#)]
 		[inst-with-shf '(add sub rsb and orr eor bic orn mov mvn)]
 		[cond-inst-id '#(nop eq ne ls hi cc cs)]
-                [time #f]
 		)
 
     (define nregs 5)
@@ -200,15 +199,15 @@
       
       (set! reg-range (list->vector (range nregs)))
       (set! operand2-range (vector 0 1))
-      ;; (list->vector
-      ;;  (append (range bit) (list #x3f #xff0000 #xff00 (- #xff000000) (- #x80000000)))))
+	    ;; (list->vector ;(range 17)))
+	    ;;  (append (range bit) (list #x3f #xff0000 #xff00 (- #xff000000) (- #x80000000)))))
 
       (set! const-range (vector 0 1)) ;; 0-7, 31
-      ;; (list->vector
-      ;;  (append (range 17) (list (sub1 bit) 
-      ;;                           #x1111 #x3333 #x5555 #xaaaa #xcccc
-      ;;                           #xf0f0 #x0f0f #x3f 
-      ;;   			#xffff #xaaab #x2aaa #xfff4))))
+	    ;; (list->vector ;(range 17)))
+	    ;;  (append (range 17) (list (sub1 bit) 
+	    ;;     		      #x1111 #x3333 #x5555 #xaaaa #xcccc
+	    ;;     		      #xf0f0 #x0f0f #x3f 
+	    ;;     		      #xffff #xaaab #x2aaa #xfff4))))
       
       (set! shf-range (vector 1))
       (set! bit-range (vector 0 1))
@@ -216,7 +215,7 @@
       (set! mem-range (list->vector (for/list ([i nmems]) (- i fp))))
       )
 
-    (define (update-arg-ranges op2 const bit reg mem [vreg 0])
+    (define (update-arg-ranges op2 const bit reg mem only-const [vreg 0])
       ;; Not include mem-range
       (set! operand2-range 
             (list->vector 
@@ -243,11 +242,12 @@
 		      (set->list (set-union (list->set (vector->list bit-range-no-0))
 					    bit)))))
 
-      (set! reg-range (list->vector (append (set->list reg) 
-					    (range nregs (+ nregs vreg)))))
-      (set! nregs (+ nregs vreg)) ;; Same if enum = 0
-
-      (set! mem-range (list->vector (set->list mem)))
+      (unless only-const
+              (set! reg-range (list->vector (append (set->list reg) 
+                                                    (range nregs (+ nregs vreg)))))
+              (set! nregs (+ nregs vreg)) ;; Same if enum = 0
+              
+              (set! mem-range (list->vector (set->list mem))))
 
       (pretty-display `(reg-range ,reg-range))
       (pretty-display `(mem-range ,mem-range))
@@ -338,18 +338,10 @@
       (cons #t (progstate regs memory z fp)))
 
     (define (progstate->vector x)
-      (send time start `vector)
-      (define ret (and x (vector (progstate-regs x) (progstate-memory x) (progstate-z x) (progstate-fp x))))
-      (send time end `vector)
-      ret
-      )
+      (and x (vector (progstate-regs x) (progstate-memory x) (progstate-z x) (progstate-fp x))))
 
     (define (vector->progstate x)
-      (send time start `vector)
-      (define ret (and x (progstate (vector-ref x 0) (vector-ref x 1) (vector-ref x 2) (vector-ref x 3))))
-      (send time end `vector)
-      ret
-      )
+      (and x (progstate (vector-ref x 0) (vector-ref x 1) (vector-ref x 2) (vector-ref x 3))))
 
     (define (clean-code code [prefix (vector)])
       (set! code (vector-filter-not (lambda (x) (= (inst-op x) nop-id)) code))
@@ -424,6 +416,7 @@
               (let ([opcode-name (vector-ref inst-id (inst-op i))])
                 (member opcode-name inst-list))))
 
+    ;; Return #t, if kodkod solver can be used.
     (define (analyze-opcode prefix code postfix)
       (set! code (vector-append prefix code postfix))
       (define inst-choice '(nop))
@@ -474,37 +467,39 @@
             (for/vector ([c classes])
                         (map (lambda (x) (vector-member x inst-id))
                              (filter (lambda (x) (member x inst-choice)) c))))
-      (when #t
+      (when debug
 	    (pretty-display `(inst-choice ,inst-choice))
 	    (pretty-display `(classes-filtered ,classes-filtered)))
+
+      (not (code-has code '(smull umull smmul smmla smmls)))
       )
 
-    ;; (define/override (reset-inst-pool)
-    ;;   (define inst-choice '( 
-    ;;                  add ;sub ;rsb
-    ;;                  ;; add# sub# rsb#
-    ;;                  ;; and orr eor bic orn
-    ;;                  ;; and# orr# eor# bic# orn#
-    ;;                  ;; mov mvn
-    ;;                  ;; mov# mvn# movw# movt#
-    ;;                  ;; rev rev16 revsh rbit
-    ;;                  ;; asr lsl lsr
-    ;;                  ;; asr# lsl# lsr#
-    ;;                  ;; mul mla mls
-    ;;                  ;smull umull
-    ;;                  ;smmul smmla smmls
-    ;;                  ;; sdiv udiv
-    ;;     	     ;; uxtah uxth uxtb
-    ;;                  ;; bfc bfi
-    ;;                  ;; sbfx ubfx
-    ;;                  ;; clz
-    ;;                  ;;ldr str
-    ;;                  ;; ldr# str#
-    ;;                  ;; tst cmp
-    ;;                  ;; tst# cmp#
-    ;;                  ))
+    (define/override (reset-inst-pool)
+      (define inst-choice '( 
+                     sub ;; add sub ;rsb
+                     ;; add# sub# rsb#
+                     orr ;; and orr eor bic orn
+                     ;; and# orr# eor# bic# orn#
+                     ;; mov mvn
+                     ;; mov# mvn# movw# movt#
+                     ;; rev rev16 revsh rbit
+                     ;; asr lsl lsr
+                     ;; asr# lsl# lsr#
+                     ;; mul mla mls
+                     ;smull umull
+                     ;smmul smmla smmls
+                     ;; sdiv udiv
+        	     ;; uxtah uxth uxtb
+                     ;; bfc bfi
+                     ;; sbfx ubfx
+                     ;; clz
+                     ;;ldr str
+                     ;; ldr# str#
+                     ;; tst cmp
+                     ;; tst# cmp#
+                     ))
                                 
-    ;;   (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
+      (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
 
 
     (define (analyze-args-inst x) ;; TODO: move this to machine.rkt
@@ -558,7 +553,7 @@
        [(equal? opcode `nop) (cons (list) (list))]
        [else (raise (format "decode-inst: undefined for ~a" opcode))]))
 
-    (define (analyze-args prefix code postfix #:vreg [vreg 0])
+    (define (analyze-args prefix code postfix #:only-const [only-const #f] #:vreg [vreg 0])
       (define reg-set (set))
       (define mem-set (set))
       (define op2-set (set))
@@ -582,7 +577,7 @@
              (set! reg-set (set-union reg-set (fourth ans)))
              (set! mem-set (set-union mem-set (fifth ans)))
 	     ))
-      (update-arg-ranges op2-set const-set bit-set reg-set mem-set vreg))
+      (update-arg-ranges op2-set const-set bit-set reg-set mem-set only-const vreg))
 
     (define (relaxed-state-eq? state1 state2 pred)
       (and 

@@ -44,7 +44,8 @@
 			       #:assume-interpret [assume-interpret #t]
 			       #:assume [assumption (send machine no-assumption)])
       
-      (send machine analyze-opcode prefix spec postfix)
+      (when (send machine analyze-opcode prefix spec postfix)
+            (current-solver (new kodkod%)))
       (if pure-symbolic 
           (synthesize-from-sketch 
            (vector-append prefix spec postfix) 
@@ -107,6 +108,7 @@
 				    #:assume-interpret [assume-interpret #t]
 				    #:assume [assumption (send machine no-assumption)])
       (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
+      (pretty-display (format "solver = ~a" (current-solver)))
       (when debug
             (send printer print-struct hard-prefix)
 	    (newline)
@@ -116,11 +118,7 @@
 	    (newline)
 	    )
 
-      ;; (current-solver (new z3%))
-      ;; (current-solver (new kodkod%))
-
       (clear-asserts)
-      ;(configure [bitwidth bit] [loop-bound 20])
       (current-bitwidth bit)
       
 

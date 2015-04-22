@@ -22,18 +22,6 @@ smull r0, r1, r1, r0
 mul r1, r0, r0
 smull r0, r1, r0, r1
 "))
-;; 1 hole
-; random = 12, 13, 5 | 25, 78
-; all-sym = 3, 4, 4 | 2, 3
-;; 2 holes
-; random = 9184
-; random (1) = 2103
-; all-sym = 1333
-
-;add r0, r0, r1
-;?
-;bfc r1, 0, 1
-;rsb r1, r1, r0
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send validator encode-sym sketch))

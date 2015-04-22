@@ -414,7 +414,12 @@
                 (define-values (new-p new-cost) 
                   (reduce-size current current-cost update-size))
                 (set! current new-p)
-                (set! current-cost new-cost)]
+                (set! current-cost new-cost)
+                ;; (define tmp (send printer encode
+                ;;                   (send parser ast-from-file
+                ;;                         (format "~a/best.s" (get-field dir stat)))))
+                ;; (send machine analyze-args (vector) tmp (vector))
+                ]
 
                [else
                 (pretty-display ">>> steal best program")
@@ -423,7 +428,7 @@
                       (send printer encode
                             (send parser ast-from-file 
                                   (format "~a/best.s" (get-field dir stat)))))
-                (send machine analyze-args (vector) current (vector))
+		;; (send machine analyze-args (vector) current (vector) #:only-const #t)
                 (set! current-cost best-cost)
                 ]
               ))

@@ -2,8 +2,8 @@
 
 (require  "ast.rkt" "machine.rkt" "printer.rkt")
 
-;(require rosette/solver/smt/z3)
-(require rosette/solver/kodkod/kodkod)
+(require rosette/solver/smt/z3)
+;(require rosette/solver/kodkod/kodkod)
 
 (provide validator%)
 
@@ -25,9 +25,7 @@
             assume assert-state-eq
             )
     
-    ;; (if syn-mode
-    ;;     (current-solver (new kodkod%))
-    ;;     (current-solver (new z3%)))
+    (current-solver (new z3%))
 
     (define-syntax-rule (print-struct x) (send printer print-struct x))
     (define-syntax-rule (print-syntax x) (send printer print-syntax x))
@@ -96,9 +94,7 @@
       (define encoded-code (encode-sym code))
       (define (solve-until-valid config)
         (send machine set-config config)
-        ;; (current-solver (new kodkod%))
         (clear-asserts)
-        ;(configure [bitwidth bit] [loop-bound 20])
 	(current-bitwidth bit)
         (define state (send machine get-state sym-input extra))
 	(send simulator interpret encoded-code state)
@@ -126,11 +122,7 @@
              #:db [db #f])
       (when debug
             (pretty-display `(generate-inputs-inner ,n ,assumption ,random-input-bit)))
-      ;; (print-struct spec)
-      ;; (display-state start-state)
-      ;; (current-solver (new kodkod%))
       (clear-asserts)
-      ;(configure [bitwidth bit] [loop-bound 20])
       (current-bitwidth bit)
       (define const-range 
 	;; (- (arithmetic-shift 1 (sub1 random-input-bit)))
@@ -238,6 +230,7 @@
     ;; Otherwise, returns false.
     (define (counterexample spec program constraint [extra #f]
                             #:assume [assumption (send machine no-assumption)])
+      ;;(pretty-display (format "solver = ~a" (current-solver)))
       (when debug 
             (pretty-display (format "program-eq? START bit = ~a" bit))
             (pretty-display "spec:")
@@ -249,9 +242,7 @@
             ;; (pretty-display (format "assumption: ~a" assumption))
             )
       
-      ;(current-solver (new kodkod%))
       (clear-asserts)
-      ;(configure [bitwidth bit] [loop-bound 20])
       (current-bitwidth bit)
       (define start-state (send machine get-state sym-input extra))
       (define spec-state #f)

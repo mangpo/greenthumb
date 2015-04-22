@@ -312,7 +312,6 @@
       
     (define (build-db)
       (define time (new time% [total-start (current-seconds)]))
-      (set-field! time machine time)
       (send machine reset-inst-pool)
       (define constraint-all (send machine constraint-all))
       (define constraint-all-vec (send machine progstate->vector constraint-all))
@@ -340,7 +339,9 @@
                 (newline)
                 (send printer print-syntax (send printer decode prog)))
 	  (define unique #t)
+          (send time start `vector)
 	  (define key (map (lambda (x) (send machine progstate->vector x)) out-states))
+          (send time end `vector)
 	  (define (check-inmem x)
             (send time start `hash)
             (define match (hash-has-key? x key))
@@ -426,9 +427,11 @@
         (define pairs (hash->list prev-classes))
         (send time end `hash)
         (for ([pair pairs])
+             (send time start `vector)
              (let* ([key (car pair)]
                     [val (cdr pair)]
                     [outputs (map (lambda (x) (send machine vector->progstate x)) key)])
+               (send time end `vector)
                ;;(pretty-display `(key ,(car key) ,(cdr key)))
                ;; Initialize enumeration one instruction process
                (reset-generate-inst outputs live-list #f)
@@ -442,8 +445,10 @@
         (send psql create-table (sub1 len) (length all-states))
 	(send psql bulk-insert-start)
         (for ([pair pairs])
+             (send time start `vector)
              (let* ([key (car pair)]
                     [outputs (map (lambda (x) (send machine vector->progstate x)) key)])
+               (send time end `vector)
                (for ([x (cdr pair)])
                     ;; (send psql insert (sub1 len) (progcost-cost x) all-states outputs 
 		    ;; 	  (progcost-prog x))
@@ -465,9 +470,11 @@
                 (send psql create-table len (length all-states))
                 (send psql bulk-insert-start)
                 (for ([pair pairs])
+                     (send time start `vector)
                      (let* ([key (car pair)]
                             [outputs (map (lambda (x) (send machine vector->progstate x)) 
                                           key)])
+                       (send time end `vector)
                        (for ([x (cdr pair)])
                             (send psql bulk-insert (progcost-cost x) all-states outputs 
                                   (progcost-prog x)))))
