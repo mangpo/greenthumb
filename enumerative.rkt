@@ -402,7 +402,7 @@
                    (send printer print-syntax-inst (send printer decode-inst my-inst))) 
              (send time start `normal-test)
              (let ([out-states 
-                    (for/list ([state all-states])
+                    (for/list ([state states])
                               (with-handlers*
                                ([exn? (lambda (e) #f)])
                                (send simulator interpret (vector my-inst) state #:dep #f)))])

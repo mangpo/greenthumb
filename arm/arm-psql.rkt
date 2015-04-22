@@ -77,7 +77,7 @@
   (class object% ;; TODO arm-enumerative%
     (super-new)
     (init-field machine printer time)
-    (public db-connect db-disconnect init create-table insert)
+    (public db-connect db-disconnect init create-table insert progstate->id)
 
     (define simulator (new arm-simulator-racket% [machine machine]))
     (define validator (new arm-validator% [machine machine] [printer printer]))
@@ -92,9 +92,9 @@
     (define state-cols #f)
 
     (define fixed-list
-      (send validator generate-input-states 4 (vector) (send machine no-assumption) #f))
+      (send validator generate-input-states 64 (vector) (send machine no-assumption) #f))
     (define ce-list (list))
-    (define ce-len 32)
+    (define ce-len 64)
        
     ;; extra
       
@@ -595,8 +595,8 @@
 	      (set! found #t)
 	      (iterate iterator)))
 
-      (define (enqueue in-node my-level)
-        (define prog-states-list (select-from-in 1 (vertex-ids in-node)))
+      (define (enqueue in-node my-level size)
+        (define prog-states-list (select-from-in size (vertex-ids in-node)))
         (pretty-display `(enqueue-new ,(length prog-states-list)))
         ;; TODO enqueue!
         (for ([prog-states prog-states-list])
@@ -626,7 +626,25 @@
                              (enqueue! level (add1 my-level))
                              )))))
         )
+
+      (define (search-for in-node ins-id size)
+        (pretty-display `(search-for ,size))
+        (define prog-list (map (lambda (x) (vector-ref x 0))
+                               (select-from-in-out size ins-id states2-spec live2)))
+        (unless (empty? prog-list)
+                (pretty-display `(ins-id ,ins-id))
+                (pretty-display `(current))
+                (print-graph states1-id in-node)
+                (pretty-display prog-list)
+                (pretty-display "------------------------------------")
+                
+                (define my-node 
+                  (make-vertex #t (map (lambda (x) (neighbor in-node x)) prog-list)))
+                (iterate (send graph get-correct-iterator my-node))
+                (when found (raise "done"))
+                ))
       
+      (define max-size 2)
       (define (loop)
         (define in-node (dequeue! queue))
         (define ins-id (vertex-ids in-node))
@@ -641,24 +659,18 @@
           (enqueue! queue in-node)
           (enqueue! level my-level)]
 
+         [(> my-level 1)
+          (search-for in-node ins-id max-size)
+          (enqueue in-node my-level max-size)]
+
          [else
-          (define prog-list (map (lambda (x) (vector-ref x 0))
-                                 (select-from-in-out 1 ins-id states2-spec live2)))
-          (unless (empty? prog-list)
-                  (pretty-display `(ins-id ,ins-id))
-                  (pretty-display `(current))
-                  (print-graph states1-id in-node)
-                  (pretty-display prog-list)
-                  (pretty-display "------------------------------------")
-                  
-                  (define my-node 
-                    (make-vertex #t (map (lambda (x) (neighbor in-node x)) prog-list)))
-                  (iterate (send graph get-correct-iterator my-node))
-                  (when found (raise "done"))
+          (for ([i (range 1 (add1 max-size))])
+               (search-for in-node ins-id i))
+          (for ([i (range 1 (add1 max-size))])
+               (enqueue in-node my-level i))
+          ]
 
-                  )
-
-          (enqueue in-node my-level)])
+         )
         (loop)
         )
 

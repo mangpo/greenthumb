@@ -476,27 +476,27 @@
 
     (define/override (reset-inst-pool)
       (define inst-choice '( 
-                     sub ;; add sub ;rsb
-                     ;; add# sub# rsb#
-                     orr ;; and orr eor bic orn
-                     ;; and# orr# eor# bic# orn#
-                     ;; mov mvn
-                     ;; mov# mvn# movw# movt#
-                     ;; rev rev16 revsh rbit
-                     ;; asr lsl lsr
-                     ;; asr# lsl# lsr#
-                     ;; mul mla mls
-                     ;smull umull
-                     ;smmul smmla smmls
-                     ;; sdiv udiv
-        	     ;; uxtah uxth uxtb
-                     ;; bfc bfi
-                     ;; sbfx ubfx
-                     ;; clz
-                     ;;ldr str
+                     add sub rsb
+                     add# sub# rsb#
+                     and orr eor bic orn
+                     and# orr# eor# bic# orn#
+                     mov mvn
+                     mov# mvn# movw# movt#
+                     rev rev16 revsh rbit
+                     asr lsl lsr
+                     asr# lsl# lsr#
+                     mul mla mls
+                     ;; smull umull
+                     ;; smmul smmla smmls
+                     sdiv udiv
+        	     uxtah uxth uxtb
+                     bfc bfi
+                     sbfx ubfx
+                     clz
+                     ;; ldr str
                      ;; ldr# str#
-                     ;; tst cmp
-                     ;; tst# cmp#
+                     tst cmp
+                     tst# cmp#
                      ))
                                 
       (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
