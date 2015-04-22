@@ -127,7 +127,9 @@
       (set! inst-pool (range (vector-length inst-id)))
       (set! classes-filtered 
             (for/vector ([c classes])
-                        (map (lambda (x) (vector-member x inst-id)) c))))
+                        (map (lambda (x) (vector-member x inst-id)) c)))
+      #t
+      )
 
     (define (analyze-args prefix code postfix #:only-const [x #f])
       (void))

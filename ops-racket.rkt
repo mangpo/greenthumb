@@ -72,4 +72,6 @@
 
 (define (ummul x y bit) 
   (let ([mask (sub1 (arithmetic-shift 1 bit))])
-    (finitize (arithmetic-shift (* (bitwise-and x mask) (bitwise-and y)) (- bit)) bit)))
+    (finitize 
+     (arithmetic-shift (* (bitwise-and x mask) (bitwise-and y mask)) (- bit)) 
+     bit)))

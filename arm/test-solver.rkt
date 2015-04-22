@@ -12,63 +12,23 @@
 
 (define code
 (send parser ast-from-string "
-str r0, fp, -16
-str r1, fp, -20
-ldr r2, fp, -16
-ldr r3, fp, -20
-and r3, r2, r3
-str r3, fp, -12
-ldr r2, fp, -16
-ldr r3, fp, -20
-eor r3, r2, r3
-str r3, fp, -8
-ldr r2, fp, -8
-ldr r3, fp, -12
-cmp r2, r3
-movhi r3, 0
-movls r3, 1
-mov r0, r3
+mul r1, r0, r0
+smull r0, r1, r1, r0
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-str r0, fp, -16
-str r1, fp, -20
-ldr r2, fp, -16
-ldr r3, fp, -20
-and r3, r2, r3
-str r3, fp, -12
-ldr r2, fp, -16
-ldr r3, fp, -20
-eor r3, r2, r3
-str r3, fp, -8
-ldr r2, fp, -8
-ldr r3, fp, -12
-cmp r2, r3
-movne r0, 0
-addls r0, r0, 1
-
+mul r1, r0, r0
+smull r0, r1, r0, r1
 "))
-;; 1 hole
-; random = 12, 13, 5 | 25, 78
-; all-sym = 3, 4, 4 | 2, 3
-;; 2 holes
-; random = 9184
-; random (1) = 2103
-; all-sym = 1333
-
-;add r0, r0, r1
-;?
-;bfc r1, 0, 1
-;rsb r1, r1, r0
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send validator encode-sym sketch))
 
 (define ex 
   (send validator counterexample encoded-code encoded-sketch 
-        (constraint machine [reg 0] [mem 0])))
+        (constraint machine [reg 0 1] [mem 0])))
 
 (pretty-display "Counterexample:")
 (if ex 

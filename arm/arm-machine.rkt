@@ -391,6 +391,7 @@
               (let ([opcode-name (vector-ref inst-id (inst-op i))])
                 (member opcode-name inst-list))))
 
+    ;; Return #t, if kodkod solver can be used.
     (define (analyze-opcode prefix code postfix)
       (set! code (vector-append prefix code postfix))
       (define inst-choice '(nop))
@@ -441,9 +442,11 @@
             (for/vector ([c classes])
                         (map (lambda (x) (vector-member x inst-id))
                              (filter (lambda (x) (member x inst-choice)) c))))
-      (when #t
+      (when debug
 	    (pretty-display `(inst-choice ,inst-choice))
 	    (pretty-display `(classes-filtered ,classes-filtered)))
+
+      (not (code-has code '(smull umull smmul smmla smmls)))
       )
 
 
