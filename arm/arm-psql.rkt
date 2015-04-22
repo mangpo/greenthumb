@@ -602,7 +602,7 @@
         (for ([prog-states prog-states-list])
              (let* ([prog (entry-prog prog-states)]
                     [states (entry-states prog-states)]
-                    [ids (map progstate->id states)])
+                    [ids (map (lambda (x) (progstate->id x)) states)])
                (unless (member #f ids) ;; If there is #f at all, ignore it.
                        ;; (when (= (length (filter number? ids)) 0)
                        ;;       (pretty-display `(OUT ,ins-id ,current-progs ,prog))
