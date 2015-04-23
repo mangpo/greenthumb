@@ -621,29 +621,29 @@
     (define (db->prog-progstates resp [ins-id #f])
       (define states (list))
       (define index 0)
+
+      (define (get-state)
+        (if (sql-null? (vector-ref resp index))
+            #f
+            (progstate (vector-copy resp index (+ index nregs)) 
+                       (vector-copy resp (+ index nregs) (+ index nregs nmems))
+                       (vector-ref resp (+ index nregs nmems))
+                       fp)))
       
       (cond
        [ins-id
         (for ([in ins-id])
              (if (number? in)
-                 (let ([x (progstate (vector-copy resp index (+ index nregs)) 
-                                     (vector-copy resp (+ index nregs) (+ index nregs nmems))
-                                     (vector-ref resp (+ index nregs nmems))
-                                     fp)])
-                   ;;(send machine display-state x)
-                   (set! states (cons x states))
+                 (begin
+                   (set! states (cons (get-state) states))
                    (set! index (+ index nregs nmems 1)))
                  (set! states (cons in states))))]
 
        [else
         (define batch (+ nregs nmems 1))
         (for ([i (quotient (sub1 (vector-length resp)) batch)])
-             (let ([x (progstate (vector-copy resp index (+ index nregs)) 
-                                 (vector-copy resp (+ index nregs) (+ index nregs nmems))
-                                 (vector-ref resp (+ index nregs nmems))
-                                 fp)])
-               (set! states (cons x states))
-               (set! index (+ index batch))))])
+             (set! states (cons (get-state) states))
+             (set! index (+ index batch)))])
 
       (record 
        (if (equal? (vector-ref resp index) "")
