@@ -352,18 +352,23 @@
                 (when debug (pretty-display "[unique]"))
                 (send time start `hash)
                 (if (hash-has-key? classes key)
-                    (hash-set! classes key (cons prog (hash-ref classes key)))
+                    (begin
+                      (hash-set! classes key (cons prog (hash-ref classes key)))
+                      (send time end `hash)
+                      )
                     (begin
                       (hash-set! classes key (list prog))
+                      (send time end `hash)
                       (set! my-count (add1 my-count))
-                      (when (= my-count 50000) 
-                            (send psql bulk-insert len classes)
-                            (set! classes (make-hash))
-                            (set! my-count 0)
+                      (when (= my-count 50000)
+                            ;(send time print-ce)
+                            (send psql bulk-insert len classes #f)
+                            ;(set! classes (make-hash))
+                            (set! my-count (hash-count classes))
                             )
                       )
                     )
-                (send time end `hash))
+                )
           )
 
         ;; Enmerate all possible program of one instruction
@@ -407,7 +412,7 @@
                (reset-generate-inst outputs live-list #f)
                (enumerate outputs progs)))
 
-        (send psql bulk-insert len classes)
+        (send psql bulk-insert len classes #t)
         (set! classes (make-hash))
         (set! my-count 0)
 

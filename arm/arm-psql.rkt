@@ -26,6 +26,11 @@
     (define ce 0)
     (define noce 0)
    
+    (define/public (print-ce)
+      (pretty-display (format "#ce:\t~a" ce))
+      (pretty-display (format "#no-ce:\t~a" noce)))
+      
+
     (define/public (reset) (set! total-start (current-seconds)))
     (define/public (terminate) (set! total (- (current-seconds) total-start)))
 
@@ -34,6 +39,8 @@
 
     (define/public (end type)
       (define index (vector-member type types))
+      ;; (unless (vector-ref times-start index)
+      ;;         (pretty-display `(PROBLEM ,type)))
       (vector-set! times index (+ (vector-ref times index)
                                   (- (current-milliseconds) (vector-ref times-start index))))
       (vector-set! times-start index #f)
@@ -234,7 +241,7 @@
     ;;   (send time end `db-insert)
     ;;   )
 
-    (define/public (bulk-insert size classes) 
+    (define/public (bulk-insert size classes all) 
       ;; caution: may insert duplicate outputs to existing rows
       (pretty-display `(bulk-insert ,size))
       (send time start `db-insert)
@@ -266,6 +273,7 @@
 
       (send time start `hash)
       (define pairs (hash->list classes))
+      (unless all (set! pairs (take pairs (quotient (length pairs) 2))))
       (send time end `hash)
       (for ([pair pairs])
            (send time start `vector)
@@ -273,7 +281,13 @@
                   [prog-list (cdr pair)]
                   [outputs (map (lambda (x) (send machine vector->progstate x)) key)])
              (send time end `vector)
-             (inner-insert outputs prog-list)))
+             (inner-insert outputs prog-list)
+             (unless all
+                     (send time start `hash)
+                     (hash-remove! classes key)
+                     (send time end `hash)
+                     )
+             ))
 
       (send time start `db-insert)
       (close-output-port bulk-port)
