@@ -102,6 +102,7 @@
 
     (define (bvsmmul x y) (smmul x y bit))
     (define (bvummul x y) (ummul x y bit))
+    (define bvsdiv (bvop quotient))
     (define (bvudiv n d)
       (if (< d 0)
           (if (< n d) 1 0)
@@ -531,7 +532,7 @@
            [(inst-eq `smull) (ddrr bvmul bvsmmul)]
            [(inst-eq `umull) (ddrr bvmul bvummul)]
 
-           [(inst-eq `sdiv) (rrr quotient)]
+           [(inst-eq `sdiv) (rrr bvsdiv)]
            [(inst-eq `udiv) (rrr bvudiv)]
 
            [(inst-eq `uxtah) (rrr uxtah)]
