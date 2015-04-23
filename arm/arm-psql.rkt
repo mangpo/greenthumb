@@ -5,10 +5,9 @@
          "arm-machine.rkt" 
          "arm-simulator-racket.rkt" "arm-validator.rkt" "arm-parser.rkt")
 
-(provide arm-psql% time% (struct-out progcost))
+(provide arm-psql% time% (struct-out record))
 
-(struct entry (prog states))
-(struct progcost (prog cost))
+(struct record (progs states))
 
 (define time%
   (class object%
@@ -77,7 +76,8 @@
   (class object% ;; TODO arm-enumerative%
     (super-new)
     (init-field machine printer time)
-    (public db-connect db-disconnect init create-table insert progstate->id)
+    (public db-connect db-disconnect init create-table insert progstate->id
+            tx-begin tx-commit)
 
     (define simulator (new arm-simulator-racket% [machine machine]))
     (define validator (new arm-validator% [machine machine] [printer printer]))
@@ -92,7 +92,7 @@
     (define state-cols #f)
 
     (define fixed-list
-      (send validator generate-input-states 64 (vector) (send machine no-assumption) #f))
+      (send validator generate-input-states 128 (vector) (send machine no-assumption) #f))
     (define ce-list (list))
     (define ce-len 64)
        
@@ -118,11 +118,34 @@
     (define (db-disconnect)
       (disconnect pgc))
 
+    (define (tx-begin) (start-transaction pgc))
+                                          ;; #:isolation 'read-committed 
+                                          ;; #:option 'read-only))
+    (define (tx-commit) (commit-transaction pgc))
+
     (define (create-table size ntests)
+      (pretty-display `(create-table ,size))
       (define query (format "create table ~a_size~a (~a)" 
                             table-name size (get-header ntests)))
+      (when debug (pretty-display (format "query: ~a" query)))
+      (query-exec pgc query)
+      ;(create-index-full size)
+      )
+
+    (define (create-index-full size)
+      (define lst (list))
+      (define batch (+ nregs nmems 1))
+      (for ([t (quotient 32 batch)])
+           (for ([r nregs]) (set! lst (cons (format "o~a_r~a" t r) lst)))
+           (for ([m nmems]) (set! lst (cons (format "o~a_m~a" t m) lst)))
+           (set! lst (cons (format "o~a_z" t) lst)))
+      (define query (format "create index ~a_size~a_idx_full on ~a_size~a(~a)"
+                            table-name size table-name size
+                            (string-join (reverse lst) ",")))
       (pretty-display (format "query: ~a" query))
-      (query-exec pgc query))
+      (query-exec pgc query)
+      )
+
 
     (define (get-header ntests)
       (define o (open-output-string))
@@ -134,7 +157,7 @@
            (for ([m nmems]) (display (format "o~a_m~a integer, " t m) o))
            (display (format "o~a_z integer, " t) o)
            )
-      (display "cost integer, program text" o)
+      (display "program text" o)
       (get-output-string o))
 
     (define (init ntests)
@@ -148,7 +171,7 @@
         )
       (set! state-cols (list->vector (reverse tmp))))
 
-    (define (insert size cost states-in states-out p)
+    (define (insert size states-in states-out p)
       (when debug (pretty-display "insert: start"))
       ;(send printer print-syntax (send printer decode p))
       (define keys (list))
@@ -169,10 +192,10 @@
        ;;(pretty-display (get-output-string o))
 
        (define query
-         (format "insert into ~a_size~a (~a,cost,program) values (~a,~a,'~a')" 
+         (format "insert into ~a_size~a (~a,program) values (~a,'~a')" 
                  table-name size
                  (string-join keys ",") (string-join vals ",")
-                 cost (get-output-string o)))
+                 (get-output-string o)))
        ;;(pretty-display (format "query: ~a" query))
        (send time start `db-insert)
        (query-exec pgc query)
@@ -180,13 +203,78 @@
        (when debug (pretty-display "insert: done"))
        ))
 
-    (define bulk-port #f)
-    (define/public (bulk-insert-start) 
+    ;; (define bulk-port #f)
+    ;; (define/public (bulk-insert-start) 
+    ;;   (send time start `db-insert)
+    ;;   (set! bulk-port (open-output-file (format "~a/tmp.csv" srcpath) #:exists 'truncate))
+    ;;   (send time end `db-insert)
+    ;;   )
+    ;; (define/public (bulk-insert-end size) 
+    ;;   (send time start `db-insert)
+    ;;   (close-output-port bulk-port)
+    ;;   (define query
+    ;;     (format "copy ~a_size~a from '~a/tmp.csv' with (format csv, null 'null')" 
+    ;;             table-name size srcpath))
+    ;;   (query-exec pgc query)
+    ;;   (send time end `db-insert)
+    ;;   )
+    ;; (define/public (bulk-insert cost states-in states-out p)
+    ;;   (for ([out states-out])
+    ;;        (let ([str (progstate->string out)])
+    ;;          (send time start `db-insert)
+    ;;          (display str bulk-port)
+    ;;          (display "," bulk-port)
+    ;;          (send time end `db-insert)
+    ;;        ))
+    ;;   (send time start `db-insert)
+    ;;   (display (format "~a,\"" cost) bulk-port)
+    ;;   (parameterize ([current-output-port bulk-port])
+    ;;     	    (send printer print-syntax (send printer decode p)))
+    ;;   (pretty-display "\"" bulk-port)
+    ;;   (send time end `db-insert)
+    ;;   )
+
+    (define/public (bulk-insert size classes) 
+      ;; caution: may insert duplicate outputs to existing rows
+      (pretty-display `(bulk-insert ,size))
       (send time start `db-insert)
-      (set! bulk-port (open-output-file (format "~a/tmp.csv" srcpath) #:exists 'truncate))
+      (define bulk-port (open-output-file (format "~a/tmp.csv" srcpath) 
+                                          #:exists 'truncate))
       (send time end `db-insert)
-      )
-    (define/public (bulk-insert-end size) 
+
+      (define (inner-insert states-out prog-list)
+        (for ([out states-out])
+             (let ([str (progstate->string out)])
+               (send time start `db-insert)
+               (display str bulk-port)
+               (display "," bulk-port)
+               (send time end `db-insert)
+               ))
+        (send time start `db-insert)
+        (display "\"" bulk-port)
+        (define begin #t)
+        (parameterize 
+         ([current-output-port bulk-port])
+         (for ([p prog-list])
+              (if begin 
+                  (set! begin #f)
+                  (display ";"))
+              (send printer print-syntax (send printer decode p))))
+        (pretty-display "\"" bulk-port)
+        (send time end `db-insert)
+        )
+
+      (send time start `hash)
+      (define pairs (hash->list classes))
+      (send time end `hash)
+      (for ([pair pairs])
+           (send time start `vector)
+           (let* ([key (car pair)]
+                  [prog-list (cdr pair)]
+                  [outputs (map (lambda (x) (send machine vector->progstate x)) key)])
+             (send time end `vector)
+             (inner-insert outputs prog-list)))
+
       (send time start `db-insert)
       (close-output-port bulk-port)
       (define query
@@ -195,23 +283,6 @@
       (query-exec pgc query)
       (send time end `db-insert)
       )
-    (define/public (bulk-insert cost states-in states-out p)
-      (for ([out states-out])
-           (let ([str (progstate->string out)])
-             (send time start `db-insert)
-             (display str bulk-port)
-             (display "," bulk-port)
-             (send time end `db-insert)
-           ))
-      (send time start `db-insert)
-      (display (format "~a,\"" cost) bulk-port)
-      (parameterize ([current-output-port bulk-port])
-		    (send printer print-syntax (send printer decode p)))
-      (pretty-display "\"" bulk-port)
-      (send time end `db-insert)
-      )
-    
-    ;COPY arm_r2_m0_size1 FROM '/home/mangpo/work/modular-optimizer/arm/tmp.csv' WITH (FORMAT csv);
 
     (define/public (same? x y)
       (define 
@@ -282,72 +353,71 @@
       ;all-correct
       )
 
-    (define/public (check-db size cost states-in states-out p)
-      (when debug (pretty-display "check: start"))
-      (define keys (list))
-      (define vals (list))
-      (for ([col state-cols]
-            [out states-out])
-           (when out
-                 (set! keys (cons col keys))
-                 (set! vals (cons (progstate->string out) vals))))
-      (unless 
-       (empty? keys)
-       (set! keys (reverse keys))
-       (set! vals (reverse vals))
+    ;; (define/public (check-db size cost states-in states-out p)
+    ;;   (when debug (pretty-display "check: start"))
+    ;;   (define keys (list))
+    ;;   (define vals (list))
+    ;;   (for ([col state-cols]
+    ;;         [out states-out])
+    ;;        (when out
+    ;;              (set! keys (cons col keys))
+    ;;              (set! vals (cons (progstate->string out) vals))))
+    ;;   (unless 
+    ;;    (empty? keys)
+    ;;    (set! keys (reverse keys))
+    ;;    (set! vals (reverse vals))
        
-       (define o (open-output-string))
-       (parameterize ([current-output-port o])
-                     (send printer print-syntax (send printer decode p)))
-       ;;(pretty-display (get-output-string o))
+    ;;    (define o (open-output-string))
+    ;;    (parameterize ([current-output-port o])
+    ;;                  (send printer print-syntax (send printer decode p)))
+    ;;    ;;(pretty-display (get-output-string o))
 
-       (define unique #t)
-       (define act #t)
-       (define filtered-ids (list))
-       (define filtered-states-out (list))
-       (for ([i (length states-out)]
-             [out states-out])
-            (when out 
-                  (set! filtered-ids (cons i filtered-ids))
-                  (set! filtered-states-out (cons out filtered-states-out))))
+    ;;    (define unique #t)
+    ;;    (define act #t)
+    ;;    (define filtered-ids (list))
+    ;;    (define filtered-states-out (list))
+    ;;    (for ([i (length states-out)]
+    ;;          [out states-out])
+    ;;         (when out 
+    ;;               (set! filtered-ids (cons i filtered-ids))
+    ;;               (set! filtered-states-out (cons out filtered-states-out))))
 
-       (for ([i (range 1 (sub1 size))] #:break (not unique))
-            (let ([rets 
-                   (select-from-in-out i 
-                                       (reverse filtered-ids)
-                                       (reverse filtered-states-out)
-                                       constraint-all)])
-              (when #t (pretty-display (format "check: ~a" (length rets))))
-              (for ([ret rets] #:break (not unique))
-                   (let* ([str (vector-ref ret 0)]
-                          [ret-prog (send printer encode 
-                                          (send parser ast-from-string str))]
-                          [ret-cost (vector-ref ret 1)]
-                          [same (same? ret-prog p)]) 
-                     (when #t (pretty-display "check: done"))
-                     ;; TODO constraint, extra
-                     (when 
-                      same
-                      (set! unique #f)
-                      (pretty-display "--------- same ----------")
-                      (send printer print-syntax (send printer decode p))
-                      (pretty-display "---")
-                      (pretty-display str)
-                      (if (<= ret-cost cost)
-                          (set! act #f)
-                          (let ([query
-                                 (format "delete from ~a_size~a where program='~a'"
-                                         table-name size str)])
-                            (pretty-display "delete: start")
-                            (send time start `db-delete)
-                            ;(query-exec pgc query)
-                            (send time end `db-delete)
-                            (pretty-display "delete: done")
-                            )))
-                     ))))
+    ;;    (for ([i (range 1 (add1 size))] #:break (not unique))
+    ;;         (let ([rets 
+    ;;                (select-from-in-out i 
+    ;;                                    (reverse filtered-ids)
+    ;;                                    (reverse filtered-states-out)
+    ;;                                    constraint-all)])
+    ;;           (when debug (pretty-display (format "check: ~a" (length rets))))
+    ;;           (for ([ret-prog rets] #:break (not unique))
+    ;;                (let ([ret-cost (send simulator performance-cost ret-prog)]
+    ;;                      [same (same? ret-prog p)])
+    ;;                  (when debug (pretty-display "check: done"))
+    ;;                  ;; TODO constraint, extra
+    ;;                  (when 
+    ;;                   same
+    ;;                   (set! unique #f)
+    ;;                   (when debug
+    ;;                         (pretty-display "--------- same ----------")
+    ;;                         (send printer print-syntax (send printer decode p))
+    ;;                         (pretty-display "---")
+    ;;                         (send printer print-syntax (send printer decode ret-prog)))
+    ;;                   (if (<= ret-cost cost)
+    ;;                       (set! act #f)
+    ;;                       (let ([query
+    ;;                              (format "delete from ~a_size~a where program='~a'"
+    ;;                                      table-name size str)])
+    ;;                         (pretty-display "delete: start")
+    ;;                         (send time start `db-delete)
+    ;;                         (query-exec pgc query)
+    ;;                         (send time end `db-delete)
+    ;;                         (pretty-display "delete: done")
+    ;;                         )))
+    ;;                  )))
+    ;;         )
               
-       act
-       ))
+    ;;    act
+    ;;    ))
 
     (define (select-one-state-in-out in-id out live)
       (define reg-out (progstate-regs out))
@@ -360,19 +430,20 @@
 
       (when (progstate-z live)
             (set! lst (cons (format "o~a_z = ~a" in-id (progstate-z out)) lst)))
-      (string-join lst " and "))
+      (string-join (reverse lst) " and "))
 
+    ;; return list of program
     (define (select-from-in-out size states-in-id states-out live)
+      (define ret #f)
       (cond
        [(= 0 (length (filter number? states-in-id)))
         (define query 
           (format "select program from ~a_size~a"
                   table-name size))
-        (when #t (pretty-display (format "query: ~a" query)))
+        (when debug (pretty-display (format "query: ~a" query)))
         (send time start `db-select)
-        (define ret (query-rows pgc query))
+        (set! ret (query-rows pgc query))
         (send time end `db-select)
-        ret
         ]
 
        [else
@@ -382,14 +453,26 @@
              (when (number? in-id) 
                    (set! lst (cons (select-one-state-in-out in-id out live) lst)))) ;; TODO
         (define query 
-          (format "select program, cost from ~a_size~a where ~a"
-                  table-name size (string-join lst " and ")))
-        (when #t (pretty-display (format "query: ~a" query)))
+          (format "select program from ~a_size~a where ~a"
+                  table-name size (string-join (reverse lst) " and ")))
+        (when debug (pretty-display (format "query: ~a" query)))
         (send time start `db-select)
-        (define ret (query-rows pgc query))
+        (set! ret (query-rows pgc query))
         (send time end `db-select)
-        ret
-        ]))
+        ])
+      
+      (flatten
+       (for/list 
+        ([xs ret])
+        (map (lambda (x) (send printer encode (send parser ast-from-string x)))
+             (string-split (vector-ref xs 0) ";"))))
+      )
+
+
+    (define/public (select-all size)
+      (define query (format "select * from ~a_size~a" table-name size))
+      (pretty-display query)
+      (map (lambda (x) (db->prog-progstates x)) (query-rows pgc query)))
 
     (define (select-from-in size states-in-id)
       (define lst (list))
@@ -491,42 +574,69 @@
          [(neighbor? x)
           (cond 
            [(equal? (vertex-ids (neighbor-node x)) ins-id)
-            (display (format "~a|||~a" indent (neighbor-edge x)))]
+            ;(display (format "~a|||~a" indent (neighbor-edge x)))
+            (display (format "~a|||" indent))
+            (send printer print-syntax (send printer decode (neighbor-edge x)))
+            ]
 
            [(set-member? visit (neighbor-node x))
-            (display (format "~a(.)~a" indent (neighbor-edge x)))]
+            ;(display (format "~a(.)~a" indent (neighbor-edge x)))
+            (display (format "~a(.)" indent))
+            (send printer print-syntax (send printer decode (neighbor-edge x)))
+            ]
            
            [else
             (set! visit (set-add visit (neighbor-node x)))
             (inner (vertex-from (neighbor-node x)) (string-append indent "  "))
-            (display (format "~a~a" indent (neighbor-edge x)))])]
+            ;(display (format "~a~a" indent (neighbor-edge x)))
+            (send printer print-syntax (send printer decode (neighbor-edge x)) indent)
+            ])
+          ]
            
          [(equal? x #f) (pretty-display (format "~a|||" indent))]
 
          [(list? x) (for ([i x]) (inner i indent))]
-
-         [else (pretty-display (format "~a~a" indent x))]))
+         [else (send printer print-syntax (send printer decode x) indent)]))
+         ;[else (pretty-display (format "~a~a" indent x))]))
       (inner (vertex-from x) ""))
         
     
-    ;; Convert DB response into list of (entry program states)
+    ;; Convert DB response into list of (record prog-list states)
     ;; resp is a vector.
-    (define (db->prog-progstates resp ins-id)
+    ;; If ins-id = #f, parse all columns
+    (define (db->prog-progstates resp [ins-id #f])
       (define states (list))
       (define index 0)
-      (for ([in ins-id])
-           (if (number? in)
-               (let ([x (progstate (vector-copy resp index (+ index nregs)) 
-                                   (vector)
-                                   (vector-ref resp (+ index nregs))
-                                   fp)])
-                 ;;(send machine display-state x)
-                 (set! states (cons x states))
-                 (set! index (+ index nregs 1)))
-               (set! states (cons in states))))
-      ;;(pretty-display `(db->prog-progstates ,resp))
-      ;;(pretty-display `(parsed ,(vector-ref resp index) ,(reverse states)))
-      (entry (vector-ref resp index) (reverse states)))
+      
+      (cond
+       [ins-id
+        (for ([in ins-id])
+             (if (number? in)
+                 (let ([x (progstate (vector-copy resp index (+ index nregs)) 
+                                     (vector-copy resp (+ index nregs) (+ index nregs nmems))
+                                     (vector-ref resp (+ index nregs nmems))
+                                     fp)])
+                   ;;(send machine display-state x)
+                   (set! states (cons x states))
+                   (set! index (+ index nregs nmems 1)))
+                 (set! states (cons in states))))]
+
+       [else
+        (define batch (+ nregs nmems 1))
+        (for ([i (quotient (sub1 (vector-length resp)) batch)])
+             (let ([x (progstate (vector-copy resp index (+ index nregs)) 
+                                 (vector-copy resp (+ index nregs) (+ index nregs nmems))
+                                 (vector-ref resp (+ index nregs nmems))
+                                 fp)])
+               (set! states (cons x states))
+               (set! index (+ index batch))))])
+
+      (record 
+       (if (equal? (vector-ref resp index) "")
+           (list (vector))
+           (map (lambda (x) (send printer encode (send parser ast-from-string x)))
+                (string-split (vector-ref resp index) ";")))
+       (reverse states)))
 
     (define start-ids #f)
     (define ids2node (make-hash))
@@ -569,7 +679,7 @@
 
       (define graph (new graph% 
                          [machine machine] [validator validator] 
-                         [simulator simulator] [printer printer] [parser parser]
+                         [simulator simulator] [printer printer]
                          [spec spec] [constraint constraint] 
                          [extra extra] [assumption assumption]
                          [start-ids states1-id]))
@@ -600,8 +710,8 @@
         (pretty-display `(enqueue-new ,(length prog-states-list)))
         ;; TODO enqueue!
         (for ([prog-states prog-states-list])
-             (let* ([prog (entry-prog prog-states)]
-                    [states (entry-states prog-states)]
+             (let* ([progs (record-progs prog-states)]
+                    [states (record-states prog-states)]
                     [ids (map (lambda (x) (progstate->id x)) states)])
                (unless (member #f ids) ;; If there is #f at all, ignore it.
                        ;; (when (= (length (filter number? ids)) 0)
@@ -609,33 +719,35 @@
                        ;;       (raise "out")
                        ;;       )
                        ;;(pretty-display `(hash-has-key? ,(hash-has-key? ids2node ids)))
-                       (if (hash-has-key? ids2node ids)
-                           (let ([my-node (hash-ref ids2node ids)])
-                             (set-vertex-from! my-node 
-                                             (cons (neighbor in-node prog)
-                                                   (vertex-from my-node)))
-			     ;; TODO: get-correct-iterator => either dfs in-node or connect-graph
-			     ;; path doesn't have to be complete
-			     (unless (hash-empty? (vertex-children my-node))
-				     (iterate (send graph get-correct-iterator my-node 
-						    (neighbor in-node prog)))) ;; TODO: check
-			     )
-                           (let ([my-node (make-vertex ids (list (neighbor in-node prog)))])
-                             (hash-set! ids2node ids my-node)
-                             (enqueue! queue my-node)
-                             (enqueue! level (add1 my-level))
-                             )))))
+                       (let ([edges (map (lambda (x) (neighbor in-node x)) progs)])
+                         (if (hash-has-key? ids2node ids)
+                             (let ([my-node (hash-ref ids2node ids)])
+                               (set-vertex-from! my-node 
+                                                 (append edges (vertex-from my-node)))
+                               ;; TODO: get-correct-iterator => either dfs in-node or connect-graph
+                               ;; path doesn't have to be complete
+                               (unless 
+                                (hash-empty? (vertex-children my-node))
+                                (for ([edge edges])
+                                     (iterate (send graph get-correct-iterator my-node 
+                                                    edge)))) ;; TODO: check
+                               )
+                             (let ([my-node (make-vertex ids edges)])
+                               (hash-set! ids2node ids my-node)
+                               (enqueue! queue my-node)
+                               (enqueue! level (add1 my-level))
+                               ))))))
         )
 
       (define (search-for in-node ins-id size)
         (pretty-display `(search-for ,size))
-        (define prog-list (map (lambda (x) (vector-ref x 0))
-                               (select-from-in-out size ins-id states2-spec live2)))
+        (define prog-list (select-from-in-out size ins-id states2-spec live2))
         (unless (empty? prog-list)
                 (pretty-display `(ins-id ,ins-id))
                 (pretty-display `(current))
                 (print-graph states1-id in-node)
-                (pretty-display prog-list)
+                (for ([x prog-list])
+                     (send printer print-syntax (send printer decode x)))
                 (pretty-display "------------------------------------")
                 
                 (define my-node 
@@ -649,7 +761,7 @@
         (define in-node (dequeue! queue))
         (define ins-id (vertex-ids in-node))
         (define my-level (dequeue! level))
-        (when debug
+        (when #t
               (newline)
               (pretty-display `(my-level ,my-level))
               (pretty-display `(number-of-pairs ,(length (filter number? ins-id)))))

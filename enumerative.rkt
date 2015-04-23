@@ -282,33 +282,6 @@
        ()
        (yield prog)
        (yield #f)))
-        
-    ;; 1 instruction: 75 s (woonsen)
-    (define (build-db2)
-      (send machine reset-inst-pool)
-      (define psql (new arm-psql% [machine machine] [printer printer]))
-      (define all-states (send psql get-all-states))
-      (send psql db-connect)
-      (send psql init (length all-states))
-      (send psql create-table 1 (length all-states))
-
-      ;; Make sure z of (car all-states) is not -1
-      (reset-generate-inst all-states (range (send machine get-nregs)) #f)
-
-      (define (inner p)
-        (define all-states-out 
-          (for/list ([state all-states])
-                    (with-handlers*
-                     ([exn? (lambda (e) #f)])
-                     (send simulator interpret (vector p) state #:dep #f))))
-        (send psql insert 
-              1 (send simulator performance-cost (vector p))
-              all-states all-states-out (vector p))
-        (define next (first (generate-inst)))
-        (when next (inner next))
-        )
-      (inner (first (generate-inst)))
-      (send psql db-disconnect))
       
     (define (build-db)
       (define time (new time% [total-start (current-seconds)]))
@@ -325,11 +298,15 @@
       (send psql db-connect)
       (send psql init (length all-states))
       
-      (define prev-classes (make-hash))
-      (hash-set! prev-classes all-states-vec (list (progcost (vector) 0)))
       (send time reset)
+      (define max-size 2)
+      ;; (define prev-classes (make-hash))
+      ;; (hash-set! prev-classes all-states-vec (list (progcost (vector) 0)))
+      (send psql create-table 0 (length all-states))
+      (send psql insert 0 all-states all-states (vector))
 
       (define count 0)
+      (define my-count 0)
 
       (define (loop len)
         (define classes (make-hash))
@@ -353,42 +330,44 @@
 	            (when debug (pretty-display (format "validate: ~a" (length rets))))
 	            (let ([same 
                            (for/or ([ret rets])
-                                   (and (send psql same? (progcost-prog ret) prog) ret))])
+                                   (and (send psql same? ret prog) ret))])
 	              (when debug (pretty-display "validate: done"))
 	              (when same
 	        	    (set! unique #f)
-	        	    (let ([same-perf (progcost-cost same)])
+	        	    (let ([same-perf (send simulator performance-cost same)])
 	        	      (when debug (pretty-display "[not unique]"))
 	        	      (when (< perf same-perf)
                                     (send time start `hash)
 	        		    (hash-set! x key (remove same rets))
 	        		    (if (hash-has-key? classes key)
-	        			(hash-set! classes key (cons (progcost prog perf)
+	        			(hash-set! classes key (cons prog
 	        						     (hash-ref classes key)))
-	        			(hash-set! classes key (list (progcost prog perf))))
+	        			(hash-set! classes key (list prog)))
                                     (send time end `hash)
                                     )))))))
 
-	  (when debug (pretty-display "Check current table."))
-	  (check-inmem classes)
-	  (when unique 
-		(when debug (pretty-display "Check previous table."))
-		(check-inmem prev-classes))
-	  (when (and unique ;(send psql check-db len perf all-states out-states prog)
-                     )
-		(when debug (pretty-display "[unique]"))
+          (when debug (pretty-display "Check current table."))
+          (check-inmem classes)
+          (when unique ;; don't check with persistant memory
+                (when debug (pretty-display "[unique]"))
                 (send time start `hash)
-		(if (hash-has-key? classes key)
-		    (hash-set! classes key (cons (progcost prog perf)
-						 (hash-ref classes key)))
-		    (hash-set! classes key (list (progcost prog perf))))
-                (send time end `hash)
-                )
-	  (when debug (pretty-display `(size ,(length (hash-keys classes)))))
+                (if (hash-has-key? classes key)
+                    (hash-set! classes key (cons prog (hash-ref classes key)))
+                    (begin
+                      (hash-set! classes key (list prog))
+                      (set! my-count (add1 my-count))
+                      (when (= my-count 50000) 
+                            (send psql bulk-insert len classes)
+                            (set! classes (make-hash))
+                            (set! my-count 0)
+                            )
+                      )
+                    )
+                (send time end `hash))
           )
 
         ;; Enmerate all possible program of one instruction
-        (define (enumerate states prog-cost-list)
+        (define (enumerate states prog-list)
           (define (inner)
             ;; Call instruction generator
             (define inst-liveout-vreg (generate-inst))
@@ -412,79 +391,35 @@
                 (for/or ([x out-states]) x)
                 ;; If everything is false => illegal program, exclude from table
                 (set! count (add1 count))
-                (when (= (modulo count 1000) 0) (pretty-display `(count ,count)))
-                (for ([x prog-cost-list])
-                     (let* ([old-prog (progcost-prog x)]
-                            [old-cost (progcost-cost x)]
-                            [prog (vector-append old-prog (vector my-inst))]
-                            [cost (+ old-cost 
-                                     (send simulator performance-cost (vector my-inst)))])
+                (when (= (modulo count 1000) 0) (pretty-display `(count ,count ,my-count)))
+                (for ([old-prog prog-list])
+                     (let* ([prog (vector-append old-prog (vector my-inst))]
+                            [cost (send simulator performance-cost prog)])
                        (build-table prog cost out-states)))))
              (inner)))
           (inner))
             
-        (send time start `hash)
-        (define pairs (hash->list prev-classes))
-        (send time end `hash)
-        (for ([pair pairs])
-             (send time start `vector)
-             (let* ([key (car pair)]
-                    [val (cdr pair)]
-                    [outputs (map (lambda (x) (send machine vector->progstate x)) key)])
-               (send time end `vector)
-               ;;(pretty-display `(key ,(car key) ,(cdr key)))
-               ;; Initialize enumeration one instruction process
+        (send psql create-table len (length all-states))
+
+        (for ([x (send psql select-all (sub1 len))])
+             (let ([progs (record-progs x)]
+                   [outputs (record-states x)])
                (reset-generate-inst outputs live-list #f)
-               (when debug
-                     (pretty-display `(ENUM!!!!!!!!!!!!! ,val)))
-               (enumerate outputs val)))
-        
-	;(pretty-display (format "PREV-CLASSES: ~a" (length (hash-values prev-classes))))
-	;(pretty-display (format "CLASSES: ~a" (length (hash-values classes))))
-        ;; Add this batch of programs into persistent DB.
-        (send psql create-table (sub1 len) (length all-states))
-	(send psql bulk-insert-start)
-        (for ([pair pairs])
-             (send time start `vector)
-             (let* ([key (car pair)]
-                    [outputs (map (lambda (x) (send machine vector->progstate x)) key)])
-               (send time end `vector)
-               (for ([x (cdr pair)])
-                    ;; (send psql insert (sub1 len) (progcost-cost x) all-states outputs 
-		    ;; 	  (progcost-prog x))
-                    (send psql bulk-insert (progcost-cost x) all-states outputs 
-			  (progcost-prog x))
-		    )))
-	(send psql bulk-insert-end (sub1 len))
+               (enumerate outputs progs)))
 
-        (set! prev-classes classes)
-	(pretty-display (format "NEW-PREV-CLASSES: ~a" (length (hash-values prev-classes))))
+        (send psql bulk-insert len classes)
+        (set! classes (make-hash))
+        (set! my-count 0)
 
-        (if (< len 2) 
-	    (loop (add1 len))
-	    (begin
-              (send time start `hash)
-              (let ([pairs (hash->list prev-classes)])
-                (send time end `hash)
-                ;; Add this batch of programs into persistent DB.
-                (send psql create-table len (length all-states))
-                (send psql bulk-insert-start)
-                (for ([pair pairs])
-                     (send time start `vector)
-                     (let* ([key (car pair)]
-                            [outputs (map (lambda (x) (send machine vector->progstate x)) 
-                                          key)])
-                       (send time end `vector)
-                       (for ([x (cdr pair)])
-                            (send psql bulk-insert (progcost-cost x) all-states outputs 
-                                  (progcost-prog x)))))
-                (send psql bulk-insert-end len))
-	    )
-        ))
+        (when (< len max-size) 
+	    (loop (add1 len))))
       
       (with-handlers
        ([exn:break? (lambda (e) (void))])
-       (loop 1))
+       ;(send psql tx-begin)
+       (loop 1)
+       ;(send psql tx-commit)
+       )
       (send time terminate)
       (send time print-stat)
       (pretty-display `(total-count ,count))

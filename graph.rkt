@@ -17,7 +17,7 @@
 (define graph%
   (class object%
     (super-new)
-    (init-field machine validator simulator printer parser 
+    (init-field machine validator simulator printer  
                 spec constraint extra assumption 
                 start-ids [dest-ids #t])
     (public get-correct-iterator)
@@ -93,11 +93,7 @@
     (define (dfs-edge my-node cost level path edge)
 	(let* ([node-prev (neighbor-node edge)]
 	       [self-loop (equal? my-node node-prev)]
-	       [raw-p-prev (neighbor-edge edge)]
-	       [p-prev 
-		(if (= level 0) ;; haven't converted.
-		    (send printer encode (send parser ast-from-string raw-p-prev))
-		    raw-p-prev)]
+	       [p-prev (neighbor-edge edge)]
 	       [this-cost (send simulator performance-cost p-prev)]
 	       [total-cost (+ cost this-cost)]
 	       [children-table (vertex-children node-prev)])

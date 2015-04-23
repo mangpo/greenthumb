@@ -12,29 +12,30 @@
 
 (define code
 (send parser ast-from-string "
-mul r1, r0, r0
-smull r0, r1, r1, r0
+orr r1, r0, r0, lsl 1
+sub r0, r0, r1
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-mul r1, r0, r0
-smull r0, r1, r0, r1
+orr r1, r0, r0, asr 1
+rsb r1, r1, r0, lsr 1
+add r0, r1, r1
 "))
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send validator encode-sym sketch))
 
-#|(define ex 
+(define ex 
   (send validator counterexample encoded-code encoded-sketch 
-        (constraint machine [reg 0 1] [mem])))
+        (constraint machine [reg 0] [mem])))
 
 (pretty-display "Counterexample:")
 (if ex 
   (send machine display-state ex)
   (pretty-display "No"))
-(newline) |#
+(newline)
 #|
 ;; Counterexample:
 (define input-state (progstate (vector 242087795 -1555402324 0 0 0 0)
@@ -58,10 +59,11 @@ smull r0, r1, r0, r1
   )
 (pretty-display `(time ,(- (current-seconds) t)))|#
 
+#|
 (define states
 (send validator generate-input-states 8 (vector) (send machine no-assumption) #f
              #:rand-func (lambda () 
                            (if (= (random 2) 0) (random 32) (- (random 32))))))
 
 (for ([state states])
-  (send machine display-state state))
+  (send machine display-state state))|#
