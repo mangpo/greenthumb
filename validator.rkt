@@ -25,7 +25,7 @@
             assume assert-state-eq
             )
     
-    (current-solver (new z3%))
+    ;(current-solver (new z3%))
 
     (define-syntax-rule (print-struct x) (send printer print-struct x))
     (define-syntax-rule (print-syntax x) (send printer print-syntax x))

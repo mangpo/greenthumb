@@ -45,7 +45,9 @@
 			       #:assume [assumption (send machine no-assumption)])
       
       (when (send machine analyze-opcode prefix spec postfix)
+            (pretty-display "set kodkod%")
             (current-solver (new kodkod%)))
+      (pretty-display `(solver ,(current-solver)))
       (if pure-symbolic 
           (synthesize-from-sketch 
            (vector-append prefix spec postfix) 

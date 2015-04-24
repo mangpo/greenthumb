@@ -446,7 +446,7 @@
 	    (pretty-display `(inst-choice ,inst-choice))
 	    (pretty-display `(classes-filtered ,classes-filtered)))
 
-      (not (code-has code '(smull umull smmul smmla smmls)))
+      (not (code-has code '(mul mla mls smull umull smmul smmla smmls)))
       )
 
 
