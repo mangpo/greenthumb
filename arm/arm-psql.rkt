@@ -488,7 +488,7 @@
       (pretty-display query)
       (map (lambda (x) (db->prog-progstates x)) (query-rows pgc query)))
 
-    (define (select-from-in size states-in-id)
+    (define (ids2columns states-in-id)
       (define lst (list))
       (for ([in-id states-in-id])
            (when (number? in-id)
@@ -496,9 +496,22 @@
                    (for ([r nregs]) (set! tmp (cons (format "o~a_r~a" in-id r) tmp)))
                    (set! tmp (cons (format "o~a_z" in-id) tmp))
                    (set! lst (cons (string-join (reverse tmp) ",") lst)))))
+      (string-join (reverse lst) ","))
+
+    (define (select-count size)
+      (query-value pgc (format "select count(*) from ~a_size~a" table-name size)))
+
+    (define (select-from-in size states-in-id 
+                            #:columns [columns #f] 
+                            #:offset [offset #f] #:limit [limit #f])
       (define query
         (format "select ~a,program from ~a_size~a" 
-                (string-join (reverse lst) ",") table-name size))
+                (if columns
+                    columns
+                    (ids2columns states-in-id))
+                table-name size))
+      (when limit (set! query (format "~a limit ~a" query limit)))
+      (when offset (set! query (format "~a offset ~a" query offset)))
       (when debug (pretty-display (format "query: ~a" query)))
       (map (lambda (x) (db->prog-progstates x states-in-id)) (query-rows pgc query)))
     
@@ -645,6 +658,10 @@
              (set! states (cons (get-state) states))
              (set! index (+ index batch)))])
 
+      (when (> (vector-length resp) (add1 index))
+            (pretty-display `(bug ,index ,(vector-length resp)))
+            (raise "psql:get-state: index mismatches")
+            )
       (record 
        (if (equal? (vector-ref resp index) "")
            (list (vector))
@@ -700,15 +717,15 @@
 
       (define queue (make-queue))
       (define level (make-queue))
-      (let ([first-node (make-vertex states1-id)])
-             ;;(vertex states1-id (list) (list) #f (make-hash) #f)])
-        (enqueue! queue first-node)
-        (enqueue! level 1)
-        ;; (define mapping (make-hash))
-        ;; (hash-set! mapping states1-id #f)
-        (set! ids2node (make-hash))
-        (hash-set! ids2node states1-id first-node)
-        (db-connect))
+      (define first-node (make-vertex states1-id))
+      ;;(vertex states1-id (list) (list) #f (make-hash) #f)])
+      (enqueue! queue first-node)
+      (enqueue! level 1)
+      ;; (define mapping (make-hash))
+      ;; (hash-set! mapping states1-id #f)
+      (set! ids2node (make-hash))
+      (hash-set! ids2node states1-id first-node)
+      (db-connect)
 
 
       (define found #f)
@@ -753,8 +770,8 @@
                                ))))))
         )
 
-      (define (search-for in-node ins-id size)
-        (pretty-display `(search-for ,size))
+      (define (lookup-for in-node ins-id size)
+        (pretty-display `(lookup-for ,size))
         (define prog-list (select-from-in-out size ins-id states2-spec live2))
         (unless (empty? prog-list)
                 (pretty-display `(ins-id ,ins-id))
@@ -771,36 +788,80 @@
                 ))
       
       (define max-size 2)
-      (define (loop)
-        (define in-node (dequeue! queue))
+      ;; (define (loop)
+      ;;   (define in-node (dequeue! queue))
+      ;;   (define ins-id (vertex-ids in-node))
+      ;;   (define my-level (dequeue! level))
+      ;;   (when #t
+      ;;         (newline)
+      ;;         (pretty-display `(my-level ,my-level))
+      ;;         (pretty-display `(number-of-pairs ,(length (filter number? ins-id)))))
+      ;;   (cond
+      ;;    [(= 0 (length (filter number? ins-id)))
+      ;;     ;; post-pone this for later
+      ;;     (enqueue! queue in-node)
+      ;;     (enqueue! level my-level)]
+
+      ;;    [(> my-level 1)
+      ;;     (lookup-for in-node ins-id max-size)
+      ;;     (enqueue in-node my-level max-size)]
+
+      ;;    [else
+      ;;     (for ([i (range 1 (add1 max-size))])
+      ;;          (lookup-for in-node ins-id i))
+      ;;     (for ([i (range 1 (add1 max-size))])
+      ;;          (enqueue in-node my-level i))
+      ;;     ]
+
+      ;;    )
+      ;;   (loop)
+      ;;   )
+
+      ;; (loop)
+      
+      (define (expand in-node ins-id len)
+        (define size (modulo len max-size))
+        (when (= size 0) (set! size max-size))
+        (define n (select-count size))
+        (pretty-display `(expand-start ,len ,n))
+        (define columns (ids2columns ins-id))
+        (for ([i n])
+             (let* ([prog-states (car (select-from-in size ins-id 
+                                                      #:columns columns 
+                                                      #:offset i #:limit 1))] 
+                    ;; TODO: batching
+                    [progs (record-progs prog-states)]
+                    [states (record-states prog-states)]
+                    [ids (map (lambda (x) (progstate->id x)) states)])
+               (unless 
+                (= (length (filter number? ids)) 0) ;; TODO: check
+                ;(pretty-display `(expand ,i ,(hash-has-key? ids2node ids) ,ids))
+                (let ([edges (map (lambda (x) (neighbor in-node x)) progs)])
+                  (if (hash-has-key? ids2node ids)
+                      (let ([my-node (hash-ref ids2node ids)])
+                        (set-vertex-from! my-node 
+                                          (append edges (vertex-from my-node)))
+                        ;; path doesn't have to be complete
+                        (unless 
+                         (hash-empty? (vertex-children my-node))
+                         (for ([edge edges])
+                              (iterate (send graph get-correct-iterator my-node edge))))
+                        )
+                      (let ([my-node (make-vertex ids edges)])
+                        (hash-set! ids2node ids my-node)
+                        (search (- len size) my-node ids))))))))
+               
+
+      (define (search len in-node ins-id)
         (define ins-id (vertex-ids in-node))
-        (define my-level (dequeue! level))
-        (when #t
-              (newline)
-              (pretty-display `(my-level ,my-level))
-              (pretty-display `(number-of-pairs ,(length (filter number? ins-id)))))
-        (cond
-         [(= 0 (length (filter number? ins-id)))
-          ;; post-pone this for later
-          (enqueue! queue in-node)
-          (enqueue! level my-level)]
+        (if (<= len max-size)
+            (lookup-for in-node ins-id len)
+            (expand in-node ins-id len)))
 
-         [(> my-level 1)
-          (search-for in-node ins-id max-size)
-          (enqueue in-node my-level max-size)]
-
-         [else
-          (for ([i (range 1 (add1 max-size))])
-               (search-for in-node ins-id i))
-          (for ([i (range 1 (add1 max-size))])
-               (enqueue in-node my-level i))
-          ]
-
-         )
-        (loop)
-        )
-
-      (loop)
+      (for ([len (range 1 4)]) 
+           (newline)
+           (pretty-display `(SEARCH ,len))
+           (search len first-node states1-id))
       )
         
       
