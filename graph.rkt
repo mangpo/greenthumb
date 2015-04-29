@@ -62,12 +62,13 @@
                                  (send simulator interpret spec ce #:dep #f)))
 	      (add-forward-edges my-node path)
               (exec-forward my-node ce 0 #f #f level) ;; Same level DFS
-	      (pretty-display `(children-table ,(vertex-children my-node)))
               (set! visit (set-add visit my-node))
               )
             (begin
               (yield prog)
-              (when (< cost best-cost) (set! best-cost cost))))]
+              (when (< cost best-cost) 
+                    (pretty-display `(best-cost ,best-cost))
+                    (set! best-cost cost))))]
 
        [else
         (define-syntax-rule (func edge) 
@@ -141,7 +142,8 @@
                       (let ([c-children-table (vertex-children c-node)])
                         (if (hash-empty? c-children-table)
                             (when (<= total-cost best-cost)
-                                  (dfs c-node total-cost (add1 level) 
+                                  (dfs c-node (+ perf (vertex-cost-to new-node))
+                                       (add1 level) 
                                        (cons (neighbor new-node p-prev) new-path)))
                             (connect-graph new-node c-node p-prev c-children-table new-path 
                                            total-cost (add1 level)))))
@@ -259,7 +261,7 @@
              (define path-cost (iterator))
              (when path-cost
                    (define prog (vector))
-                   (for ([x (car path)])
+                   (for ([x (car path-cost)])
                         (set! prog (vector-append prog (neighbor-edge x))))
                    (send printer print-syntax (send printer decode prog))
                    (pretty-display "--it--")
@@ -346,7 +348,7 @@
              [p-prev (neighbor-edge edge)]
              [this-cost (send simulator performance-cost p-prev)]
              [total-cost (+ cost this-cost)])
-        
+        (pretty-display `(dfs-edge2 ,total-cost ,best-cost))
         (when (<= total-cost best-cost)
               (dfs2 node-prev total-cost  
                     (cons (neighbor my-node p-prev) path) backward))
