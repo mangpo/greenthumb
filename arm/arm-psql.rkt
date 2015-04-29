@@ -802,6 +802,9 @@
                 
                 (define my-node 
                   (make-vertex #t (map (lambda (x) (neighbor in-node x)) prog-list)))
+                (pretty-display "11111111111")
+                (iterate (send graph get-correct-iterator my-node))
+                (pretty-display "22222222222")
                 (iterate (send graph get-correct-iterator2 my-node))
                 (when found (raise "done"))
                 ))
@@ -839,6 +842,9 @@
 			 ;; if children is empty -> no match afterward if this is the last expand
 			 ;; & assume not calling coroutine if already get an answer.
                          (for ([edge edges])
+                              (pretty-display "11111111111+++")
+                              (iterate (send graph get-correct-iterator my-node edge))
+                              (pretty-display "22222222222+++")
                               (iterate (send graph get-correct-iterator2 my-node edge))
 			      (when found (raise "done"))
 			      ))
