@@ -803,10 +803,14 @@
                 (define my-node 
                   (make-vertex #t (map (lambda (x) (neighbor in-node x)) prog-list)))
                 (pretty-display "11111111111")
+                (define t1 (current-milliseconds))
                 (iterate (send graph get-correct-iterator my-node))
                 (pretty-display "22222222222")
+                (define t2 (current-milliseconds))
                 (iterate (send graph get-correct-iterator2 my-node))
                 (pretty-display "33333333333")
+                (define t3 (current-milliseconds))
+                (pretty-display `(time ,(- t2 t1) ,(- t3 t2)))
                 (when found (raise "done"))
                 ))
       

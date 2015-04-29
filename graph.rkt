@@ -67,7 +67,7 @@
             (begin
               (yield prog)
               (when (< cost best-cost) 
-                    (pretty-display `(best-cost ,best-cost))
+                    (pretty-display `(best-cost ,cost))
                     (set! best-cost cost))))]
 
        [else
@@ -260,11 +260,11 @@
            (define (iterate iterator)
              (define path-cost (iterator))
              (when path-cost
-                   (define prog (vector))
-                   (for ([x (car path-cost)])
-                        (set! prog (vector-append prog (neighbor-edge x))))
-                   (send printer print-syntax (send printer decode prog))
-                   (pretty-display "--it--")
+                   ;; (define prog (vector))
+                   ;; (for ([x (car path-cost)])
+                   ;;      (set! prog (vector-append prog (neighbor-edge x))))
+                   ;; (send printer print-syntax (send printer decode prog))
+                   ;; (pretty-display "--it--")
                    (dfs-edge2 my-node (cdr path-cost) (car path-cost) edge #t)
                    (iterate iterator)))
            (iterate (generator () (dfs2 my-node 0 (list) #f) #f))
@@ -313,8 +313,8 @@
 	(define prog (vector))
 	(for ([x path])
 	     (set! prog (vector-append prog (neighbor-edge x))))
-        (send printer print-syntax (send printer decode prog))
-        (pretty-display "--test--")
+        ;; (send printer print-syntax (send printer decode prog))
+        ;; (pretty-display "--test--")
         (when (same? prog) 
               (send printer print-syntax (send printer decode prog))
 	      (pretty-display "---")
@@ -348,7 +348,7 @@
              [p-prev (neighbor-edge edge)]
              [this-cost (send simulator performance-cost p-prev)]
              [total-cost (+ cost this-cost)])
-        (pretty-display `(dfs-edge2 ,total-cost ,best-cost))
+        ;;(pretty-display `(dfs-edge2 ,total-cost ,best-cost))
         (when (<= total-cost best-cost)
               (dfs2 node-prev total-cost  
                     (cons (neighbor my-node p-prev) path) backward))
