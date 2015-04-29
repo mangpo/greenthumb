@@ -50,14 +50,22 @@ sub r0, r0, r1
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send validator encode-sym sketch))
 
+
+(define (f)
 (define t (current-seconds))
 (send stitch synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
       encoded-prefix encoded-postfix
       (constraint machine [reg 0] [mem]) #f #f 3600)
+  
+(pretty-display `(time ,(- (current-seconds) t)))
+  )
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem]) ;; constraint
       (constraint machine [reg 0] [mem]) ;; live-in
       "./driver-0" 3600 #f)|#
-(pretty-display `(time ,(- (current-seconds) t)))
+
+(f)
+;(require profile)
+;(profile-thunk f)

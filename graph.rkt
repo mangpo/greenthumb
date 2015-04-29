@@ -62,6 +62,7 @@
                                  (send simulator interpret spec ce #:dep #f)))
 	      (add-forward-edges my-node path)
               (exec-forward my-node ce 0 #f #f level) ;; Same level DFS
+	      (pretty-display `(children-table ,(vertex-children my-node)))
               (set! visit (set-add visit my-node))
               )
             (begin
@@ -234,7 +235,7 @@
                                          (+ perf (vertex-cost-to 
                                                   (neighbor-node (car ret))))
                                          perf)]
-                                    [step (neighbor new-node p-next)])
+                                    [step (neighbor dummy p-next)])
                                 (when (< my-cost-back min-cost)
                                       (set! min-cost my-cost-back)
                                       (set! ret-path (cons step ret))
