@@ -806,6 +806,7 @@
                 (iterate (send graph get-correct-iterator my-node))
                 (pretty-display "22222222222")
                 (iterate (send graph get-correct-iterator2 my-node))
+                (pretty-display "33333333333")
                 (when found (raise "done"))
                 ))
       
@@ -846,6 +847,7 @@
                               (iterate (send graph get-correct-iterator my-node edge))
                               (pretty-display "22222222222+++")
                               (iterate (send graph get-correct-iterator2 my-node edge))
+                              (pretty-display "33333333333+++")
 			      (when found (raise "done"))
 			      ))
                         )
