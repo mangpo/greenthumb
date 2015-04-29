@@ -210,37 +210,6 @@
        (when debug (pretty-display "insert: done"))
        ))
 
-    ;; (define bulk-port #f)
-    ;; (define/public (bulk-insert-start) 
-    ;;   (send time start `db-insert)
-    ;;   (set! bulk-port (open-output-file (format "~a/tmp.csv" srcpath) #:exists 'truncate))
-    ;;   (send time end `db-insert)
-    ;;   )
-    ;; (define/public (bulk-insert-end size) 
-    ;;   (send time start `db-insert)
-    ;;   (close-output-port bulk-port)
-    ;;   (define query
-    ;;     (format "copy ~a_size~a from '~a/tmp.csv' with (format csv, null 'null')" 
-    ;;             table-name size srcpath))
-    ;;   (query-exec pgc query)
-    ;;   (send time end `db-insert)
-    ;;   )
-    ;; (define/public (bulk-insert cost states-in states-out p)
-    ;;   (for ([out states-out])
-    ;;        (let ([str (progstate->string out)])
-    ;;          (send time start `db-insert)
-    ;;          (display str bulk-port)
-    ;;          (display "," bulk-port)
-    ;;          (send time end `db-insert)
-    ;;        ))
-    ;;   (send time start `db-insert)
-    ;;   (display (format "~a,\"" cost) bulk-port)
-    ;;   (parameterize ([current-output-port bulk-port])
-    ;;     	    (send printer print-syntax (send printer decode p)))
-    ;;   (pretty-display "\"" bulk-port)
-    ;;   (send time end `db-insert)
-    ;;   )
-
     (define/public (bulk-insert size classes all) 
       ;; caution: may insert duplicate outputs to existing rows
       (pretty-display `(bulk-insert ,size))
@@ -367,72 +336,6 @@
       ;all-correct
       )
 
-    ;; (define/public (check-db size cost states-in states-out p)
-    ;;   (when debug (pretty-display "check: start"))
-    ;;   (define keys (list))
-    ;;   (define vals (list))
-    ;;   (for ([col state-cols]
-    ;;         [out states-out])
-    ;;        (when out
-    ;;              (set! keys (cons col keys))
-    ;;              (set! vals (cons (progstate->string out) vals))))
-    ;;   (unless 
-    ;;    (empty? keys)
-    ;;    (set! keys (reverse keys))
-    ;;    (set! vals (reverse vals))
-       
-    ;;    (define o (open-output-string))
-    ;;    (parameterize ([current-output-port o])
-    ;;                  (send printer print-syntax (send printer decode p)))
-    ;;    ;;(pretty-display (get-output-string o))
-
-    ;;    (define unique #t)
-    ;;    (define act #t)
-    ;;    (define filtered-ids (list))
-    ;;    (define filtered-states-out (list))
-    ;;    (for ([i (length states-out)]
-    ;;          [out states-out])
-    ;;         (when out 
-    ;;               (set! filtered-ids (cons i filtered-ids))
-    ;;               (set! filtered-states-out (cons out filtered-states-out))))
-
-    ;;    (for ([i (range 1 (add1 size))] #:break (not unique))
-    ;;         (let ([rets 
-    ;;                (select-from-in-out i 
-    ;;                                    (reverse filtered-ids)
-    ;;                                    (reverse filtered-states-out)
-    ;;                                    constraint-all)])
-    ;;           (when debug (pretty-display (format "check: ~a" (length rets))))
-    ;;           (for ([ret-prog rets] #:break (not unique))
-    ;;                (let ([ret-cost (send simulator performance-cost ret-prog)]
-    ;;                      [same (same? ret-prog p)])
-    ;;                  (when debug (pretty-display "check: done"))
-    ;;                  ;; TODO constraint, extra
-    ;;                  (when 
-    ;;                   same
-    ;;                   (set! unique #f)
-    ;;                   (when debug
-    ;;                         (pretty-display "--------- same ----------")
-    ;;                         (send printer print-syntax (send printer decode p))
-    ;;                         (pretty-display "---")
-    ;;                         (send printer print-syntax (send printer decode ret-prog)))
-    ;;                   (if (<= ret-cost cost)
-    ;;                       (set! act #f)
-    ;;                       (let ([query
-    ;;                              (format "delete from ~a_size~a where program='~a'"
-    ;;                                      table-name size str)])
-    ;;                         (pretty-display "delete: start")
-    ;;                         (send time start `db-delete)
-    ;;                         (query-exec pgc query)
-    ;;                         (send time end `db-delete)
-    ;;                         (pretty-display "delete: done")
-    ;;                         )))
-    ;;                  )))
-    ;;         )
-              
-    ;;    act
-    ;;    ))
-
     (define (select-one-state-in-out in-id out live)
       (define reg-out (progstate-regs out))
       (define reg-live (progstate-regs live))
@@ -486,7 +389,14 @@
     (define/public (select-all size)
       (define query (format "select * from ~a_size~a" table-name size))
       (pretty-display query)
-      (map (lambda (x) (db->prog-progstates x)) (query-rows pgc query)))
+
+      (for/list 
+       ([row (query-rows pgc query)])
+       (let* ([ans (db->prog-progstates row)]
+	      [progs (map (lambda (x) (send printer encode (send parser ast-from-string x)))
+			  (record-progs ans))]
+	      [states (record-states ans)])
+	 (record progs states))))
 
     (define (ids2columns states-in-id)
       (define lst (list))
@@ -709,9 +619,8 @@
             )
       (record 
        (if (equal? (vector-ref resp index) "")
-           (list (vector))
-           (map (lambda (x) (send printer encode (send parser ast-from-string x)))
-                (string-split (vector-ref resp index) ";")))
+           (list "")
+           (string-split (vector-ref resp index) ";"))
        (reverse states)))
 
     (define start-ids #f)
@@ -761,7 +670,7 @@
 
       (define graph (new graph% 
                          [machine machine] [validator validator] 
-                         [simulator simulator] [printer printer]
+                         [simulator simulator] [printer printer] [parser parser]
                          [spec spec] [constraint constraint] 
                          [extra extra] [assumption assumption]
                          [start-ids states1-id]))
@@ -780,6 +689,8 @@
 
 
       (define found #f)
+      (define algo1 0)
+      (define algo2 0)
 
       (define (iterate iterator)
 	(define p (iterator))
@@ -801,21 +712,44 @@
 		;;      )
                 
                 (define my-node 
-                  (make-vertex #t (map (lambda (x) (neighbor in-node x)) prog-list)))
+                  (make-vertex 
+		   #t 
+		   (map (lambda (x) (neighbor in-node x (send simulator performance-cost x))) 
+			prog-list)))
                 (pretty-display "11111111111")
                 (define t1 (current-milliseconds))
                 (iterate (send graph get-correct-iterator my-node))
-                (pretty-display "22222222222")
+                ;(pretty-display "22222222222")
                 (define t2 (current-milliseconds))
                 (iterate (send graph get-correct-iterator2 my-node))
-                (pretty-display "33333333333")
+                ;(pretty-display "33333333333")
                 (define t3 (current-milliseconds))
-                (pretty-display `(time ,(- t2 t1) ,(- t3 t2)))
+		(define t-parse (send graph get-parse-time))
+                (pretty-display `(time ,(- t2 t1 t-parse) ,(- t3 t2)))
+		(set! algo1 (+ algo1 (- t2 t1 t-parse)))
+		(set! algo2 (+ algo2 (- t3 t2)))
                 (when found (raise "done"))
                 ))
       
       (define max-size 2)
       (define visit #f)
+
+      (define (add-edge my-node edge)
+	(pretty-display "11111111111+++")
+	(define t1 (current-milliseconds))
+	(iterate (send graph get-correct-iterator my-node edge))
+	;(pretty-display "22222222222+++")
+	(define t2 (current-milliseconds))
+	(iterate (send graph get-correct-iterator2 my-node edge))
+	;(pretty-display "33333333333+++")
+	(define t3 (current-milliseconds))
+	(define t-parse (send graph get-parse-time))
+	(pretty-display `(time ,(- t2 t1 t-parse) ,(- t3 t2)))
+	(set! algo1 (+ algo1 (- t2 t1 t-parse)))
+	(set! algo2 (+ algo2 (- t3 t2)))
+	(when found (raise "done"))
+	)
+	
       
       (define (expand in-node ins-id len)
         (define size (modulo len max-size))
@@ -835,7 +769,7 @@
                (unless 
                 (= (length (filter number? ids)) 0) ;; TODO: check
                 ;(pretty-display `(expand ,i ,(hash-has-key? ids2node ids)))
-                (let ([edges (map (lambda (x) (neighbor in-node x)) progs)])
+                (let ([edges (map (lambda (x) (neighbor in-node x #f)) progs)])
                   (if (hash-has-key? ids2node ids)
                       (let ([my-node (hash-ref ids2node ids)])
                         (set-vertex-from! my-node 
@@ -847,12 +781,7 @@
 			 ;; if children is empty -> no match afterward if this is the last expand
 			 ;; & assume not calling coroutine if already get an answer.
                          (for ([edge edges])
-                              (pretty-display "11111111111+++")
-                              (iterate (send graph get-correct-iterator my-node edge))
-                              (pretty-display "22222222222+++")
-                              (iterate (send graph get-correct-iterator2 my-node edge))
-                              (pretty-display "33333333333+++")
-			      (when found (raise "done"))
+			      (add-edge my-node edge)
 			      ))
                         )
                       (let ([my-node (make-vertex ids edges)])
@@ -875,6 +804,7 @@
 	    (newline)
 	    (pretty-display `(SEARCH ,len))
 	    (search len first-node states1-id)))
+      (pretty-display (format "TIME: ~a vs ~a" (quotient algo1 1000) (quotient algo2 1000)))
       )
         
       
