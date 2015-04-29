@@ -249,5 +249,100 @@
             )
           ) ;; end if
       )
+
+    (define/public (get-correct-iterator2 my-node [edge #f])
+      (if edge
+	  (generator 
+           () 
+           (define (iterate iterator)
+             (define path-cost (iterator))
+             (when path-cost
+                   (dfs-edge2 my-node (cdr path-cost) (car path-cost) edge #t)
+                   (iterate iterator)))
+           (iterate (generator () (dfs2 my-node 0 (list) #f) #f))
+           #f)
+	  (generator () (dfs2 my-node 0 (list) #t) #f)
+       )
+      )
+
+    (define ce-list (list))
+    (define ce-expect (list))
+
+    (define (same? x)
+      (define 
+        all-correct
+        (for/and ([ce ce-list]
+                  [expect ce-expect])
+                 (let ([x-out 
+                        (with-handlers*
+                         ([exn? (lambda (e) #f)])
+                         (send simulator interpret x ce #:dep #f))])
+                   (if
+                    (and x-out expect)
+                    (let ([x-out-vec (send machine progstate->vector x-out)])
+                      (send machine state-eq? expect x-out-vec liveout-vec))
+                    (and (not x-out) (not expect))))))
+
+      (if all-correct
+          (let ([ce (send validator counterexample spec x constraint #f)])
+            (when debug (when all-correct (pretty-display "CE: done")))
+            (if ce
+                (begin
+                  (set! ce-list (cons ce ce-list))
+                  (set! ce-expect 
+                        (cons (send simulator interpret spec ce #:dep #f) ce-expect))
+                  (pretty-display `(ce-list ,(length ce-list)))
+                  #f)
+                #t))
+          #f))
+
+    (define (dfs2 my-node cost path backward)
+      (when debug 
+            (pretty-display (format "[dfs2] start ~a cost=~a" 
+                                    (vertex-ids my-node) cost)))
+      (cond
+       [(and backward (equal? (vertex-ids my-node) start-ids))
+	(define prog (vector))
+	(for ([x path])
+	     (set! prog (vector-append prog (neighbor-edge x))))
+        (when (same? prog) 
+              (send printer print-syntax (send printer decode prog))
+              (yield prog))]
+
+       [(and (not backward) (equal? (vertex-ids my-node) dest-ids))
+        (yield (cons (reverse path) cost))]
+
+       [else
+        (define-syntax-rule (func edge)
+          (dfs-edge2 my-node cost path edge backward))
+          
+        ;; Reverse the list because the small programs are usually added to
+        ;; the list first.
+
+        ;; Visit not self-loop first.
+        (for ([edge (reverse (if backward (vertex-from my-node) (vertex-to my-node)))])
+             (let* ([node-prev (neighbor-node edge)]
+                    [self-loop (equal? my-node node-prev)])
+               (when (not self-loop) (func edge))))
+
+        ;; Visit self-loop.
+        (for ([edge (reverse (if backward (vertex-from my-node) (vertex-to my-node)))])
+             (let* ([node-prev (neighbor-node edge)]
+                    [self-loop (equal? my-node node-prev)])
+               (when self-loop (func edge))))
+        ]))
+
+    (define (dfs-edge2 my-node cost path edge backward)
+      (let* ([node-prev (neighbor-node edge)]
+             [p-prev (neighbor-edge edge)]
+             [this-cost (send simulator performance-cost p-prev)]
+             [total-cost (+ cost this-cost)])
+        
+        (when (<= total-cost best-cost)
+              (dfs2 node-prev total-cost  
+                    (cons (neighbor my-node p-prev) path) backward))
+        ))
+      
+
     
     ))
