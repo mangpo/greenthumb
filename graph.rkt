@@ -254,6 +254,7 @@
       (if edge
 	  (generator 
            () 
+	   (pretty-display "dfs2 middle!!!!!!!!!!!")
            (define (iterate iterator)
              (define path-cost (iterator))
              (when path-cost
@@ -290,7 +291,7 @@
                 (begin
                   (set! ce-list (cons ce ce-list))
                   (set! ce-expect 
-                        (cons (send simulator interpret spec ce #:dep #f) ce-expect))
+                        (cons (send machine progstate->vector (send simulator interpret spec ce #:dep #f)) ce-expect))
                   (pretty-display `(ce-list ,(length ce-list)))
                   #f)
                 #t))
@@ -307,6 +308,7 @@
 	     (set! prog (vector-append prog (neighbor-edge x))))
         (when (same? prog) 
               (send printer print-syntax (send printer decode prog))
+	      (pretty-display "---")
               (yield prog))]
 
        [(and (not backward) (equal? (vertex-ids my-node) dest-ids))
