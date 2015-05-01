@@ -363,14 +363,14 @@
                       (hash-set! classes key (list prog))
                       (send time end `hash)
                       (set! my-count (add1 my-count))
-                      (when (= my-count 50000)
+                      (when (= my-count 10000)
                             ;(send time print-ce)
                             (send psql bulk-insert len classes #t)
                             (set! classes (make-hash))
                             (set! my-count 0)
                             (set! all-count 0)
                             (collect-garbage)
-
+                            (send time reset)
                             )
                       )
                     )
@@ -405,7 +405,11 @@
                 (when (= (modulo count 1000) 0) 
                       (pretty-display `(count ,count ,my-count ,all-count ,(current-memory-use)))
                       (with-output-to-file "progress.log" #:exists 'append
-                        (thunk (pretty-display `(count ,count ,my-count ,all-count ,(current-memory-use)))))
+                        (thunk (pretty-display `(count ,count ,my-count ,all-count ,(current-memory-use)))
+                               (send time terminate)
+                               (send time print-stat-concise)
+                               (send time reset)
+                               ))
                       )
 
                 (for ([old-prog prog-list])
@@ -417,7 +421,9 @@
             
         (send psql create-table len (length all-states))
 
-        (for ([x (send psql select-all (sub1 len))])
+        (define data (send psql select-all (sub1 len)))
+        (send time reset)
+        (for ([x data])
              (let ([progs (record-progs x)]
                    [outputs (record-states x)])
                (reset-generate-inst outputs live-list #f)

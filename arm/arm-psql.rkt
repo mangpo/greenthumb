@@ -31,7 +31,16 @@
       (pretty-display (format "#no-ce:\t~a" noce)))
       
 
-    (define/public (reset) (set! total-start (current-seconds)))
+    (define/public (reset) 
+      (set! total-start (current-seconds))
+      (set! solver-start 0)
+      (set! solver-ce 0)
+      (set! solver-noce 0)
+      (set! ce 0)
+      (set! noce 0)
+      (set! times (make-vector (vector-length types) 0))
+      (set! times-start (make-vector (vector-length types) #f))
+      )
     (define/public (terminate) (set! total (- (current-seconds) total-start)))
 
     (define/public (start type)
@@ -63,18 +72,32 @@
       (pretty-display (format "#ce:\t~a" ce))
       (pretty-display (format "#no-ce:\t~a" noce))
       (newline)
-      (pretty-display (format "solver-ce:\t~a\t~a" 
-                              solver-ce (exact->inexact (/ solver-ce 1000 total))))
-      (pretty-display (format "solver-noce:\t~a\t~a" 
-                              solver-noce (exact->inexact (/ solver-noce 1000 total))))
+      (when
+       (> total 0)
+       (pretty-display (format "solver-ce:\t~a\t~a" 
+                               solver-ce (exact->inexact (/ solver-ce 1000 total))))
+       (pretty-display (format "solver-noce:\t~a\t~a" 
+                               solver-noce (exact->inexact (/ solver-noce 1000 total))))
 
+       (define other (- (* 1000 total) solver-ce solver-noce))
+       (for ([type types]
+             [time times])
+            (pretty-display 
+             (format "~a:\t~a\t~a" 
+                     type time (exact->inexact (/ time 1000 total))))
+            (set! other (- other time)))
+       (pretty-display (format "other:\t~a\t~a" other (exact->inexact (/ other 1000 total)))))
+      )
+
+    (define/public (print-stat-concise)
+      (display (format "time: ~a, ~a, ~a" total solver-ce solver-noce))
       (define other (- (* 1000 total) solver-ce solver-noce))
       (for ([type types]
             [time times])
-           (pretty-display (format "~a:\t~a\t~a" 
-                                   type time (exact->inexact (/ time 1000 total))))
+           (unless (member type '(db-insert db-delete db-select))
+                   (display (format ", ~a" time)))
            (set! other (- other time)))
-      (pretty-display (format "other:\t\t~a\t~a" other (exact->inexact (/ other 1000 total))))
+      (pretty-display (format ", ~a" other))
       )
     
     ))
