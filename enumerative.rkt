@@ -286,6 +286,7 @@
     (define (build-db)
       (system "rm progress.log")
       (define time (new time% [total-start (current-seconds)]))
+      (set-field! time validator time)
       (send machine reset-inst-pool)
       (define constraint-all (send machine constraint-all))
       (define constraint-all-vec (send machine progstate->vector constraint-all))
@@ -405,11 +406,13 @@
                 (when (= (modulo count 1000) 0) 
                       (pretty-display `(count ,count ,my-count ,all-count ,(current-memory-use)))
                       (with-output-to-file "progress.log" #:exists 'append
-                        (thunk (pretty-display `(count ,count ,my-count ,all-count ,(current-memory-use)))
-                               (send time terminate)
-                               (send time print-stat-concise)
-                               (send time reset)
-                               ))
+                        (thunk 
+                         (display (format "count: ~a, ~a, ~a, ~a\t| " 
+                                          count my-count all-count (current-memory-use)))
+                         (send time terminate)
+                         (send time print-stat-concise)
+                         (send time reset)
+                         ))
                       )
 
                 (for ([old-prog prog-list])

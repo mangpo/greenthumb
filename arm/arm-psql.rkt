@@ -16,7 +16,7 @@
     
     (define total 0)
 
-    (define types '#(normal-test extra-test db-insert db-delete db-select hash string vector))
+    (define types '#(z3 normal-test extra-test db-insert db-delete db-select hash string vector))
     (define times (make-vector (vector-length types) 0))
     (define times-start (make-vector (vector-length types) #f))
 
@@ -90,14 +90,12 @@
       )
 
     (define/public (print-stat-concise)
-      (display (format "time: ~a, ~a, ~a" total solver-ce solver-noce))
-      (define other (- (* 1000 total) solver-ce solver-noce))
+      (display (format "time: ~a, ~a, ~a" total (+ ce noce) (+ solver-ce solver-noce)))
       (for ([type types]
             [time times])
            (unless (member type '(db-insert db-delete db-select))
-                   (display (format ", ~a" time)))
-           (set! other (- other time)))
-      (pretty-display (format ", ~a" other))
+                   (display (format ", ~a" time))))
+      (newline)
       )
     
     ))
@@ -337,6 +335,7 @@
        ([exn:break? (lambda (e) 
                       (when debug (pretty-display "CE: timeout")) 
                       (send time end-solver #f)
+                      (send time end `z3)
                       #f)])
        (if all-correct
            (let ([ce (timeout 5 (send validator counterexample x y constraint-all #f))])

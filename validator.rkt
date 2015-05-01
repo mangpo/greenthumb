@@ -13,7 +13,8 @@
     (init-field machine printer 
                 [simulator #f] 
                 [bit (get-field bit machine)]
-                [random-input-bit (get-field random-input-bit machine)])
+                [random-input-bit (get-field random-input-bit machine)]
+                [time #f])
     ;; (abstract get-sym-vars evaluate-state
     ;;           assume assert-state-eq)
     (public proper-machine-config generate-input-states generate-inputs-inner
@@ -270,15 +271,18 @@
         ;;(pretty-display "done check output")
         )
 
+      (send time start `z3)
       (with-handlers* 
        ([exn:fail? 
          (lambda (e)
+           (send time end `z3)
            (when debug (pretty-display "program-eq? SAME"))
            (clear-terms!)
            (if (equal? (exn-message e) "verify: no counterexample found")
                #f
                (raise e)))])
        (let ([model (verify #:assume (interpret-spec!) #:guarantee (compare))])
+         (send time end `z3)
          (when debug (pretty-display "program-eq? DIFF"))
          (let ([state (evaluate-state start-state model)])
            ;; (pretty-display model)
