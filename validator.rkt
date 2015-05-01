@@ -36,6 +36,8 @@
     (define ninsts (vector-length (get-field inst-id machine)))
     (define start-time #f)
 
+    (define/public (reset) (current-solver (new z3%)))
+
     (define (sym-input)
       (define-symbolic* input number?)
       input

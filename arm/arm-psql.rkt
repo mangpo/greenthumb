@@ -108,7 +108,7 @@
             tx-begin tx-commit)
 
     (define simulator (new arm-simulator-racket% [machine machine]))
-    (define validator (new arm-validator% [machine machine] [printer printer]))
+    (define validator (new arm-validator% [machine machine] [printer printer] [time time]))
     (define parser (new arm-parser%))
 
     (define debug #f)
@@ -286,6 +286,7 @@
                 table-name size srcpath))
       (query-exec pgc query)
       (send time end `db-insert)
+      (send validator reset)
       )
 
     (define/public (same? x y)

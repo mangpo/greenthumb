@@ -286,7 +286,6 @@
     (define (build-db)
       (system "rm progress.log")
       (define time (new time% [total-start (current-seconds)]))
-      (set-field! time validator time)
       (send machine reset-inst-pool)
       (define constraint-all (send machine constraint-all))
       (define constraint-all-vec (send machine progstate->vector constraint-all))
