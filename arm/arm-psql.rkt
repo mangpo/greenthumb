@@ -423,7 +423,11 @@
       (when limit (set! query (format "~a limit ~a" query limit)))
       (when offset (set! query (format "~a offset ~a" query offset)))
       (when debug (pretty-display (format "query: ~a" query)))
-      (map (lambda (x) (db->prog-progstates x states-in-id)) (query-rows pgc query)))
+
+      (send time start `db-select)
+      (define ans (query-rows pgc query))
+      (send time end `db-select)
+      (map (lambda (x) (db->prog-progstates x states-in-id)) ans))
     
     (define/public (get-all-states)
       (define nmems (send machine get-nmems))

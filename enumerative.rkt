@@ -284,6 +284,7 @@
        (yield #f)))
       
     (define (build-db)
+      (system "rm progress.log")
       (define time (new time% [total-start (current-seconds)]))
       (send machine reset-inst-pool)
       (define constraint-all (send machine constraint-all))
@@ -307,12 +308,13 @@
 
       (define count 0)
       (define my-count 0)
+      (define all-count 0)
 
       (define (loop len)
         (define classes (make-hash))
 
         (define (build-table prog perf out-states)
-          (when debug
+          (when #t
                 (newline)
                 (send printer print-syntax (send printer decode prog)))
 	  (define unique #t)
@@ -327,7 +329,7 @@
                   (send time start `hash)
 	          (let ([rets (hash-ref x key)])
                     (send time end `hash)
-	            (when debug (pretty-display (format "validate: ~a" (length rets))))
+	            (when #t (pretty-display (format "validate: ~a" (length rets))))
 	            (let ([same 
                            (for/or ([ret rets])
                                    (and (send psql same? ret prog) ret))])
@@ -335,7 +337,7 @@
 	              (when same
 	        	    (set! unique #f)
 	        	    (let ([same-perf (send simulator performance-cost same)])
-	        	      (when debug (pretty-display "[not unique]"))
+	        	      (when #t (pretty-display "[not unique]"))
 	        	      (when (< perf same-perf)
                                     (send time start `hash)
 	        		    (hash-set! x key (remove same rets))
@@ -349,7 +351,8 @@
           (when debug (pretty-display "Check current table."))
           (check-inmem classes)
           (when unique ;; don't check with persistant memory
-                (when debug (pretty-display "[unique]"))
+                (when #t (pretty-display "[unique]"))
+                (set! all-count (add1 all-count))
                 (send time start `hash)
                 (if (hash-has-key? classes key)
                     (begin
@@ -362,9 +365,12 @@
                       (set! my-count (add1 my-count))
                       (when (= my-count 50000)
                             ;(send time print-ce)
-                            (send psql bulk-insert len classes #f)
-                            ;(set! classes (make-hash))
-                            (set! my-count (hash-count classes))
+                            (send psql bulk-insert len classes #t)
+                            (set! classes (make-hash))
+                            (set! my-count 0)
+                            (set! all-count 0)
+                            (collect-garbage)
+
                             )
                       )
                     )
@@ -396,7 +402,12 @@
                 (for/or ([x out-states]) x)
                 ;; If everything is false => illegal program, exclude from table
                 (set! count (add1 count))
-                (when (= (modulo count 1000) 0) (pretty-display `(count ,count ,my-count)))
+                (when (= (modulo count 1000) 0) 
+                      (pretty-display `(count ,count ,my-count ,all-count ,(current-memory-use)))
+                      (with-output-to-file "progress.log" #:exists 'append
+                        (thunk (pretty-display `(count ,count ,my-count ,all-count ,(current-memory-use)))))
+                      )
+
                 (for ([old-prog prog-list])
                      (let* ([prog (vector-append old-prog (vector my-inst))]
                             [cost (send simulator performance-cost prog)])
@@ -415,6 +426,8 @@
         (send psql bulk-insert len classes #t)
         (set! classes (make-hash))
         (set! my-count 0)
+        (set! all-count 0)
+        (collect-garbage)
 
         (when (< len max-size) 
 	    (loop (add1 len))))
