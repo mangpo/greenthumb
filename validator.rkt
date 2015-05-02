@@ -282,7 +282,7 @@
            (send time end `z3)
            (when debug (pretty-display "program-eq? SAME"))
            (send time start `term)
-           (clear-terms!)
+           (unsafe-clear-terms!)
            (send time end `term)
            (if (equal? (exn-message e) "verify: no counterexample found")
                #f
@@ -297,7 +297,7 @@
            ;; (display-state state)
            ;; (raise "done")
            (send time start `term)
-           (clear-terms!)
+           (unsafe-clear-terms!)
            (send time end `term)
            state)
          )))
