@@ -16,7 +16,7 @@
     
     (define total 0)
 
-    (define types '#(z3 normal-test extra-test db-insert db-delete db-select hash string vector))
+    (define types '#(z3 sym term eval normal-test extra-test db-insert db-delete db-select hash string vector))
     (define times (make-vector (vector-length types) 0))
     (define times-start (make-vector (vector-length types) #f))
 
@@ -90,11 +90,26 @@
       )
 
     (define/public (print-stat-concise)
-      (display (format "time: ~a, ~a, ~a" total (+ ce noce) (+ solver-ce solver-noce)))
-      (for ([type types]
+      (display (format "time: ~a\t| ~a, ~a # ~a" total solver-ce solver-noce (vector-ref times 3)))
+      (for ([type '(z3 sym term)]
             [time times])
-           (unless (member type '(db-insert db-delete db-select))
-                   (display (format ", ~a" time))))
+           (display (format ", ~a" time)))
+      ;;;;;;;;;;;;;;;
+      (display (format "\t| ~a, ~a # ~a"
+                       (if (= ce 0) 0 (quotient solver-ce ce)) 
+                       (if (= noce 0) 0 (quotient solver-noce noce))
+                       (if (= ce 0) 0 (quotient (vector-ref times 3) ce))))
+      (for ([type '(z3 sym term)]
+            [time times])
+           (display (format ", ~a"
+                            (if (= (+ ce noce) 0) 0 (quotient time (+ ce noce))))))
+      (display "\t||")
+      ;;;;;;;;;;;;;;
+      (for ([index (drop (range (vector-length types)) 4)])
+           (let ([type (vector-ref types index)]
+                 [time (vector-ref times index)])
+             (unless (member type '(db-insert db-delete db-select))
+                     (display (format " ~a," time)))))
       (newline)
       )
     
