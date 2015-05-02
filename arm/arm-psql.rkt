@@ -50,9 +50,11 @@
       (define index (vector-member type types))
       ;; (unless (vector-ref times-start index)
       ;;         (pretty-display `(PROBLEM ,type)))
-      (vector-set! times index (+ (vector-ref times index)
-                                  (- (current-milliseconds) (vector-ref times-start index))))
-      (vector-set! times-start index #f)
+      (when (vector-ref times-start index)
+            (vector-set! times index 
+                         (+ (vector-ref times index)
+                            (- (current-milliseconds) (vector-ref times-start index))))
+            (vector-set! times-start index #f))
       )
 
     (define/public (start-solver) (set! solver-start (current-milliseconds)))
