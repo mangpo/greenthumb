@@ -716,12 +716,11 @@
                          [machine machine] [validator validator] 
                          [simulator simulator] [printer printer] [parser parser]
                          [spec spec] [constraint constraint] 
-                         [extra extra] [assumption assumption]
-                         [start-ids states1-id]))
+                         [extra extra] [assumption assumption]))
 
       (define queue (make-queue))
       (define level (make-queue))
-      (define first-node (make-vertex states1-id))
+      (define first-node (make-vertex-root states1-id))
       ;;(vertex states1-id (list) (list) #f (make-hash) #f)])
       (enqueue! queue first-node)
       (enqueue! level 1)

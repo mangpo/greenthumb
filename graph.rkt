@@ -1,16 +1,20 @@
 #lang racket
 
-(provide graph% make-vertex (struct-out vertex) (struct-out neighbor))
+(provide graph% make-vertex make-vertex-root (struct-out vertex) (struct-out neighbor))
 (require racket/generator)
 
-(struct vertex (ids from to status children cost-from cost-to) #:mutable)
+(struct vertex (ids from to status children cost-from cost-to root) #:mutable)
 ;; children is a hash table that maps state -> child node (refinement)
 (struct neighbor (node edge cost) #:mutable)
 
+(define-syntax make-vertex-root
+  (syntax-rules ()
+    ((make-vertex-root ids) (vertex ids (list) (list) #f (make-hash) #f #f #t))
+    ))
+
 (define-syntax make-vertex
   (syntax-rules ()
-    ((make-vertex ids) (vertex ids (list) (list) #f (make-hash) #f #f))
-    ((make-vertex ids f) (vertex ids f (list) #f (make-hash) #f #f))
+    ((make-vertex ids f) (vertex ids f (list) #f (make-hash) #f #f #f))
     ))
     
 
@@ -18,8 +22,7 @@
   (class object%
     (super-new)
     (init-field machine validator simulator printer parser
-                spec constraint extra assumption 
-                start-ids [dest-ids #t])
+                spec constraint extra assumption [dest-ids #t])
     (public get-correct-iterator)
 
     (define debug #f)
@@ -28,7 +31,7 @@
     ;; (define ce-n 1)
     ;; (define ce-input (make-vector 16 #f))
     (define ce-output (make-vector 16 #f))
-    (define best-cost 4)
+    (define best-cost (send simulator performance-cost spec))
 
     (define (get-correct-iterator my-node [edge #f])
       (if edge
@@ -43,7 +46,7 @@
             (pretty-display (format "[dfs] start ~a cost=~a level=~a" 
                                     (vertex-ids my-node) cost level)))
       (cond
-       [(equal? (vertex-ids my-node) start-ids)
+       [(vertex-root my-node)
         (when (vector-ref ce-output level)
               (raise (format "graph% already has counterexample for level ~a" level)))
 	
@@ -210,7 +213,7 @@
                                   (if c-prev-node
                                       (list (neighbor c-prev-node p-prev perf))
                                       (list))
-                                  (list) #f (make-hash) my-cost 0)
+                                  (list) #f (make-hash) my-cost 0 (vertex-root my-node))
                                   ])
             (hash-set! my-children-table my-state-vec new-node)
 
@@ -324,7 +327,7 @@
             (pretty-display (format "[dfs2] start ~a cost=~a" 
                                     (vertex-ids my-node) cost)))
       (cond
-       [(and backward (equal? (vertex-ids my-node) start-ids))
+       [(and backward (vertex-root my-node))
 	(define prog (vector))
 	(for ([x path])
 	     (set! prog (vector-append prog (neighbor-edge x))))
