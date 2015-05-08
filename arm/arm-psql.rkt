@@ -668,7 +668,7 @@
        (reverse states)))
 
     (define start-ids #f)
-    (define ids2node (make-hash))
+    ;(define ids2node (make-hash))
 
     (define/public (synthesize-window spec sketch prefix postfix constraint extra 
                                [cost #f] [time-limit 3600]
@@ -727,8 +727,8 @@
       (enqueue! level 1)
       ;; (define mapping (make-hash))
       ;; (hash-set! mapping states1-id #f)
-      (set! ids2node (make-hash))
-      (hash-set! ids2node states1-id first-node)
+      ;; (set! ids2node (make-hash))
+      ;; (hash-set! ids2node states1-id first-node)
       (db-connect)
 
 
@@ -776,7 +776,7 @@
                 ))
       
       (define max-size 2)
-      (define visit-level #f)
+      (define visit #f)
 
       (define (add-edge my-node edge)
 	(pretty-display "11111111111+++")
@@ -801,8 +801,7 @@
         (define n (select-count size))
         ;(pretty-display `(expand-start ,len ,(sub1 (quotient (- len size) max-size)) ,n))
         (define columns (ids2columns ins-id))
-	(define this-level-nodes
-          (vector-ref visit-level (sub1 (quotient (- len size) max-size))))
+	(define ids2node (vector-ref visit (sub1 (quotient (- len size) max-size))))
         (for ([i n])
              (let* ([prog-states (car (select-from-in size ins-id 
                                                       #:columns columns 
@@ -828,15 +827,10 @@
                          (for ([edge edges])
 			      (add-edge my-node edge)
 			      ))
-                        (unless (set-member? this-level-nodes my-node)
-                                (set! this-level-nodes (set-add this-level-nodes my-node))
-                                (search (- len size) my-node ids))
                         )
                       (let ([my-node (make-vertex ids edges)])
                         (hash-set! ids2node ids my-node)
-                        (set! this-level-nodes (set-add this-level-nodes my-node))
-                        (search (- len size) my-node ids)
-                        )))))))
+                        (search (- len size) my-node ids))))))))
                
 
       (define (search len in-node ins-id)
@@ -850,7 +844,7 @@
 		   (unless (equal? e "done")
 			(raise e)))])
        (for ([len (range 1 4)]) 
-	    (set! visit-level (make-vector (quotient (sub1 len) max-size) (set)))
+	    (set! visit (make-vector (quotient (sub1 len) max-size) (make-hash)))
 	    (newline)
 	    (pretty-display `(SEARCH ,len))
 	    (search len first-node states1-id)))
