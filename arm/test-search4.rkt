@@ -11,7 +11,7 @@
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 (define validator (new arm-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
 (define enum (new arm-enumerative% [machine machine] [printer printer] [parser parser]))
-(define symbolic (new arm-symbolic% [machine machine] [printer printer] [parser parser]))
+;;(define symbolic (new arm-symbolic% [machine machine] [printer printer] [parser parser]))
 (define stoch (new arm-stochastic% [machine machine] [printer printer] [parser parser] [syn-mode #t]))
 
 (define prefix
@@ -45,7 +45,7 @@ mul r2, r6, r2
 (define encoded-sketch (send validator encode-sym sketch))
 
 (define t (current-seconds))
-(send symbolic synthesize-window
+(send enum synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
       encoded-prefix encoded-postfix

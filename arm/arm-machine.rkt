@@ -157,7 +157,7 @@
     (set! perline 8)
 
     (init-field [branch-inst-id '#(beq bne j jal b jr jr jalr bal)]
-                [shf-inst-id '#(nop asr lsl lsr asr# lsl# lsr#)]
+                [shf-inst-id '#(nop lsl# asr lsl lsr asr# lsr#)]
 		[inst-with-shf '(add sub rsb and orr eor bic orn mov mvn)]
 		[cond-inst-id '#(nop eq ne ls hi cc cs)]
 		)

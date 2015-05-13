@@ -77,8 +77,8 @@
 	   (define classes (make-hash))
 	   (define ce-list (list))
 
-	   (define (build-table prog states-vec)
-	     
+	   (define (check-eqv prog states-vec)
+	     ;(pretty-display `(check-eqv ,prog ,states-vec))
 	     (set! count (add1 count))
 	     (when (= (modulo count 100000) 0)
 		   (define t1 (current-seconds))
@@ -184,7 +184,8 @@
 
 	      (when mapping (loop (get-collection-iterator prog)))
 	      (set! t-refine (+ t-refine (- (current-milliseconds) t-refine-start)))
-	      )) ;; End build table
+	      )
+	     ) ;; End check-eqv
 
 	   (define (refine-real classes live-list my-vreg my-inst)
 	     (for ([states classes])
@@ -194,8 +195,13 @@
 			  (map (lambda (x) 
 				 (send machine progstate->vector 
 				       (send simulator interpret (vector my-inst)
-					     x #:dep #f))) states))])
-		    (build-table (class-ref prev-classes live-list my-vreg states) states2-vec))))
+					     (send machine vector->progstate x)
+					     #:dep #f))) 
+			       states))])
+		    (when states2-vec
+			  (check-eqv (concat (class-ref prev-classes live-list my-vreg states) 
+					     my-inst)
+				     states2-vec)))))
 
 	   (define (refine-modulo classes live-list my-vreg new-live-list my-inst k)
 	     (define abst-hash classes)
@@ -210,8 +216,9 @@
 					 (cons states (hash-ref abst-hash abst-states)))
 			      (hash-set! abst-hash abst-states (list states)))))
 		   
-		   (pretty-display `(live-list ,live-list))
-		   (pretty-display `(abst-hash ,(hash-count abst-hash))))
+		   ;; (pretty-display `(live-list ,live-list))
+		   ;; (pretty-display `(abst-hash ,(hash-count abst-hash)))
+		   )
 
 	     (for ([pair (hash->list abst-hash)])
 		  (let* ([abst-states (car pair)]
@@ -223,8 +230,26 @@
 				  (abstract 
 				   (send machine progstate->vector 
 					 (send simulator interpret (vector my-inst)
-					       x #:dep #f))
-				   new-live-list k)) abst-states))])
+					       (send machine vector->progstate x) 
+					       #:dep #f))
+				   new-live-list k))
+				abst-states))])
+		    	 ;; [condition 
+		    	 ;;  (and abst-states-out
+		    	 ;;  (for/and ([state-spec abst-expect]
+		    	 ;; 	    [state abst-states-out])
+		    	 ;; 	   (send machine relaxed-state-eq? state-spec state live2-vec)))])
+		    ;; (when (and (equal? `and 
+		    ;; 		       (vector-ref (get-field inst-id machine) (inst-op my-inst)))
+		    ;; 	       (equal? 2 (vector-ref (inst-args my-inst) 0))
+		    ;; 	       (equal? 0 (vector-ref (inst-args my-inst) 1))
+		    ;; 	       (equal? 1 (vector-ref (inst-args my-inst) 2)))
+		    ;; 	  (pretty-display `(info ,k
+		    ;; 				 ,abst-states
+		    ;; 				 ,abst-states-out
+		    ;; 				 ,abst-expect
+		    ;; 				 ,live2-vec
+		    ;; 				 ,condition)))
 		    (when 
 		     (and abst-states-out
 			  (for/and ([state-spec abst-expect]
@@ -234,7 +259,7 @@
 			 (hash-set! 
 			  abst-hash
 			  abst-states
-			  (refine-modulo real-states live-list new-live-list my-inst (* k 2)))
+			  (refine-modulo real-states live-list my-vreg new-live-list my-inst (* k 2)))
 			 (refine-real real-states live-list my-vreg my-inst))
 		     )))
 
@@ -243,7 +268,7 @@
 	     
 
 	   ;; Enmerate all possible program of one instruction
-	   (define (enumerate states progs-collection) 
+	   (define (enumerate states progs-collection check) 
 	     (define (inner)
                (when debug (pretty-display `(inner1)))
 	       ;; Call instruction generator
@@ -270,6 +295,7 @@
 		  
 		  (when states2-vec 
 			(class-insert! classes my-liveout states2-vec my-vreg prog)
+			(when check (check-eqv prog states2-vec))
 			))
 		(inner)))
 	     (inner))
@@ -282,22 +308,25 @@
 	     (define my-inst (first inst-liveout-vreg))
 	     (define my-liveout (second inst-liveout-vreg))
 	     (when my-inst
-		   (define abst-hash 
-		     (refine-modulo eqv-classes live-list my-vreg my-liveout my-inst 2))
-		   (abst-loop abst-hash live-list my-vreg)))
+		   ;;(send printer print-syntax (send printer decode my-inst))
+	   	   (define abst-hash 
+	   	     (refine-modulo eqv-classes live-list my-vreg my-liveout my-inst 2))
+	   	   (abst-loop abst-hash live-list my-vreg)))
 
 	   (for ([pair1 (hash->list prev-classes)])
-		(let* ([live-vreg (car pair1)]
-		       [live-list (entry-live live-vreg)]
-		       [my-vreg (entry-vreg live-vreg)]
-		       [hash2 (cdr pair1)]
-		       [eqv-classes (hash-keys hash2)])
-		  (reset-generate-inst (car eqv-classes) live-list my-vreg) ;; use only first state
-		  (abst-loop  eqv-classes live-list my-vreg)
-		  ))
+	   	(let* ([live-vreg (car pair1)]
+	   	       [live-list (entry-live live-vreg)]
+	   	       [my-vreg (entry-vreg live-vreg)]
+	   	       [hash2 (cdr pair1)]
+	   	       [eqv-classes (hash-keys hash2)])
+	   	  ;; use only first state
+	   	  (reset-generate-inst (list (send machine vector->progstate (caar eqv-classes)))
+	   			       live-list my-vreg `mod) 
+	   	  (abst-loop  eqv-classes live-list my-vreg)
+	   	  ))
 
 	   (set! t-abst (+ t-abst (- (current-milliseconds) t-abst-start)))
-	   
+	   (pretty-display `(abstract-done))
 
 	   ;; Grow
 	   (for ([pair1 (hash->list prev-classes)])
@@ -310,11 +339,14 @@
 			      [outputs (map (lambda (x) (send machine vector->progstate x)) 
 					    (car pair2))])
 			 ;; Initialize enumeration one instruction process
-			 (reset-generate-inst outputs live-list my-vreg)
 			 (when debug
 			       (pretty-display `(ENUM!!!!!!!!!!!!! ,val))
 			       (print-concat val))
-			 (enumerate outputs val)))))
+			 (reset-generate-inst outputs live-list my-vreg `no-mod)
+			 (enumerate outputs val #t) ;; check
+			 (reset-generate-inst outputs live-list my-vreg `mod)
+			 (enumerate outputs val #f) ;; no checkin
+			 ))))
 	   (when (< iter spec-len)
 		 (pretty-display `(iter ,iter ,spec-len))
 		 (set! prev-classes classes)
@@ -335,7 +367,9 @@
 	  (hash-set! class key 
 		     (make-hash (list (cons states-vec (entry (list prog) my-vreg)))))))
 
-    (define (class-ref class live-vec states-vec my-vreg)
+    (define (class-ref class live-vec my-vreg states-vec)
+      ;; (pretty-display `(class-ref ,live-vec ,my-vreg ,states-vec))
+      ;; (pretty-display `(level1 ,(hash-ref class (entry live-vec my-vreg))))
       (hash-ref (hash-ref class (entry live-vec my-vreg)) states-vec))
 
     (define (print-concat collection)
@@ -540,7 +574,7 @@
         (for ([x data])
              (let ([progs (record-progs x)]
                    [outputs (record-states x)])
-               (reset-generate-inst outputs live-list #f)
+               (reset-generate-inst outputs live-list #f `all)
                (enumerate outputs progs)))
 
         (send psql bulk-insert len classes #t)

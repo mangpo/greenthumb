@@ -24,11 +24,25 @@
     (define cond-type-len (vector-length (get-field cond-inst-id machine)))
     (define shf-inst-len (vector-length (get-field shf-inst-id machine)))
 
-    (define (reset-generate-inst states live-in regs)
+    (define inst-mod '(add sub rsb
+			and orr eor bic orn
+                        mul uxtah
+			add# sub# rsb#
+			and# orr# eor# bic# orn#
+			lsl#
+			mov mvn
+			uxth uxtb
+			mov# mvn# movw# movt#
+			mla mls
+			bfc bfi))
+
+    (define (reset-generate-inst states live-in regs type)
       (define z (progstate-z (car states))) ;; enough to look at one state.
       ;; (define inst-choice '(add and#))
       ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
       (define inst-pool (get-field inst-pool machine))
+      (when (equal? type `mod) 
+	    (set! inst-pool (filter (lambda (x) (member (vector-ref inst-id x) inst-mod)) inst-pool)))
       (set! generate-inst 
 	    (generator 
 	     ()
@@ -55,7 +69,6 @@
 				    (cdr ranges) v-reg))
                  ]))
 	     (for ([opcode-id inst-pool])
-		  ;;(pretty-display "here1")
 		  (let ([opcode-name (vector-ref inst-id opcode-id)])
 		    (unless 
 		     (equal? opcode-name `nop)
@@ -71,28 +84,38 @@
                                  (vector->list
                                   (send machine get-arg-ranges opcode-name #f live-in)))]
 			    [cond-bound (if (= z -1) 1  cond-type-len)])
-		       ;;(pretty-display "here2")
 		       (when debug (pretty-display `(iterate ,shf? ,arg-ranges ,cond-bound)))
 		       (for ([cond-type cond-bound])
 			    (if shf?
 				(begin
-				  (recurse-args opcode-id 0 #f cond-type (list) 
-                                                arg-ranges regs)
-				  (for* ([shfop (range 1 shf-inst-len)]
-					 [shfarg (send machine get-shfarg-range shfop live-in)])
-					;;(pretty-display "here3")
-					(recurse-args opcode-id shfop shfarg cond-type (list) 
-						      arg-ranges regs)
-					(when debug
-					      (pretty-display `(call-recurse ,opcode-name 
-                                                                             ,opcode-id 
-									     ,shfop 
-                                                                             ,shfarg 
-									     ,cond-type 
-									     ,arg-ranges)))
-					))
-				(recurse-args opcode-id 0 #f cond-type (list) 
-                                              arg-ranges regs)))))))
+				  ;; no shift
+				  (when
+				   (or (equal? type `all) (equal? type `mod)
+				       (and (equal? type `no-mod) 
+					    (not (member (vector-ref inst-id opcode-id) inst-mod))))
+				   (recurse-args opcode-id 0 #f cond-type (list) 
+						 arg-ranges regs)
+				   (let ([shfop 1]) ;; lsl#
+				     (for* ([shfarg (send machine get-shfarg-range shfop live-in)])
+					   (recurse-args opcode-id shfop shfarg cond-type (list) 
+							 arg-ranges regs)))
+				   )
+				  ;; shift
+				  (when 
+				   (or (equal? type `no-mod) (equal? type `all))
+				   (for* ([shfop (range 2 shf-inst-len)]
+					  [shfarg (send machine get-shfarg-range shfop live-in)])
+					 (recurse-args opcode-id shfop shfarg cond-type (list) 
+						       arg-ranges regs)))
+				  )
+				;; no shift
+				(when
+				 (or (equal? type `all) (equal? type `mod)
+				     (and (equal? type `no-mod) 
+					  (not (member (vector-ref inst-id opcode-id) inst-mod))))
+				 (recurse-args opcode-id 0 #f cond-type (list) 
+					       arg-ranges regs))
+				))))))
 	     (yield (list #f #f #f)))))
 
     (define (get-register-mapping org-nregs states-vec-spec states-vec liveout-vec)
