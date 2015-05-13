@@ -14,7 +14,7 @@
     (init-field [generate-inst #f])
     (inherit-field machine printer validator simulator)
     (override synthesize-window)
-    (abstract reset-generate-inst)
+    (abstract reset-generate-inst abstract)
     (public get-register-mapping get-renaming-iterator build-db)
 
     (define (synthesize-window spec sketch prefix postfix constraint extra 
@@ -52,14 +52,15 @@
       (pretty-display `(live2-vec ,live2-vec))
       ;; key = (cons list of output-vec, liveout-vec)
       (hash-set! prev-classes 
-		 (cons states1-vec (send machine get-operand-live live1)) 
-		 (entry (list (vector)) org-nregs))
+		 (send machine get-operand-live live1)
+		 (make-hash (list (cons states1-vec (entry (list (vector)) org-nregs)))))
 
       (for ([i states1])
 	   (send machine display-state i))
 
       (define t-start (current-seconds))
       (define t-refine 0)
+      (define t-abst 0)
       (define t0 (current-seconds))
       (define count 0)
       (define count-1 0)
@@ -67,6 +68,7 @@
 	(generator
 	 ()
 	 (define (loop iter)
+	   (newline)
 	   (pretty-display `(loop ,iter))
 	   (define classes (make-hash))
 	   (define ce-list (list))
@@ -83,15 +85,7 @@
 		   ;; (set! count 0)
 		   (set! t0 t1))
 
-	     (let ([key (cons states-vec my-liveout-vec)])
-	       (if (hash-has-key? classes key)
-		   (let ([val (hash-ref classes key)])
-		     (hash-set! classes key (entry (cons prog (entry-progs val)) 
-						   (max my-vreg (entry-vreg val)))))
-		   (hash-set! classes key (entry (list prog) my-vreg))
-                   ))
-	       ;; (pretty-display `(insert-table))
-	       ;; (print-concat (hash-ref classes key))
+	     (class-insert! classes my-liveout-vec states-vec prog my-vreg)
 
 	     ;; (when (concat? prog) 
 	     ;; 	   (let ([x (concat-inst prog)])
@@ -157,6 +151,13 @@
 			     (set! ce-list (cons (cons ce-input ce-output-vec) ce-list)))
 			   (begin
 			     (pretty-display "[4] FOUND!!!")
+			     (pretty-display 
+			      `(time ,count 
+				     ,(exact->inexact (/ count-1 count))
+				     ,(exact->inexact (/ t-refine 1000 
+							 (- (current-seconds) t-start)))
+				     ,(exact->inexact (/ t-abst 1000 
+							 (- (current-seconds) t-start)))))
 			     (let ([groups (hash-keys classes)])
 			       (send printer print-syntax (send printer decode p))
 			       (pretty-display `(groups ,(length groups))))
@@ -183,6 +184,21 @@
 	      (when mapping (loop (get-collection-iterator prog)))
 	      (set! t-refine (+ t-refine (- (current-milliseconds) t-refine-start)))
 	      )) ;; End build table
+
+	   (define (refine-modulo classes live-list k)
+	     ;; TODO: live-list should contain memory as well
+	     (define abst-hash (make-hash))
+	     (define abst-expect (map (lambda (x) (abstract x live-list k)) states2-vec-spec))
+	     (for ([states classes])
+		  (let ([abst-states (map (lambda (x) (abstract x live-list k)) states)])
+		    (if (hash-has-key? abst-hash abst-states)
+			(hash-set! abst-hash abst-states
+				   (cons states (hash-ref abst-hash abst-states)))
+			(hash-set! abst-hash abst-states (list states)))))
+	     
+	     (pretty-display `(live-list ,live-list))
+	     (pretty-display `(abst-hash ,(hash-count abst-hash))))
+	     
 
 	   ;; Enmerate all possible program of one instruction
 	   (define (enumerate states progs-collection) 
@@ -217,17 +233,29 @@
 	     (inner))
 	   
 	   (pretty-display `(eqv ,(hash-count prev-classes)))
-	   (for ([pair (hash->list prev-classes)])
-		(let* ([key (car pair)]
-		       [val (cdr pair)]
-		       [outputs (map (lambda (x) (send machine vector->progstate x)) (car key))]
-		       [live-list (cdr key)])
-		  ;; Initialize enumeration one instruction process
-		  (reset-generate-inst outputs live-list (entry-vreg val))
-		  (when debug
-			(pretty-display `(ENUM!!!!!!!!!!!!! ,(entry-progs val)))
-			(print-concat (entry-progs val)))
-		  (enumerate outputs (entry-progs val))))
+	   ;; Test
+	   (define t-abst-start (current-milliseconds))
+	   (for ([pair1 (hash->list prev-classes)])
+		(let ([live-list (car pair1)]
+		      [hash2 (cdr pair1)])
+		  (refine-modulo (hash-keys hash2) live-list 2)))
+	   (set! t-abst (+ t-abst (- (current-milliseconds) t-abst-start)))
+	   
+
+	   ;; Grow
+	   (for ([pair1 (hash->list prev-classes)])
+		(let ([live-list (car pair1)]
+		      [hash2 (cdr pair1)])
+		  (for ([pair2 (hash->list hash2)])
+		       (let* ([val (cdr pair2)]
+			      [outputs (map (lambda (x) (send machine vector->progstate x)) 
+					    (car pair2))])
+			 ;; Initialize enumeration one instruction process
+			 (reset-generate-inst outputs live-list (entry-vreg val))
+			 (when debug
+			       (pretty-display `(ENUM!!!!!!!!!!!!! ,(entry-progs val)))
+			       (print-concat (entry-progs val)))
+			 (enumerate outputs (entry-progs val))))))
 	   (when (< iter spec-len)
 		 (pretty-display `(iter ,iter ,spec-len))
 		 (set! prev-classes classes)
@@ -236,6 +264,17 @@
 
       (print-concat (candidate-gen))
       )
+
+    (define (class-insert! class live-vec states-vec prog my-vreg)
+      (if (hash-has-key? class live-vec)
+	  (let ([hash2 (hash-ref class live-vec)])
+	    (if (hash-has-key? hash2 states-vec)
+		(let ([val (hash-ref hash2 states-vec)])
+		  (hash-set! hash2 states-vec (entry (cons prog (entry-progs val))
+						     (max my-vreg (entry-vreg val)))))
+		(hash-set! hash2 states-vec (entry (list prog) my-vreg))))
+	  (hash-set! class live-vec 
+		     (make-hash (list (cons states-vec (entry (list prog) my-vreg)))))))
 
     (define (print-concat collection)
       (define (inner x [indent ""])

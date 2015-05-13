@@ -11,7 +11,8 @@
     (super-new)
     (inherit-field machine printer simulator validator generate-inst)
     (override len-limit window-size reset-generate-inst 
-	      get-register-mapping get-renaming-iterator)
+	      get-register-mapping get-renaming-iterator
+	      abstract)
 
     (define (len-limit) 2)
     (define (window-size) 4)
@@ -215,10 +216,10 @@
                           #:break (not valid))
 			 ;;(pretty-display `(rename-inst ,i))
                (rename-inst x i))])
-        (unless valid
-          (pretty-display "Rename: invalid")
-          (send printer print-syntax (send printer decode prog))
-          )
+        ;; (unless valid
+        ;;   (pretty-display "Rename: invalid")
+        ;;   (send printer print-syntax (send printer decode prog))
+        ;;   )
         (and valid new-x))
       )
 
@@ -239,6 +240,17 @@
 	  ))
        (recurse 0 (list) (vector->list mapping))
        (yield #f)))
-      
+
+    ;; TODO: memory, z
+    (define (abstract state-vec live-list k)
+      (define regs (vector-ref state-vec 0))
+      (define mems (vector-ref state-vec 1))
+      (define z (vector-ref state-vec 2))
+      (define fp (vector-ref state-vec 3))
+      (vector
+       (for/vector ([r regs] [i (vector-length regs)])
+		   (and (member i live-list) (modulo r k)))
+       (make-vector (vector-length mems) #f)
+       -1 fp))
 
     ))
