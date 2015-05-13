@@ -31,6 +31,8 @@
       (define live2 (send validator get-live-in postfix constraint extra))
       (define live2-vec (send machine progstate->vector live2))
       (define live1 (send validator get-live-in spec live2 extra))
+
+
       (define ntests 2)
       (define inits
 	(send validator generate-input-states ntests (vector-append prefix spec postfix)
@@ -57,8 +59,10 @@
 	   (send machine display-state i))
 
       (define t-start (current-seconds))
+      (define t-refine 0)
       (define t0 (current-seconds))
       (define count 0)
+      (define count-1 0)
       (define candidate-gen
 	(generator
 	 ()
@@ -69,6 +73,16 @@
 
 	   (define (build-table prog my-liveout-vec my-vreg liveout-vec states-vec-spec states-vec)
 	     
+	     (set! count (add1 count))
+	     (when (= (modulo count 100000) 0)
+		   (define t1 (current-seconds))
+		   (pretty-display `(time ,(- t1 t0) ,count 
+					  ,(exact->inexact (/ count-1 count))
+					  ,(exact->inexact (/ t-refine 1000 (- t1 t-start)))))
+		   ;; (pretty-display `(count/sec ,(exact->inexact (/ count (- t1 t0)))))
+		   ;; (set! count 0)
+		   (set! t0 t1))
+
 	     (let ([key (cons states-vec my-liveout-vec)])
 	       (if (hash-has-key? classes key)
 		   (let ([val (hash-ref classes key)])
@@ -81,26 +95,31 @@
 
 	     ;; (when (concat? prog) 
 	     ;; 	   (let ([x (concat-inst prog)])
-	     ;; 	     (when (and (equal? `@p 
+	     ;; 	     (when (and (equal? `rsb
              ;;                            (vector-ref (get-field inst-id machine) 
              ;;                                        (inst-op x)))
-	     ;; 			(equal? 3 (inst-args x)))
+	     ;; 			(equal? 4 (vector-ref (inst-args x) 1))
+	     ;; 			(equal? 0 (vector-ref (inst-args x) 2)))
              ;;               (newline)
-	     ;; 		   (pretty-display `(states-vec ,states-vec
+	     ;; 		   (pretty-display `(states-vec ,liveout-vec
+	     ;; 						,states-vec
 	     ;; 						,states-vec-spec))
              ;;               (newline))))
+
 	     (when
 	      (for/and ([state-spec states-vec-spec]
 			[state states-vec])
 		       ;(send machine state-eq? state-spec state liveout-vec))
 		       (send machine relaxed-state-eq? state-spec state liveout-vec))
+	      (set! count-1 (add1 count-1))
+	      (define t-refine-start (current-milliseconds))
 	      (when debug (pretty-display "[1] correct on first query"))
 
 	      (define (inner-loop iterator)
 		(define p (iterator))
 		(when p
-		      (pretty-display "After renaming")
-		      (send printer print-syntax (send printer decode p))
+		      ;; (pretty-display "After renaming")
+		      ;; (send printer print-syntax (send printer decode p))
 		      (when
 		       (for/and ([input-output ce-list])
 				(let* ([input (car input-output)]
@@ -112,9 +131,8 @@
 					       (send simulator interpret p input #:dep #f)))])
 				  (and my-output-vec
 				       (send machine state-eq? output-vec my-output-vec liveout-vec))))
-		       (when #t 
+		       (when debug
 			     (pretty-display "[2] all correct")
-			     (pretty-display `(time ,(- (current-seconds) t-start)))
 			     (pretty-display `(ce-list ,(length ce-list)))
 			     (when (= (length ce-list) 100)
 				   (for ([i 10]
@@ -152,20 +170,19 @@
 	      (define (loop iterator)
 		(define p (iterator))
 		(when p 
-		      (newline)
-		      (pretty-display "Before renaming")
-		      (send printer print-syntax (send printer decode p))
+		      ;; (newline)
+		      ;; (pretty-display "Before renaming")
+		      ;; (send printer print-syntax (send printer decode p))
 		      (when mapping
 			    (define iterator2 (get-renaming-iterator p mapping))
-			    ;; (pretty-display "After renaming")
-			    ;; (send printer print-syntax (send printer decode (iterator2)))
 			    (inner-loop iterator2)
 			    )
 		      (loop iterator))
 		)
 
 	      (when mapping (loop (get-collection-iterator prog)))
-	     )) ;; End build table
+	      (set! t-refine (+ t-refine (- (current-milliseconds) t-refine-start)))
+	      )) ;; End build table
 
 	   ;; Enmerate all possible program of one instruction
 	   (define (enumerate states progs-collection) 
@@ -178,13 +195,6 @@
 	       (define my-liveout (second inst-liveout-vreg))
 	       (define my-vreg (third inst-liveout-vreg))
                (when debug (pretty-display `(inner ,inst-liveout-vreg)))
-	       (set! count (add1 count))
-	       (when (= count 100000)
-		     (define t1 (current-seconds))
-		     (pretty-display `(time ,(- t1 t0) ,count))
-		     (pretty-display `(count/sec ,(exact->inexact (/ count (- t1 t0)))))
-		     (set! count 0)
-		     (set! t0 t1))
                (when 
                 my-inst
                 
@@ -206,11 +216,12 @@
 		(inner)))
 	     (inner))
 	   
-	   (for ([key (hash-keys prev-classes)])
-		(let ([val (hash-ref prev-classes key)]
-		      [outputs (map (lambda (x) (send machine vector->progstate x)) (car key))]
-		      [live-list (cdr key)])
-		  ;;(pretty-display `(key ,(car key) ,(cdr key)))
+	   (pretty-display `(eqv ,(hash-count prev-classes)))
+	   (for ([pair (hash->list prev-classes)])
+		(let* ([key (car pair)]
+		       [val (cdr pair)]
+		       [outputs (map (lambda (x) (send machine vector->progstate x)) (car key))]
+		       [live-list (cdr key)])
 		  ;; Initialize enumeration one instruction process
 		  (reset-generate-inst outputs live-list (entry-vreg val))
 		  (when debug
@@ -363,7 +374,7 @@
                       (hash-set! classes key (list prog))
                       (send time end `hash)
                       (set! my-count (add1 my-count))
-                      (when (= my-count 10000)
+                      (when (= my-count 50000)
                             ;(send time print-ce)
                             (send psql bulk-insert len classes #t)
                             (set! classes (make-hash))

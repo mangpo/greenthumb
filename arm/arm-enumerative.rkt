@@ -25,6 +25,8 @@
 
     (define (reset-generate-inst states live-in regs)
       (define z (progstate-z (car states))) ;; enough to look at one state.
+      ;; (define inst-choice '(add and#))
+      ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
       (define inst-pool (get-field inst-pool machine))
       (set! generate-inst 
 	    (generator 
@@ -156,7 +158,7 @@
 
 
     (define (rename prog assigned)
-      (pretty-display `(rename ,assigned))
+      ;(pretty-display `(rename ,assigned))
       (define len (vector-length prog))
       (define valid #t)
       (define table (make-vector (send machine get-nregs) #f))
@@ -216,13 +218,12 @@
         (unless valid
           (pretty-display "Rename: invalid")
           (send printer print-syntax (send printer decode prog))
-          ;;(raise "done")
           )
         (and valid new-x))
       )
 
     (define (get-renaming-iterator prog mapping)
-      (pretty-display `(get-renaming-iterator ,mapping))
+      ;(pretty-display `(get-renaming-iterator ,mapping))
       (generator
        ()
        (define (recurse index assigned mapping)
