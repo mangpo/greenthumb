@@ -21,6 +21,8 @@
     (abstract reset-generate-inst abstract)
     (public get-register-mapping get-renaming-iterator build-db)
 
+    (define bit (get-field bit machine))
+
     (define (synthesize-window spec sketch prefix postfix constraint extra 
                                [cost #f] [time-limit 3600]
                                #:hard-prefix [hard-prefix (vector)] 
@@ -203,14 +205,22 @@
 					     my-inst)
 				     states2-vec)))))
 
-	   (define (refine-modulo classes live-list my-vreg new-live-list my-inst k)
+	   (define (refine-abstract classes live-list my-vreg new-live-list my-inst k type)
+	     (define f
+	       (cond
+		[(equal? type `mod) 
+		 (let ([base (arithmetic-shift 1 k)])
+		   (lambda (x) (modulo x base)))]
+		[(equal? type `high) 
+		 (let ([mask (arithmetic-shift -1 (- bit k))])
+		   (lambda (x) (bitwise-and x mask)))]))
 	     (define abst-hash classes)
-	     (define abst-expect (map (lambda (x) (abstract x live-list k)) states2-vec-spec))
+	     (define abst-expect (map (lambda (x) (abstract x live-list f)) states2-vec-spec))
 	     (when (list? abst-hash)
 		   ;; TODO: live-list should contain memory as well
 		   (set! abst-hash (make-hash))
 		   (for ([states classes])
-			(let ([abst-states (map (lambda (x) (abstract x live-list k)) states)])
+			(let ([abst-states (map (lambda (x) (abstract x live-list f)) states)])
 			  (if (hash-has-key? abst-hash abst-states)
 			      (hash-set! abst-hash abst-states
 					 (cons states (hash-ref abst-hash abst-states)))
@@ -232,7 +242,7 @@
 					 (send simulator interpret (vector my-inst)
 					       (send machine vector->progstate x) 
 					       #:dep #f))
-				   new-live-list k))
+				   new-live-list f))
 				abst-states))])
 		    	 ;; [condition 
 		    	 ;;  (and abst-states-out
@@ -255,11 +265,12 @@
 			  (for/and ([state-spec abst-expect]
 				    [state abst-states-out])
 				   (send machine relaxed-state-eq? state-spec state live2-vec)))
-		     (if (< k 8)
+		     (if (< k 6)
 			 (hash-set! 
 			  abst-hash
 			  abst-states
-			  (refine-modulo real-states live-list my-vreg new-live-list my-inst (* k 2)))
+			  (refine-abstract real-states live-list my-vreg new-live-list my-inst 
+					   (add1 k) type))
 			 (refine-real real-states live-list my-vreg my-inst))
 		     )))
 
@@ -303,26 +314,30 @@
 	   (pretty-display `(eqv ,(hash-count prev-classes)))
 	   ;; Test
 	   (define t-abst-start (current-milliseconds))
-	   (define (abst-loop eqv-classes live-list my-vreg)
+	   (define (abst-loop eqv-classes live-list my-vreg type)
 	     (define inst-liveout-vreg (generate-inst)) ;; TODO: close under modulo
 	     (define my-inst (first inst-liveout-vreg))
 	     (define my-liveout (second inst-liveout-vreg))
 	     (when my-inst
 		   ;;(send printer print-syntax (send printer decode my-inst))
 	   	   (define abst-hash 
-	   	     (refine-modulo eqv-classes live-list my-vreg my-liveout my-inst 2))
-	   	   (abst-loop abst-hash live-list my-vreg)))
+	   	     (refine-abstract eqv-classes live-list my-vreg my-liveout my-inst 1 type))
+	   	   (abst-loop abst-hash live-list my-vreg type)))
 
 	   (for ([pair1 (hash->list prev-classes)])
 	   	(let* ([live-vreg (car pair1)]
 	   	       [live-list (entry-live live-vreg)]
 	   	       [my-vreg (entry-vreg live-vreg)]
 	   	       [hash2 (cdr pair1)]
-	   	       [eqv-classes (hash-keys hash2)])
-	   	  ;; use only first state
-	   	  (reset-generate-inst (list (send machine vector->progstate (caar eqv-classes)))
-	   			       live-list my-vreg `mod) 
-	   	  (abst-loop  eqv-classes live-list my-vreg)
+	   	       [eqv-classes (hash-keys hash2)]
+		       ;; use only first state
+		       [state-rep-list (list (send machine vector->progstate (caar eqv-classes)))])
+		  ;; modular abstraction
+	   	  (reset-generate-inst state-rep-list live-list my-vreg `mod) 
+	   	  (abst-loop  eqv-classes live-list my-vreg `mod)
+		  ;; high-byte-mask abstraction
+	   	  (reset-generate-inst state-rep-list live-list my-vreg `high)
+	   	  (abst-loop  eqv-classes live-list my-vreg `high)
 	   	  ))
 
 	   (set! t-abst (+ t-abst (- (current-milliseconds) t-abst-start)))
@@ -342,10 +357,12 @@
 			 (when debug
 			       (pretty-display `(ENUM!!!!!!!!!!!!! ,val))
 			       (print-concat val))
-			 (reset-generate-inst outputs live-list my-vreg `no-mod)
+			 (reset-generate-inst outputs live-list my-vreg `rest)
 			 (enumerate outputs val #t) ;; check
 			 (reset-generate-inst outputs live-list my-vreg `mod)
-			 (enumerate outputs val #f) ;; no checkin
+			 (enumerate outputs val #f) ;; no check
+			 (reset-generate-inst outputs live-list my-vreg `high)
+			 (enumerate outputs val #f) ;; no check
 			 ))))
 	   (when (< iter spec-len)
 		 (pretty-display `(iter ,iter ,spec-len))

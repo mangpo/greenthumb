@@ -36,13 +36,19 @@
 			mla mls
 			bfc bfi))
 
+    (define inst-high '(lsr# asr#))
+
     (define (reset-generate-inst states live-in regs type)
       (define z (progstate-z (car states))) ;; enough to look at one state.
       ;; (define inst-choice '(add and#))
       ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
       (define inst-pool (get-field inst-pool machine))
-      (when (equal? type `mod) 
-	    (set! inst-pool (filter (lambda (x) (member (vector-ref inst-id x) inst-mod)) inst-pool)))
+      (cond
+       [(equal? type `mod) 
+	(set! inst-pool (filter (lambda (x) (member (vector-ref inst-id x) inst-mod)) inst-pool))]
+       [(equal? type `high)
+	(set! inst-pool (filter (lambda (x) (member (vector-ref inst-id x) inst-high)) inst-pool))])
+	
       (set! generate-inst 
 	    (generator 
 	     ()
@@ -69,7 +75,13 @@
 				    (cdr ranges) v-reg))
                  ]))
 	     (for ([opcode-id inst-pool])
-		  (let ([opcode-name (vector-ref inst-id opcode-id)])
+		  (let ([opcode-name (vector-ref inst-id opcode-id)]
+			[cond1 (or (not (equal? type `rest))
+				   (and (equal? type `rest)
+					(not (member (vector-ref inst-id opcode-id) inst-mod))
+					(not (member (vector-ref inst-id opcode-id) inst-high))))]
+			[cond2 (or (equal? type `rest) (equal? type `all))]
+			)
 		    (unless 
 		     (equal? opcode-name `nop)
 		     (when debug 
@@ -90,9 +102,7 @@
 				(begin
 				  ;; no shift
 				  (when
-				   (or (equal? type `all) (equal? type `mod)
-				       (and (equal? type `no-mod) 
-					    (not (member (vector-ref inst-id opcode-id) inst-mod))))
+				   cond1
 				   (recurse-args opcode-id 0 #f cond-type (list) 
 						 arg-ranges regs)
 				   (let ([shfop 1]) ;; lsl#
@@ -102,7 +112,7 @@
 				   )
 				  ;; shift
 				  (when 
-				   (or (equal? type `no-mod) (equal? type `all))
+				   cond2
 				   (for* ([shfop (range 2 shf-inst-len)]
 					  [shfarg (send machine get-shfarg-range shfop live-in)])
 					 (recurse-args opcode-id shfop shfarg cond-type (list) 
@@ -110,9 +120,7 @@
 				  )
 				;; no shift
 				(when
-				 (or (equal? type `all) (equal? type `mod)
-				     (and (equal? type `no-mod) 
-					  (not (member (vector-ref inst-id opcode-id) inst-mod))))
+				 cond1
 				 (recurse-args opcode-id 0 #f cond-type (list) 
 					       arg-ranges regs))
 				))))))
@@ -265,14 +273,14 @@
        (yield #f)))
 
     ;; TODO: memory, z
-    (define (abstract state-vec live-list k)
+    (define (abstract state-vec live-list f)
       (define regs (vector-ref state-vec 0))
       (define mems (vector-ref state-vec 1))
       (define z (vector-ref state-vec 2))
       (define fp (vector-ref state-vec 3))
       (vector
        (for/vector ([r regs] [i (vector-length regs)])
-		   (and (member i live-list) (modulo r k)))
+		   (and (member i live-list) (f r)))
        (make-vector (vector-length mems) #f)
        -1 fp))
 
