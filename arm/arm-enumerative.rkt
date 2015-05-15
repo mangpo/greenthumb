@@ -12,7 +12,7 @@
     (inherit-field machine printer simulator validator generate-inst)
     (override len-limit window-size reset-generate-inst 
 	      get-register-mapping get-renaming-iterator
-	      abstract)
+	      abstract lexical-skeleton)
 
     (define (len-limit) 2)
     (define (window-size) 4)
@@ -22,7 +22,8 @@
     (define inst-id (get-field inst-id machine))
     (define inst-with-shf (get-field inst-with-shf machine))
     (define cond-type-len (vector-length (get-field cond-inst-id machine)))
-    (define shf-inst-len (vector-length (get-field shf-inst-id machine)))
+    (define shf-inst-id (get-field shf-inst-id machine))
+    (define shf-inst-len (vector-length shf-inst-id))
 
     (define inst-mod '(add sub rsb
 			and orr eor bic orn
@@ -37,6 +38,10 @@
 			bfc bfi))
 
     (define inst-high '(lsr# asr#))
+
+    (define commutative-0-1 '(tst))
+    (define commutative-1-2 '(add and orr eor mul smmul))
+    (define commutative-2-3 '(mla smull umull smmla))
 
     (define (reset-generate-inst states live-in regs type)
       (define z (progstate-z (car states))) ;; enough to look at one state.
@@ -53,27 +58,39 @@
 	    (generator 
 	     ()
 	     (when debug (pretty-display `(reset-generate-inst ,inst-pool)))
-	     (define (recurse-args opcode-id shfop shfarg cond-type args ranges v-reg)
-	       (when debug (pretty-display `(recurse-args ,args ,ranges)))
-	       (cond
-		[(empty? ranges)
-		 (let ([i (arm-inst opcode-id 
-				    (list->vector (reverse args)) 
-				    shfop shfarg cond-type)])
-		   (yield (list i (send machine update-live live-in i) v-reg))
-		   )]
 
-		[(equal? (car ranges) #f) ;; SSA (virtual register)
-		 (recurse-args opcode-id shfop shfarg cond-type 
-			       (cons v-reg args)
-			       (cdr ranges) (add1 v-reg))]
+	     (define (recurse-args opcode opcode-id shfop shfarg cond-type args ranges v-reg)
+	       (when debug (pretty-display `(recurse-args ,args ,ranges, shfop)))
+	       ;; Symmetry reduction for commutative operations
+	       (define pass
+		 (cond
+		  [(and (= (length args) 2) (member opcode commutative-0-1) (= shfop 0))
+		   (<= (second args) (first args))]
+		  [(and (= (length args) 3) (member opcode commutative-1-2) (= shfop 0))
+		   (<= (second args) (first args))]
+		  [(and (= (length args) 4) (member opcode commutative-2-3) (= shfop 0))
+		   (<= (second args) (first args))]
+		  [else #t]))
+	       (when
+		pass
+		(cond
+		 [(empty? ranges)
+		  (let ([i (arm-inst opcode-id (list->vector (reverse args)) shfop shfarg cond-type)])
+		    (yield (list i (send machine update-live live-in i) v-reg))
+		    )]
 
-		[else
-		 (for ([arg (car ranges)])
-		      (recurse-args opcode-id shfop shfarg cond-type 
-				    (cons arg args)
-				    (cdr ranges) v-reg))
-                 ]))
+		 [(equal? (car ranges) #f) ;; SSA (virtual register)
+		  (recurse-args opcode opcode-id shfop shfarg cond-type 
+				(cons v-reg args)
+				(cdr ranges) (add1 v-reg))]
+
+		 [else
+		  (for ([arg (car ranges)])
+		       (recurse-args opcode opcode-id shfop shfarg cond-type 
+				     (cons arg args)
+				     (cdr ranges) v-reg))
+		  ])))
+
 	     (for ([opcode-id inst-pool])
 		  (let ([opcode-name (vector-ref inst-id opcode-id)]
 			[cond1 (or (not (equal? type `rest))
@@ -103,26 +120,26 @@
 				  ;; no shift
 				  (when
 				   cond1
-				   (recurse-args opcode-id 0 #f cond-type (list) 
-						 arg-ranges regs)
+				   (recurse-args opcode-name opcode-id 0 #f cond-type 
+						 (list) arg-ranges regs)
 				   (let ([shfop 1]) ;; lsl#
 				     (for* ([shfarg (send machine get-shfarg-range shfop live-in)])
-					   (recurse-args opcode-id shfop shfarg cond-type (list) 
-							 arg-ranges regs)))
+					   (recurse-args opcode-name opcode-id shfop shfarg cond-type 
+							 (list) arg-ranges regs)))
 				   )
 				  ;; shift
 				  (when 
 				   cond2
 				   (for* ([shfop (range 2 shf-inst-len)]
 					  [shfarg (send machine get-shfarg-range shfop live-in)])
-					 (recurse-args opcode-id shfop shfarg cond-type (list) 
-						       arg-ranges regs)))
+					 (recurse-args opcode-name opcode-id shfop shfarg cond-type 
+						       (list) arg-ranges regs)))
 				  )
 				;; no shift
 				(when
 				 cond1
-				 (recurse-args opcode-id 0 #f cond-type (list) 
-					       arg-ranges regs))
+				 (recurse-args opcode-name opcode-id 0 #f cond-type 
+					       (list) arg-ranges regs))
 				))))))
 	     (yield (list #f #f #f)))))
 
@@ -283,5 +300,26 @@
 		   (and (member i live-list) (f r)))
        (make-vector (vector-length mems) #f)
        -1 fp))
+
+    (define (lexical-skeleton x)
+      (define opcode-id (inst-op x))
+      (define opcode-name (vector-ref inst-id opcode-id))
+      (cond
+       [(member opcode-name '(tst cmp tst# cmp#)) 
+	#f]
+
+       [else
+	(define args (inst-args x))
+	(define shfop (inst-shfop x))
+	(define shfarg (inst-shfarg x))
+	(define args-ret (list))
+	(define ops-ret #f)
+	(for ([c (send machine get-reg-ranges opcode-name)] ;; TODO: memory
+	      [arg (inst-args x)])
+	     (when c (set! args-ret (cons arg args-ret))))
+	(when (member (vector-ref shf-inst-id shfop) '(asr lsl lsr))
+	      (set! args-ret (cons shfarg args-ret)))
+	(set! ops-ret (list opcode-id shfop))
+	(list (sort args-ret >) (reverse args-ret) ops-ret)]))
 
     ))
