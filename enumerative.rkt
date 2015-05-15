@@ -8,9 +8,10 @@
 (struct concat (collection inst))
 
 ;(struct entry (live vreg))
-(define-syntax-rule (entry live vreg) (cons live vreg))
-(define-syntax-rule (entry-live x) (car x))
-(define-syntax-rule (entry-vreg x) (cdr x))
+(define-syntax-rule (entry live vreg flag) (list live vreg flag))
+(define-syntax-rule (entry-live x) (first x))
+(define-syntax-rule (entry-vreg x) (second x))
+(define-syntax-rule (entry-flag x) (third x))
 
 (define enumerative%
   (class decomposer%
@@ -20,7 +21,7 @@
     (override synthesize-window)
     (abstract reset-generate-inst abstract lexical-skeleton)
     (public get-register-mapping get-renaming-iterator build-db
-	    lexical-cmp)
+	    lexical-cmp get-flag)
 
     (define bit (get-field bit machine))
 
@@ -32,7 +33,7 @@
                                #:assume [assumption (send machine no-assumption)])
       (define spec-len (vector-length spec))
       (define org-nregs (send machine get-nregs)) ;; #f is default
-      (send machine analyze-args prefix spec postfix #:vreg spec-len)
+      (send machine analyze-args prefix spec postfix); #:vreg spec-len)
       (send machine analyze-opcode prefix spec postfix)
 
       (define live2 (send validator get-live-in postfix constraint extra))
@@ -58,9 +59,14 @@
       (pretty-display `(states2-vec-spec ,states2-vec-spec))
       (pretty-display `(live2-vec ,live2-vec))
       ;; key = (cons list of output-vec, liveout-vec)
-      (hash-set! prev-classes 
-		 (entry (send machine get-operand-live live1) org-nregs)
-		 (make-hash (list (cons states1-vec (list (vector))))))
+      ;; (hash-set! prev-classes 
+      ;; 		 (entry (send machine get-operand-live live1) 
+      ;; 			org-nregs 
+      ;; 			(get-flag (car states1)))
+      ;; 		 (make-hash (list (cons states1-vec (list (vector))))))
+      (class-insert! prev-classes 
+		     (send machine get-operand-live live1) org-nregs  
+		     states1-vec (vector))
 
       (for ([i states1])
 	   (send machine display-state i))
@@ -108,13 +114,15 @@
 	     (when
 	      (for/and ([state-spec states2-vec-spec]
 			[state states-vec])
-		       (send machine relaxed-state-eq? state-spec state live2-vec))
+		       ;(send machine relaxed-state-eq? state-spec state live2-vec)
+		       (send machine state-eq? state-spec state live2-vec)
+		       )
 	      (set! count-1 (add1 count-1))
 	      (define t-refine-start (current-milliseconds))
 	      (when debug (pretty-display "[1] correct on first query"))
 
 	      (define (inner-loop iterator)
-		(define p (iterator))
+	      	(define p (iterator))
 		(when p
 		      ;; (pretty-display "After renaming")
 		      ;; (send printer print-syntax (send printer decode p))
@@ -169,23 +177,24 @@
 		       )
 		      (inner-loop iterator)))
 
-	      (define mapping 
-		(get-register-mapping org-nregs states2-vec-spec states-vec live2-vec))
+	      ;; (define mapping 
+	      ;; 	(get-register-mapping org-nregs states2-vec-spec states-vec live2-vec))
 
-	      (define (loop iterator)
-		(define p (iterator))
-		(when p 
-		      ;; (newline)
-		      ;; (pretty-display "Before renaming")
-		      ;; (send printer print-syntax (send printer decode p))
-		      (when mapping
-			    (define iterator2 (get-renaming-iterator p mapping))
-			    (inner-loop iterator2)
-			    )
-		      (loop iterator))
-		)
+	      ;; (define (loop iterator)
+	      ;; 	(define p (iterator))
+	      ;; 	(when p 
+	      ;; 	      ;; (newline)
+	      ;; 	      ;; (pretty-display "Before renaming")
+	      ;; 	      ;; (send printer print-syntax (send printer decode p))
+	      ;; 	      (when mapping
+	      ;; 		    (define iterator2 (get-renaming-iterator p mapping))
+	      ;; 		    (inner-loop iterator2)
+	      ;; 		    )
+	      ;; 	      (loop iterator))
+	      ;; 	)
 
-	      (when mapping (loop (get-collection-iterator prog)))
+	      ;; (when mapping (loop (get-collection-iterator prog)))
+	      (inner-loop (get-collection-iterator prog))
 	      (set! t-refine (+ t-refine (- (current-milliseconds) t-refine-start)))
 	      )
 	     ) ;; End check-eqv
@@ -245,11 +254,6 @@
 					       #:dep #f))
 				   new-live-list f))
 				abst-states))])
-		    	 ;; [condition 
-		    	 ;;  (and abst-states-out
-		    	 ;;  (for/and ([state-spec abst-expect]
-		    	 ;; 	    [state abst-states-out])
-		    	 ;; 	   (send machine relaxed-state-eq? state-spec state live2-vec)))])
 		    ;; (when (and (equal? `and 
 		    ;; 		       (vector-ref (get-field inst-id machine) (inst-op my-inst)))
 		    ;; 	       (equal? 2 (vector-ref (inst-args my-inst) 0))
@@ -265,7 +269,9 @@
 		     (and abst-states-out
 			  (for/and ([state-spec abst-expect]
 				    [state abst-states-out])
-				   (send machine relaxed-state-eq? state-spec state live2-vec)))
+				   ;(send machine relaxed-state-eq? state-spec state live2-vec)
+				   (send machine state-eq? state-spec state live2-vec)
+				   ))
 		     (if (< k 6)
 			 (hash-set! 
 			  abst-hash
@@ -306,7 +312,7 @@
 		  (when debug (pretty-display `(after-interpret ,(list? states2-vec))))
 		  
 		  (when states2-vec 
-			(class-insert! classes my-liveout states2-vec my-vreg prog)
+			(class-insert! classes my-liveout my-vreg states2-vec prog)
 			(when check (check-eqv prog states2-vec))
 			))
 		(inner)))
@@ -333,11 +339,12 @@
 	   	       [eqv-classes (hash-keys hash2)]
 		       ;; use only first state
 		       [state-rep-list (list (send machine vector->progstate (caar eqv-classes)))])
+		  (pretty-display `(key ,live-vreg))
 		  ;; modular abstraction
-	   	  (reset-generate-inst state-rep-list live-list my-vreg `mod #f) 
+	   	  (reset-generate-inst state-rep-list live-list #f `mod #f) 
 	   	  (abst-loop  eqv-classes live-list my-vreg `mod)
 		  ;; high-byte-mask abstraction
-	   	  (reset-generate-inst state-rep-list live-list my-vreg `high #f)
+	   	  (reset-generate-inst state-rep-list live-list #f `high #f)
 	   	  (abst-loop  eqv-classes live-list my-vreg `high)
 	   	  ))
 
@@ -361,11 +368,11 @@
 			       (pretty-display `(ENUM!!!!!!!!!!!!! ,val))
 			       (print-concat val)
 			       )
-			 (reset-generate-inst outputs live-list my-vreg `rest smallest-lex)
+			 (reset-generate-inst outputs live-list #f `rest smallest-lex)
 			 (enumerate outputs val #t) ;; check
-			 (reset-generate-inst outputs live-list my-vreg `mod smallest-lex)
+			 (reset-generate-inst outputs live-list #f `mod smallest-lex)
 			 (enumerate outputs val #f) ;; no check
-			 (reset-generate-inst outputs live-list my-vreg `high smallest-lex)
+			 (reset-generate-inst outputs live-list #f `high smallest-lex)
 			 (enumerate outputs val #f) ;; no check
 			 ))))
 	   (when (< iter spec-len)
@@ -377,8 +384,10 @@
       (print-concat (candidate-gen))
       )
 
-    (define (class-insert! class live-vec states-vec my-vreg prog)
-      (define key (entry live-vec my-vreg))
+    (define (get-flag state) #f)
+
+    (define (class-insert! class live-vec my-vreg states-vec prog)
+      (define key (entry live-vec my-vreg (get-flag (car states-vec))))
       (if (hash-has-key? class key)
 	  (let ([hash2 (hash-ref class key)])
 	    (if (hash-has-key? hash2 states-vec)
@@ -391,7 +400,7 @@
     (define (class-ref class live-vec my-vreg states-vec)
       ;; (pretty-display `(class-ref ,live-vec ,my-vreg ,states-vec))
       ;; (pretty-display `(level1 ,(hash-ref class (entry live-vec my-vreg))))
-      (hash-ref (hash-ref class (entry live-vec my-vreg)) states-vec))
+      (hash-ref (hash-ref class (entry live-vec my-vreg (get-flag (car states-vec)))) states-vec))
 
     (define (print-concat collection)
       (define (inner x [indent ""])

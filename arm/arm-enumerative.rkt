@@ -13,7 +13,7 @@
     (inherit lexical-cmp)
     (override len-limit window-size reset-generate-inst 
 	      get-register-mapping get-renaming-iterator
-	      abstract lexical-skeleton)
+	      abstract lexical-skeleton get-flag)
 
     (define (len-limit) 2)
     (define (window-size) 4)
@@ -109,7 +109,7 @@
 			)
 		    (unless 
 		     (equal? opcode-name `nop)
-		     (when debug 
+		     (when debug
 			   (pretty-display `(opcode-name ,opcode-name
 							 ,(send machine get-arg-ranges-enum 
 								opcode-name #f live-in))))
@@ -120,7 +120,7 @@
                                   (send machine get-arg-ranges-enum opcode-name #f live-in))
                                  (vector->list
                                   (send machine get-arg-ranges opcode-name #f live-in)))]
-			    [cond-bound (if (= z -1) 1  cond-type-len)])
+			    [cond-bound (if (or (= z -1) regs) 1 cond-type-len)])
 		       (when debug (pretty-display `(iterate ,shf? ,arg-ranges ,cond-bound)))
 		       (for ([cond-type cond-bound])
 			    (if shf?
@@ -307,7 +307,7 @@
        (for/vector ([r regs] [i (vector-length regs)])
 		   (and (member i live-list) (f r)))
        (make-vector (vector-length mems) #f)
-       -1 fp))
+       z fp))
 
     (define (lexical-skeleton x)
       (define opcode-id (inst-op x))
@@ -329,5 +329,9 @@
 	      (set! args-ret (cons shfarg args-ret)))
 	(set! ops-ret (list opcode-id shfop))
 	(list (sort args-ret >) (reverse args-ret) ops-ret)]))
+
+    (define (get-flag state-vec) 
+      (define z (vector-ref state-vec 2))
+      (= z -1))
 
     ))
