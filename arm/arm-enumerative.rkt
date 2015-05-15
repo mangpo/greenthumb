@@ -10,6 +10,7 @@
   (class enumerative%
     (super-new)
     (inherit-field machine printer simulator validator generate-inst)
+    (inherit lexical-cmp)
     (override len-limit window-size reset-generate-inst 
 	      get-register-mapping get-renaming-iterator
 	      abstract lexical-skeleton)
@@ -43,7 +44,7 @@
     (define commutative-1-2 '(add and orr eor mul smmul))
     (define commutative-2-3 '(mla smull umull smmla))
 
-    (define (reset-generate-inst states live-in regs type)
+    (define (reset-generate-inst states live-in regs type lex)
       (define z (progstate-z (car states))) ;; enough to look at one state.
       ;; (define inst-choice '(add and#))
       ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
@@ -75,8 +76,15 @@
 		pass
 		(cond
 		 [(empty? ranges)
-		  (let ([i (arm-inst opcode-id (list->vector (reverse args)) shfop shfarg cond-type)])
-		    (yield (list i (send machine update-live live-in i) v-reg))
+		  (let* ([i (arm-inst opcode-id (list->vector (reverse args)) shfop shfarg cond-type)]
+			 [ret (list i (send machine update-live live-in i) v-reg)])
+		    (if lex
+		    	(let ([my-lex (lexical-skeleton i)])
+		    	  (if my-lex
+		    	      (when (>= (lexical-cmp my-lex lex) 0)
+		    		    (yield ret))
+		    	      (yield ret)))
+		    	(yield ret))
 		    )]
 
 		 [(equal? (car ranges) #f) ;; SSA (virtual register)

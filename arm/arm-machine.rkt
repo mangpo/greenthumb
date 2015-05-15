@@ -95,7 +95,7 @@
 	      get-arg-ranges get-operand-live
 	      window-size clean-code 
 	      analyze-opcode analyze-args relaxed-state-eq? get-nregs)
-    (public get-shfarg-range get-arg-ranges-enum)
+    (public get-shfarg-range get-arg-ranges-enum get-reg-ranges)
 
     (set! bit 32)
     (set! random-input-bit 32)
@@ -406,6 +406,23 @@
        [(equal? opcode-name `str#) (vector (reg) (vector "fp") mem-range)]
        [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range-no-0)]
        [else (vector)]))
+    
+    (define (get-reg-ranges opcode-name)
+      (define-syntax-rule (reg) #t)
+      (define class-id (get-class-id opcode-name))
+      (define mem-range #f)
+      (cond
+       [(equal? class-id 0) (vector #f (reg) (reg))]
+       [(equal? class-id 1) (vector #f (reg) #f)]
+       ;[(equal? class-id 2) (vector #f (reg) bit-range)]
+       [(equal? class-id 2) (vector #f (reg))]
+       [(equal? class-id 3) (vector #f #f)]
+       [(equal? class-id 4) (vector #f #f (reg) (reg))]
+       [(equal? class-id 5) (vector #f (reg) #f #f)]
+       [(equal? opcode-name `ldr#) (vector #f #f mem-range)]
+       [(equal? opcode-name `str#) (vector (reg) #f mem-range)]
+       [(equal? opcode-name `bfc) (vector (reg) #f #f)]
+       [else (vector)]))
 
     (define (get-shfarg-range shfop-id live-in)
       (define shfop-name (vector-ref shf-inst-id shfop-id))
@@ -474,32 +491,32 @@
       (not (code-has code '(smull umull smmul smmla smmls)))
       )
 
-    (define/override (reset-inst-pool)
-      (define inst-choice '( 
-                     add sub rsb
-                     add# sub# rsb#
-                     and orr eor bic orn
-                     and# orr# eor# bic# orn#
-                     mov mvn
-                     mov# mvn# movw# movt#
-                     rev rev16 revsh rbit
-                     asr lsl lsr
-                     asr# lsl# lsr#
-                     mul mla mls
-                     ;; smull umull
-                     ;; smmul smmla smmls
-                     sdiv udiv
-        	     uxtah uxth uxtb
-                     bfc bfi
-                     sbfx ubfx
-                     clz
-                     ;; ldr str
-                     ;; ldr# str#
-                     tst cmp
-                     tst# cmp#
-                     ))
+    ;; (define/override (reset-inst-pool)
+    ;;   (define inst-choice '( 
+    ;;                  add sub rsb
+    ;;                  add# sub# rsb#
+    ;;                  and orr eor bic orn
+    ;;                  and# orr# eor# bic# orn#
+    ;;                  mov mvn
+    ;;                  mov# mvn# movw# movt#
+    ;;                  rev rev16 revsh rbit
+    ;;                  asr lsl lsr
+    ;;                  asr# lsl# lsr#
+    ;;                  mul mla mls
+    ;;                  ;; smull umull
+    ;;                  ;; smmul smmla smmls
+    ;;                  sdiv udiv
+    ;;     	     uxtah uxth uxtb
+    ;;                  bfc bfi
+    ;;                  sbfx ubfx
+    ;;                  clz
+    ;;                  ;; ldr str
+    ;;                  ;; ldr# str#
+    ;;                  tst cmp
+    ;;                  tst# cmp#
+    ;;                  ))
                                 
-      (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
+    ;;   (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
 
 
     (define (analyze-args-inst x) ;; TODO: move this to machine.rkt

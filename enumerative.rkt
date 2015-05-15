@@ -18,8 +18,9 @@
     (init-field [generate-inst #f])
     (inherit-field machine printer validator simulator)
     (override synthesize-window)
-    (abstract reset-generate-inst abstract)
-    (public get-register-mapping get-renaming-iterator build-db)
+    (abstract reset-generate-inst abstract lexical-skeleton)
+    (public get-register-mapping get-renaming-iterator build-db
+	    lexical-cmp)
 
     (define bit (get-field bit machine))
 
@@ -333,10 +334,10 @@
 		       ;; use only first state
 		       [state-rep-list (list (send machine vector->progstate (caar eqv-classes)))])
 		  ;; modular abstraction
-	   	  (reset-generate-inst state-rep-list live-list my-vreg `mod) 
+	   	  (reset-generate-inst state-rep-list live-list my-vreg `mod #f) 
 	   	  (abst-loop  eqv-classes live-list my-vreg `mod)
 		  ;; high-byte-mask abstraction
-	   	  (reset-generate-inst state-rep-list live-list my-vreg `high)
+	   	  (reset-generate-inst state-rep-list live-list my-vreg `high #f)
 	   	  (abst-loop  eqv-classes live-list my-vreg `high)
 	   	  ))
 
@@ -352,16 +353,19 @@
 		  (for ([pair2 (hash->list hash2)])
 		       (let* ([val (cdr pair2)]
 			      [outputs (map (lambda (x) (send machine vector->progstate x)) 
-					    (car pair2))])
+					    (car pair2))]
+			      [smallest-lex (get-smallest-lex val)]
+			      )
 			 ;; Initialize enumeration one instruction process
 			 (when debug
 			       (pretty-display `(ENUM!!!!!!!!!!!!! ,val))
-			       (print-concat val))
-			 (reset-generate-inst outputs live-list my-vreg `rest)
+			       (print-concat val)
+			       )
+			 (reset-generate-inst outputs live-list my-vreg `rest smallest-lex)
 			 (enumerate outputs val #t) ;; check
-			 (reset-generate-inst outputs live-list my-vreg `mod)
+			 (reset-generate-inst outputs live-list my-vreg `mod smallest-lex)
 			 (enumerate outputs val #f) ;; no check
-			 (reset-generate-inst outputs live-list my-vreg `high)
+			 (reset-generate-inst outputs live-list my-vreg `high smallest-lex)
 			 (enumerate outputs val #f) ;; no check
 			 ))))
 	   (when (< iter spec-len)
@@ -382,7 +386,7 @@
 		  (hash-set! hash2 states-vec (cons prog val)))
 		(hash-set! hash2 states-vec (list prog))))
 	  (hash-set! class key 
-		     (make-hash (list (cons states-vec (entry (list prog) my-vreg)))))))
+		     (make-hash (list (cons states-vec (list prog)))))))
 
     (define (class-ref class live-vec my-vreg states-vec)
       ;; (pretty-display `(class-ref ,live-vec ,my-vreg ,states-vec))
@@ -408,7 +412,48 @@
 	  (pretty-display (format "~a~a" indent x))])
 	)
       (inner collection))
+
+    (define (lexical-cmp x y)
+      (cond
+       [(number? x)
+	(cond
+	 [(< x y) -1]
+	 [(> x y) 1]
+	 [(= x y) 0])]
+       
+       [(list? x)
+	(define (loop i j)
+	  (cond
+	   [(and (empty? i) (empty? j)) 0]
+	   [(empty? i) -1]
+	   [(empty? j) 1]
+	   [else
+	    (define ans (lexical-cmp (car i) (car j)))
+	    (if (not (= ans 0))
+		ans
+		(loop (cdr i) (cdr j)))]))
+	(loop x y)]))
+
+    (define (lexical-smaller x y)
+      (if (and x y) 
+	  (if (= (lexical-cmp x y) -1) x y)
+	  #f))
     
+    (define (get-smallest-lex x)
+      (define (f x)
+	(cond
+	 [(concat? x) (lexical-skeleton (concat-inst x))]
+	 [(vector? x)
+	  (define len (vector-length x))
+	  (if (= len 0) #f (lexical-skeleton (vector-ref x (sub1 (vector-length)))))]
+	 [(list? x) 
+	  (if (empty? x)
+	      #f
+	      (foldl (lambda (x res) 
+		       (lexical-smaller (f x) res))
+		     (f (car x)) (cdr x)))]))
+      (f x))
+
     (define (get-first-program x [postfix (vector)])
       (cond
         [(concat? x)
@@ -591,7 +636,7 @@
         (for ([x data])
              (let ([progs (record-progs x)]
                    [outputs (record-states x)])
-               (reset-generate-inst outputs live-list #f `all)
+               (reset-generate-inst outputs live-list #f `all #f)
                (enumerate outputs progs)))
 
         (send psql bulk-insert len classes #t)
