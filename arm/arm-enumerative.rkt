@@ -78,13 +78,14 @@
 		 [(empty? ranges)
 		  (let* ([i (arm-inst opcode-id (list->vector (reverse args)) shfop shfarg cond-type)]
 			 [ret (list i (send machine update-live live-in i) v-reg)])
-		    (if lex
-		    	(let ([my-lex (lexical-skeleton i)])
-		    	  (if my-lex
-		    	      (when (>= (lexical-cmp my-lex lex) 0)
-		    		    (yield ret))
-		    	      (yield ret)))
-		    	(yield ret))
+		    ;; (if lex
+		    ;; 	(let ([my-lex (lexical-skeleton i)])
+		    ;; 	  (if my-lex
+		    ;; 	      (when (>= (lexical-cmp my-lex lex) 0)
+		    ;; 		    (yield ret))
+		    ;; 	      (yield ret)))
+		    ;; 	(yield ret))
+		    (yield ret)
 		    )]
 
 		 [(equal? (car ranges) #f) ;; SSA (virtual register)

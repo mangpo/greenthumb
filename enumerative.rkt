@@ -361,7 +361,8 @@
 		       (let* ([val (cdr pair2)]
 			      [outputs (map (lambda (x) (send machine vector->progstate x)) 
 					    (car pair2))]
-			      [smallest-lex (get-smallest-lex val)]
+			      ;[smallest-lex (get-smallest-lex val)]
+			      [smallest-lex #f]
 			      )
 			 ;; Initialize enumeration one instruction process
 			 (when debug
