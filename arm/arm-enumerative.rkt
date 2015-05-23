@@ -44,7 +44,9 @@
     (define commutative-1-2 '(add and orr eor mul smmul))
     (define commutative-2-3 '(mla smull umull smmla))
 
-    (define (reset-generate-inst states live-in regs type lex)
+    (define (reset-generate-inst states live-in regs type lex #:live-limit [limit #f])
+      (when (and limit live-in (> (length live-in) limit))
+      	    (set! live-in (take live-in limit)))
       (define z (progstate-z (car states))) ;; enough to look at one state.
       ;; (define inst-choice '(add and#))
       ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
@@ -78,15 +80,14 @@
 		 [(empty? ranges)
 		  (let* ([i (arm-inst opcode-id (list->vector (reverse args)) shfop shfarg cond-type)]
 			 [ret (list i (send machine update-live live-in i) v-reg)])
-		    ;; (if lex
-		    ;; 	(let ([my-lex (lexical-skeleton i)])
-		    ;; 	  (if my-lex
-		    ;; 	      (when (>= (lexical-cmp my-lex lex) 0)
-		    ;; 		    (yield ret))
-		    ;; 	      (yield ret)))
-		    ;; 	(yield ret))
-		    (yield ret)
-		    )]
+		    (if lex
+		    	(let ([my-lex (lexical-skeleton i)])
+		    	  (if my-lex
+		    	      (when (>= (lexical-cmp my-lex lex) 0)
+		    		    (yield ret))
+		    	      (yield ret)))
+		    	(yield ret)))
+		  ]
 
 		 [(equal? (car ranges) #f) ;; SSA (virtual register)
 		  (recurse-args opcode opcode-id shfop shfarg cond-type 
@@ -121,8 +122,8 @@
                                   (send machine get-arg-ranges-enum opcode-name #f live-in))
                                  (vector->list
                                   (send machine get-arg-ranges opcode-name #f live-in)))]
-			    [cond-bound (if (or (= z -1) regs) 1 cond-type-len)])
-		       (when debug (pretty-display `(iterate ,shf? ,arg-ranges ,cond-bound)))
+			    [cond-bound (if (or (= z -1) regs) 1 cond-type-len)]) ;; TODO
+		       (when debug (pretty-display `(iterate ,opcode-name ,arg-ranges ,cond-bound)))
 		       (for ([cond-type cond-bound])
 			    (if shf?
 				(begin
@@ -201,12 +202,12 @@
         (cond
 	 [(equal? class-id 0) (check reg reg reg)]
 	 [(equal? class-id 1) (check reg reg imm)]
-	 ;;[(equal? class-id 2) (check #f reg imm)]
 	 [(equal? class-id 2) (check reg reg)]
 	 [(equal? class-id 3) (check reg imm)]
 	 [(equal? class-id 4) (check reg reg reg reg)]
-	 [(equal? class-id 5) (check reg reg imm imm)]
-	 [(equal? class-id 6) (check reg id imm)]
+	 [(equal? class-id 5) (check reg reg reg reg)]
+	 [(equal? class-id 6) (check reg reg imm imm)]
+	 [(equal? class-id 7) (check reg id imm)]
 	 [(member opcode-name '(bfc)) (check reg imm imm)]
 	 [(equal? opcode-name `nop) #t]
 	 [else (raise (format "rename: undefined for ~a" opcode-name))]))
@@ -257,12 +258,12 @@
 	(cond
 	 [(equal? class-id 0) (make-inst reg reg reg)]
 	 [(equal? class-id 1) (make-inst reg reg imm)]
-	 ;;[(equal? class-id 2) (make-inst reg reg imm)]
 	 [(equal? class-id 2) (make-inst reg reg)]
 	 [(equal? class-id 3) (make-inst reg imm)]
 	 [(equal? class-id 4) (make-inst reg reg reg reg)]
-	 [(equal? class-id 5) (make-inst reg reg imm imm)]
-	 [(equal? class-id 6) (make-inst reg id imm)]
+	 [(equal? class-id 5) (make-inst reg reg reg reg)]
+	 [(equal? class-id 6) (make-inst reg reg imm imm)]
+	 [(equal? class-id 7) (make-inst reg id imm)]
 	 [(member opcode-name '(bfc)) (make-inst reg imm imm)]
 	 [(equal? opcode-name `nop) inst]
 	 [else (raise (format "rename: undefined for ~a" opcode-name))]))

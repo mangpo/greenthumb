@@ -85,7 +85,7 @@
     (inherit-field bit random-input-bit inst-id inst-pool
 		   classes classes-len classes-filtered
 		   perline nop-id)
-    (inherit print-line get-class-id filter-live update-live state-eq?)
+    (inherit print-line get-class-id filter-live state-eq?)
     (override set-config get-config set-config-string
               adjust-config finalize-config config-exceed-limit?
               get-state get-state-liveness display-state 
@@ -94,7 +94,8 @@
               progstate->vector vector->progstate
 	      get-arg-ranges get-operand-live
 	      window-size clean-code 
-	      analyze-opcode analyze-args relaxed-state-eq? get-nregs)
+	      analyze-opcode analyze-args relaxed-state-eq? get-nregs
+	      is-virtual-reg update-live)
     (public get-shfarg-range get-arg-ranges-enum get-reg-ranges)
 
     (set! bit 32)
@@ -144,8 +145,8 @@
 			clz
                         tst cmp) ;;rr
 		  '(mov# mvn# movw# movt# tst# cmp#) ;; ri
-		  '(mla mls smmla smmls smull umull
-                        ) ;; rrrr
+		  '(mla mls smmla smmls) ;; rrrr
+		  '(smull umull) ;; ddrr
 		  '(bfi sbfx ubfx) ;; rrii
                   '(ldr# str#) ;; rri
 		  ;'(bfc) ;; rii
@@ -367,9 +368,26 @@
                  [live (list)])
              (for ([i (vector-length regs)]
                    [r regs])
-                  (when r (set! live (cons i live))))
+                  (when (and r (vector-member i reg-range))
+			(set! live (cons i live))))
              live)))
     
+
+    (define (update-live live x)
+      (define args (inst-args x))
+      (define opcode-name (vector-ref inst-id (inst-op x)))
+      (define (add-live ele lst)
+	(if (member ele lst) 
+	    ;; remove and add because we want the latest reg at the beginning.
+	    (cons ele (remove ele lst))
+	    (cons ele lst)))
+      (and live
+	   (cond
+	    [(member opcode-name '(smull umull))
+	     (add-live (vector-ref args 0) (add-live (vector-ref args 1) live))]
+	    [(member opcode-name '(nop str#)) live]
+	    [else (add-live (vector-ref args 0) live)])))
+
     ;; nargs, ranges
     (define (get-arg-ranges opcode-name entry live-in)
       (define-syntax-rule (reg)
@@ -379,12 +397,12 @@
       (cond
        [(equal? class-id 0) (vector reg-range (reg) (reg))]
        [(equal? class-id 1) (vector reg-range (reg) operand2-range)]
-       ;[(equal? class-id 2) (vector reg-range (reg) bit-range)]
        [(equal? class-id 2) (vector reg-range (reg))]
        [(equal? class-id 3) (vector reg-range const-range)]
-       [(equal? class-id 4) (vector reg-range reg-range (reg) (reg))]
-       [(equal? class-id 5) (vector reg-range (reg) bit-range bit-range-no-0)]
-       [(equal? class-id 6) (vector reg-range (vector "fp") mem-range)]
+       [(equal? class-id 4) (vector reg-range (reg) (reg) (reg))]
+       [(equal? class-id 5) (vector reg-range reg-range (reg) (reg))]
+       [(equal? class-id 6) (vector reg-range (reg) bit-range bit-range-no-0)]
+       [(equal? class-id 7) (vector reg-range (vector "fp") mem-range)]
        [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range-no-0)]
        [else (vector)]))
     
@@ -397,11 +415,11 @@
       (cond
        [(equal? class-id 0) (vector #f (reg) (reg))]
        [(equal? class-id 1) (vector #f (reg) operand2-range)]
-       ;[(equal? class-id 2) (vector #f (reg) bit-range)]
        [(equal? class-id 2) (vector #f (reg))]
        [(equal? class-id 3) (vector #f const-range)]
-       [(equal? class-id 4) (vector #f #f (reg) (reg))]
-       [(equal? class-id 5) (vector #f (reg) bit-range bit-range-no-0)]
+       [(equal? class-id 4) (vector #f (reg) (reg) (reg))]
+       [(equal? class-id 5) (vector #f #f (reg) (reg))]
+       [(equal? class-id 6) (vector #f (reg) bit-range bit-range-no-0)]
        [(equal? opcode-name `ldr#) (vector #f (vector "fp") mem-range)]
        [(equal? opcode-name `str#) (vector (reg) (vector "fp") mem-range)]
        [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range-no-0)]
@@ -414,11 +432,11 @@
       (cond
        [(equal? class-id 0) (vector #f (reg) (reg))]
        [(equal? class-id 1) (vector #f (reg) #f)]
-       ;[(equal? class-id 2) (vector #f (reg) bit-range)]
        [(equal? class-id 2) (vector #f (reg))]
        [(equal? class-id 3) (vector #f #f)]
-       [(equal? class-id 4) (vector #f #f (reg) (reg))]
-       [(equal? class-id 5) (vector #f (reg) #f #f)]
+       [(equal? class-id 4) (vector #f (reg) (reg) (reg))]
+       [(equal? class-id 5) (vector #f #f (reg) (reg))]
+       [(equal? class-id 6) (vector #f (reg) #f #f)]
        [(equal? opcode-name `ldr#) (vector #f #f mem-range)]
        [(equal? opcode-name `str#) (vector (reg) #f mem-range)]
        [(equal? opcode-name `bfc) (vector (reg) #f #f)]
@@ -491,33 +509,38 @@
       (not (code-has code '(smull umull smmul smmla smmls)))
       )
 
-    ;; (define/override (reset-inst-pool)
-    ;;   (define inst-choice '( 
-    ;;                  add sub rsb
-    ;;                  add# sub# rsb#
-    ;;                  and orr eor bic orn
-    ;;                  and# orr# eor# bic# orn#
-    ;;                  mov mvn
-    ;;                  mov# mvn# movw# movt#
-    ;;                  rev rev16 revsh rbit
-    ;;                  asr lsl lsr
-    ;;                  asr# lsl# lsr#
-    ;;                  mul mla mls
-    ;;                  ;; smull umull
-    ;;                  ;; smmul smmla smmls
-    ;;                  sdiv udiv
-    ;;     	     uxtah uxth uxtb
-    ;;                  bfc bfi
-    ;;                  sbfx ubfx
-    ;;                  clz
-    ;;                  ;; ldr str
-    ;;                  ;; ldr# str#
-    ;;                  tst cmp
-    ;;                  tst# cmp#
-    ;;                  ))
+    (define/override (reset-inst-pool)
+      (define inst-choice '(smull eor and add
+                     ;; add sub rsb
+                     ;; add# sub# rsb#
+                     ;; and orr eor bic orn
+                     ;; and# orr# eor# bic# orn#
+                     ;; mov mvn
+                     ;; mov# mvn# movw# movt#
+                     ;; rev rev16 revsh rbit
+                     ;; asr lsl lsr
+                     ;; asr# lsl# lsr#
+                     ;; mul mla mls
+                     ;; ;; smull umull
+                     ;; ;; smmul smmla smmls
+                     ;; sdiv udiv
+        	     ;; uxtah uxth uxtb
+                     ;; bfc bfi
+                     ;; sbfx ubfx
+                     ;; clz
+                     ;; ;; ldr str
+                     ;; ;; ldr# str#
+                     ;; tst cmp
+                     ;; tst# cmp#
+                     ))
                                 
-    ;;   (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
+      (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
 
+    (define (is-virtual-reg)
+      (not
+       (for/or ([x '(cmp cmp# tst tst#)])
+	       (let ([id (vector-member x inst-id)])
+		 (member id inst-pool)))))
 
     (define (analyze-args-inst x) ;; TODO: move this to machine.rkt
       (define opcode (vector-ref inst-id (inst-op x)))
@@ -564,8 +587,9 @@
        [(equal? class-id 2) (collect reg reg)]
        [(equal? class-id 3) (collect reg const)]
        [(equal? class-id 4) (collect reg reg reg reg)]
-       [(equal? class-id 5) (collect reg reg bit bit)]
-       [(equal? class-id 6) (collect reg #f mem)]
+       [(equal? class-id 5) (collect reg reg reg reg)]
+       [(equal? class-id 6) (collect reg reg bit bit)]
+       [(equal? class-id 7) (collect reg #f mem)]
        [(member opcode '(bfc)) (collect reg bit bit)]
        [(equal? opcode `nop) (cons (list) (list))]
        [else (raise (format "decode-inst: undefined for ~a" opcode))]))

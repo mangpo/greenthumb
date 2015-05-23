@@ -24,7 +24,7 @@
 	    clean-code state-eq? relaxed-state-eq?
 	    update-live filter-live get-operand-live
 	    analyze-opcode analyze-args get-nregs
-            reset-inst-pool)
+            reset-inst-pool is-virtual-reg)
 
     (define (get-inst-id opcode) (vector-member opcode inst-id))
     (define (get-inst-name id) (vector-ref inst-id id))
@@ -104,17 +104,19 @@
     (define (relaxed-state-eq? state1 state2 pred)
       (state-eq? state1 state2 pred))
 
-    (define (update-live live x)
-      (define (add-live ele lst)
-        (if (member ele lst) lst (cons ele lst)))
-      (and live
-           (cond
-            [(= (vector-length (inst-args x)) 0) live]
-            [else
-             (let ([def (vector-ref (inst-args x) 0)])
-               (if (number? def)
-                   (add-live def live)
-                   (foldl add-live live def)))])))
+    ;; (define (update-live live x)
+    ;;   (define (add-live ele lst)
+    ;;     (if (member ele lst) lst (cons ele lst)))
+    ;;   (and live
+    ;;        (cond
+    ;;         [(= (vector-length (inst-args x)) 0) live]
+    ;;         [else
+    ;;          (let ([def (vector-ref (inst-args x) 0)])
+    ;;            (if (number? def)
+    ;;                (add-live def live)
+    ;;                (foldl add-live live def)))])))
+
+    (define (update-live live x) live)
 
     (define (filter-live range live)
       (if live
@@ -136,5 +138,7 @@
 
     (define (analyze-args prefix code postfix #:only-const [x #f])
       (void))
+
+    (define (is-virtual-reg) #f)
 
     ))

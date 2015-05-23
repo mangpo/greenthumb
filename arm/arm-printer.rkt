@@ -76,13 +76,13 @@
     ;; into an instructions in string format.
     (define (decode-inst x)
       (define opcode (send machine get-inst-name (inst-op x)))
-      ;;(pretty-display `(decode-inst ,opcode ,(inst-shfop x)))
       (define args (inst-args x))
       (define cond-type (inst-cond x))
       (define class-id (send machine get-class-id opcode))
       (define shf (member opcode (get-field inst-with-shf machine)))
       (define shfop (and shf (inst-shfop x) (send machine get-shf-inst-name (inst-shfop x))))
       (define shfarg (and shf (inst-shfarg x)))
+      ;;(pretty-display `(decode-inst ,opcode ,class-id))
       
       (define-syntax-rule (make-inst x ...)
         (make-inst-main (list x ...)))
@@ -116,14 +116,16 @@
       (cond
        [(equal? class-id 0) (make-inst reg reg reg)]
        [(equal? class-id 1) (make-inst reg reg imm)]
-       ;[(equal? class-id 2) (make-inst reg reg imm)]
        [(equal? class-id 2) (make-inst reg reg)]
        [(equal? class-id 3) (make-inst reg imm)]
        [(equal? class-id 4) (make-inst reg reg reg reg)]
-       [(equal? class-id 5) (make-inst reg reg imm imm)]
-       [(equal? class-id 6) (make-inst reg identity imm)]
+       [(equal? class-id 5) (make-inst reg reg reg reg)]
+       [(equal? class-id 6) (make-inst reg reg imm imm)]
+       [(equal? class-id 7) (make-inst reg identity imm)]
        [(member opcode '(bfc)) (make-inst reg imm imm)]
        [(equal? opcode `nop) (arm-inst "nop" (vector) #f #f "")]
-       [else (raise (format "decode-inst: undefined for ~a" opcode))]))
+       [else 
+	(pretty-display "what????")
+	(raise (format "decode-inst: undefined for ~a" opcode))]))
 
     ))
