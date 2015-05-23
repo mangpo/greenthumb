@@ -454,27 +454,26 @@
     ;; Return #t, if kodkod solver can be used.
     (define (analyze-opcode prefix code postfix)
       (set! code (vector-append prefix code postfix))
-      (define inst-choice '(nop))
-      (when (code-has code '(add sub rsb 
-				 add# sub# rsb#
-				 and orr eor bic orn
-				 and# orr# eor# bic# orn#
-				 mov mvn
-				 mov# mvn# movw# movt#
-				 asr lsl lsr
-				 asr# lsl# lsr#
-				 clz
-				 ))
-            (set! inst-choice (append inst-choice '(add sub rsb 
-						    	add# sub# rsb#
-						    	and orr eor bic orn
-						    	and# orr# eor# bic# orn#
-						    	mov mvn
-						    	mov# mvn# movw# movt#
-						    	asr lsl lsr
-						    	asr# lsl# lsr#
-						    	clz
-							))))
+      (define inst-choice '(nop 
+                            add sub rsb 
+                            add# sub# rsb#
+                            mov mvn
+                            mov# mvn#
+                            asr lsl lsr
+                            asr# lsl# lsr#))
+                                
+      (when (code-has code '(clz
+                             and orr eor bic orn
+                             and# orr# eor# bic# orn#
+                             ))
+            (set! inst-choice (append inst-choice '(clz
+                                                    and orr eor bic orn
+                                                    and# orr# eor# bic# orn#
+                                                    ))))
+                                
+      (when (code-has code '(movw# movt#))
+            (set! inst-choice (append inst-choice '(movw# movt#))))
+
       (when (code-has code '(rev rev16 revsh rbit
 				 uxtah uxth uxtb
 				 bfc bfi
