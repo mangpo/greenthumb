@@ -461,12 +461,8 @@
 				 and# orr# eor# bic# orn#
 				 mov mvn
 				 mov# mvn# movw# movt#
-				 rev rev16 revsh rbit
 				 asr lsl lsr
 				 asr# lsl# lsr#
-				 uxtah uxth uxtb
-				 bfc bfi
-				 sbfx ubfx
 				 clz
 				 ))
             (set! inst-choice (append inst-choice '(add sub rsb 
@@ -475,13 +471,19 @@
 						    	and# orr# eor# bic# orn#
 						    	mov mvn
 						    	mov# mvn# movw# movt#
-						    	rev rev16 revsh rbit
 						    	asr lsl lsr
 						    	asr# lsl# lsr#
+						    	clz
+							))))
+      (when (code-has code '(rev rev16 revsh rbit
+				 uxtah uxth uxtb
+				 bfc bfi
+				 sbfx ubfx
+				 ))
+            (set! inst-choice (append inst-choice '(rev rev16 revsh rbit
 						    	uxtah uxth uxtb
 						    	bfc bfi
 						    	sbfx ubfx
-						    	clz
 							))))
       (when (code-has code '(mul mla mls
                                  smull umull
