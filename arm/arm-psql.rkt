@@ -121,7 +121,8 @@
   (class object% ;; TODO arm-enumerative%
     (super-new)
     (init-field machine printer time)
-    (public db-connect db-disconnect init create-table insert progstate->id
+    (public db-connect db-disconnect create-table  
+            progstate->id progstate->string
             tx-begin tx-commit)
 
     (define simulator (new arm-simulator-racket% [machine machine]))
@@ -134,7 +135,7 @@
     (define nregs (send machine get-nregs)) ;; machine specific
     (define nmems (send machine get-nmems)) ;; machine specific
     (define fp (send machine get-fp))
-    (define state-cols #f)
+    (define prog-id 0)
 
     (define fixed-list
       (send validator generate-input-states 128 (vector) (send machine no-assumption) #f))
@@ -155,7 +156,7 @@
     (define z-range-db (vector -1 0 1 2 3))
 
     ;; TODO: include #live-in
-    (define table-name (format "arm_r~a_m~a" nregs nmems))
+    (define table-name (format "new_arm_r~a_m~a" nregs nmems))
 
     (define (db-connect)
       (set! pgc (postgresql-connect #:user "mangpo" #:database "mangpo" #:password "")))
@@ -168,115 +169,73 @@
                                           ;; #:option 'read-only))
     (define (tx-commit) (commit-transaction pgc))
 
-    (define (create-table size ntests)
+    (define (create-table size)
       (pretty-display `(create-table ,size))
-      (define query (format "create table ~a_size~a (~a)" 
-                            table-name size (get-header ntests)))
-      (when debug (pretty-display (format "query: ~a" query)))
-      (query-exec pgc query)
+      (query-exec pgc (format "create table ~a_size~a (~a)" 
+                              table-name size (get-header)))
+      (query-exec pgc (format "create table program_id_size~a (id integer,program text)" 
+                              size))
       ;(create-index-full size)
       )
 
-    (define (create-index-full size)
-      (define lst (list))
-      (define batch (+ nregs nmems 1))
-      (for ([t (quotient 32 batch)])
-           (for ([r nregs]) (set! lst (cons (format "o~a_r~a" t r) lst)))
-           (for ([m nmems]) (set! lst (cons (format "o~a_m~a" t m) lst)))
-           (set! lst (cons (format "o~a_z" t) lst)))
-      (define query (format "create index ~a_size~a_idx_full on ~a_size~a(~a)"
-                            table-name size table-name size
-                            (string-join (reverse lst) ",")))
-      (pretty-display (format "query: ~a" query))
-      (query-exec pgc query)
-      )
+    ;; (define (create-index-full size)
+    ;;   (define lst (list))
+    ;;   (define batch (+ nregs nmems 1))
+    ;;   (for ([t (quotient 32 batch)])
+    ;;        (for ([r nregs]) (set! lst (cons (format "o~a_r~a" t r) lst)))
+    ;;        (for ([m nmems]) (set! lst (cons (format "o~a_m~a" t m) lst)))
+    ;;        (set! lst (cons (format "o~a_z" t) lst)))
+    ;;   (define query (format "create index ~a_size~a_idx_full on ~a_size~a(~a)"
+    ;;                         table-name size table-name size
+    ;;                         (string-join (reverse lst) ",")))
+    ;;   (pretty-display (format "query: ~a" query))
+    ;;   (query-exec pgc query)
+    ;;   )
 
 
-    (define (get-header ntests)
+    (define (get-header)
       (define o (open-output-string))
-      (for ([t ntests])
-           ;; (for ([r nregs]) (display (format "i~a_r~a integer, " t r) o))
-           ;; (for ([m nmems]) (display (format "i~a_m~a integer, " t m) o))
-           ;; (display (format "i~a_z integer, " t) o)
-           (for ([r nregs]) (display (format "o~a_r~a integer, " t r) o))
-           (for ([m nmems]) (display (format "o~a_m~a integer, " t m) o))
-           (display (format "o~a_z integer, " t) o)
-           )
-      (display "program text" o)
+      (for ([r nregs]) (display (format "in_r~a integer, " r) o))
+      (for ([m nmems]) (display (format "in_m~a integer, " m) o))
+      (display "in_z integer, " o)
+      (for ([r nregs]) (display (format "out_r~a integer, " r) o))
+      (for ([m nmems]) (display (format "out_m~a integer, " m) o))
+      (display "out_z integer, " o)
+      (display "id integer" o)
       (get-output-string o))
 
-    (define (init ntests)
-      (define tmp (list))
-      (for ([t ntests])
-           (let ([tmp-inner (list)])
-             (for ([r nregs]) (set! tmp-inner (cons (format "o~a_r~a" t r) tmp-inner)))
-             (for ([m nmems]) (set! tmp-inner (cons (format "o~a_m~a" t m) tmp-inner)))
-             (set! tmp-inner (cons (format "o~a_z" t) tmp-inner))
-             (set! tmp (cons (string-join (reverse tmp-inner) ",") tmp)))
-        )
-      (set! state-cols (list->vector (reverse tmp))))
-
-    (define (insert size states-in states-out p)
-      (when debug (pretty-display "insert: start"))
-      ;(send printer print-syntax (send printer decode p))
-      (define keys (list))
-      (define vals (list))
-      (for ([col state-cols]
-            [out states-out])
-           (when out
-                 (set! keys (cons col keys))
-                 (set! vals (cons (progstate->string out) vals))))
-      (unless 
-       (empty? keys)
-       (set! keys (reverse keys))
-       (set! vals (reverse vals))
-       
-       (define o (open-output-string))
-       (parameterize ([current-output-port o])
-                     (send printer print-syntax (send printer decode p)))
-       ;;(pretty-display (get-output-string o))
-
-       (define query
-         (format "insert into ~a_size~a (~a,program) values (~a,'~a')" 
-                 table-name size
-                 (string-join keys ",") (string-join vals ",")
-                 (get-output-string o)))
-       ;;(pretty-display (format "query: ~a" query))
-       (send time start `db-insert)
-       (query-exec pgc query)
-       (send time end `db-insert)
-       (when debug (pretty-display "insert: done"))
-       ))
-
-    (define/public (bulk-insert size classes all) 
+    (define/public (bulk-insert size classes states-in-str all) ;; TODO in-states-str
       ;; caution: may insert duplicate outputs to existing rows
       (pretty-display `(bulk-insert ,size))
       (send time start `db-insert)
       (define bulk-port (open-output-file (format "~a/tmp.csv" srcpath) 
                                           #:exists 'truncate))
+      (define id-port (open-output-file (format "~a/id.csv" srcpath) 
+                                        #:exists 'truncate))
       (send time end `db-insert)
 
       (define (inner-insert states-out prog-list)
-        (for ([out states-out])
-             (let ([str (progstate->string out)])
-               (send time start `db-insert)
-               (display str bulk-port)
-               (display "," bulk-port)
-               (send time end `db-insert)
-               ))
+        (define states-out-str (map (lambda (x) (progstate->string x)) states-out))
+
         (send time start `db-insert)
-        (display "\"" bulk-port)
-        (define begin #t)
-        (parameterize 
-         ([current-output-port bulk-port])
-         (for ([p prog-list])
-              (if begin 
-                  (set! begin #f)
-                  (display ";"))
-              (send printer print-syntax (send printer decode p))))
-        (pretty-display "\"" bulk-port)
-        (send time end `db-insert)
-        )
+        (for ([p prog-list])
+             ;; Insert to behavior table
+             (for ([in-str states-in-str]
+                   [out states-out])
+                  (let ([out-str (progstate->string out)])
+                    (pretty-display (format "~a,~a,~a" in-str out-str prog-id) bulk-port)))
+
+             ;; Insert to prog ID table
+             (send time start `db-insert)
+             (display (format "~a," prog-id) id-port)
+             (display "\"" id-port)
+             (parameterize 
+              ([current-output-port id-port])
+              (send printer print-syntax (send printer decode p)))
+             (pretty-display "\"" id-port)
+             (send time end `db-insert)
+             (set! prog-id (add1 prog-id)))
+        (send time end `db-insert))
 
       (send time start `hash)
       (define pairs (hash->list classes))
@@ -298,10 +257,21 @@
 
       (send time start `db-insert)
       (close-output-port bulk-port)
-      (define query
-        (format "copy ~a_size~a from '~a/tmp.csv' with (format csv, null 'null')" 
-                table-name size srcpath))
-      (query-exec pgc query)
+      (close-output-port id-port)
+      (query-exec 
+       pgc 
+       (format "copy ~a_size~a from '~a/tmp.csv' with (format csv, null 'null')" 
+               table-name size srcpath))
+      (query-exec 
+       pgc 
+       (format "copy program_id_size~a from '~a/id.csv' with (format csv, null 'null')" 
+               size srcpath))
+      (pretty-display 
+       (format "copy ~a_size~a from '~a/tmp.csv' with (format csv, null 'null')" 
+               table-name size srcpath))
+      (pretty-display
+       (format "copy program_id_size~a from '~a/id.csv' with (format csv, null 'null')" 
+               size srcpath))
       (send time end `db-insert)
       (send validator reset)
       )

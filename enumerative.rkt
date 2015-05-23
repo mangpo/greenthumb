@@ -523,18 +523,20 @@
       
       (define psql (new arm-psql% [machine machine] [printer printer] [time time]))
       (define all-states (send psql get-all-states))
+      (define all-states-str
+        (map (lambda (x) (send psql progstate->string x)) all-states))
       (define all-states-vec 
         (map (lambda (x) (send machine progstate->vector x)) all-states))
       
       (send psql db-connect)
-      (send psql init (length all-states))
       
       (send time reset)
-      (define max-size 2)
-      ;; (define prev-classes (make-hash))
-      ;; (hash-set! prev-classes all-states-vec (list (progcost (vector) 0)))
-      (send psql create-table 0 (length all-states))
-      (send psql insert 0 all-states all-states (vector))
+      (define max-size 0)
+      (define prev-classes (make-hash))
+      (hash-set! prev-classes all-states-vec (list (vector)))
+      (send psql create-table 0)
+      ;; (send psql insert 0 all-states-str all-states (vector))
+      (send psql bulk-insert 0 prev-classes all-states-str #t)
 
       (define count 0)
       (define my-count 0)
@@ -595,7 +597,8 @@
                       (set! my-count (add1 my-count))
                       (when (= my-count 50000)
                             ;(send time print-ce)
-                            (send psql bulk-insert len classes #t)
+                            (when (< len max-size) (update-hash prev-classes classes))
+                            (send psql bulk-insert len classes all-states-str #t)
                             (set! classes (make-hash))
                             (set! my-count 0)
                             (set! all-count 0)
@@ -605,6 +608,17 @@
                       )
                     )
                 )
+          )
+
+        (define (update-hash hash1 hash2)
+          (send time start `hash)
+          (for ([pair (hash->list hash2)])
+               (let ([key (car pair)]
+                     [val (cdr pair)])
+                 (if (hash-has-key? hash1 key)
+                     (hash-set! hash1 key (append (hash-ref hash1 key) val))
+                     (hash-set! hash1 key val))))
+          (send time end `hash)
           )
 
         ;; Enmerate all possible program of one instruction
@@ -618,7 +632,7 @@
             (when 
              my-inst
              
-             (when debug
+             (when #t
                    (send printer print-syntax-inst (send printer decode-inst my-inst))) 
              (send time start `normal-test)
              (let ([out-states 
@@ -651,17 +665,29 @@
              (inner)))
           (inner))
             
-        (send psql create-table len (length all-states))
+        (send psql create-table len)
 
-        (define data (send psql select-all (sub1 len)))
-        (send time reset)
-        (for ([x data])
-             (let ([progs (record-progs x)]
-                   [outputs (record-states x)])
+        ;; (define data (send psql select-all (sub1 len)))
+        ;; (send time reset)
+        ;; (for ([x data])
+        ;;      (let ([progs (record-progs x)]
+        ;;            [outputs (record-states x)])
+        ;;        (reset-generate-inst outputs live-list #f `all #f)
+        ;;        (enumerate outputs progs)))
+
+        (send time start `hash)
+        (define pairs (hash->list prev-classes))
+        (set! prev-classes (make-hash)) ;; prepare to save current groups
+        (send time end `hash)
+        (for ([pair pairs])
+             (let ([outputs 
+                    (map (lambda (x) (send machine vector->progstate x)) (car pair))]
+                   [progs (cdr pair)])
                (reset-generate-inst outputs live-list #f `all #f)
                (enumerate outputs progs)))
 
-        (send psql bulk-insert len classes #t)
+        (when (< len max-size) (update-hash prev-classes classes))
+        (send psql bulk-insert len classes all-states-str #t)
         (set! classes (make-hash))
         (set! my-count 0)
         (set! all-count 0)
