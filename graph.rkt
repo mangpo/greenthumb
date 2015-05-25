@@ -22,7 +22,7 @@
   (class object%
     (super-new)
     (init-field machine validator simulator printer parser
-                spec constraint extra assumption [dest-ids #t])
+                spec constraint extra assumption get-program [dest-ids #t])
     (public get-correct-iterator)
 
     (define debug #f)
@@ -108,7 +108,8 @@
       (define this-cost (neighbor-cost edge))
       (define t1 (current-milliseconds))
       (unless this-cost
-	      (set! p-prev (send printer encode (send parser ast-from-string p-prev)))
+	      (set! p-prev (send printer encode (send parser ast-from-string 
+                                                      (get-program p-prev))))
 	      (set! this-cost (send simulator performance-cost p-prev))
 	      (set-neighbor-edge! edge p-prev)
 	      (set-neighbor-cost! edge this-cost))

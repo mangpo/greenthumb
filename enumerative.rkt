@@ -531,7 +531,7 @@
       (send psql db-connect)
       
       (send time reset)
-      (define max-size 0)
+      (define max-size 2)
       (define prev-classes (make-hash))
       (hash-set! prev-classes all-states-vec (list (vector)))
       (send psql create-table 0)
@@ -692,6 +692,7 @@
         (set! my-count 0)
         (set! all-count 0)
         (collect-garbage)
+        (send psql create-index len)
 
         (when (< len max-size) 
 	    (loop (add1 len))))

@@ -121,7 +121,7 @@
   (class object% ;; TODO arm-enumerative%
     (super-new)
     (init-field machine printer time)
-    (public db-connect db-disconnect create-table  
+    (public db-connect db-disconnect create-table create-index
             progstate->id progstate->string
             tx-begin tx-commit)
 
@@ -158,6 +158,13 @@
     ;; TODO: include #live-in
     (define table-name (format "new_arm_r~a_m~a" nregs nmems))
 
+    (define out-columns
+            (let ([o (open-output-string)])
+              (for ([r nregs]) (display (format "out_r~a, " r) o))
+              (for ([m nmems]) (display (format "out_m~a, " m) o))
+              (display "out_z" o)
+              (get-output-string o)))
+
     (define (db-connect)
       (set! pgc (postgresql-connect #:user "mangpo" #:database "mangpo" #:password "")))
 
@@ -171,27 +178,54 @@
 
     (define (create-table size)
       (pretty-display `(create-table ,size))
-      (query-exec pgc (format "create table ~a_size~a (~a)" 
-                              table-name size (get-header)))
-      (query-exec pgc (format "create table program_id_size~a (id integer,program text)" 
-                              size))
+      (query-exec 
+       pgc 
+       (format "create table ~a_size~a (~a)" 
+               table-name size (get-header)))
+      (query-exec 
+       pgc 
+       (format "create table program_id_size~a (id integer primary key,program text)" 
+               size))
       ;(create-index-full size)
       )
 
-    ;; (define (create-index-full size)
-    ;;   (define lst (list))
-    ;;   (define batch (+ nregs nmems 1))
-    ;;   (for ([t (quotient 32 batch)])
-    ;;        (for ([r nregs]) (set! lst (cons (format "o~a_r~a" t r) lst)))
-    ;;        (for ([m nmems]) (set! lst (cons (format "o~a_m~a" t m) lst)))
-    ;;        (set! lst (cons (format "o~a_z" t) lst)))
-    ;;   (define query (format "create index ~a_size~a_idx_full on ~a_size~a(~a)"
-    ;;                         table-name size table-name size
-    ;;                         (string-join (reverse lst) ",")))
-    ;;   (pretty-display (format "query: ~a" query))
-    ;;   (query-exec pgc query)
-    ;;   )
+    (define (create-index size)
+      (query-exec
+       pgc
+       (format "create index ~a_size~a_idx_id on ~a_size~a(id)"
+               table-name size
+               table-name size))
 
+      (define o-input (open-output-string))
+      (for ([r nregs]) (display (format "in_r~a," r) o-input))
+      (display "in_z" o-input)
+      (define o-input-str (get-output-string o-input))
+      
+      (define id 0)
+      (define (recurse-output order lst)
+        (if (empty? lst)
+            (let ([o-output (open-output-string)])
+              (for ([r (take order (sub1 (length order)))]) 
+                   (display (format "out_r~a," r) o-output))
+              (display (format "out_r~a" (last order)) o-output)
+              (query-exec
+               pgc
+               (format "create index ~a_size~a_idx_a~a on ~a_size~a(~a,~a,id)"
+                       table-name size id
+                       table-name size
+                       o-input-str (get-output-string o-output)))
+              (query-exec
+               pgc
+               (format "create index ~a_size~a_idx_b~a on ~a_size~a(id,~a,~a)"
+                       table-name size id
+                       table-name size
+                       o-input-str (get-output-string o-output)))
+              (set! id (add1 id))
+              )
+            (for ([e lst])
+                 (recurse-output (cons e order) (remove e lst)))))
+
+      (recurse-output (list) (range nregs)))
 
     (define (get-header)
       (define o (open-output-string))
@@ -346,7 +380,31 @@
       ;all-correct
       )
 
-    (define (select-one-state-in-out in-id out live)
+    (define (select-one-state-in in-id [name #f])
+      (define pre (if name (format "~a." name) ""))
+      (define lst (list))
+      (define reg-in (vector-ref in-id 0))
+      (define z-in (vector-ref in-id 2))
+      (for ([i (vector-length reg-in)]
+            [r reg-in])
+           (set! lst (cons (format "~ain_r~a = ~a" pre i r) lst)))
+      (set! lst (cons (format "~ain_z = ~a" pre z-in) lst))
+      (string-join (reverse lst) " and "))
+
+    (define (select-one-state-out out live name)
+      (define lst (list))
+      (define reg-out (progstate-regs out))
+      (define reg-live (progstate-regs live))
+      (for ([i (vector-length reg-out)]
+            [r reg-out]
+            [r-live reg-live])
+           (when r-live (set! lst (cons (format "~a.out_r~a = ~a" name i r) lst))))
+
+      (when (progstate-z live)
+            (set! lst (cons (format "~a.out_z = ~a" name (progstate-z out)) lst)))
+      (string-join (reverse lst) " and "))
+
+    (define (select-one-state-in-out-org in-id out live)
       (define reg-out (progstate-regs out))
       (define reg-live (progstate-regs live))
       (define lst (list))
@@ -359,13 +417,38 @@
             (set! lst (cons (format "o~a_z = ~a" in-id (progstate-z out)) lst)))
       (string-join (reverse lst) " and "))
 
-    ;; return list of program
-    (define (select-from-in-out size states-in-id states-out live)
+    (define (select-from-in-out-org size states-in states-out live)
+      (define states-in-id (map vector->id-org states-in))
       (define ret #f)
       (cond
        [(= 0 (length (filter number? states-in-id)))
         (define query 
           (format "select program from ~a_size~a"
+                  table-name size))
+        (when debug (pretty-display (format "query: ~a" query)))
+        ]
+
+       [else
+        (define lst (list))
+        (for ([in-id states-in-id]
+              [out states-out])
+             (when (number? in-id) 
+                   (set! lst (cons (select-one-state-in-out-org in-id out live) lst)))) ;; TODO
+        (define query 
+          (format "select program from ~a_size~a where ~a"
+                  table-name size (string-join (reverse lst) " and ")))
+        (when debug (pretty-display (format "query: ~a" query)))
+        ])
+      )
+
+    ;; return list of program
+    (define (select-from-in-out size states-in-id states-out live)
+      (select-from-in-out-org size states-in-id states-out live)
+      (define ret #f)
+      (cond
+       [(= 0 (length (filter vector? states-in-id)))
+        (define query 
+          (format "select distinct program from ~a_size~a"
                   table-name size))
         (when debug (pretty-display (format "query: ~a" query)))
         (send time start `db-select)
@@ -374,26 +457,55 @@
         ]
 
        [else
-        (define lst (list))
+        (define conds (list))
+        (define tables (list))
+        (define progs (list))
+        (define ref #f)
         (for ([in-id states-in-id]
-              [out states-out])
-             (when (number? in-id) 
-                   (set! lst (cons (select-one-state-in-out in-id out live) lst)))) ;; TODO
+              [out states-out]
+              [index (length states-in-id)])
+             (when (vector? in-id) 
+                   (unless ref (set! ref index))
+                   (set! tables (cons (format "~a_size~a as t~a" table-name size index)
+                                      tables))
+                   (set! conds 
+                         (cons (select-one-state-out out live (format "t~a" index))
+                               (cons (select-one-state-in in-id (format "t~a" index))
+                                     conds)))
+                   (set! progs (cons (format "t~a.id=t~a.id" ref index) progs))
+                   )) ;; TODO
         (define query 
-          (format "select program from ~a_size~a where ~a"
-                  table-name size (string-join (reverse lst) " and ")))
+          (format "select t~a.id from ~a where ~a and ~a"
+                  ref
+                  (string-join (reverse tables) ", ")
+                  (string-join (reverse conds) " and ")
+                  (string-join (reverse progs) " and ")
+                  ))
         (when debug (pretty-display (format "query: ~a" query)))
         (send time start `db-select)
         (set! ret (query-rows pgc query))
         (send time end `db-select)
         ])
       
-      (flatten
-       (for/list 
-        ([xs ret])
-        (map (lambda (x) (send printer encode (send parser ast-from-string x)))
-             (string-split (vector-ref xs 0) ";"))))
+      (for/list 
+       ([xs ret])
+       (send printer encode (send parser ast-from-string 
+                                  (get-program (vector-ref xs 0) size))))
       )
+
+    (define (get-program id [size #f])
+      (define (inner size)
+        (define query
+          (format "select program from program_id_size~a where id=~a" size id))
+        (query-maybe-value pgc query))
+
+      (define (loop i)
+        (define ans (inner i))
+        (or ans (loop (add1 i))))
+
+      (if size
+          (inner size)
+          (loop 0)))
 
 
     (define/public (select-all size)
@@ -421,23 +533,18 @@
     (define (select-count size)
       (query-value pgc (format "select count(*) from ~a_size~a" table-name size)))
 
-    (define (select-from-in size states-in-id 
-                            #:columns [columns #f] 
-                            #:offset [offset #f] #:limit [limit #f])
+    (define (select-from-in size id c)
       (define query
-        (format "select ~a,program from ~a_size~a" 
-                (if columns
-                    columns
-                    (ids2columns states-in-id))
-                table-name size))
-      (when limit (set! query (format "~a limit ~a" query limit)))
-      (when offset (set! query (format "~a offset ~a" query offset)))
+        (format "select ~a from ~a_size~a where id=~a and ~a" 
+                out-columns
+                table-name size
+                id c))
       (when debug (pretty-display (format "query: ~a" query)))
 
       (send time start `db-select)
-      (define ans (query-rows pgc query))
+      (define ans (query-row pgc query))
       (send time end `db-select)
-      (map (lambda (x) (db->prog-progstates x states-in-id)) ans))
+      (db->vector ans))
     
     (define/public (get-all-states)
       (define nmems (send machine get-nmems))
@@ -491,13 +598,41 @@
     (define (power b p)
       (if (= p 0) 1 (* b (power b (sub1 p)))))
 
-    ;; top - #t, bottom - #f
+    ;; top - #t, bottom - #f, otherwise vector form
     (define (progstate->id state)
       (cond
        [(progstate? state)
+        (vector->id (send machine progstate->vector state))
+        ]
+       [else state]))
+
+    (define (vector->id state)
+      (cond
+       [(vector? state)
         ;;(send machine display-state state)
-        (define z (progstate-z state))
-        (define regs (progstate-regs state))
+        (define z (vector-ref state 2))
+        (define regs (vector-ref state 0))
+        (define pass 0)
+        (define len (vector-length reg-range-db))
+        
+        (for ([r regs] #:break (boolean? pass))
+             (if (sql-null? r)
+                 (set! pass #f)
+                 (let ([index (vector-member r reg-range-db)])
+                   (unless index (set! pass #t)))))
+
+        (if (boolean? pass)
+            pass
+            state)
+        ]
+       [else state]))
+
+    (define (vector->id-org state)
+      (cond
+       [(vector? state)
+        ;;(send machine display-state state)
+        (define z (vector-ref state 2))
+        (define regs (vector-ref state 0))
         (define id 0)
         (define len (vector-length reg-range-db))
         
@@ -516,6 +651,7 @@
         
         ;;(pretty-display `(progstate->id ,id))
         id]
+       
        [else state]))
 
     (define (print-graph ins-id x)
@@ -596,6 +732,13 @@
       (inner (vertex-from x))
       count)
         
+    ;; Convert DB response into state-vec
+    ;; resp is a vector.
+    (define (db->vector resp)
+      (vector (vector-copy resp 0 nregs)
+              (vector-copy resp nregs (+ nregs nmems))
+              (vector-ref resp (+ nregs nmems))
+              fp))
     
     ;; Convert DB response into list of (record prog-list states)
     ;; resp is a vector.
@@ -648,7 +791,7 @@
                                #:assume [assumption (send machine no-assumption)])
 
       (define spec-len (vector-length spec))
-      (define ntests 16)
+      (define ntests 3)
       (define inits
         (send validator generate-input-states ntests (vector-append prefix spec postfix)
               assumption extra 
@@ -686,7 +829,7 @@
                          [machine machine] [validator validator] 
                          [simulator simulator] [printer printer] [parser parser]
                          [spec spec] [constraint constraint] 
-                         [extra extra] [assumption assumption]))
+                         [extra extra] [assumption assumption] [get-program get-program]))
 
       (define queue (make-queue))
       (define level (make-queue))
@@ -767,37 +910,34 @@
       (define (expand in-node ins-id len)
         (define size (modulo len max-size))
         (when (= size 0) (set! size max-size))
-        (define n (select-count size))
-        ;(pretty-display `(expand-start ,len ,(sub1 (quotient (- len size) max-size)) ,n))
-        (define columns (ids2columns ins-id))
+        (define n-min 
+          (query-value pgc (format "select min(id) from program_id_size~a" size)))
+        (define n-max 
+          (query-value pgc (format "select max(id) from program_id_size~a" size)))
+
+        (pretty-display `(expand-start ,len ,n-min ,n-max))
+        (define conds (map select-one-state-in ins-id))
 	(define ids2node (vector-ref visit (sub1 (quotient (- len size) max-size))))
-        (for ([i n])
-             (let* ([prog-states (car (select-from-in size ins-id 
-                                                      #:columns columns 
-                                                      #:offset i #:limit 1))] 
-                    ;; TODO: batching
-                    [progs (record-progs prog-states)]
-                    [states (record-states prog-states)]
-                    [ids (map (lambda (x) (progstate->id x)) states)])
+        (for ([id (range n-min (add1 n-max))])
+             (let* ([states-vec (map (lambda (c) (select-from-in size id c)) conds)]
+                    [ids (map vector->id states-vec)])
                (unless 
-                (= (length (filter number? ids)) 0) ;; TODO: check
-                ;(pretty-display `(expand ,i ,(hash-has-key? ids2node ids)))
-                (let ([edges (map (lambda (x) (neighbor in-node x #f)) progs)])
+                (= (length (filter vector? ids)) 0) ;; TODO: check
+                ;(pretty-display `(expand ,id ,(hash-has-key? ids2node ids)))
+                (let ([edge (neighbor in-node id #f)])
                   (if (hash-has-key? ids2node ids)
                       (let ([my-node (hash-ref ids2node ids)])
                         (set-vertex-from! my-node 
-                                          (append edges (vertex-from my-node)))
-			(pretty-display `(hash-empty? ,(hash-empty? (vertex-children my-node))))
+                                          (cons edge (vertex-from my-node)))
+			;(pretty-display `(hash-empty? ,(hash-empty? (vertex-children my-node))))
                         (unless
                          (hash-empty? (vertex-children my-node))
 			 ;; caution:
 			 ;; if children is empty -> no match afterward if this is the last expand
 			 ;; & assume not calling coroutine if already get an answer.
-                         (for ([edge edges])
-			      (add-edge my-node edge)
-			      ))
-                        )
-                      (let ([my-node (make-vertex ids edges)])
+                         (add-edge my-node edge)
+                         ))
+                      (let ([my-node (make-vertex ids (list edge))])
                         (hash-set! ids2node ids my-node)
                         (search (- len size) my-node ids))))))))
                

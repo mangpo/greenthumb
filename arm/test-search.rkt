@@ -27,9 +27,10 @@
 
 (define code
 (send parser ast-from-string "
-clz r0, r1
-mvn r1, 0
-rsb r1, r1, r1, lsr r0
+orr r1, r0, r0, lsl 1
+sub r0, r0, r1
+sub r0, r0, r1
+sub r0, r0, r1
 "))
 
 (define sketch
@@ -42,14 +43,13 @@ rsb r1, r1, r1, lsr r0
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send validator encode-sym sketch))
 
-
 (define (f)
 (define t (current-seconds))
-(send enum synthesize-window
+(send stitch synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
       encoded-prefix encoded-postfix
-      (constraint machine [reg 1] [mem]) #f #f 3600)
+      (constraint machine [reg 0 1] [mem]) #f #f 3600)
   
 (pretty-display `(time ,(- (current-seconds) t)))
   )
@@ -59,5 +59,7 @@ rsb r1, r1, r1, lsr r0
       "./driver-0" 3600 #f)|#
 
 (f)
-;(require profile)
-;(profile-thunk f)
+;; (send stitch db-connect)
+;; (send stitch create-index 1)
+;; (send stitch create-index 2)
+;; (send stitch db-disconnect)
