@@ -791,7 +791,7 @@
                                #:assume [assumption (send machine no-assumption)])
 
       (define spec-len (vector-length spec))
-      (define ntests 3)
+      (define ntests 16)
       (define inits
         (send validator generate-input-states ntests (vector-append prefix spec postfix)
               assumption extra 
@@ -877,7 +877,7 @@
                 (iterate (send graph get-correct-iterator my-node))
                 ;(pretty-display "22222222222")
                 (define t2 (current-milliseconds))
-                (iterate (send graph get-correct-iterator2 my-node))
+                ;(iterate (send graph get-correct-iterator2 my-node))
                 ;(pretty-display "33333333333")
                 (define t3 (current-milliseconds))
 		(define t-parse (send graph get-parse-time))
@@ -896,7 +896,7 @@
 	(iterate (send graph get-correct-iterator my-node edge))
 	;(pretty-display "22222222222+++")
 	(define t2 (current-milliseconds))
-	(iterate (send graph get-correct-iterator2 my-node edge))
+	;(iterate (send graph get-correct-iterator2 my-node edge))
 	;(pretty-display "33333333333+++")
 	(define t3 (current-milliseconds))
 	(define t-parse (send graph get-parse-time))
@@ -957,6 +957,8 @@
 	    (newline)
 	    (pretty-display `(SEARCH ,len))
 	    (search len first-node states1-id)))
+      (send time terminate)
+      (send time print-stat)
       (pretty-display (format "TIME: ~a vs ~a" (quotient algo1 1000) (quotient algo2 1000)))
       )
         
