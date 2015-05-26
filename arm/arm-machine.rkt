@@ -96,7 +96,7 @@
 	      window-size clean-code 
 	      analyze-opcode analyze-args relaxed-state-eq? get-nregs
 	      is-virtual-reg update-live)
-    (public get-shfarg-range get-arg-ranges-enum get-reg-ranges)
+    (public get-shfarg-range get-arg-types)
 
     (set! bit 32)
     (set! random-input-bit 32)
@@ -388,59 +388,38 @@
 	    [(member opcode-name '(nop str#)) live]
 	    [else (add-live (vector-ref args 0) live)])))
 
+    (define (get-arg-types opcode-name)
+      (define class-id (get-class-id opcode-name))
+      (cond
+       [(equal? class-id 0) (vector `reg-o `reg-i `reg-i)]
+       [(equal? class-id 1) (vector `reg-o `reg-i `op2)]
+       [(equal? class-id 2) (vector `reg-o `reg-i)]
+       [(equal? class-id 3) (vector `reg-o `const)]
+       [(equal? class-id 4) (vector `reg-o `reg-i `reg-i `reg-i)]
+       [(equal? class-id 5) (vector `reg-o `reg-o `reg-i `reg-i)]
+       [(equal? class-id 6) (vector `reg-o `reg-i `bit `bit-no-0)]
+       [(equal? opcode-name `ldr#) (vector `reg-o `fp `mem)]
+       [(equal? opcode-name `str#) (vector `reg-i `fp `mem)]
+       [(equal? opcode-name `bfc) (vector `reg-io `bit `bit-no-0)]
+       [else (vector)]))
+    
+      
     ;; nargs, ranges
-    (define (get-arg-ranges opcode-name entry live-in)
+    (define (get-arg-ranges opcode-name entry live-in #:no-virtual [no-virtual #t])
       (define-syntax-rule (reg)
         (filter-live reg-range live-in))
-      (define class-id (get-class-id opcode-name))
-      ;(pretty-display `(get-arg-ranges ,opcode-name ,class-id ,live-in))
-      (cond
-       [(equal? class-id 0) (vector reg-range (reg) (reg))]
-       [(equal? class-id 1) (vector reg-range (reg) operand2-range)]
-       [(equal? class-id 2) (vector reg-range (reg))]
-       [(equal? class-id 3) (vector reg-range const-range)]
-       [(equal? class-id 4) (vector reg-range (reg) (reg) (reg))]
-       [(equal? class-id 5) (vector reg-range reg-range (reg) (reg))]
-       [(equal? class-id 6) (vector reg-range (reg) bit-range bit-range-no-0)]
-       [(equal? class-id 7) (vector reg-range (vector "fp") mem-range)]
-       [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range-no-0)]
-       [else (vector)]))
-    
-    ;; CAUTION: doesn't work with all predicate inst cases.
-    (define (get-arg-ranges-enum opcode-name entry live-in)
-      (define-syntax-rule (reg)
-        (filter-live reg-range live-in))
-      (define class-id (get-class-id opcode-name))
-      ;;(pretty-display `(get-arg-ranges ,opcode-name ,class-id ,reg-range ,live-in))
-      (cond
-       [(equal? class-id 0) (vector #f (reg) (reg))]
-       [(equal? class-id 1) (vector #f (reg) operand2-range)]
-       [(equal? class-id 2) (vector #f (reg))]
-       [(equal? class-id 3) (vector #f const-range)]
-       [(equal? class-id 4) (vector #f (reg) (reg) (reg))]
-       [(equal? class-id 5) (vector #f #f (reg) (reg))]
-       [(equal? class-id 6) (vector #f (reg) bit-range bit-range-no-0)]
-       [(equal? opcode-name `ldr#) (vector #f (vector "fp") mem-range)]
-       [(equal? opcode-name `str#) (vector (reg) (vector "fp") mem-range)]
-       [(equal? opcode-name `bfc) (vector (reg) bit-range bit-range-no-0)]
-       [else (vector)]))
-    
-    (define (get-reg-ranges opcode-name)
-      (define-syntax-rule (reg) #t)
-      (define class-id (get-class-id opcode-name))
-      (define mem-range #f)
-      (cond
-       [(equal? class-id 0) (vector #f (reg) (reg))]
-       [(equal? class-id 1) (vector #f (reg) #f)]
-       [(equal? class-id 2) (vector #f (reg))]
-       [(equal? class-id 3) (vector #f #f)]
-       [(equal? class-id 4) (vector #f (reg) (reg) (reg))]
-       [(equal? class-id 5) (vector #f #f (reg) (reg))]
-       [(equal? class-id 6) (vector #f (reg) #f #f)]
-       [(equal? opcode-name `ldr#) (vector #f #f mem-range)]
-       [(equal? opcode-name `str#) (vector (reg) #f mem-range)]
-       [(equal? opcode-name `bfc) (vector (reg) #f #f)]
-       [else (vector)]))
+      (for/vector 
+       ([type (get-arg-types opcode-name)])
+       (cond
+	[(equal? type `reg-o)  (and no-virtual reg-range)]
+	[(equal? type `reg-i)  (reg)]
+	[(equal? type `reg-io) (reg)]
+	[(equal? type `op2)    operand2-range]
+	[(equal? type `const)  const-range]
+	[(equal? type `bit)    bit-range]
+	[(equal? type `bit-no-0) bit-range-no-0]
+	[(equal? type `mem)    mem-range]
+	[(equal? type `fp)     (vector "fp")])))
 
     (define (get-shfarg-range shfop-id live-in)
       (define shfop-name (vector-ref shf-inst-id shfop-id))
@@ -547,54 +526,26 @@
     (define (analyze-args-inst x) ;; TODO: move this to machine.rkt
       (define opcode (vector-ref inst-id (inst-op x)))
       (define args (inst-args x))
-      (define class-id (get-class-id opcode))
       (define shf (member opcode inst-with-shf))
       (define shfop (and shf (inst-shfop x) (vector-ref shf-inst-id (inst-shfop x))))
       (define shfarg (and shf (inst-shfarg x)))
       ;; (pretty-display `(shf ,shf ,shfop))
 
-      (define-syntax-rule (collect x ...)
-        (collect-main (list x ...)))
+      (define reg-set (set))
+      (define mem-set (set))
+      (define const-set (set))
+      (define bit-set (set))
+      (define op2-set (set))
 
-      (define (collect-main fs)
-	(define reg-set (set))
-	(define mem-set (set))
-        (define const-set (set))
-        (define bit-set (set))
-	(define op2-set
-	  (if (and shfop (not (equal? shfop `nop)))
-	      (set shfarg)
-	      (set)))
-
-        (for ([f fs] 
-              [arg args])
-             (cond
-              [(equal? f `reg) (set! reg-set (set-add reg-set arg))]
-              [(equal? f `op2) (set! op2-set (set-add op2-set arg))]
-              [(equal? f `const) (set! const-set (set-add const-set arg))]
-              [(equal? f `bit) (set! bit-set (set-add bit-set arg))]
-              [(equal? f `mem) (set! mem-set (set-add mem-set arg))]
-	      ))
-        (list op2-set const-set bit-set reg-set mem-set))
-
-      (define reg `reg)
-      (define mem `mem)
-      (define bit `bit)
-      (define op2 `op2) 
-      (define const `const)
-
-      (cond
-       [(equal? class-id 0) (collect reg reg reg)]
-       [(equal? class-id 1) (collect reg reg op2)]
-       [(equal? class-id 2) (collect reg reg)]
-       [(equal? class-id 3) (collect reg const)]
-       [(equal? class-id 4) (collect reg reg reg reg)]
-       [(equal? class-id 5) (collect reg reg reg reg)]
-       [(equal? class-id 6) (collect reg reg bit bit)]
-       [(equal? class-id 7) (collect reg #f mem)]
-       [(member opcode '(bfc)) (collect reg bit bit)]
-       [(equal? opcode `nop) (cons (list) (list))]
-       [else (raise (format "decode-inst: undefined for ~a" opcode))]))
+      (for ([arg args]
+	    [type (get-arg-types opcode)])
+	   (cond
+	    [(member type '(reg-o reg-i reg-io)) (set! reg-set (set-add reg-set arg))]
+	    [(member type '(bit bit-no-0))       (set! bit-set (set-add bit-set arg))]
+	    [(equal? type `op2)   (set! op2-set (set-add op2-set arg))]
+	    [(equal? type `const) (set! const-set (set-add const-set arg))]
+	    [(equal? type `mem)   (set! mem-set (set-add mem-set arg))]))
+      (list op2-set const-set bit-set reg-set mem-set))
 
     (define (analyze-args prefix code postfix #:only-const [only-const #f] #:vreg [vreg 0])
       (define reg-set (set))

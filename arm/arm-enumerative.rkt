@@ -111,17 +111,11 @@
 			)
 		    (unless 
 		     (equal? opcode-name `nop)
-		     (when debug
-			   (pretty-display `(opcode-name ,opcode-name
-							 ,(send machine get-arg-ranges-enum 
-								opcode-name #f live-in))))
 		     (let* ([shf? (member opcode-name inst-with-shf)]
 			    [arg-ranges 
-                             (if regs
-                                 (vector->list 
-                                  (send machine get-arg-ranges-enum opcode-name #f live-in))
-                                 (vector->list
-                                  (send machine get-arg-ranges opcode-name #f live-in)))]
+			     (vector->list 
+			      (send machine get-arg-ranges opcode-name #f live-in 
+				    #:no-virtual (if regs #f #t)))]
 			    [cond-bound (if (or (= z -1) regs) 1 cond-type-len)]) ;; TODO
 		       (when debug (pretty-display `(iterate ,opcode-name ,arg-ranges ,cond-bound)))
 		       (for ([cond-type cond-bound])
@@ -183,34 +177,11 @@
     
     (define (check-later-use prog org index len)
       (define (inner x)
-	(define opcode (inst-op x))
-	(define opcode-name (send machine get-inst-name opcode))
-	(define args (inst-args x))
-	(define class-id (send machine get-class-id opcode-name))
-        
-	(define-syntax-rule (check x ...)
-	  (check-main (list x ...)))
-        
-        (define (check-main fs)
-	  (for/and ([f fs] 
-                    [arg args])
-		   ;;(pretty-display `(check-main ,f ,arg ,reg))
-            (or (not f) (not (= arg org)))))
-        
-        (define reg #t) (define imm #f) (define id #f)
-        
-        (cond
-	 [(equal? class-id 0) (check reg reg reg)]
-	 [(equal? class-id 1) (check reg reg imm)]
-	 [(equal? class-id 2) (check reg reg)]
-	 [(equal? class-id 3) (check reg imm)]
-	 [(equal? class-id 4) (check reg reg reg reg)]
-	 [(equal? class-id 5) (check reg reg reg reg)]
-	 [(equal? class-id 6) (check reg reg imm imm)]
-	 [(equal? class-id 7) (check reg id imm)]
-	 [(member opcode-name '(bfc)) (check reg imm imm)]
-	 [(equal? opcode-name `nop) #t]
-	 [else (raise (format "rename: undefined for ~a" opcode-name))]))
+	(define opcode-name (send machine get-inst-name (inst-op x)))
+	(for/and ([arg (inst-args x)]
+		  [type (send machine get-arg-types opcode-name)])
+		 (or (not (member type '(reg-o reg-i reg-io)))
+		     (not (= arg org)))))
       
       (for/and ([i (range (add1 index) len)])
         (inner (vector-ref prog i))))
@@ -228,45 +199,27 @@
       (define (rename-inst x index)
 	(define opcode (inst-op x))
 	(define opcode-name (send machine get-inst-name opcode))
-	(define class-id (send machine get-class-id opcode-name))
 	(define args (inst-args x))
 	(define cond-type (inst-cond x))
 	(define shfop (inst-shfop x))
 	(define shfarg (inst-shfarg x))
-
-	(define-syntax-rule (make-inst x ...)
-	  (make-inst-main (list x ...)))
+	(define new-args
+	  (for/vector 
+	   ([arg args]
+	    [type (send machine get-arg-types opcode-name)])
+	   (cond
+	    [(member type '(reg-o reg-i reg-io))
+	     (let ([to (vector-ref table arg)])
+	       (if to 
+		   (let ([res (or (= arg to) (check-later-use prog to index len))])
+		     ;;(pretty-display `(make-inst-main ,res ,arg, to))
+		     (set! valid (and valid res))
+		     to)
+		   arg))]
+	    [else arg])))
 	
-	(define (make-inst-main fs)
-	  (define new-args 
-	    (for/vector ([f fs] 
-			 [arg args])
-			(if f 
-			    (let ([to (vector-ref table arg)])
-			      (if to 
-                                  (let ([res (or (= arg to) (check-later-use prog to index len))])
-				    ;;(pretty-display `(make-inst-main ,res ,arg, to))
-                                    (set! valid (and valid res))
-                                    to)
-                                  arg))
-			    arg)))
-	  
-	  (arm-inst opcode new-args shfop shfarg cond-type))
-
-	(define reg #t) (define imm #f) (define id #f)
-
-	(cond
-	 [(equal? class-id 0) (make-inst reg reg reg)]
-	 [(equal? class-id 1) (make-inst reg reg imm)]
-	 [(equal? class-id 2) (make-inst reg reg)]
-	 [(equal? class-id 3) (make-inst reg imm)]
-	 [(equal? class-id 4) (make-inst reg reg reg reg)]
-	 [(equal? class-id 5) (make-inst reg reg reg reg)]
-	 [(equal? class-id 6) (make-inst reg reg imm imm)]
-	 [(equal? class-id 7) (make-inst reg id imm)]
-	 [(member opcode-name '(bfc)) (make-inst reg imm imm)]
-	 [(equal? opcode-name `nop) inst]
-	 [else (raise (format "rename: undefined for ~a" opcode-name))]))
+	(arm-inst opcode new-args shfop shfarg cond-type)
+	)
 
       (let ([new-x
              (for/vector ([x prog]
@@ -324,9 +277,10 @@
 	(define shfarg (inst-shfarg x))
 	(define args-ret (list))
 	(define ops-ret #f)
-	(for ([c (send machine get-reg-ranges opcode-name)] ;; TODO: memory
+	(for ([c (send machine get-arg-types opcode-name)] ;; TODO: memory
 	      [arg (inst-args x)])
-	     (when c (set! args-ret (cons arg args-ret))))
+	     (when (or (equal? c `reg-i) (equal? c `reg-io))
+		   (set! args-ret (cons arg args-ret))))
 	(when (member (vector-ref shf-inst-id shfop) '(asr lsl lsr))
 	      (set! args-ret (cons shfarg args-ret)))
 	(set! ops-ret (list opcode-id shfop))
