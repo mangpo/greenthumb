@@ -515,7 +515,8 @@
                      mov# mvn# movw# movt#
                      rev rev16 revsh rbit
                      asr lsl lsr
-                     asr# lsl# lsr#
+                     lsl# 
+		     asr# lsr#
                      mul mla mls
                      smull umull
                      smmul smmla smmls
@@ -538,7 +539,7 @@
 	       (let ([id (vector-member x inst-id)])
 		 (member id inst-pool)))))
 
-    (define (analyze-args-inst x) ;; TODO: move this to machine.rkt
+    (define (analyze-args-inst x)
       (define opcode (vector-ref inst-id (inst-op x)))
       (define args (inst-args x))
       (define shf (member opcode inst-with-shf))

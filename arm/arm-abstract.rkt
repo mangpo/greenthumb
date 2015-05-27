@@ -78,7 +78,7 @@
         (when
          (= (modulo (+ yes no) 10000) 0)
          (unsafe-clear-terms!)
-         (if (member opcode-name '(smmul ummul smmul smmla smmls))
+         (if (member opcode-name '(smull umull smmul smmla smmls))
              (current-solver (new z3%))
              (current-solver (new kodkod%)))
          (set! start-state (send machine get-state sym-input #f))

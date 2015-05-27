@@ -59,8 +59,9 @@
       (cond
        [(equal? type `mod) 
 	(set! inst-pool (filter (lambda (x) (member (vector-ref inst-id x) inst-mod)) inst-pool))]
-       [(equal? type `high)
-	(set! inst-pool (filter (lambda (x) (member (vector-ref inst-id x) inst-high)) inst-pool))])
+       ;; [(equal? type `high)
+       ;; 	(set! inst-pool (filter (lambda (x) (member (vector-ref inst-id x) inst-high)) inst-pool))]
+       )
 	
       (set! generate-inst 
 	    (generator 
@@ -125,7 +126,8 @@
 			[cond1 (or (not (equal? type `rest))
 				   (and (equal? type `rest)
 					(not (member (vector-ref inst-id opcode-id) inst-mod))
-					(not (member (vector-ref inst-id opcode-id) inst-high))))]
+					;; (not (member (vector-ref inst-id opcode-id) inst-high))
+					     ))]
 			[cond2 (or (equal? type `rest) (equal? type `all))]
 			)
 		    (unless 
@@ -318,5 +320,29 @@
     (define (get-flag state-vec) 
       (define z (vector-ref state-vec 2))
       (= z -1))
+
+    (define/public (get-inst-in-out x)
+      (define opcode (inst-op x))
+      (define args (inst-args x))
+      (define shfop (inst-shfop x))
+      (define shfarg (inst-shfarg x))
+
+      (define inst-type (list shfop opcode))
+      (define in (list))
+      (define out (list))
+      (when (> shfop 0)
+	    (if (member (vector-ref shf-inst-id shfop) '(asr lsl lsr))
+		(set! in (cons shfarg in))
+		(set! inst-type (cons shfarg inst-type))))
+      
+      (for ([arg args]
+	    [type (send machine get-arg-types (vector-ref inst-id opcode))])
+	   (cond
+	    [(equal? type `reg-o) (set! out (cons arg out))]
+	    [(equal? type `reg-i) (set! in (cons arg in))]
+	    [(equal? type `reg-io) (set! in (cons arg in)) (set! out (cons arg out))]
+	    [else (set! inst-type (cons arg inst-type))]))
+
+      (values (reverse inst-type) (reverse in) (reverse out)))
 
     ))

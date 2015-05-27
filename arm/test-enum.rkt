@@ -10,7 +10,10 @@
 (define printer (new arm-printer% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 (define enum (new arm-enumerative% [machine machine] [printer printer] [parser parser]))
+;(send machine analyze-opcode (vector) encoded-code (vector))
+(send machine reset-inst-pool)
 
+(define mapping (make-hash))
 
 ;; Input machine state
 (define input-state (progstate (vector 0 0 0)
@@ -23,25 +26,22 @@
 	add	r0, r0, r2, asr #1
 "))
 
-(define encoded-code (send printer encode code))
-
-;(send machine analyze-opcode (vector) encoded-code (vector))
-(send machine reset-inst-pool)
 (send enum reset-generate-inst (list input-state) (list 0 1) #f `rest #f #:no-args #t)
-(define iterator (get-field generate-inst enum))
-
-(define mapping (make-hash))
-
 (define abst (new arm-abstract% [k 3]))
 
-(define (save-to-file op shfop res)
-  (with-output-to-file "abstract.csv" #:exists 'append
+(define encoded-code (send printer encode code))
+
+(define iterator (get-field generate-inst enum))
+
+
+(define (save-to-file x-str res)
+  (with-output-to-file "abstract_k3.csv" #:exists 'append
    (thunk
     (for ([pair (hash->list res)])
          (let* ([in (car pair)]
                 [in-str (string-join (map number->string in) " ")]
                 [out-list (cdr pair)])
-           (display (format "~a,~a,~a," op shfop in-str))
+           (display (format "~a,~a," x-str in-str))
            (if (list? out-list)
                (let ([out-str-list
                       (map (lambda (x) (string-join (map number->string x) " ")) 
@@ -54,21 +54,23 @@
   (define p (iterator))
   (define my-inst (car p))
   (if my-inst
-      (begin
-        (with-output-to-file "progress.log" #:exists 'append
+      (let-values ([(x in out) (send enum get-inst-in-out my-inst)])
+        (with-output-to-file "progress_k3.log" #:exists 'append
           (thunk (send printer print-syntax (send printer decode my-inst))))
         (send printer print-syntax (send printer decode my-inst))
-        (let ([res (send abst abstract-behavior my-inst)])
+
+        (let ([res (send abst abstract-behavior my-inst)]
+	      [x-str (string-join (map number->string x) " ")])
           (hash-set! mapping
                      (cons (inst-op my-inst) (inst-shfop my-inst))
                      res)
-          (save-to-file (inst-op my-inst) (inst-shfop my-inst) res))
+          (save-to-file x-str res))
         (loop (add1 count))
         )
       count))
 
-(system "rm progress.log")
-(system "rm abstract.csv")
+(system "rm progress_k3.log")
+(system "rm abstract_k3.csv")
 (define mem0 (quotient (current-memory-use) 1000000))
 (define t0 (current-seconds))
 (pretty-display `(count ,(loop 0)))
