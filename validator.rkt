@@ -5,7 +5,12 @@
 (require rosette/solver/smt/z3)
 ;(require rosette/solver/kodkod/kodkod)
 
-(provide validator%)
+(provide validator% sym-input)
+
+(define (sym-input)
+  (define-symbolic* input number?)
+  input
+  )
 
 (define validator%
   (class object%
@@ -37,11 +42,6 @@
     (define start-time #f)
 
     (define/public (reset) (current-solver (new z3%)))
-
-    (define (sym-input)
-      (define-symbolic* input number?)
-      input
-      )
 
 
     (define (sym-op)

@@ -44,9 +44,14 @@
     (define commutative-1-2 '(add and orr eor mul smmul))
     (define commutative-2-3 '(mla smull umull smmla))
 
-    (define (reset-generate-inst states live-in regs type lex #:live-limit [limit #f])
+    ;; If regs is not #f, use virtual registers
+    ;; If lex is not #f, impose lexical order. This is only valid with virtual registers.
+    (define (reset-generate-inst states live-in regs type lex 
+				 #:live-limit [limit #f] #:no-args [no-args #f])
       (when (and limit live-in (> (length live-in) limit))
       	    (set! live-in (take live-in limit)))
+      (define mode (cond [regs `vir] [no-args `no-args] [else `basic]))
+      (pretty-display `(mode ,mode))
       (define z (progstate-z (car states))) ;; enough to look at one state.
       ;; (define inst-choice '(add and#))
       ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
@@ -63,7 +68,7 @@
 	     (when debug (pretty-display `(reset-generate-inst ,inst-pool)))
 
 	     (define (recurse-args opcode opcode-id shfop shfarg cond-type args ranges v-reg)
-	       (when debug (pretty-display `(recurse-args ,args ,ranges, shfop)))
+	       (when debug (pretty-display `(recurse-args ,args ,ranges ,shfop ,v-reg)))
 	       ;; Symmetry reduction for commutative operations
 	       (define pass
 		 (cond
@@ -89,10 +94,24 @@
 		    	(yield ret)))
 		  ]
 
-		 [(equal? (car ranges) #f) ;; SSA (virtual register)
+		 [(equal? (car ranges) `reg-o)
+		  (if (pair? v-reg)
+		      ;; enumerate no-arg
+		      (recurse-args opcode opcode-id shfop shfarg cond-type 
+				    (cons (cdr v-reg) args)
+				    (cdr ranges) (cons (car v-reg) (add1 (cdr v-reg))))
+		      ;; enumerate virtual
+		      (recurse-args opcode opcode-id shfop shfarg cond-type 
+				    (cons v-reg args)
+				    (cdr ranges) (add1 v-reg)))
+		      ]
+
+		 [(equal? (car ranges) `reg-i)
+		  ;; enumerate no-arg
 		  (recurse-args opcode opcode-id shfop shfarg cond-type 
-				(cons v-reg args)
-				(cdr ranges) (add1 v-reg))]
+				(cons (car v-reg) args)
+				(cdr ranges) (cons (add1 (car v-reg)) (cdr v-reg)))
+		  ]
 
 		 [else
 		  (for ([arg (car ranges)])
@@ -115,7 +134,8 @@
 			    [arg-ranges 
 			     (vector->list 
 			      (send machine get-arg-ranges opcode-name #f live-in 
-				    #:no-virtual (if regs #f #t)))]
+				    #:mode mode))]
+			    [v-reg (cond [regs regs] [no-args (cons 0 3)] [else #f])]
 			    [cond-bound (if (or (= z -1) regs) 1 cond-type-len)]) ;; TODO
 		       (when debug (pretty-display `(iterate ,opcode-name ,arg-ranges ,cond-bound)))
 		       (for ([cond-type cond-bound])
@@ -125,25 +145,34 @@
 				  (when
 				   cond1
 				   (recurse-args opcode-name opcode-id 0 #f cond-type 
-						 (list) arg-ranges regs)
-				   (let ([shfop 1]) ;; lsl#
-				     (for* ([shfarg (send machine get-shfarg-range shfop live-in)])
-					   (recurse-args opcode-name opcode-id shfop shfarg cond-type 
-							 (list) arg-ranges regs)))
+						 (list) arg-ranges v-reg)
+				   ;; lsl#
+				   (let ([shfop 1])
+				     (for ([shfarg (send machine get-shfarg-range shfop live-in)])
+					  (recurse-args opcode-name opcode-id shfop shfarg cond-type 
+							(list) arg-ranges v-reg)))
 				   )
-				  ;; shift
+				  ;; shift (except lsl#)
 				  (when 
 				   cond2
-				   (for* ([shfop (range 2 shf-inst-len)]
-					  [shfarg (send machine get-shfarg-range shfop live-in)])
-					 (recurse-args opcode-name opcode-id shfop shfarg cond-type 
-						       (list) arg-ranges regs)))
+				   (for ([shfop (range 2 shf-inst-len)])
+					(let ([shfarg-range 
+					       (send machine get-shfarg-range shfop live-in 
+						     #:mode mode)])
+					  (if (equal? shfarg-range `reg-i)
+					      (recurse-args opcode-name opcode-id shfop 0 cond-type 
+							    (list) arg-ranges (cons 1 3))
+					      (for ([shfarg shfarg-range])
+						   (recurse-args opcode-name opcode-id 
+								 shfop shfarg cond-type 
+								 (list) arg-ranges v-reg)))))
+				   )
 				  )
 				;; no shift
 				(when
 				 cond1
 				 (recurse-args opcode-name opcode-id 0 #f cond-type 
-					       (list) arg-ranges regs))
+					       (list) arg-ranges v-reg))
 				))))))
 	     (yield (list #f #f #f)))))
 

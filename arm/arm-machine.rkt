@@ -405,25 +405,41 @@
     
       
     ;; nargs, ranges
-    (define (get-arg-ranges opcode-name entry live-in #:no-virtual [no-virtual #t])
+    (define (get-arg-ranges opcode-name entry live-in #:mode [mode `basic])
       (define-syntax-rule (reg)
         (filter-live reg-range live-in))
       (for/vector 
        ([type (get-arg-types opcode-name)])
-       (cond
-	[(equal? type `reg-o)  (and no-virtual reg-range)]
-	[(equal? type `reg-i)  (reg)]
-	[(equal? type `reg-io) (reg)]
-	[(equal? type `op2)    operand2-range]
-	[(equal? type `const)  const-range]
-	[(equal? type `bit)    bit-range]
-	[(equal? type `bit-no-0) bit-range-no-0]
-	[(equal? type `mem)    mem-range]
-	[(equal? type `fp)     (vector "fp")])))
+       (if (equal? mode `basic)
+	   (cond
+	    [(equal? type `reg-o)  reg-range]
+	    [(equal? type `reg-i)  (reg)]
+	    [(equal? type `reg-io) (reg)]
+	    [(equal? type `op2)    operand2-range]
+	    [(equal? type `const)  const-range]
+	    [(equal? type `bit)    bit-range]
+	    [(equal? type `bit-no-0) bit-range-no-0]
+	    [(equal? type `mem)    mem-range]
+	    [(equal? type `fp)     (vector "fp")])
+	   (cond
+	    [(equal? type `reg-o)  `reg-o]
+	    [(equal? type `reg-i)  (if (equal? mode `vir) (reg) `reg-i)]
+	    [(equal? type `reg-io) (if (equal? mode `vir) (reg) `reg-i)]
+	    [(equal? type `op2)    operand2-range]
+	    [(equal? type `const)  const-range]
+	    [(equal? type `bit)    bit-range]
+	    [(equal? type `bit-no-0) bit-range-no-0]
+	    [(equal? type `mem)    mem-range]
+	    [(equal? type `fp)     (vector "fp")]))
+       ))
 
-    (define (get-shfarg-range shfop-id live-in)
+    (define (get-shfarg-range shfop-id live-in #:mode [mode `basic])
       (define shfop-name (vector-ref shf-inst-id shfop-id))
-      (if (member shfop-name '(asr lsr lsl)) (filter-live reg-range live-in) shf-range))
+      (if (member shfop-name '(asr lsr lsl)) 
+	  (if (equal? mode `no-args)
+	      `reg-i
+	      (filter-live reg-range live-in))
+	  shf-range))
 
     (define (code-has code inst-list)
       (for/or ([i code])
@@ -489,33 +505,32 @@
       (not (code-has code '(smull umull smmul smmla smmls)))
       )
 
-    (define/override (reset-inst-pool)
-      (define inst-choice '(add sub 
-                            and orr eor
-                     ;; add sub rsb
-                     ;; add# sub# rsb#
-                     ;; and orr eor bic orn
-                     ;; and# orr# eor# bic# orn#
-                     ;; mov mvn
-                     ;; mov# mvn# movw# movt#
-                     ;; rev rev16 revsh rbit
-                     ;; asr lsl lsr
-                     ;; asr# lsl# lsr#
-                     ;; mul mla mls
-                     ;; ;; smull umull
-                     ;; ;; smmul smmla smmls
-                     ;; sdiv udiv
-        	     ;; uxtah uxth uxtb
-                     ;; bfc bfi
-                     ;; sbfx ubfx
-                     ;; clz
-                     ;; ;; ldr str
-                     ;; ;; ldr# str#
-                     ;; tst cmp
-                     ;; tst# cmp#
-                     ))
+    ;; (define/override (reset-inst-pool)
+    ;;   (define inst-choice '(
+    ;;                  add sub rsb
+    ;;                  add# sub# rsb#
+    ;;                  ;; and orr eor bic orn
+    ;;                  ;; and# orr# eor# bic# orn#
+    ;;                  mov mvn
+    ;;                  mov# mvn# movw# movt#
+    ;;                  ;; rev rev16 revsh rbit
+    ;;                  ;; asr lsl lsr
+    ;;                  ;; asr# lsl# lsr#
+    ;;                  ;; mul mla mls
+    ;;                  smull umull
+    ;;                  ;; ;; smmul smmla smmls
+    ;;                  ;; sdiv udiv
+    ;;     	     ;; uxtah uxth uxtb
+    ;;                  ;; bfc bfi
+    ;;                  ;; sbfx ubfx
+    ;;                  ;; clz
+    ;;                  ;; ;; ldr str
+    ;;                  ;; ;; ldr# str#
+    ;;                  ;; tst cmp
+    ;;                  ;; tst# cmp#
+    ;;                  ))
                                 
-      (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
+    ;;   (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
 
     (define (is-virtual-reg)
       (not
