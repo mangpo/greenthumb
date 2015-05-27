@@ -32,7 +32,24 @@
 
 (define mapping (make-hash))
 
-(define abst (new arm-abstract% [k 4]))
+(define abst (new arm-abstract% [k 3]))
+
+(define (save-to-file op shfop res)
+  (with-output-to-file "abstract.csv" #:exists 'append
+   (thunk
+    (for ([pair (hash->list res)])
+         (let* ([in (car pair)]
+                [in-str (string-join (map number->string in) " ")]
+                [out-list (cdr pair)])
+           (display (format "~a,~a,~a," op shfop in-str))
+           (if (list? out-list)
+               (let ([out-str-list
+                      (map (lambda (x) (string-join (map number->string x) " ")) 
+                           out-list)])
+                 (pretty-display (string-join out-str-list ";")))
+               (pretty-display out-list))))
+    )))
+
 (define (loop count)
   (define p (iterator))
   (define my-inst (car p))
@@ -41,14 +58,17 @@
         (with-output-to-file "progress.log" #:exists 'append
           (thunk (send printer print-syntax (send printer decode my-inst))))
         (send printer print-syntax (send printer decode my-inst))
-        (hash-set! mapping
-                   (cons (inst-op my-inst) (inst-shfop my-inst))
-                   (send abst abstract-behavior my-inst))
+        (let ([res (send abst abstract-behavior my-inst)])
+          (hash-set! mapping
+                     (cons (inst-op my-inst) (inst-shfop my-inst))
+                     res)
+          (save-to-file (inst-op my-inst) (inst-shfop my-inst) res))
         (loop (add1 count))
         )
       count))
 
 (system "rm progress.log")
+(system "rm abstract.csv")
 (define mem0 (quotient (current-memory-use) 1000000))
 (define t0 (current-seconds))
 (pretty-display `(count ,(loop 0)))
