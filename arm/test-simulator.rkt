@@ -17,15 +17,14 @@
 
 
 ;; Input machine state
-(define input-state (progstate (vector -540198190 1967996197 -1667508303 2147472634 -650744541)
+(define input-state (progstate (vector 3 0 0 0 0)
                                (vector) -1 4))
 
 ;; Section 1: Concrete program
 
 (define code
 (send parser ast-from-string "
-orr r2, r0, r0, lsl 1
-sub r3, r0, r2
+sbfx r3, r0, 0, 1
 "))
 
 (send printer print-struct code)
@@ -37,10 +36,10 @@ sub r3, r0, r2
   (send simulator-racket interpret encoded-code input-state #:dep #t))
 (pretty-display "Output from simulator in rosette.")
 (send machine display-state output-state)
-(pretty-display
- (send enum abstract 
-       (send machine progstate->vector output-state) (list 0 2 3 4) 8))
-(newline)
+;; (pretty-display
+;;  (send enum abstract 
+;;        (send machine progstate->vector output-state) (list 0 2 3 4) 8))
+;; (newline)
 
 ;(send simulator-racket performance-cost encoded-code)
 

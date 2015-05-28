@@ -321,28 +321,4 @@
       (define z (vector-ref state-vec 2))
       (= z -1))
 
-    (define/public (get-inst-in-out x)
-      (define opcode (inst-op x))
-      (define args (inst-args x))
-      (define shfop (inst-shfop x))
-      (define shfarg (inst-shfarg x))
-
-      (define inst-type (list shfop opcode))
-      (define in (list))
-      (define out (list))
-      (when (> shfop 0)
-	    (if (member (vector-ref shf-inst-id shfop) '(asr lsl lsr))
-		(set! in (cons shfarg in))
-		(set! inst-type (cons shfarg inst-type))))
-      
-      (for ([arg args]
-	    [type (send machine get-arg-types (vector-ref inst-id opcode))])
-	   (cond
-	    [(equal? type `reg-o) (set! out (cons arg out))]
-	    [(equal? type `reg-i) (set! in (cons arg in))]
-	    [(equal? type `reg-io) (set! in (cons arg in)) (set! out (cons arg out))]
-	    [else (set! inst-type (cons arg inst-type))]))
-
-      (values (reverse inst-type) (reverse in) (reverse out)))
-
     ))

@@ -353,9 +353,9 @@
 				       `mod #f #:live-limit 3) 
 	   	  (abst-loop  eqv-classes live-list my-vreg `mod)
 		  ;; high-byte-mask abstraction
-	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
-				       `high #f #:live-limit 3)
-	   	  (abst-loop  eqv-classes live-list my-vreg `high)
+	   	  ;; (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
+		  ;; 		       `high #f #:live-limit 3)
+	   	  ;; (abst-loop  eqv-classes live-list my-vreg `high)
 	   	  ))
 
 	   (set! t-abst (+ t-abst (- (current-milliseconds) t-abst-start)))
@@ -384,9 +384,9 @@
 			 (reset-generate-inst outputs live-list (and virtual my-vreg)
 					      `mod smallest-lex #:live-limit 3)
 			 (enumerate outputs val #f) ;; no check
-			 (reset-generate-inst outputs live-list (and virtual my-vreg)
-					      `high smallest-lex #:live-limit 3)
-			 (enumerate outputs val #f) ;; no check
+			 ;; (reset-generate-inst outputs live-list (and virtual my-vreg)
+			 ;; 		      `high smallest-lex #:live-limit 3)
+			 ;; (enumerate outputs val #f) ;; no check
 			 ))))
 	   (when (< iter spec-len)
 		 (pretty-display `(iter ,iter ,spec-len))
