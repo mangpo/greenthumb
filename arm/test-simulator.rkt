@@ -3,7 +3,6 @@
 (require "arm-machine.rkt" "arm-printer.rkt" "arm-parser.rkt"
          "arm-simulator-rosette.rkt" 
          "arm-simulator-racket.rkt"
-         "arm-enumerative.rkt"
          )
 
 (current-bitwidth 32)
@@ -13,18 +12,16 @@
 (define printer (new arm-printer% [machine machine]))
 (define simulator-racket (new arm-simulator-racket% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
-(define enum (new arm-enumerative% [machine machine] [printer printer] [parser parser]))
-
 
 ;; Input machine state
-(define input-state (progstate (vector 3 0 0 0 0)
+(define input-state (progstate (vector 2 3 0 0 0)
                                (vector) -1 4))
 
 ;; Section 1: Concrete program
 
 (define code
 (send parser ast-from-string "
-sbfx r3, r0, 0, 1
+smull r2, r3, r0, r1
 "))
 
 (send printer print-struct code)

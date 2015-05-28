@@ -1,13 +1,12 @@
 #lang racket
 
-(require "ast.rkt" "machine.rkt" "decomposer.rkt" "arm/arm-psql.rkt")
+(require "ast.rkt" "machine.rkt" "decomposer.rkt" "arm/arm-psql.rkt" "arm/arm-abstract.rkt")
 (require racket/generator)
 
 (provide enumerative%)
 
 (struct concat (collection inst))
 
-;(struct entry (live vreg))
 (define-syntax-rule (entry live vreg flag) (list live vreg flag))
 (define-syntax-rule (entry-live x) (first x))
 (define-syntax-rule (entry-vreg x) (second x))
@@ -31,6 +30,9 @@
                                #:hard-postfix [hard-postfix (vector)]
                                #:assume-interpret [assume-interpret #t]
                                #:assume [assumption (send machine no-assumption)])
+      (define abst (new arm-abstract% [k 3]))
+      (send abst load-abstract-behavior)
+
       (define spec-len (vector-length spec))
       (define org-nregs (send machine get-nregs)) ;; #f is default
       (send machine analyze-opcode prefix spec postfix)
@@ -224,7 +226,8 @@
 					     my-inst)
 				     states2-vec)))))
 
-	   (define (refine-abstract classes live-list my-vreg new-live-list my-inst k type)
+	   (define (refine-abstract classes live-list my-vreg new-live-list my-inst k type
+                                    real-interpret)
 	     (define f
 	       (cond
 		[(equal? type `mod) 
@@ -249,20 +252,31 @@
 		   ;; (pretty-display `(abst-hash ,(hash-count abst-hash)))
 		   )
 
+             (define interpret
+               (if real-interpret
+                   (lambda (x)
+                     (abstract 
+                      (send machine progstate->vector 
+                            (send simulator interpret (vector my-inst)
+                                  (send machine vector->progstate x) #:dep #f))
+                      new-live-list f))
+                   (lambda (x)
+                     (let ([out-list (send abst interpret-inst my-inst
+                                           (send machine vector->progstate x) k)])
+                       (if (list? out-list)
+                           (for/list ([out out-list])
+                                     (abstract (send machine progstate->vector out)
+                                               new-live-list f))
+                           out-list)))
+                   ))
+
 	     (for ([pair (hash->list abst-hash)])
 		  (let* ([abst-states (car pair)]
 			 [real-states (cdr pair)]
 			 [abst-states-out 
 			  (with-handlers*
 			   ([exn? (lambda (e) #f)])
-			   (map (lambda (x) 
-				  (abstract 
-				   (send machine progstate->vector 
-					 (send simulator interpret (vector my-inst)
-					       (send machine vector->progstate x) 
-					       #:dep #f))
-				   new-live-list f))
-				abst-states))])
+			   (map interpret abst-states))])
 		    ;; (when (and (equal? `mov 
 		    ;; 		       (vector-ref (get-field inst-id machine) (inst-op my-inst)))
 		    ;; 	       (equal? 2 (vector-ref (inst-args my-inst) 0))
@@ -273,19 +287,26 @@
 		    ;; 				 ,abst-expect
 		    ;; 				 ,live2-vec)))
 		    (when 
-		     (and abst-states-out
-			  (for/and ([state-spec abst-expect]
-				    [state abst-states-out])
-				   (if virtual
-				       (send machine relaxed-state-eq? state-spec state live2-vec)
-				       (send machine state-eq? state-spec state live2-vec))
-				   ))
-		     (if (< k 6)
+		     (and abst-states-out ;; error
+                          (> (length 
+                              (filter (lambda (x) (not (boolean? x))) abst-states-out))
+                             0) ;; abstraction loses precision. TODO
+			  (for/and 
+                           ([state-spec abst-expect]
+                            [state abst-states-out])
+                           (or 
+                            (equal? state #t)
+                            (for/or ([s (if (list? state) state (list state))])
+                              (if virtual
+                                  (send machine relaxed-state-eq? state-spec s live2-vec)
+                                  (send machine state-eq? state-spec s live2-vec)))))
+                          )
+		     (if (< k 3)
 			 (hash-set! 
 			  abst-hash
 			  abst-states
 			  (refine-abstract real-states live-list my-vreg new-live-list my-inst 
-					   (add1 k) type))
+					   (add1 k) type real-interpret))
 			 (refine-real real-states live-list my-vreg my-inst))
 		     )))
 
@@ -329,15 +350,17 @@
 	   (pretty-display `(eqv ,(hash-count prev-classes)))
 	   ;; Test
 	   (define t-abst-start (current-milliseconds))
-	   (define (abst-loop eqv-classes live-list my-vreg type)
+	   (define (abst-loop eqv-classes live-list my-vreg type real-interpret)
 	     (define inst-liveout-vreg (generate-inst)) ;; TODO: close under modulo
 	     (define my-inst (first inst-liveout-vreg))
 	     (define my-liveout (second inst-liveout-vreg))
-	     (when my-inst
-		   ;;(send printer print-syntax (send printer decode my-inst))
-	   	   (define abst-hash 
-	   	     (refine-abstract eqv-classes live-list my-vreg my-liveout my-inst 1 type))
-	   	   (abst-loop abst-hash live-list my-vreg type)))
+             ;;(when my-inst (send printer print-syntax (send printer decode my-inst)))
+	     (if my-inst
+                 (let ([abst-hash 
+                        (refine-abstract eqv-classes live-list my-vreg my-liveout my-inst 
+                                         1 type real-interpret)])
+	   	   (abst-loop abst-hash live-list my-vreg type real-interpret))
+                 eqv-classes))
 
 	   (for ([pair1 (hash->list prev-classes)])
 	   	(let* ([live-vreg (car pair1)]
@@ -346,12 +369,21 @@
 	   	       [hash2 (cdr pair1)]
 	   	       [eqv-classes (hash-keys hash2)]
 		       ;; use only first state
-		       [state-rep-list (list (send machine vector->progstate (caar eqv-classes)))])
+		       [state-rep-list (list (send machine vector->progstate 
+                                                   (caar eqv-classes)))]
+                       [abst-hash #f])
 		  (pretty-display `(key ,live-vreg))
 		  ;; modular abstraction
+                  (pretty-display "MOD: valid")
 	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
 				       `mod #f #:live-limit 3) 
-	   	  (abst-loop  eqv-classes live-list my-vreg `mod)
+	   	  (set! abst-hash (abst-loop  eqv-classes live-list my-vreg `mod #t))
+
+                  (pretty-display "MOD: table")
+	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
+				       `rest #f #:live-limit 3) 
+	   	  (abst-loop abst-hash live-list my-vreg `mod #f)
+
 		  ;; high-byte-mask abstraction
 	   	  ;; (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
 		  ;; 		       `high #f #:live-limit 3)
@@ -380,7 +412,7 @@
 			       )
 			 (reset-generate-inst outputs live-list (and virtual my-vreg) 
 					      `rest smallest-lex #:live-limit 3)
-			 (enumerate outputs val #t) ;; check
+			 (enumerate outputs val #f) ;; check
 			 (reset-generate-inst outputs live-list (and virtual my-vreg)
 					      `mod smallest-lex #:live-limit 3)
 			 (enumerate outputs val #f) ;; no check

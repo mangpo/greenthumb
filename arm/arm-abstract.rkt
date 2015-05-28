@@ -94,8 +94,8 @@
 	  ;; TODO: z
 	  (define ans
 	    (is-possible? my-inst 
-			  (list->vector (reverse in-res))
-			  (list->vector (reverse out-res))
+			  (list->vector in-res)
+			  (list->vector out-res)
 			  in out start-regs end-regs))
           ;; Put into holder
           (if ans 
@@ -108,7 +108,7 @@
                 (set! all #f)
                 )
               )
-	  (pretty-display `(possible ,(reverse in-res) ,(reverse out-res) ,ans))
+	  (pretty-display `(possible ,in-res ,out-res ,ans))
 	  ]
 
 	 [(and (empty? in-list) (empty? out-res))
@@ -153,7 +153,7 @@
 	    [(equal? type `reg-i) (vector-set! in arg #t)]
 	    [(equal? type `reg-io) (vector-set! out arg #t) (vector-set! in arg #t)]))
       ;(pretty-display `(start ,(vector->list in) ,(vector->list out)))
-      (recurse-regs (vector->list in) (vector->list out) (list) (list))
+      (recurse-regs (reverse (vector->list in)) (reverse (vector->list out)) (list) (list))
       (pretty-display `(stat ,yes ,no))
       (set! all-yes (+ all-yes yes))
       (set! all-no (+ all-no no))
@@ -241,7 +241,7 @@
 
 
 
-    (define/public (interpret-inst my-inst state)
+    (define/public (interpret-inst my-inst state [abst-k k]) ;; TODO ???
       ;; TODO z
       (define opcode-name (vector-ref inst-id (inst-op my-inst)))
       (define cond-type (arm-inst-cond my-inst))
@@ -251,18 +251,40 @@
       (define fp (progstate-fp state))
       (define (exec)
 	(define-values (x regs-in regs-out) (get-inst-in-out my-inst))
-	(define regs-in-val (for/list ([r regs-in]) (vector-ref regs r)))
+	(define regs-in-val 
+          (for/list ([r regs-in]) 
+                    (let ([val (vector-ref regs r)]
+                          [mul (arithmetic-shift 1 abst-k)])
+                      (for/list ([i (arithmetic-shift 1 (- k abst-k))])
+                                (+ val (* i mul))))))
 	(define mapping (hash-ref behavior x))
-	(define regs-out-val-list (hash-ref mapping regs-in-val))
-	(if (equal? regs-out-val-list #t)
-	    #t
-	    (for/list ([regs-out-val regs-out-val-list])
-		      (let ([new-regs (vector-copy (progstate-regs state))]
-			    [new-memory (vector-copy (progstate-memory state))])
-			(for ([r regs-out]
-			      [v regs-out-val])
-			     (vector-set! new-regs r v))
-			(progstate new-regs new-memory z fp)))))
+        (define ret (list))
+
+        (define (inner regs-in-val)
+          ;;(pretty-display `(input ,regs-in-val))
+          (define regs-out-val-list (hash-ref mapping regs-in-val))
+          (if (equal? regs-out-val-list #t)
+              (set! ret #t)
+              (set! ret
+                    (append 
+                     ret
+                     (for/list ([regs-out-val regs-out-val-list])
+                               (let ([new-regs (vector-copy (progstate-regs state))]
+                                     [new-memory (vector-copy (progstate-memory state))])
+                                 (for ([r regs-out]
+                                       [v regs-out-val])
+                                      (vector-set! new-regs r v))
+                                 (progstate new-regs new-memory z fp)))))))
+
+        (define (recurse lst res)
+          (if (empty? lst)
+              (inner res)
+              (for ([x (car lst)] #:break (equal? ret #t))
+                   (recurse (cdr lst) (cons x res)))))
+
+        (recurse (reverse regs-in-val) (list))
+        ret)
+
 
       (define (same)
 	(list
@@ -320,28 +342,28 @@
     ))
       
 
-(define abst (new arm-abstract% [k 4]))
-(define machine (new arm-machine%))
-(send machine set-config (list  5 0 4))
-(define printer (new arm-printer% [machine machine]))
-(define parser (new arm-parser%))
-(define my-inst 
-  (vector-ref (send printer encode 
-                    (send parser ast-from-string "ubfx r1, r0, 0, 1"))
-              0))
+;; (define abst (new arm-abstract% [k 3]))
+;; (define machine (new arm-machine%))
+;; (send machine set-config (list  5 0 4))
+;; (define printer (new arm-printer% [machine machine]))
+;; (define parser (new arm-parser%))
+;; (define my-inst 
+;;   (vector-ref (send printer encode 
+;;                     (send parser ast-from-string "add r2, r0, r1, asr 1"))
+;;               0))
 
 ;; (send abst gen-abstract-behavior my-inst)
 ;; (send abst test)
 
-(define t0 (current-seconds))
-(send abst load-abstract-behavior)
-(define t1 (current-seconds))
-(pretty-display `(time ,(- t1 t0)))
-(define input-state (progstate (vector 3 0 0 0 0)
-                               (vector) -1 4))
-(define output-states
-  (send abst interpret-inst my-inst input-state))
-(pretty-display output-states)
-(when (list? output-states)
-      (for ([output-state output-states])
-	   (send machine display-state output-state)))
+;; (define t0 (current-seconds))
+;; (send abst load-abstract-behavior)
+;; (define t1 (current-seconds))
+;; (pretty-display `(time ,(- t1 t0)))
+;; (define input-state (progstate (vector 0 1 0 0 0)
+;;                                (vector) -1 4))
+;; (define output-states
+;;   (send abst interpret-inst my-inst input-state 2))
+;; (pretty-display output-states)
+;; (when (list? output-states)
+;;       (for ([output-state output-states])
+;; 	   (send machine display-state output-state)))

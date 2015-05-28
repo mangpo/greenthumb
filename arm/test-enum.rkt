@@ -25,7 +25,7 @@
 "))
 
 (send enum reset-generate-inst (list input-state) (list 0 1) #f `rest #f #:no-args #t)
-(define abst (new arm-abstract% [k 2]))
+(define abst (new arm-abstract% [k 3]))
 
 (define encoded-code (send printer encode code))
 (define iterator (get-field generate-inst enum))
