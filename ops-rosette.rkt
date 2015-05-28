@@ -82,6 +82,25 @@
 
 ;;   (finitize (+ o5 o2 (>> (+ o1 o6) byte2)) bit))
 
+;; (define (ummul u v bit)
+;;   (define byte2 (quotient bit 2))
+;;   (define low-mask (sub1 (arithmetic-shift 1 byte2)))
+
+;;   (define u0 (bitwise-and u low-mask))
+;;   (define u1 (bitwise-and (>> u byte2) low-mask))
+;;   (define v0 (bitwise-and v low-mask))
+;;   (define v1 (bitwise-and (>> v byte2) low-mask))
+
+;;   (finitize
+;;    (+ (* u1 v1) 
+;;       (sym/>>> (* u1 v0) byte2) 
+;;       (sym/>>> (* u0 v1) byte2) 
+;;       (sym/>>> (+ (bitwise-and (* u1 v0) low-mask)
+;;                   (bitwise-and (* u0 v1) low-mask)
+;;                   (sym/>>> (* u0 v0) byte2))
+;;                byte2))
+;;    bit))
+
 (define (smmul x y bit) 
   (define p (*h x y))
   (define t1 (bitwise-and (>> x (sub1 bit)) y))
