@@ -590,17 +590,33 @@
 	     ))
       (update-arg-ranges op2-set const-set bit-set reg-set mem-set only-const vreg))
 
-    (define (relaxed-state-eq? state1 state2 pred)
-      (and 
-       ;; Use normal state-eq? for everything else that is not regs.
-       (for/and ([i (range 1 (vector-length state1))])
-		(state-eq? (vector-ref state1 i) (vector-ref state2 i) (vector-ref pred i)))
-       ;; Check regs.
-       (let ([regs-pred (vector-ref pred 0)]
-	     [regs1 (vector-ref state1 0)]
-	     [regs2 (vector-ref state2 0)])
+    (define (relaxed-state-eq? state1 state2 pred [out-loc #f])
+      (define regs-pred (vector-ref pred 0))
+      (define regs1 (vector-ref state1 0))
+      (define regs2 (vector-ref state2 0))
+
+      (define ret
+	(and
+	 ;; Use normal state-eq? for everything else that is not regs.
+	 (for/and ([i (range 1 (vector-length state1))])
+		  (state-eq? (vector-ref state1 i) (vector-ref state2 i) (vector-ref pred i)))
+	 ;; Check regs.
 	 (for/and ([i regs-pred]
 		   [r regs1])
-		  (or (not i) (vector-member r regs2))))))
+		  (or (not i) (vector-member r regs2)))))
+    
+
+      (when 
+       (and ret out-loc)
+       (define special (vector-ref regs2 out-loc))
+       
+       (when special
+	     (define okay #f)
+	     (for ([i regs-pred]
+		   [r regs1])
+		  (when (and i (= r special)) (set! okay #t)))
+	     (unless okay (set! ret #f))))
+      
+      ret)
                           
     ))

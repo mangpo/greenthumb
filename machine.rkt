@@ -101,7 +101,7 @@
 		  [s2 state2])
 		 (state-eq? s1 s2 i))]))
 
-    (define (relaxed-state-eq? state1 state2 pred)
+    (define (relaxed-state-eq? state1 state2 pred [out-loc #f])
       (state-eq? state1 state2 pred))
 
     ;; (define (update-live live x)

@@ -1,6 +1,7 @@
 #lang racket
 
-(require "ast.rkt" "machine.rkt" "decomposer.rkt" "arm/arm-psql.rkt" "arm/arm-abstract.rkt")
+(require "ast.rkt" "machine.rkt" "decomposer.rkt" 
+         "arm/arm-psql.rkt" "arm/arm-abstract.rkt" "arm/arm-ast.rkt")
 (require racket/generator)
 
 (provide enumerative%)
@@ -20,7 +21,7 @@
     (override synthesize-window)
     (abstract reset-generate-inst abstract lexical-skeleton)
     (public get-register-mapping get-renaming-iterator build-db
-	    lexical-cmp get-flag)
+	    lexical-cmp get-flag get-output-location)
 
     (define bit (get-field bit machine))
 
@@ -42,6 +43,8 @@
       (define live2 (send validator get-live-in postfix constraint extra))
       (define live2-vec (send machine progstate->vector live2))
       (define live1 (send validator get-live-in spec live2 extra))
+      (define live1-list (send machine get-operand-live live1))
+      (define live2-list (send machine get-operand-live live2))
 
 
       (define ntests 2)
@@ -69,7 +72,7 @@
       ;; 			(get-flag (car states1)))
       ;; 		 (make-hash (list (cons states1-vec (list (vector))))))
       (class-insert! prev-classes 
-		     (send machine get-operand-live live1) org-nregs  
+		     live1-list org-nregs  
 		     states1-vec (vector))
 
       (for ([i states1])
@@ -90,7 +93,7 @@
 	   (define classes (make-hash))
 	   (define ce-list (list))
 
-	   (define (check-eqv prog states-vec)
+	   (define (check-eqv prog states-vec out-loc)
 	     ;(pretty-display `(check-eqv ,prog ,states-vec))
 	     (set! count-t (add1 count-t))
 	     (when (= (modulo count-t 100000) 0)
@@ -102,11 +105,15 @@
 
 	     ;; (when (concat? prog) 
 	     ;; 	   (let ([x (concat-inst prog)])
-	     ;; 	     (when (and (equal? `and
-             ;;                            (vector-ref (get-field inst-id machine) 
-             ;;                                        (inst-op x)))
-	     ;; 			(equal? 0 (vector-ref (inst-args x) 1))
-	     ;; 			(equal? 3 (vector-ref (inst-args x) 2)))
+             ;;         (when (and (equal? `rsb 
+             ;;                            (vector-ref (get-field inst-id machine) (inst-op x)))
+             ;;                    (equal? `lsr 
+             ;;                            (vector-ref (get-field shf-inst-id machine) 
+             ;;                                        (inst-shfop x)))
+             ;;                    (equal? 2 (inst-shfarg x))
+             ;;                    (equal? 4 (vector-ref (inst-args x) 0))
+             ;;                    (equal? 3 (vector-ref (inst-args x) 1))
+             ;;                    (equal? 3 (vector-ref (inst-args x) 2)))
              ;;               (newline)
 	     ;; 		   (pretty-display `(check-eqv ,live2-vec
 	     ;; 					       ,states-vec
@@ -118,7 +125,8 @@
 	      (for/and ([state-spec states2-vec-spec]
 			[state states-vec])
 		       (if virtual
-			   (send machine relaxed-state-eq? state-spec state live2-vec)
+			   (send machine relaxed-state-eq? state-spec state live2-vec 
+                                 out-loc)
 			   (send machine state-eq? state-spec state live2-vec))
 		       )
 	      (set! count-1 (add1 count-1))
@@ -195,7 +203,7 @@
 	      	      ;; (pretty-display "Before renaming")
 	      	      ;; (send printer print-syntax (send printer decode p))
 	      	      (when mapping
-	      		    (define iterator2 (get-renaming-iterator p mapping))
+	      		    (define iterator2 (get-renaming-iterator p mapping out-loc))
 	      		    (inner-loop iterator2)
 	      		    )
 	      	      (loop iterator))
@@ -208,7 +216,7 @@
 	      )
 	     ) ;; End check-eqv
 
-	   (define (refine-real classes live-list my-vreg my-inst)
+	   (define (refine-real classes live-list my-vreg my-inst out-loc)
 	     (for ([states classes])
 		  (let ([states2-vec 
 			 (with-handlers*
@@ -219,13 +227,24 @@
 					     (send machine vector->progstate x)
 					     #:dep #f))) 
 			       states))])
+                    ;; (when (and (equal? `rsb 
+		    ;; 		       (vector-ref (get-field inst-id machine) (inst-op my-inst)))
+                    ;;            (equal? `lsr 
+                    ;;                    (vector-ref (get-field shf-inst-id machine) 
+                    ;;                                (inst-shfop my-inst)))
+                    ;;            (equal? 2 (inst-shfarg my-inst))
+		    ;; 	       (equal? 4 (vector-ref (inst-args my-inst) 0))
+		    ;; 	       (equal? 3 (vector-ref (inst-args my-inst) 1))
+		    ;; 	       (equal? 3 (vector-ref (inst-args my-inst) 2)))
+                    ;;       (pretty-display `(refine-real ,states ,states2-vec))
+                    ;;       )
 		    (when states2-vec
 			  (check-eqv (concat (class-ref prev-classes live-list my-vreg states) 
 					     my-inst)
-				     states2-vec)))))
+				     states2-vec out-loc)))))
 
 	   (define (refine-abstract classes live-list my-vreg new-live-list my-inst k type
-                                    real-interpret)
+                                    real-interpret out-loc)
 	     (define f
 	       (cond
 		[(equal? type `mod) 
@@ -235,7 +254,8 @@
 		 (let ([mask (arithmetic-shift -1 (- bit k))])
 		   (lambda (x) (bitwise-and x mask)))]))
 	     (define abst-hash classes)
-	     (define abst-expect (map (lambda (x) (abstract x new-live-list f)) states2-vec-spec))
+	     (define abst-expect 
+               (map (lambda (x) (abstract x live2-list f)) states2-vec-spec))
 	     (when (list? abst-hash)
 		   ;; TODO: live-list should contain memory as well
 		   (set! abst-hash (make-hash))
@@ -275,19 +295,26 @@
 			  (with-handlers*
 			   ([exn? (lambda (e) #f)])
 			   (map interpret abst-states))])
-		    ;; (when (and (equal? `mov 
+		    ;; (when (and (equal? `rsb 
 		    ;; 		       (vector-ref (get-field inst-id machine) (inst-op my-inst)))
-		    ;; 	       (equal? 2 (vector-ref (inst-args my-inst) 0))
-		    ;; 	       (equal? 0 (vector-ref (inst-args my-inst) 1)))
+                    ;;            (equal? `lsr 
+                    ;;                    (vector-ref (get-field shf-inst-id machine) 
+                    ;;                                (inst-shfop my-inst)))
+                    ;;            (equal? 2 (inst-shfarg my-inst))
+		    ;; 	       (equal? 4 (vector-ref (inst-args my-inst) 0))
+		    ;; 	       (equal? 3 (vector-ref (inst-args my-inst) 1))
+		    ;; 	       (equal? 3 (vector-ref (inst-args my-inst) 2)))
 		    ;; 	  (pretty-display `(info ,k
 		    ;; 				 ,abst-states
 		    ;; 				 ,abst-states-out
 		    ;; 				 ,abst-expect
-		    ;; 				 ,live2-vec)))
+		    ;; 				 ,live2-vec
+                    ;;                              ,(count (lambda (x) (not (boolean? x))) abst-states-out))))
 		    (cond
 		     [(and abst-states-out
 			   (= 0 (count (lambda (x) (not (boolean? x))) abst-states-out)))
-		      (refine-real (collect-states real-states) live-list my-vreg my-inst)
+		      (refine-real (collect-states real-states) live-list 
+                                   my-vreg my-inst out-loc)
 		      ]
 		     
 		     [(and abst-states-out ;; error
@@ -298,16 +325,18 @@
 			     (equal? state #t)
 			     (for/or ([s (if (list? state) state (list state))])
 			       (if virtual
-				   (send machine relaxed-state-eq? state-spec s live2-vec)
+				   (send machine relaxed-state-eq? state-spec s live2-vec
+                                         out-loc)
 				   (send machine state-eq? state-spec s live2-vec)))))
 			   )
 		      (if (< k 3)
 			  (hash-set! 
 			   abst-hash
 			   abst-states
-			   (refine-abstract real-states live-list my-vreg new-live-list my-inst 
-					    (add1 k) type real-interpret))
-			  (refine-real real-states live-list my-vreg my-inst))
+			   (refine-abstract real-states live-list my-vreg new-live-list 
+                                            my-inst 
+					    (add1 k) type real-interpret out-loc))
+			  (refine-real real-states live-list my-vreg my-inst out-loc))
 		      ]
 		     )
 		    ))
@@ -358,9 +387,10 @@
 	     (define my-liveout (second inst-liveout-vreg))
              ;;(when my-inst (send printer print-syntax (send printer decode my-inst)))
 	     (if my-inst
-                 (let ([abst-hash 
-                        (refine-abstract eqv-classes live-list my-vreg my-liveout my-inst 
-                                         1 type real-interpret)])
+                 (let* ([out-loc (get-output-location my-inst)]
+                        [abst-hash 
+                         (refine-abstract eqv-classes live-list my-vreg my-liveout my-inst 
+                                          1 type real-interpret out-loc)])
 	   	   (abst-loop abst-hash live-list my-vreg type real-interpret))
                  eqv-classes))
 
@@ -430,9 +460,10 @@
     (define (collect-states x)
       (if (list? x)
 	  x
-	  (flatten
-	   (for/list ([val (hash-values x)])
-		     (collect-states val)))))
+	  (let ([ans (list)])
+            (for ([val (hash-values x)])
+                 (set! ans (append (collect-states val) ans)))
+            ans)))
 
     (define (get-flag state) #f)
 
@@ -746,5 +777,6 @@
 
       )
 
+    (define (get-output-location my-inst) #f)
 
     ))

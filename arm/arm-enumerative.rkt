@@ -13,7 +13,7 @@
     (inherit lexical-cmp)
     (override len-limit window-size reset-generate-inst 
 	      get-register-mapping get-renaming-iterator
-	      abstract lexical-skeleton get-flag)
+	      abstract lexical-skeleton get-flag get-output-location)
 
     (define (len-limit) 2)
     (define (window-size) 4)
@@ -52,7 +52,7 @@
       	    (set! live-in (take live-in limit)))
       (define mode (cond [regs `vir] [no-args `no-args] [else `basic]))
       (define z (progstate-z (car states))) ;; enough to look at one state.
-      ;; (define inst-choice '(eor and add))
+      ;; (define inst-choice '(clz mvn# rsb))
       ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
       (define inst-pool (get-field inst-pool machine))
       (cond
@@ -264,15 +264,16 @@
         (and valid new-x))
       )
 
-    (define (get-renaming-iterator prog mapping)
+    (define (get-renaming-iterator prog mapping out-loc)
       ;(pretty-display `(get-renaming-iterator ,mapping))
       (generator
        ()
        (define (recurse index assigned mapping)
 	 (cond
 	  [(empty? mapping)
-           (define renamed (rename prog (reverse assigned)))
-           (when renamed (yield renamed))]
+	   (when (member out-loc assigned)
+		 (define renamed (rename prog (reverse assigned)))
+		 (when renamed (yield renamed)))]
 	  [(car mapping)
 	   (for ([choice (car mapping)])
 		(recurse (add1 index) (cons choice assigned) (cdr mapping)))]
@@ -320,4 +321,9 @@
       (define z (vector-ref state-vec 2))
       (= z -1))
 
+
+    (define (get-output-location my-inst)
+      (for/or ([type (send machine get-arg-types (vector-ref inst-id (inst-op my-inst)))]
+	       [arg (inst-args my-inst)])
+	      (and (member type '(reg-o reg-io)) arg)))
     ))
