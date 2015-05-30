@@ -62,25 +62,21 @@
   ;(pretty-display `(vector-extract-ret ,vec))
   vec)
 
-;; (define (smmul x y bit)
+;; (define (smmul u v bit)
 ;;   (define byte2 (quotient bit 2))
 ;;   (define low-mask (sub1 (arithmetic-shift 1 byte2)))
 
-;;   (define o1 (bitwise-and x low-mask))
-;;   (define o2 (>> x byte2))
-;;   (define o3 (bitwise-and y low-mask))
-;;   (define o4 (>> y byte2))
+;;   (define u0 (bitwise-and u low-mask))
+;;   (define u1 (>> u byte2))
+;;   (define v0 (bitwise-and v low-mask))
+;;   (define v1 (>> v byte2))
 
-;;   (define o5 (* o1 o3))
-;;   (define o6 (* o2 o3))
-;;   (set! o1 (* o1 o4))
-;;   (set! o2 (* o2 o4))
-
-;;   (set! o5 (+ o6 (>> o5 byte2)))
-;;   (set! o6 (bitwise-and o5 low-mask))
-;;   (set! o5 (>> o5 byte2))
-
-;;   (finitize (+ o5 o2 (>> (+ o1 o6) byte2)) bit))
+;;   (define w0 (finitize (* u0 v0) bit))
+;;   (define t (finitize (+ (* u1 v0) (sym/>>> w0 byte2)) bit))
+;;   (define w1 (bitwise-and t low-mask))
+;;   (define w2 (>> t byte2))
+;;   (set! w1 (finitize (+ (* u0 v1) w1) bit))
+;;   (finitize (+ (* u1 v1) w2 (>> w1 byte2)) bit))
 
 ;; (define (ummul u v bit)
 ;;   (define byte2 (quotient bit 2))

@@ -58,8 +58,8 @@
       (cond
        [(equal? type `mod) 
 	(set! inst-pool (filter (lambda (x) (member (vector-ref inst-id x) inst-mod)) inst-pool))]
-       ;; [(equal? type `high)
-       ;; 	(set! inst-pool (filter (lambda (x) (member (vector-ref inst-id x) inst-high)) inst-pool))]
+       [(equal? type `high)
+       	(set! inst-pool (filter (lambda (x) (member (vector-ref inst-id x) inst-high)) inst-pool))]
        )
 	
       (set! generate-inst 
@@ -125,7 +125,7 @@
 			[cond1 (or (not (equal? type `rest))
 				   (and (equal? type `rest)
 					(not (member (vector-ref inst-id opcode-id) inst-mod))
-					;; (not (member (vector-ref inst-id opcode-id) inst-high))
+					(not (member (vector-ref inst-id opcode-id) inst-high))
 					     ))]
 			[cond2 (or (equal? type `rest) (equal? type `all))]
 			)

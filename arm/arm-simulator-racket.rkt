@@ -52,7 +52,7 @@
 
     (define-syntax-rule (bvshift op)
       (lambda (x y)
-        (finitize-bit (op x (bitwise-and byte-mask y)))))
+        (finitize-bit (op x (bitwise-and #xff y)))))
 
     (define-syntax-rule (bvshift# op)
       (lambda (x y)
