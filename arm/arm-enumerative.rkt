@@ -9,7 +9,8 @@
 (define arm-enumerative%
   (class enumerative%
     (super-new)
-    (inherit-field machine printer simulator validator generate-inst)
+    (inherit-field machine printer simulator validator generate-inst
+                   t-get-type t-later-use)
     (inherit lexical-cmp)
     (override len-limit window-size reset-generate-inst 
 	      get-register-mapping get-renaming-iterator
@@ -53,9 +54,9 @@
       ;; 	    (set! live-in (take live-in limit)))
       (define mode (cond [regs `vir] [no-args `no-args] [else `basic]))
       (define z (progstate-z (car states))) ;; enough to look at one state.
-      ;; (define inst-choice '(clz mvn# rsb))
-      ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
-      (define inst-pool (get-field inst-pool machine))
+      (define inst-choice '(clz sub bic add))
+      (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
+      ;; (define inst-pool (get-field inst-pool machine))
       (cond
        [(equal? type `mod) 
 	(set! inst-pool (filter (lambda (x) (member (vector-ref inst-id x) inst-mod)) inst-pool))]
@@ -219,6 +220,7 @@
 
 
     (define (rename prog assigned)
+      (define t00 (current-milliseconds))
       ;(pretty-display `(rename ,assigned))
       (define len (vector-length prog))
       (define valid #t)
@@ -234,16 +236,19 @@
 	(define cond-type (inst-cond x))
 	(define shfop (inst-shfop x))
 	(define shfarg (inst-shfarg x))
+        (define t0 (current-milliseconds))
+        (define types (send machine get-arg-types opcode-name))
+        (define t1 (current-milliseconds))
+        (set! t-get-type (+ t-get-type (- t1 t0)))
 	(define new-args
 	  (for/vector 
 	   ([arg args]
-	    [type (send machine get-arg-types opcode-name)])
+	    [type types])
 	   (cond
 	    [(member type '(reg-o reg-i reg-io))
 	     (let ([to (vector-ref table arg)])
 	       (if to 
 		   (let ([res (or (= arg to) (check-later-use prog to index len))])
-		     ;;(pretty-display `(make-inst-main ,res ,arg, to))
 		     (set! valid (and valid res))
 		     to)
 		   arg))]
@@ -262,27 +267,28 @@
         ;;   (pretty-display "Rename: invalid")
         ;;   (send printer print-syntax (send printer decode prog))
         ;;   )
+        (define t11 (current-milliseconds))
+        (set! t-later-use (+ t-later-use (- t11 t00)))
         (and valid new-x))
       )
 
     (define (get-renaming-iterator prog mapping out-loc)
       ;(pretty-display `(get-renaming-iterator ,mapping))
-      (generator
-       ()
-       (define (recurse index assigned mapping)
-	 (cond
-	  [(empty? mapping)
-	   (when (member out-loc assigned)
-		 (define renamed (rename prog (reverse assigned)))
-		 (when renamed (yield renamed)))]
-	  [(car mapping)
-	   (for ([choice (car mapping)])
-		(recurse (add1 index) (cons choice assigned) (cdr mapping)))]
+      (define ans (list))
+      (define (recurse index assigned mapping)
+        (cond
+         [(empty? mapping)
+          (when (member out-loc assigned)
+                (define renamed (rename prog assigned))
+                (when renamed (set! ans (cons renamed ans))))]
+         [(car mapping)
+          (for ([choice (car mapping)])
+               (recurse (add1 index) (cons choice assigned) (cdr mapping)))]
 
-	  [else (recurse (add1 index) (cons #f assigned) (cdr mapping))]
-	  ))
-       (recurse 0 (list) (vector->list mapping))
-       (yield #f)))
+         [else (recurse (add1 index) (cons #f assigned) (cdr mapping))]
+         ))
+      (recurse 0 (list) (reverse (vector->list mapping)))
+      ans)
 
     ;; TODO: memory, z
     (define (abstract state-vec live-list f)
