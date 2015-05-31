@@ -47,9 +47,10 @@
     ;; If regs is not #f, use virtual registers
     ;; If lex is not #f, impose lexical order. This is only valid with virtual registers.
     (define (reset-generate-inst states live-in regs type lex 
-				 #:live-limit [limit #f] #:no-args [no-args #f])
-      (when (and limit live-in (> (length live-in) limit))
-      	    (set! live-in (take live-in limit)))
+				 ;; #:live-limit [limit #f] 
+                                 #:no-args [no-args #f])
+      ;; (when (and limit live-in (> (length live-in) limit))
+      ;; 	    (set! live-in (take live-in limit)))
       (define mode (cond [regs `vir] [no-args `no-args] [else `basic]))
       (define z (progstate-z (car states))) ;; enough to look at one state.
       ;; (define inst-choice '(clz mvn# rsb))
@@ -196,7 +197,7 @@
       			  [compare
       			   (for/and ([spec regs-spec-i]
       			   	     [my regs-j])
-      			   	    (= spec my))])
+      			   	    (equal? spec my))])
       		     (when compare
       		     	   (vector-set! mapping i (cons j (vector-ref mapping i)))))))
       	    (when (empty? (vector-ref mapping i))
@@ -292,7 +293,7 @@
       (vector
        (for/vector ([r regs] [i (vector-length regs)])
 		   (and (member i live-list) (f r)))
-       (make-vector (vector-length mems) #f)
+       (vector-copy mems)
        z fp))
 
     (define (lexical-skeleton x)

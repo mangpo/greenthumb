@@ -143,7 +143,7 @@
       ;; All 0s
       (define input-zero (list (generate-one-input (lambda () 0))))
       
-      (define m (if db n (quotient n 2)))
+      (define m (if db n (quotient (add1 n) 2)))
       ;; Random
       (define input-random
         (for/list ([i m])

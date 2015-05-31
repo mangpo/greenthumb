@@ -98,8 +98,8 @@
 	      is-virtual-reg update-live)
     (public get-shfarg-range get-arg-types)
 
-    (set! bit 32)
-    (set! random-input-bit 32)
+    (set! bit 4)
+    (set! random-input-bit 4)
     (set! nop-id 0)
     (set! inst-id '#(nop 
                      add sub rsb
@@ -372,7 +372,8 @@
 			(set! live (cons i live))))
              live)))
     
-
+    ;; 'live' is a list of live-in registers.
+    ;; return: a list of live-out regsiters.
     (define (update-live live x)
       (define args (inst-args x))
       (define opcode-name (vector-ref inst-id (inst-op x)))

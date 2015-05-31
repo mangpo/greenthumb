@@ -24,6 +24,7 @@
 	    lexical-cmp get-flag get-output-location)
 
     (define bit (get-field bit machine))
+    (define live-limit 3)
 
     (define (synthesize-window spec sketch prefix postfix constraint extra 
                                [cost #f] [time-limit 3600]
@@ -408,18 +409,18 @@
 		  ;; modular abstraction
                   (pretty-display "MOD: valid")
 	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
-				       `mod #f #:live-limit 3) 
+				       `mod #f); #:live-limit 3) 
 	   	  (set! abst-hash (abst-loop  eqv-classes live-list my-vreg `mod #t))
 
 		  ;; high-byte-mask abstraction
 	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
-		  		       `high #f #:live-limit 3)
+		  		       `high #f); #:live-limit 3)
 	   	  (abst-loop eqv-classes live-list my-vreg `high #t)
 
 		  ;; modular abstraction
                   (pretty-display "MOD: table")
 	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
-				       `rest #f #:live-limit 3) 
+				       `rest #f); #:live-limit 3) 
 	   	  (abst-loop abst-hash live-list my-vreg `mod #f)
 
 	   	  ))
@@ -445,7 +446,7 @@
 			       (print-concat val)
 			       )
 			 (reset-generate-inst outputs live-list (and virtual my-vreg)
-					      `all smallest-lex #:live-limit 3)
+					      `all smallest-lex); #:live-limit 3)
 			 (enumerate outputs val #f) ;; no check
 			 ))))
 	   (when (< iter spec-len)
@@ -467,8 +468,11 @@
 
     (define (get-flag state) #f)
 
-    (define (class-insert! class live-vec my-vreg states-vec prog)
-      (define key (entry live-vec my-vreg (get-flag (car states-vec))))
+    (define (class-insert! class live-list my-vreg states-vec prog)
+      (when (> (length live-list) live-limit)
+      	    (set! live-list (take live-list live-limit)))
+      (set! states-vec (map (lambda (x) (abstract x live-list identity)) states-vec))
+      (define key (entry live-list my-vreg (get-flag (car states-vec))))
       (if (hash-has-key? class key)
 	  (let ([hash2 (hash-ref class key)])
 	    (if (hash-has-key? hash2 states-vec)
