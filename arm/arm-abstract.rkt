@@ -5,6 +5,7 @@
 
 (require "arm-printer.rkt" "arm-parser.rkt")
 
+(require (only-in "../ops-racket.rkt" [finitize finitize]))
 (require rosette/solver/smt/z3)
 (require rosette/solver/kodkod/kodkod)
 
@@ -14,16 +15,38 @@
   (class object%
     (super-new)
     (init-field k [all-yes 0] [all-no 0])
+    (public set-type! gen-abstract-behavior load-abstract-behavior interpret-inst)
+
+
     (define machine (new arm-machine%))
     (send machine set-config (list 5 0 4)) ;; TODO: memory
     (define simulator (new arm-simulator-rosette% [machine machine]))
 
+    (define type #f)
+    (define abst-f #f)
+    (define vals #f)
+
+    (define bit (get-field bit machine))
     (define inst-id (get-field inst-id machine))
     (define shf-inst-id (get-field shf-inst-id machine))
     (define fp (send machine get-fp))
     (define mask (sub1 (arithmetic-shift 1 k)))
 
-    (current-bitwidth (get-field bit machine))
+    (current-bitwidth bit)
+
+    (define (set-type! x) 
+      (set! type x)
+      (cond
+       [(equal? type `mod) 
+        (set! vals (for/list ([i (arithmetic-shift 1 k)]) i))
+        (let ([mask (sub1 (arithmetic-shift 1 k))])
+          (set! abst-f (lambda (x) (bitwise-and x mask))))]
+       [(equal? type `high)
+        (set! vals (for/list ([i (arithmetic-shift 1 k)]) 
+                             (finitize (arithmetic-shift i (- bit k)) bit)))
+        (let ([mask (arithmetic-shift -1 (- bit k))])
+          (set! abst-f (lambda (x) (bitwise-and x mask))))])
+      )
 
     (define (is-possible? my-inst in-regs out-regs in-mask out-mask start-regs end-regs)
       ;(pretty-display `(is-possible? ,my-inst ,in-regs ,out-regs ,in-mask ,out-mask))
@@ -32,12 +55,12 @@
 	(for ([r start-regs]
 	      [m in-mask]
 	      [v in-regs])
-	     (when m (assert (= (bitwise-and r mask) v))))
+	     (when m (assert (= (abst-f r) v))))
 
 	(for ([r end-regs]
 	      [m out-mask]
 	      [v out-regs])
-	     (when m (assert (= (bitwise-and r mask) v)))))
+	     (when m (assert (= (abst-f r) v)))))
       
       (with-handlers* 
        ([exn:fail? 
@@ -47,7 +70,7 @@
 	       (raise e)))])
        (solve (assert-constraints))))
 
-    (define/public (gen-abstract-behavior my-inst)
+    (define (gen-abstract-behavior my-inst)
       (define opcode-name (vector-ref inst-id (inst-op my-inst)))
       (define in (make-vector 5 #f))
       (define out (make-vector 5 #f))
@@ -114,7 +137,7 @@
 	 [(and (empty? in-list) (empty? out-res))
           (set! holder (list))
 	  (if (car out-list)
-	      (for ([i (arithmetic-shift 1 k)]) ;; modulo with k = 6
+	      (for ([i vals])
 		   (recurse-regs in-list (cdr out-list) in-res (cons i out-res)))
 	      (recurse-regs in-list (cdr out-list) in-res (cons #f out-res)))
           ;; Put holder into mapping
@@ -125,14 +148,14 @@
 
 	 [(empty? in-list)
 	  (if (car out-list)
-	      (for ([i (arithmetic-shift 1 k)]) ;; modulo with k = 6
+	      (for ([i vals])
 		   (recurse-regs in-list (cdr out-list) in-res (cons i out-res)))
 	      (recurse-regs in-list (cdr out-list) in-res (cons #f out-res)))
           ]
 
 	 [else
 	  (if (car in-list)
-	      (for ([i (arithmetic-shift 1 k)]) ;; modulo with k = 6
+	      (for ([i vals])
 		   (recurse-regs (cdr in-list) out-list (cons i in-res) out-res))
 	      (recurse-regs (cdr in-list) out-list (cons #f in-res) out-res))]))
 	  
@@ -163,7 +186,7 @@
 
     (define behavior (make-hash))
 
-    (define/public (load-abstract-behavior)
+    (define (load-abstract-behavior)
       (define i (open-input-file "abstract.csv"))
       (define current-mapping (make-hash))
       (define key-str #f)
@@ -241,7 +264,7 @@
 
 
 
-    (define/public (interpret-inst my-inst state [abst-k k]) ;; TODO ???
+    (define (interpret-inst my-inst state [abst-k k]) ;; TODO ???
       ;; TODO z
       (define opcode-name (vector-ref inst-id (inst-op my-inst)))
       (define cond-type (arm-inst-cond my-inst))
@@ -342,28 +365,28 @@
     ))
       
 
-(define abst (new arm-abstract% [k 3]))
-(define machine (new arm-machine%))
-(send machine set-config (list  5 0 4))
-(define printer (new arm-printer% [machine machine]))
-(define parser (new arm-parser%))
-(define my-inst 
-  (vector-ref (send printer encode 
-                    (send parser ast-from-string "rsb r1, r1, r1, lsr r0"))
-              0))
+;; (define abst (new arm-abstract% [k 3]))
+;; (define machine (new arm-machine%))
+;; (send machine set-config (list  5 0 4))
+;; (define printer (new arm-printer% [machine machine]))
+;; (define parser (new arm-parser%))
+;; (define my-inst 
+;;   (vector-ref (send printer encode 
+;;                     (send parser ast-from-string "rsb r1, r1, r1, lsr r0"))
+;;               0))
 
-;; (send abst gen-abstract-behavior my-inst)
-;; (send abst test)
+;; ;; (send abst gen-abstract-behavior my-inst)
+;; ;; (send abst test)
 
-(define t0 (current-seconds))
-(send abst load-abstract-behavior)
-(define t1 (current-seconds))
-(pretty-display `(time ,(- t1 t0)))
-(define input-state (progstate (vector 0 3 0 0 0)
-                               (vector) -1 4))
-(define output-states
-  (send abst interpret-inst my-inst input-state 2))
-(pretty-display output-states)
-(when (list? output-states)
-      (for ([output-state output-states])
-	   (send machine display-state output-state)))
+;; (define t0 (current-seconds))
+;; (send abst load-abstract-behavior)
+;; (define t1 (current-seconds))
+;; (pretty-display `(time ,(- t1 t0)))
+;; (define input-state (progstate (vector 0 3 0 0 0)
+;;                                (vector) -1 4))
+;; (define output-states
+;;   (send abst interpret-inst my-inst input-state 2))
+;; (pretty-display output-states)
+;; (when (list? output-states)
+;;       (for ([output-state output-states])
+;; 	   (send machine display-state output-state)))

@@ -39,7 +39,12 @@
 			mla mls
 			bfc bfi))
 
-    (define inst-high '(lsr# asr#))
+    (define inst-high '(and orr eor bic orn
+                         and# orr# eor# bic# orn#
+                         lsr# asr#
+                         mov mvn
+                         mov# mvn# movw# movt#
+                         bfc))
 
     (define commutative-0-1 '(tst))
     (define commutative-1-2 '(add and orr eor mul smmul))
@@ -48,20 +53,26 @@
     ;; If regs is not #f, use virtual registers
     ;; If lex is not #f, impose lexical order. This is only valid with virtual registers.
     (define (reset-generate-inst states live-in regs type lex 
-				 ;; #:live-limit [limit #f] 
                                  #:no-args [no-args #f])
-      ;; (when (and limit live-in (> (length live-in) limit))
-      ;; 	    (set! live-in (take live-in limit)))
       (define mode (cond [regs `vir] [no-args `no-args] [else `basic]))
       (define z (progstate-z (car states))) ;; enough to look at one state.
-      ;; (define inst-choice '(sub# clz mvn rsb))
+      ;; (define inst-choice '(mvn))
       ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
       (define inst-pool (get-field inst-pool machine))
       (cond
-       [(equal? type `mod) 
-	(set! inst-pool (filter (lambda (x) (member (vector-ref inst-id x) inst-mod)) inst-pool))]
-       [(equal? type `high)
-       	(set! inst-pool (filter (lambda (x) (member (vector-ref inst-id x) inst-high)) inst-pool))]
+       [(equal? type `mod+high) 
+	(set! inst-pool 
+              (filter (lambda (x) (and (member (vector-ref inst-id x) inst-mod)
+                                       (member (vector-ref inst-id x) inst-high)))
+                      inst-pool))]
+       [(equal? type `mod-high) 
+	(set! inst-pool 
+              (filter (lambda (x) (member (vector-ref inst-id x) inst-mod))
+                      inst-pool))]
+       [(equal? type `high-mod)
+	(set! inst-pool 
+              (filter (lambda (x) (member (vector-ref inst-id x) inst-high))
+                      inst-pool))]
        )
 	
       (set! generate-inst 
@@ -70,6 +81,18 @@
 	     (when debug (pretty-display `(reset-generate-inst ,inst-pool)))
 
 	     (define (recurse-args opcode opcode-id shfop shfarg cond-type args ranges v-reg)
+               (define (check-yield)  
+                 (let* ([i (arm-inst opcode-id (list->vector (reverse args)) 
+                                     shfop shfarg cond-type)]
+                        [ret (list i (send machine update-live live-in i) v-reg)])
+                   (if lex
+                       (let ([my-lex (lexical-skeleton i)])
+                         (if my-lex
+                             (when (>= (lexical-cmp my-lex lex) 0)
+                                   (yield ret))
+                             (yield ret)))
+                       (yield ret))))
+                 
 	       (when debug (pretty-display `(recurse-args ,args ,ranges ,shfop ,v-reg)))
 	       ;; Symmetry reduction for commutative operations
 	       (define pass
@@ -85,16 +108,43 @@
 		pass
 		(cond
 		 [(empty? ranges)
-		  (let* ([i (arm-inst opcode-id (list->vector (reverse args)) shfop shfarg cond-type)]
-			 [ret (list i (send machine update-live live-in i) v-reg)])
-		    (if lex
-		    	(let ([my-lex (lexical-skeleton i)])
-		    	  (if my-lex
-		    	      (when (>= (lexical-cmp my-lex lex) 0)
-		    		    (yield ret))
-		    	      (yield ret)))
-		    	(yield ret)))
-		  ]
+
+                  (cond
+                   [(equal? type `all) (check-yield)]
+
+                   [(equal? (vector-ref shf-inst-id shfop) `nop)
+                    (cond
+                     [(equal? type `mod+high) (check-yield)]
+                     [(equal? type `mod-high)
+                      (when (not (member (vector-ref inst-id opcode-id) inst-high)) 
+                            (check-yield))]
+                     [(equal? type `high-mod)
+                      (when (not (member (vector-ref inst-id opcode-id) inst-mod)) 
+                            (check-yield))]
+                     [(equal? type `rest)
+                      (when (and (not (member (vector-ref inst-id opcode-id) inst-mod))
+                                 (not (member (vector-ref inst-id opcode-id) inst-high)))
+                              (check-yield))]
+                     )]
+
+                   [(equal? (vector-ref shf-inst-id shfop) `lsl#)
+                    (cond
+                     [(equal? type `mod-high) (check-yield)]
+                     [(equal? type `rest)
+                      (when (not (member (vector-ref inst-id opcode-id) inst-mod))
+                            (check-yield))]
+                     )]
+
+                   [(member (vector-ref shf-inst-id shfop) '(lsr# asr#))
+                    (cond
+                     [(equal? type `high-mod) (check-yield)]
+                     [(equal? type `rest)
+                      (when (not (member (vector-ref inst-id opcode-id) inst-high))
+                            (check-yield))]
+                     )]
+
+                   [(equal? type `rest) (check-yield)]
+                   )] ;; end cond (empty? ranges)
 
 		 [(equal? (car ranges) `reg-o)
 		  (if (pair? v-reg)
@@ -123,14 +173,7 @@
 		  ])))
 
 	     (for ([opcode-id inst-pool])
-		  (let ([opcode-name (vector-ref inst-id opcode-id)]
-			[cond1 (or (not (equal? type `rest))
-				   (and (equal? type `rest)
-					(not (member (vector-ref inst-id opcode-id) inst-mod))
-					(not (member (vector-ref inst-id opcode-id) inst-high))
-					     ))]
-			[cond2 (or (equal? type `rest) (equal? type `all))]
-			)
+		  (let ([opcode-name (vector-ref inst-id opcode-id)])
 		    (unless 
 		     (equal? opcode-name `nop)
 		     (let* ([shf? (member opcode-name inst-with-shf)]
@@ -145,37 +188,24 @@
 			    (if shf?
 				(begin
 				  ;; no shift
-				  (when
-				   cond1
-				   (recurse-args opcode-name opcode-id 0 #f cond-type 
-						 (list) arg-ranges v-reg)
-				   ;; lsl#
-				   (let ([shfop 1])
-				     (for ([shfarg (send machine get-shfarg-range shfop live-in)])
-					  (recurse-args opcode-name opcode-id shfop shfarg cond-type 
-							(list) arg-ranges v-reg)))
-				   )
-				  ;; shift (except lsl#)
-				  (when 
-				   cond2
-				   (for ([shfop (range 2 shf-inst-len)])
-					(let ([shfarg-range 
-					       (send machine get-shfarg-range shfop live-in 
-						     #:mode mode)])
-					  (if (equal? shfarg-range `reg-i)
-					      (recurse-args opcode-name opcode-id shfop 0 cond-type 
-							    (list) arg-ranges (cons 1 3))
-					      (for ([shfarg shfarg-range])
-						   (recurse-args opcode-name opcode-id 
-								 shfop shfarg cond-type 
-								 (list) arg-ranges v-reg)))))
-				   )
+                                  (recurse-args opcode-name opcode-id 0 #f cond-type 
+                                                (list) arg-ranges v-reg)
+				  ;; shift
+                                  (for ([shfop (range 1 shf-inst-len)])
+                                       (let ([shfarg-range 
+                                              (send machine get-shfarg-range shfop live-in 
+                                                    #:mode mode)])
+                                         (if (equal? shfarg-range `reg-i)
+                                             (recurse-args opcode-name opcode-id shfop 0 cond-type 
+                                                           (list) arg-ranges (cons 1 3))
+                                             (for ([shfarg shfarg-range])
+                                                  (recurse-args opcode-name opcode-id 
+                                                                shfop shfarg cond-type 
+                                                                (list) arg-ranges v-reg)))))
 				  )
 				;; no shift
-				(when
-				 cond1
-				 (recurse-args opcode-name opcode-id 0 #f cond-type 
-					       (list) arg-ranges v-reg))
+                                (recurse-args opcode-name opcode-id 0 #f cond-type 
+                                              (list) arg-ranges v-reg)
 				))))))
 	     (yield (list #f #f #f)))))
 

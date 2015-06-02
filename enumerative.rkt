@@ -111,6 +111,7 @@
       (define count-p 0)
       (define count-r 0)
       (define count-abst 0)
+      (define count-real 0)
 
       (define candidate-gen
 	(generator
@@ -252,10 +253,11 @@
 
 	   (define (refine-real classes live-list my-vreg my-inst out-loc)
              (define n (length classes))
-             ;(pretty-display `(refine-real ,n))
+             (set! count-real (+ count-real n))
+             ;; (pretty-display `(refine-real ,n))
 	     (for ([states classes]
                    [i n])
-                  ;(pretty-display (format "real: ~a/~a ~a" i n states))
+                  ;; (pretty-display (format "real: ~a/~a ~a" i n states))
 		  (let* ([t0 (current-milliseconds)]
                          [states2-vec 
                           (with-handlers*
@@ -396,7 +398,13 @@
 			   (refine-abstract real-states live-list my-vreg new-live-list 
                                             my-inst 
 					    (add1 k) type real-interpret out-loc))
-			  (refine-real real-states live-list my-vreg my-inst out-loc))
+                          (begin
+                            ;; (pretty-display 
+                            ;;  `(abst ,abst-states ,abst-states-out ,abst-expect ,live2-vec))
+                            ;; 
+                            (refine-real real-states live-list my-vreg my-inst out-loc)
+                            )
+                          )
 		      ]
 		     )
 		    ))
@@ -448,15 +456,17 @@
              (when my-inst (send printer print-syntax (send printer decode my-inst)))
              (define t0 (current-milliseconds))
              (set! t-collect 0) (set! t-abst-inter 0) (set! t-real-inter 0) (set! t-real-inter 0) (set! t-rename 0) (set! t-check 0) (set! t-get-type 0) (set! t-later-use 0) (set! t-extra 0) 
-             (set! count-p 0) (set! count-r 0)
+             (set! count-p 0) (set! count-r 0) (set! count-abst 0) (set! count-real 0)
 	     (if my-inst
                  (let* ([out-loc (get-output-location my-inst)]
                         [abst-hash 
                          (refine-abstract eqv-classes live-list my-vreg my-liveout my-inst 
                                           1 type real-interpret out-loc)])
-                   (pretty-display (format "~a ms = ~a (~a/~a) ~a ~a ~a ~a ~a ~a | ~a ~a" 
+                   (pretty-display (format "~a ms = ~a (~a/~a) ~a/~a ~a ~a ~a ~a ~a | ~a ~a" 
                                            (- (current-milliseconds) t0)
-                                           t-collect t-abst-inter count-abst t-real-inter t-check t-rename t-get-type t-later-use t-extra
+                                           t-collect t-abst-inter count-abst 
+                                           t-real-inter count-real
+                                           t-check t-rename t-get-type t-later-use t-extra
                                            count-p count-r))
 	   	   (abst-loop abst-hash live-list my-vreg type real-interpret))
                  eqv-classes))
