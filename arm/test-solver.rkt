@@ -5,72 +5,26 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 4 3 4))
+(send machine set-config (list 5 3 4))
 (define printer (new arm-printer% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 (define validator (new arm-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
 
 (define code
 (send parser ast-from-string "
-mov r1, 21845
-movt r1, 21845
-
-mov r2, r0, asr 1
-and r2, r1, r2
-rsb r2, r2, r0
-rev16 r1, r2
-
-mov r2, 13107
-movt r2, 13107
-and r2, r1, r2
-str r2, fp, -12
-mov r2, r1, lsr 2
-movt r1, 13107
-movw r1, 13107
-and r2, r1, r2
-ldr r1, fp, -12
-add r2, r1, r2, lsl 0
-mov r1, r2, asr 4
-add r2, r1, r2, asr 0
-movw r1, 3855
-movt r1, 3855
-and r2, r1, r2
-add r2, r2, r2, asr 16
-add r2, r2, r2, lsr 8
-and r2, r2, 63
-mov r0, r2
+sub r0, r0, 1
+clz r1, r0
+mvn r0, 0
+rsb r0, r0, r0, lsr r1
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-mov r1, 21845
-movt r1, 21845
-
-and r2, r1, r0, lsr 1
-rsb r1, r2, r0
-
-
-
-mov r2, 13107
-movt r2, 13107
-and r2, r1, r2
-str r2, fp, -12
-mov r2, r1, lsr 2
-movt r1, 13107
-movw r1, 13107
-and r2, r1, r2
-ldr r1, fp, -12
-add r2, r1, r2, lsl 0
-mov r1, r2, asr 4
-add r2, r1, r2, asr 0
-movw r1, 3855
-movt r1, 3855
-and r2, r1, r2
-add r2, r2, r2, asr 16
-add r2, r2, r2, lsr 8
-and r2, r2, 63
-mov r0, r2
+sub r2, r0, 1
+clz r3, r2
+rsb r4, r0, r2
+rsb r0, r4, r4, lsr r3
 "))
 
 (define encoded-code (send printer encode code))
