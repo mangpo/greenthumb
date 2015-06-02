@@ -34,6 +34,7 @@
                                #:assume [assumption (send machine no-assumption)])
       (define abst (new arm-abstract% [k 3]))
       (send abst load-abstract-behavior)
+      (send abst set-type! `mod)
 
       (define spec-len (vector-length spec))
       (define org-nregs (send machine get-nregs)) ;; #f is default
@@ -48,7 +49,7 @@
       (define live2-list (send machine get-operand-live live2))
 
 
-      (define ntests 3)
+      (define ntests 2)
       (define inits
 	(send validator generate-input-states ntests (vector-append prefix spec postfix)
               assumption extra))
@@ -471,7 +472,7 @@
 	   	   (abst-loop abst-hash live-list my-vreg type real-interpret))
                  eqv-classes))
 
-           (when (> iter 2)
+           (when #t ;(> iter 2)
 	   (for ([pair1 (hash->list prev-classes)])
 	   	(let* ([live-vreg (car pair1)]
 	   	       [live-list (entry-live live-vreg)]
@@ -486,18 +487,21 @@
 		  ;; modular abstraction
                   (pretty-display "MOD: valid")
 	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
-				       `mod #f); #:live-limit 3) 
+				       `mod+high #f) 
 	   	  (set! abst-hash (abst-loop  eqv-classes live-list my-vreg `mod #t))
+	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
+				       `mod-high #f)
+	   	  (set! abst-hash (abst-loop  abst-hash live-list my-vreg `mod #t))
 
 		  ;; high-byte-mask abstraction
 	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
-		  		       `high #f); #:live-limit 3)
+		  		       `high-mod #f)
 	   	  (abst-loop eqv-classes live-list my-vreg `high #t)
 
 		  ;; modular abstraction
                   (pretty-display "MOD: table")
 	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
-				       `rest #f); #:live-limit 3) 
+				       `rest #f)
 	   	  (abst-loop abst-hash live-list my-vreg `mod #f)
            ))
            )

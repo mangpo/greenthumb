@@ -102,9 +102,7 @@
          (= (modulo (+ yes no) 10000) 0)
          (unsafe-clear-terms!)
 	 (send (current-solver) shutdown)
-         (if (member opcode-name '(smull umull smmul smmla smmls))
-             (current-solver (new z3%))
-             (current-solver (new kodkod%)))
+	 (current-solver (new kodkod%))
          (set! start-state (send machine get-state sym-input #f))
          (set! end-state (send simulator interpret (vector my-inst) start-state #:dep #f))
          (set! start-regs (progstate-regs start-state))
@@ -260,7 +258,7 @@
 	    [(equal? type `reg-io) (set! in (cons arg in)) (set! out (cons arg out))]
 	    [else (set! inst-type (cons arg inst-type))]))
 
-      (values (reverse inst-type) (reverse in) (reverse out)))
+      (values (reverse inst-type) (list->vector (reverse in)) (list->vector (reverse out))))
 
 
 
@@ -272,38 +270,57 @@
       (define regs (progstate-regs state))
       (define z (progstate-z state))
       (define fp (progstate-fp state))
+      (define mul 
+	(if (equal? type `mod)
+	    (arithmetic-shift 1 abst-k)
+	    (arithmetic-shift 1 (- bit k))))
+      (struct ref (x))
+
       (define (exec)
 	(define-values (x regs-in regs-out) (get-inst-in-out my-inst))
+	
 	(define regs-in-val 
-          (for/list ([r regs-in]) 
-                    (let ([val (vector-ref regs r)]
-                          [mul (arithmetic-shift 1 abst-k)])
-                      (for/list ([i (arithmetic-shift 1 (- k abst-k))])
-                                (+ val (* i mul))))))
+	  (for/list ([index (vector-length regs-in)]
+		     [r regs-in]) 
+		    (let ([index-1 (vector-member r regs-in)]
+			  [val (vector-ref regs r)])
+		      (if (= index index-1)
+			  (for/list ([i (arithmetic-shift 1 (- k abst-k))])
+				    (+ val (* i mul)))
+			  (ref index-1)))))
+	
+
 	(define mapping (hash-ref behavior x))
         (define ret (list))
+	(define visit (list))
 
         (define (inner regs-in-val)
-          ;;(pretty-display `(input ,regs-in-val))
+          ;; (pretty-display `(input ,regs-in-val))
           (define regs-out-val-list (hash-ref mapping regs-in-val))
           (if (equal? regs-out-val-list #t)
               (set! ret #t)
-              (set! ret
-                    (append 
-                     ret
-                     (for/list ([regs-out-val regs-out-val-list])
-                               (let ([new-regs (vector-copy (progstate-regs state))]
-                                     [new-memory (vector-copy (progstate-memory state))])
-                                 (for ([r regs-out]
-                                       [v regs-out-val])
-                                      (vector-set! new-regs r v))
-                                 (progstate new-regs new-memory z fp)))))))
+	      (for ([regs-out-val regs-out-val-list])
+		   (unless (member regs-out-val visit)
+			   (let ([new-regs (vector-copy (progstate-regs state))]
+				 [new-memory (vector-copy (progstate-memory state))])
+			     (for ([r regs-out]
+				   [v regs-out-val])
+				  (vector-set! new-regs r v))
+			     (set! ret (cons (progstate new-regs new-memory z fp) ret))
+			     (set! visit (cons regs-out-val visit))
+			     )))))
 
         (define (recurse lst res)
-          (if (empty? lst)
-              (inner res)
-              (for ([x (car lst)] #:break (equal? ret #t))
-                   (recurse (cdr lst) (cons x res)))))
+          (cond
+	   [(empty? lst)
+	    (let ([res-vec (list->vector res)])
+	      (inner (map (lambda (x) (if (ref? x) (vector-ref res-vec (ref-x x)) x))
+			  res)))]
+	   [(list? (car lst))
+	    (for ([x (car lst)] #:break (equal? ret #t))
+		 (recurse (cdr lst) (cons x res)))]
+	   [else (recurse (cdr lst) (cons (car lst) res))]
+	   ))
 
         (recurse (reverse regs-in-val) (list))
         ret)
@@ -366,6 +383,7 @@
       
 
 ;; (define abst (new arm-abstract% [k 3]))
+;; (send abst set-type! `high)
 ;; (define machine (new arm-machine%))
 ;; (send machine set-config (list  5 0 4))
 ;; (define printer (new arm-printer% [machine machine]))
@@ -382,10 +400,10 @@
 ;; (send abst load-abstract-behavior)
 ;; (define t1 (current-seconds))
 ;; (pretty-display `(time ,(- t1 t0)))
-;; (define input-state (progstate (vector 0 3 0 0 0)
+;; (define input-state (progstate (vector 0 0 0 0 0)
 ;;                                (vector) -1 4))
 ;; (define output-states
-;;   (send abst interpret-inst my-inst input-state 2))
+;;   (send abst interpret-inst my-inst input-state 1))
 ;; (pretty-display output-states)
 ;; (when (list? output-states)
 ;;       (for ([output-state output-states])

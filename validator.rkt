@@ -148,10 +148,7 @@
       (define input-random
         (for/list ([i m])
                   (generate-one-input 
-                   (lambda () (let ([rand 
-                                     (if (= i 0)
-                                         3
-                                         (random (<< 1 (- bit 1))))])
+                   (lambda () (let ([rand (rand-func)])
                                 (if (>= rand (<< 1 (sub1 bit)))
                                     (- rand (<< 1 bit))
                                     rand))))))
