@@ -472,6 +472,8 @@
 	     (define inst-liveout-vreg (generate-inst)) ;; TODO: close under modulo
 	     (define my-inst (first inst-liveout-vreg))
 	     (define my-liveout (second inst-liveout-vreg))
+             (send abst reset-cache)
+
              (when my-inst (send printer print-syntax (send printer decode my-inst)))
              (define t0 (current-milliseconds))
              (set! t-collect 0) (set! t-abst-inter 0) (set! t-abst-inter2 0) (set! t-real-inter 0) (set! t-real-inter 0) (set! t-rename 0) (set! t-check 0) (set! t-get-type 0) (set! t-later-use 0) (set! t-extra 0) 
