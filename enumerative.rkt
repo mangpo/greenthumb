@@ -102,6 +102,7 @@
       (define count-1 0)
 
       (define t-collect 0)
+      (define t-abst-inter 0)
       (define t-real-inter 0)
       (define t-mapping 0)
       (define t-rename 0)
@@ -109,6 +110,8 @@
       (define t-extra 0)
       (define count-p 0)
       (define count-r 0)
+      (define count-abst 0)
+      (define count-real 0)
 
       (define candidate-gen
 	(generator
@@ -250,6 +253,7 @@
 
 	   (define (refine-real classes live-list my-vreg my-inst out-loc)
              (define n (length classes))
+             (set! count-real (+ count-real n))
              ;(pretty-display `(refine-real ,n))
 	     (for ([states classes]
                    [i n])
@@ -332,16 +336,22 @@
                    ))
              
              (define n (hash-count abst-hash))
+             (set! count-abst (+ count-abst n))
              ;(pretty-display `(refine-abst ,k ,n))
 
 	     (for ([pair (hash->list abst-hash)]
                    [i n])
 		  (let* ([abst-states (car pair)]
 			 [real-states (cdr pair)]
+                         [t00 (current-milliseconds)]
 			 [abst-states-out 
-			  (with-handlers*
-			   ([exn? (lambda (e) #f)])
-			   (map interpret abst-states))])
+			  ;; (with-handlers*
+			  ;;  ([exn? (lambda (e) #f)])
+			   (map interpret abst-states)
+			   ;; )
+			  ])
+                    (let ([t11 (current-milliseconds)])
+                      (set! t-abst-inter (+ t-abst-inter (- t11 t00))))
                     ;(pretty-display (format "~a: ~a/~a" k i n))
 		    ;; (when (and (equal? `rsb 
 		    ;; 		       (vector-ref (get-field inst-id machine) (inst-op my-inst)))
@@ -441,21 +451,23 @@
 	     (define my-liveout (second inst-liveout-vreg))
              (when my-inst (send printer print-syntax (send printer decode my-inst)))
              (define t0 (current-milliseconds))
-             (set! t-collect 0) (set! t-real-inter 0) (set! t-rename 0) (set! t-check 0) (set! t-get-type 0) (set! t-later-use 0) (set! t-extra 0) 
-             (set! count-p 0) (set! count-r 0)
+             (set! t-collect 0) (set! t-abst-inter 0) (set! t-real-inter 0) (set! t-rename 0) (set! t-check 0) (set! t-get-type 0) (set! t-later-use 0) (set! t-extra 0) 
+             (set! count-p 0) (set! count-r 0) (set! count-abst 0) (set! count-real 0)
 	     (if my-inst
                  (let* ([out-loc (get-output-location my-inst)]
                         [abst-hash 
                          (refine-abstract eqv-classes live-list my-vreg my-liveout my-inst 
                                           1 type real-interpret out-loc)])
-                   (pretty-display (format "~a ms = ~a ~a ~a ~a ~a ~a ~a | ~a ~a" 
+                   (pretty-display (format "~a ms = ~a (~a/~a) (~a/~a) ~a ~a ~a ~a ~a | ~a ~a" 
                                            (- (current-milliseconds) t0)
-                                           t-collect t-real-inter t-check t-rename t-get-type t-later-use t-extra
+                                           t-collect 
+					   t-abst-inter count-abst t-real-inter count-real 
+					   t-check t-rename t-get-type t-later-use t-extra
                                            count-p count-r))
 	   	   (abst-loop abst-hash live-list my-vreg type real-interpret))
                  eqv-classes))
 
-           (when (> iter 2)
+           (when #t ;(> iter 2)
 	   (for ([pair1 (hash->list prev-classes)])
 	   	(let* ([live-vreg (car pair1)]
 	   	       [live-list (entry-live live-vreg)]

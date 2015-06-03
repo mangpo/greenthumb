@@ -191,7 +191,7 @@
       
       (loop (read-line i))
       (close-input-port i)
-      (hash-set! behavior (string-split key-str " ") current-mapping)
+      (hash-set! behavior (map string->number (string-split key-str " ")) current-mapping)
       (pretty-display `(summary ,(hash-count behavior)))
       )
 	     

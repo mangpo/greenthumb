@@ -98,8 +98,8 @@
 	      is-virtual-reg update-live)
     (public get-shfarg-range get-arg-types)
 
-    (set! bit 4)
-    (set! random-input-bit 4)
+    (set! bit 32)
+    (set! random-input-bit 32)
     (set! nop-id 0)
     (set! inst-id '#(nop 
                      add sub rsb
@@ -552,8 +552,11 @@
       (define reg-set (set))
       (define mem-set (set))
       (define const-set (set))
-      (define bit-set (set))
-      (define op2-set (set))
+      (define bit-set (set))	
+      (define op2-set
+	(if (and shfop (not (equal? shfop `nop)))
+	    (set shfarg)
+	    (set)))
 
       (for ([arg args]
 	    [type (get-arg-types opcode)])
