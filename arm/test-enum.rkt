@@ -24,8 +24,8 @@
 	add	r0, r0, r2, asr #1
 "))
 
-(send enum reset-generate-inst (list input-state) (list 0 1) #f 
-      `rest #f #:no-args #t)
+(send enum reset-generate-inst (list input-state) (list 0) #f 
+      `mod-high #f #:no-args #t)
 (define abst (new arm-abstract% [k 3]))
 (send abst set-type! `high)
 
@@ -46,7 +46,7 @@
       count))
 
 (system "rm progress.log")
-(system "rm abstract.csv")
+;(system "rm abstract.csv")
 (define mem0 (quotient (current-memory-use) 1000000))
 (define t0 (current-seconds))
 (pretty-display `(count ,(loop 0)))

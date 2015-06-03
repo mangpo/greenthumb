@@ -56,9 +56,9 @@
                                  #:no-args [no-args #f])
       (define mode (cond [regs `vir] [no-args `no-args] [else `basic]))
       (define z (progstate-z (car states))) ;; enough to look at one state.
-      ;; (define inst-choice '(mvn))
-      ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
-      (define inst-pool (get-field inst-pool machine))
+      (define inst-choice '(sub clz mvn# rsb))
+      (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
+      ;; (define inst-pool (get-field inst-pool machine))
       (cond
        [(equal? type `mod+high) 
 	(set! inst-pool 

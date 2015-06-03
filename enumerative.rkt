@@ -34,7 +34,6 @@
                                #:assume [assumption (send machine no-assumption)])
       (define abst (new arm-abstract% [k 3]))
       (send abst load-abstract-behavior)
-      (send abst set-type! `mod)
 
       (define spec-len (vector-length spec))
       (define org-nregs (send machine get-nregs)) ;; #f is default
@@ -104,6 +103,7 @@
 
       (define t-collect 0)
       (define t-abst-inter 0)
+      (define t-abst-inter2 0)
       (define t-real-inter 0)
       (define t-mapping 0)
       (define t-rename 0)
@@ -289,26 +289,29 @@
 				     states2-vec out-loc)
                           ))))
 
-	   (define (refine-abstract classes live-list my-vreg new-live-list my-inst k type
-                                    real-interpret out-loc)
-	     (define f
-	       (cond
-		[(equal? type `mod) 
-		 (let ([base (arithmetic-shift 1 k)])
-		   (lambda (x) (modulo x base)))]
-		[(equal? type `high) 
-		 (let ([mask (arithmetic-shift -1 (- bit k))])
-		   (lambda (x) (bitwise-and x mask)))]))
+	   (define (refine-abstract classes live-list my-vreg new-live-list my-inst k type out-loc)
+	     (define f-mod
+	       (let ([base (arithmetic-shift 1 k)])
+		 (lambda (x) (modulo x base))))
+
+	     (define f-high
+	       (let ([mask (arithmetic-shift -1 (- bit k))])
+		 (lambda (x) (bitwise-and x mask))))
+	       
 	     (define abst-hash classes)
-	     (define abst-expect 
-               (cond
-                [(equal? type `mod) (vector-ref expect-mod (- k 1))]
-                [(equal? type `high) (vector-ref expect-high (- k 1))]))
+	     (define abst-expect-mod (vector-ref expect-mod (- k 1)))
+	     (define abst-expect-high (vector-ref expect-high (- k 1)))
+
 	     (when (list? abst-hash)
 		   ;; TODO: live-list should contain memory as well
 		   (set! abst-hash (make-hash))
 		   (for ([states classes])
-			(let ([abst-states (map (lambda (x) (abstract x live-list f)) states)])
+			(let* ([abst-states-mod 
+				(map (lambda (x) (abstract x live-list f-mod)) states)]
+			       [abst-states-high 
+				(map (lambda (x) (abstract x live-list f-high)) states)]
+			       [abst-states (cons abst-states-mod abst-states-high)]
+			       )
 			  (if (hash-has-key? abst-hash abst-states)
 			      (hash-set! abst-hash abst-states
 					 (cons states (hash-ref abst-hash abst-states)))
@@ -318,23 +321,42 @@
 		   ;; (pretty-display `(abst-hash ,(hash-count abst-hash)))
 		   )
 
-             (define interpret
-               (if real-interpret
-                   (lambda (x)
-                     (abstract 
-                      (send machine progstate->vector 
-                            (send simulator interpret (vector my-inst)
-                                  (send machine vector->progstate x) #:dep #f))
-                      new-live-list f))
-                   (lambda (x)
-                     (let ([out-list (send abst interpret-inst my-inst
-                                           (send machine vector->progstate x) k)])
-                       (if (list? out-list)
-                           (for/list ([out out-list])
-                                     (abstract (send machine progstate->vector out)
-                                               new-live-list f))
-                           out-list)))
-                   ))
+	     (define (interpret-real f) 
+	       (lambda (x)
+		 (abstract 
+		  (send machine progstate->vector 
+			(send simulator interpret (vector my-inst)
+			      (send machine vector->progstate x) #:dep #f))
+		  new-live-list f)))
+	     (define (interpret-abst f abst-type)
+	       (lambda (x)
+		 (let ([out-list (send abst interpret-inst my-inst
+				       (send machine vector->progstate x) abst-type k)])
+		   (if (list? out-list)
+		       (for/list ([out out-list])
+				 (abstract (send machine progstate->vector out)
+					   new-live-list f))
+		       out-list))))
+
+             (define interpret-mod 
+               (if (member type '(mod+high mod-high))
+		   (interpret-real f-mod)
+		   (interpret-abst f-mod `mod)))
+             (define interpret-high 
+               (if (member type '(mod+high high-mod))
+		   (interpret-real f-high)
+		   (interpret-abst f-high `high)))
+
+	     (define (check-abst abst-expect abst-states-out)
+	       (for/and 
+		([state-spec abst-expect]
+		 [state abst-states-out])
+		(or 
+		 (equal? state #t)
+		 (for/or ([s (if (list? state) state (list state))])
+			 (if virtual
+			     (send machine relaxed-state-eq? state-spec s live2-vec out-loc)
+			     (send machine state-eq? state-spec s live2-vec))))))
              
              (define n (hash-count abst-hash))
              (set! count-abst (+ count-abst n))
@@ -343,14 +365,27 @@
 	     (for ([pair (hash->list abst-hash)]
                    [i n])
 		  (let* ([abst-states (car pair)]
+			 [abst-states-mod (car abst-states)]
+			 [abst-states-high (cdr abst-states)]
 			 [real-states (cdr pair)]
                          [t00 (current-milliseconds)]
-			 [abst-states-out 
-			  (with-handlers*
-			   ([exn? (lambda (e) #f)])
-			   (map interpret abst-states))])
-                    (let ([t11 (current-milliseconds)])
-                      (set! t-abst-inter (+ t-abst-inter (- t11 t00))))
+			 [abst-states-out-mod 
+			  ;; (with-handlers*
+			  ;;  ([exn? (lambda (e) #f)])
+			   (map interpret-mod abst-states-mod)
+			   ;; )
+			  ]
+			 [t11 (current-milliseconds)]
+			 [abst-states-out-high
+			  ;; (with-handlers*
+			  ;;  ([exn? (lambda (e) #f)])
+			   (map interpret-high abst-states-high)
+			   ;; )
+			  ]
+			 [t22 (current-milliseconds)]
+			 )
+		    (set! t-abst-inter (+ t-abst-inter (- t11 t00)))
+		    (set! t-abst-inter2 (+ t-abst-inter2 (- t22 t11)))
                     ;(pretty-display (format "~a: ~a/~a" k i n))
 		    ;; (when (and (equal? `rsb 
 		    ;; 		       (vector-ref (get-field inst-id machine) (inst-op my-inst)))
@@ -368,29 +403,21 @@
 		    ;; 				 ,live2-vec
                     ;;                              ,(count (lambda (x) (not (boolean? x))) abst-states-out))))
 		    (cond
-		     [(and abst-states-out
-			   (= 0 (count (lambda (x) (not (boolean? x))) abst-states-out)))
+		     [(and abst-states-out-mod abst-states-out-high ;; error
+			   (= 0 (count (lambda (x) (not (boolean? x))) abst-states-out-mod))
+			   (= 0 (count (lambda (x) (not (boolean? x))) abst-states-out-high))
+			   )
                       ;(pretty-display `(case-1))
                       (define t0 (current-milliseconds))
                       (define ret (collect-states real-states))
                       (define t1 (current-milliseconds))
                       (set! t-collect (+ t-collect (- t1 t0)))
-		      (refine-real ret live-list 
-                                   my-vreg my-inst out-loc)
+		      (refine-real ret live-list my-vreg my-inst out-loc)
 		      ]
 		     
-		     [(and abst-states-out ;; error
-			   (for/and 
-			    ([state-spec abst-expect]
-			     [state abst-states-out])
-			    (or 
-			     (equal? state #t)
-			     (for/or ([s (if (list? state) state (list state))])
-			       (if virtual
-				   (send machine relaxed-state-eq? state-spec s live2-vec
-                                         out-loc)
-				   (send machine state-eq? state-spec s live2-vec)))))
-			   )
+		     [(and abst-states-out-mod abst-states-out-high ;; error
+			   (check-abst abst-expect-mod abst-states-out-mod)
+			   (check-abst abst-expect-high abst-states-out-high))
                       ;(pretty-display `(case-2))
 		      (if (< k 3)
 			  (hash-set! 
@@ -398,7 +425,7 @@
 			   abst-states
 			   (refine-abstract real-states live-list my-vreg new-live-list 
                                             my-inst 
-					    (add1 k) type real-interpret out-loc))
+					    (add1 k) type out-loc))
                           (begin
                             ;; (pretty-display 
                             ;;  `(abst ,abst-states ,abst-states-out ,abst-expect ,live2-vec))
@@ -450,29 +477,30 @@
 	   (pretty-display `(eqv ,(hash-count prev-classes)))
 	   ;; Test
 	   (define t-abst-start (current-milliseconds))
-	   (define (abst-loop eqv-classes live-list my-vreg type real-interpret)
+	   (define (abst-loop eqv-classes live-list my-vreg type)
 	     (define inst-liveout-vreg (generate-inst)) ;; TODO: close under modulo
 	     (define my-inst (first inst-liveout-vreg))
 	     (define my-liveout (second inst-liveout-vreg))
              (when my-inst (send printer print-syntax (send printer decode my-inst)))
              (define t0 (current-milliseconds))
-             (set! t-collect 0) (set! t-abst-inter 0) (set! t-real-inter 0) (set! t-real-inter 0) (set! t-rename 0) (set! t-check 0) (set! t-get-type 0) (set! t-later-use 0) (set! t-extra 0) 
+             (set! t-collect 0) (set! t-abst-inter 0) (set! t-abst-inter2 0) (set! t-real-inter 0) (set! t-real-inter 0) (set! t-rename 0) (set! t-check 0) (set! t-get-type 0) (set! t-later-use 0) (set! t-extra 0) 
              (set! count-p 0) (set! count-r 0) (set! count-abst 0) (set! count-real 0)
 	     (if my-inst
                  (let* ([out-loc (get-output-location my-inst)]
                         [abst-hash 
                          (refine-abstract eqv-classes live-list my-vreg my-liveout my-inst 
-                                          1 type real-interpret out-loc)])
-                   (pretty-display (format "~a ms = ~a (~a/~a) ~a/~a ~a ~a ~a ~a ~a | ~a ~a" 
+                                          1 type out-loc)])
+                   (pretty-display (format "~a ms = ~a (~a+~a/~a) ~a/~a ~a ~a ~a ~a ~a | ~a ~a" 
                                            (- (current-milliseconds) t0)
-                                           t-collect t-abst-inter count-abst 
+                                           t-collect 
+					   t-abst-inter t-abst-inter2 count-abst 
                                            t-real-inter count-real
                                            t-check t-rename t-get-type t-later-use t-extra
                                            count-p count-r))
-	   	   (abst-loop abst-hash live-list my-vreg type real-interpret))
+	   	   (abst-loop abst-hash live-list my-vreg type))
                  eqv-classes))
 
-           (when #t ;(> iter 2)
+           (when (> iter 2)
 	   (for ([pair1 (hash->list prev-classes)])
 	   	(let* ([live-vreg (car pair1)]
 	   	       [live-list (entry-live live-vreg)]
@@ -482,28 +510,15 @@
 		       ;; use only first state
 		       [state-rep-list (list (send machine vector->progstate 
                                                    (caar eqv-classes)))]
-                       [abst-hash #f])
+                       [abst-hash eqv-classes])
 		  (pretty-display `(key ,live-vreg ,(length eqv-classes)))
-		  ;; modular abstraction
-                  (pretty-display "MOD: valid")
-	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
-				       `mod+high #f) 
-	   	  (set! abst-hash (abst-loop  eqv-classes live-list my-vreg `mod #t))
-	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
-				       `mod-high #f)
-	   	  (set! abst-hash (abst-loop  abst-hash live-list my-vreg `mod #t))
-
-		  ;; high-byte-mask abstraction
-	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
-		  		       `high-mod #f)
-	   	  (abst-loop eqv-classes live-list my-vreg `high #t)
-
-		  ;; modular abstraction
-                  (pretty-display "MOD: table")
-	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
-				       `rest #f)
-	   	  (abst-loop abst-hash live-list my-vreg `mod #f)
-           ))
+		  (for ([type '(mod+high mod-high high-mod rest)])
+		       (newline)
+		       (pretty-display (format "TYPE: ~a" type))
+		       (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
+					    type #f) 
+		       (set! abst-hash (abst-loop abst-hash live-list my-vreg type)))
+		  ))
            )
 
 	   (set! t-abst (+ t-abst (- (current-milliseconds) t-abst-start)))

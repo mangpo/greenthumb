@@ -144,7 +144,8 @@
 			uxth uxtb
 			clz
                         tst cmp) ;;rr
-		  '(mov# mvn# movw# movt# tst# cmp#) ;; ri
+		  '(mov# mvn# tst# cmp#) ;; ri
+		  '(movw# movt#) ;; ri
 		  '(mla mls smmla smmls) ;; rrrr
 		  '(smull umull) ;; ddrr
 		  '(bfi sbfx ubfx) ;; rrii
@@ -396,9 +397,10 @@
        [(equal? class-id 1) (vector `reg-o `reg-i `op2)]
        [(equal? class-id 2) (vector `reg-o `reg-i)]
        [(equal? class-id 3) (vector `reg-o `const)]
-       [(equal? class-id 4) (vector `reg-o `reg-i `reg-i `reg-i)]
-       [(equal? class-id 5) (vector `reg-o `reg-o `reg-i `reg-i)]
-       [(equal? class-id 6) (vector `reg-o `reg-i `bit `bit-no-0)]
+       [(equal? class-id 4) (vector `reg-io `const)]
+       [(equal? class-id 5) (vector `reg-o `reg-i `reg-i `reg-i)]
+       [(equal? class-id 6) (vector `reg-o `reg-o `reg-i `reg-i)]
+       [(equal? class-id 7) (vector `reg-o `reg-i `bit `bit-no-0)]
        [(equal? opcode-name `ldr#) (vector `reg-o `fp `mem)]
        [(equal? opcode-name `str#) (vector `reg-i `fp `mem)]
        [(equal? opcode-name `bfc) (vector `reg-io `bit `bit-no-0)]

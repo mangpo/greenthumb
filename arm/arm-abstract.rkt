@@ -182,45 +182,50 @@
       (save-to-file my-inst mapping)
       )
 
-    (define behavior (make-hash))
+    (define behavior-mod (make-hash))
+    (define behavior-high (make-hash))
 
     (define (load-abstract-behavior)
-      (define i (open-input-file "abstract.csv"))
-      (define current-mapping (make-hash))
-      (define key-str #f)
-      
-      (define (loop line)
-	(when 
-	 (string? line)
-	 (define tokens (string-split line ","))
-	 (define prog-str (first tokens))
-	 (define in (map string->number (string-split (second tokens) " ")))
-	 (define out-list 
-	   (if (equal? (third tokens) "#t")
-	       #t
-	       (for/list ([out-str (string-split (third tokens) ";")])
-			 (map string->number (string-split out-str " ")))))
+      (define (inner type behavior)
+	(define i (open-input-file (format "abstract_~a_k~a.csv" type k)))
+	(define current-mapping (make-hash))
+	(define key-str #f)
+	
+	(define (loop line)
+	  (when 
+	   (string? line)
+	   (define tokens (string-split line ","))
+	   (define prog-str (first tokens))
+	   (define in (map string->number (string-split (second tokens) " ")))
+	   (define out-list 
+	     (if (equal? (third tokens) "#t")
+		 #t
+		 (for/list ([out-str (string-split (third tokens) ";")])
+			   (map string->number (string-split out-str " ")))))
 
-	 (unless (equal? prog-str key-str)
-		 (when key-str
-		       (hash-set! behavior (map string->number (string-split key-str " "))
-				  current-mapping))
-		 (set! key-str prog-str)
-		 (set! current-mapping (make-hash)))
-	 (hash-set! current-mapping in out-list)
-	 (loop (read-line i))))
-      
-      (loop (read-line i))
-      (close-input-port i)
-      (hash-set! behavior (string-split key-str " ") current-mapping)
-      (pretty-display `(summary ,(hash-count behavior)))
+	   (unless (equal? prog-str key-str)
+		   (when key-str
+			 (hash-set! behavior (map string->number (string-split key-str " "))
+				    current-mapping))
+		   (set! key-str prog-str)
+		   (set! current-mapping (make-hash)))
+	   (hash-set! current-mapping in out-list)
+	   (loop (read-line i))))
+	
+	(loop (read-line i))
+	(close-input-port i)
+	(hash-set! behavior (map string->number (string-split key-str " ")) current-mapping)
+	(pretty-display `(summary ,(hash-count behavior))))
+
+      (inner `mod behavior-mod)
+      (inner `high behavior-high)
       )
 	     
 
     (define (save-to-file my-inst res)
       (define-values (x in out) (get-inst-in-out my-inst))
       (define x-str (string-join (map number->string x) " "))
-      (with-output-to-file "abstract.csv" #:exists 'append
+      (with-output-to-file (format "abstract_~a_k~a.csv" type k) #:exists 'append
         (thunk
 	 (for ([pair (hash->list res)])
 	      (let* ([in (car pair)]
@@ -261,9 +266,9 @@
       (values (reverse inst-type) (list->vector (reverse in)) (list->vector (reverse out))))
 
 
-
-    (define (interpret-inst my-inst state [abst-k k]) ;; TODO ???
+    (define (interpret-inst my-inst state type [abst-k k]) ;; TODO ???
       ;; TODO z
+      (define behavior (if (equal? type `mod) behavior-mod behavior-high))
       (define opcode-name (vector-ref inst-id (inst-op my-inst)))
       (define cond-type (arm-inst-cond my-inst))
 
@@ -383,14 +388,13 @@
       
 
 ;; (define abst (new arm-abstract% [k 3]))
-;; (send abst set-type! `high)
 ;; (define machine (new arm-machine%))
 ;; (send machine set-config (list  5 0 4))
 ;; (define printer (new arm-printer% [machine machine]))
 ;; (define parser (new arm-parser%))
 ;; (define my-inst 
 ;;   (vector-ref (send printer encode 
-;;                     (send parser ast-from-string "rsb r1, r1, r1, lsr r0"))
+;;                     (send parser ast-from-string "clz r2, r0"))
 ;;               0))
 
 ;; ;; (send abst gen-abstract-behavior my-inst)
@@ -403,7 +407,7 @@
 ;; (define input-state (progstate (vector 0 0 0 0 0)
 ;;                                (vector) -1 4))
 ;; (define output-states
-;;   (send abst interpret-inst my-inst input-state 1))
+;;   (send abst interpret-inst my-inst input-state `high 3))
 ;; (pretty-display output-states)
 ;; (when (list? output-states)
 ;;       (for ([output-state output-states])
