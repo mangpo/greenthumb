@@ -315,7 +315,12 @@
 			  (if (hash-has-key? abst-hash abst-states)
 			      (hash-set! abst-hash abst-states
 					 (cons states (hash-ref abst-hash abst-states)))
-			      (hash-set! abst-hash abst-states (list states)))))
+			      (begin
+				;; (pretty-display `(insert-mod ,abst-states-mod))
+				;; (pretty-display `(insert-high ,abst-states-high))
+				(hash-set! abst-hash abst-states (list states))
+				)
+			      )))
 		   
 		   ;; (pretty-display `(live-list ,live-list))
 		   ;; (pretty-display `(abst-hash ,(hash-count abst-hash)))
@@ -347,95 +352,81 @@
 		   (interpret-real f-high)
 		   (interpret-abst f-high `high)))
 
-	     (define (check-abst abst-expect abst-states-out)
-	       (for/and 
-		([state-spec abst-expect]
-		 [state abst-states-out])
+	     (define (check-abst state-spec state)
 		(or 
 		 (equal? state #t)
 		 (for/or ([s (if (list? state) state (list state))])
 			 (if virtual
 			     (send machine relaxed-state-eq? state-spec s live2-vec out-loc)
-			     (send machine state-eq? state-spec s live2-vec))))))
+			     (send machine state-eq? state-spec s live2-vec)))))
              
              (define n (hash-count abst-hash))
              (set! count-abst (+ count-abst n))
              ;(pretty-display `(refine-abst ,k ,n))
+
+	     (define (recurse mod-final high-final mod-list high-list mod-expect high-expect 
+			      real-states)
+	       ;;(pretty-display `(recurse ,mod-list ,high-list))
+	       (cond
+		[(and (empty? mod-list) (empty? high-list)
+		      (= 0 (count (lambda (x) (not (boolean? x))) mod-final))
+		      (= 0 (count (lambda (x) (not (boolean? x))) high-final)))
+		 (define t0 (current-milliseconds))
+		 (define ret (collect-states real-states))
+		 (define t1 (current-milliseconds))
+		 (set! t-collect (+ t-collect (- t1 t0)))
+		 (refine-real ret live-list my-vreg my-inst out-loc)
+		 ]
+
+		[(and (empty? mod-list) (empty? high-list))
+		 (if (< k 3)
+		     (hash-set! 
+		      abst-hash
+		      (cons (reverse mod-final) (reverse high-final))
+		      (refine-abstract real-states live-list my-vreg new-live-list 
+				       my-inst 
+				       (add1 k) type out-loc))
+		     (begin
+		       ;; (pretty-display 
+		       ;;  `(abst ,abst-states ,abst-states-out ,abst-expect ,live2-vec))
+		       ;; 
+		       (refine-real real-states live-list my-vreg my-inst out-loc)
+		       )
+		     )
+		 ]
+		
+		[(empty? mod-list)
+		 (define t0 (current-milliseconds))
+		 (define out (interpret-high (car high-list)))
+		 (define t1 (current-milliseconds))
+		 (set! t-abst-inter2 (+ t-abst-inter2 (- t1 t0)))
+		 (when (and out (check-abst (car high-expect) out))
+		       (recurse mod-final (cons (car high-list) high-final) 
+				mod-list (cdr high-list)
+				mod-expect (cdr high-expect) real-states))
+		 ]
+
+		[else
+		 (define t0 (current-milliseconds))
+		 (define out (interpret-mod (car mod-list)))
+		 (define t1 (current-milliseconds))
+		 (set! t-abst-inter (+ t-abst-inter (- t1 t0)))
+		 (when (and out (check-abst (car mod-expect) out))
+		       (recurse (cons (car mod-list) mod-final) high-final 
+				(cdr mod-list) high-list
+				(cdr mod-expect) high-expect real-states))])
+	       ) 
 
 	     (for ([pair (hash->list abst-hash)]
                    [i n])
 		  (let* ([abst-states (car pair)]
 			 [abst-states-mod (car abst-states)]
 			 [abst-states-high (cdr abst-states)]
-			 [real-states (cdr pair)]
-                         [t00 (current-milliseconds)]
-			 [abst-states-out-mod 
-			  ;; (with-handlers*
-			  ;;  ([exn? (lambda (e) #f)])
-			   (map interpret-mod abst-states-mod)
-			   ;; )
-			  ]
-			 [t11 (current-milliseconds)]
-			 [abst-states-out-high
-			  ;; (with-handlers*
-			  ;;  ([exn? (lambda (e) #f)])
-			   (map interpret-high abst-states-high)
-			   ;; )
-			  ]
-			 [t22 (current-milliseconds)]
-			 )
-		    (set! t-abst-inter (+ t-abst-inter (- t11 t00)))
-		    (set! t-abst-inter2 (+ t-abst-inter2 (- t22 t11)))
-                    ;(pretty-display (format "~a: ~a/~a" k i n))
-		    ;; (when (and (equal? `rsb 
-		    ;; 		       (vector-ref (get-field inst-id machine) (inst-op my-inst)))
-                    ;;            (equal? `lsr 
-                    ;;                    (vector-ref (get-field shf-inst-id machine) 
-                    ;;                                (inst-shfop my-inst)))
-                    ;;            (equal? 2 (inst-shfarg my-inst))
-		    ;; 	       (equal? 4 (vector-ref (inst-args my-inst) 0))
-		    ;; 	       (equal? 3 (vector-ref (inst-args my-inst) 1))
-		    ;; 	       (equal? 3 (vector-ref (inst-args my-inst) 2)))
-		    ;; 	  (pretty-display `(info ,k
-		    ;; 				 ,abst-states
-		    ;; 				 ,abst-states-out
-		    ;; 				 ,abst-expect
-		    ;; 				 ,live2-vec
-                    ;;                              ,(count (lambda (x) (not (boolean? x))) abst-states-out))))
-		    (cond
-		     [(and abst-states-out-mod abst-states-out-high ;; error
-			   (= 0 (count (lambda (x) (not (boolean? x))) abst-states-out-mod))
-			   (= 0 (count (lambda (x) (not (boolean? x))) abst-states-out-high))
-			   )
-                      ;(pretty-display `(case-1))
-                      (define t0 (current-milliseconds))
-                      (define ret (collect-states real-states))
-                      (define t1 (current-milliseconds))
-                      (set! t-collect (+ t-collect (- t1 t0)))
-		      (refine-real ret live-list my-vreg my-inst out-loc)
-		      ]
-		     
-		     [(and abst-states-out-mod abst-states-out-high ;; error
-			   (check-abst abst-expect-mod abst-states-out-mod)
-			   (check-abst abst-expect-high abst-states-out-high))
-                      ;(pretty-display `(case-2))
-		      (if (< k 3)
-			  (hash-set! 
-			   abst-hash
-			   abst-states
-			   (refine-abstract real-states live-list my-vreg new-live-list 
-                                            my-inst 
-					    (add1 k) type out-loc))
-                          (begin
-                            ;; (pretty-display 
-                            ;;  `(abst ,abst-states ,abst-states-out ,abst-expect ,live2-vec))
-                            ;; 
-                            (refine-real real-states live-list my-vreg my-inst out-loc)
-                            )
-                          )
-		      ]
-		     )
-		    ))
+			 [real-states (cdr pair)])
+		    ;; (pretty-display `(mod ,abst-states-mod))
+		    ;; (pretty-display `(high ,abst-states-high))
+		    (recurse (list) (list) abst-states-mod abst-states-high 
+			     abst-expect-mod abst-expect-high real-states)))
 
 	     abst-hash
 	     )
