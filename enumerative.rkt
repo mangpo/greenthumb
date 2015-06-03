@@ -1,7 +1,7 @@
 #lang racket
 
 (require "ast.rkt" "machine.rkt" "decomposer.rkt" 
-         "arm/arm-psql.rkt" "arm/arm-abstract.rkt" "arm/arm-ast.rkt")
+         "arm/arm-psql.rkt" "arm/arm-simulator-abstract.rkt" "arm/arm-ast.rkt")
 (require racket/generator profile)
 
 (provide enumerative%)
@@ -32,7 +32,7 @@
                                #:hard-postfix [hard-postfix (vector)]
                                #:assume-interpret [assume-interpret #t]
                                #:assume [assumption (send machine no-assumption)])
-      (define abst (new arm-abstract% [k 3]))
+      (define abst (new arm-simulator-abstract% [k 3]))
       (send abst load-abstract-behavior)
 
       (define spec-len (vector-length spec))
@@ -503,7 +503,7 @@
                                                    (caar eqv-classes)))]
                        [abst-hash eqv-classes])
 		  (pretty-display `(key ,live-vreg ,(length eqv-classes)))
-		  (for ([type '(mod+high mod-high high-mod rest)])
+		  (for ([type '(rest mod+high mod-high high-mod)])
 		       (newline)
 		       (pretty-display (format "TYPE: ~a" type))
 		       (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
