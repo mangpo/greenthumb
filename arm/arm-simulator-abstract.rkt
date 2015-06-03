@@ -202,7 +202,7 @@
           (define key1 (for/list ([r regs-in]) (vector-ref regs r)))
           (define key2 (normalize regs-in))
           (define key (cons key1 key2))
-          ;;(pretty-display `(key ,key))
+          ;; ;;(pretty-display `(key ,key))
           (if (hash-has-key? my-cache key)
               (let ([regs-out-val-list (hash-ref my-cache key)])
                 ;;(pretty-display "[CACHE]")

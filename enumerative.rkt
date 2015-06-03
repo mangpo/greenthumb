@@ -47,11 +47,12 @@
       (define live1-list (send machine get-operand-live live1))
       (define live2-list (send machine get-operand-live live2))
 
-
       (define ntests 2)
       (define inits
 	(send validator generate-input-states ntests (vector-append prefix spec postfix)
               assumption extra))
+
+      (define-syntax-rule (take-high lst) (take lst 1))
 
       (define prev-classes (make-hash))
       (define states1 
@@ -76,7 +77,8 @@
            (let* ([mask (arithmetic-shift -1 (- bit k))]
                   [f (lambda (x) (bitwise-and x mask))])
              (vector-set! expect-high (- k 1) 
-                          (map (lambda (x) (abstract x live2-list f)) states2-vec-spec))))
+                          (map (lambda (x) (abstract x live2-list f))
+                               (take-high states2-vec-spec)))))
              
       (pretty-display `(states1-vec ,states1-vec))
       (pretty-display `(states2-vec-spec ,states2-vec-spec))
@@ -309,7 +311,8 @@
 			(let* ([abst-states-mod 
 				(map (lambda (x) (abstract x live-list f-mod)) states)]
 			       [abst-states-high 
-				(map (lambda (x) (abstract x live-list f-high)) states)]
+				(map (lambda (x) (abstract x live-list f-high))
+                                     (take-high states))]
 			       [abst-states (cons abst-states-mod abst-states-high)]
 			       )
 			  (if (hash-has-key? abst-hash abst-states)
