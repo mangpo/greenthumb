@@ -1,7 +1,7 @@
 #lang racket
 
 (require "ast.rkt" "machine.rkt" "decomposer.rkt" 
-         "arm/arm-psql.rkt" "arm/arm-abstract.rkt" "arm/arm-ast.rkt")
+         "arm/arm-psql.rkt" "arm/arm-simulator-abstract.rkt" "arm/arm-ast.rkt")
 (require racket/generator profile)
 
 (provide enumerative%)
@@ -33,7 +33,7 @@
                                #:assume-interpret [assume-interpret #t]
                                #:assume [assumption (send machine no-assumption)])
       (define ttt (current-seconds))
-      (define abst (new arm-abstract% [k 3]))
+      (define abst (new arm-simulator-abstract% [k 3] [machine machine]))
       (send abst load-abstract-behavior)
 
       (define spec-len (vector-length spec))
@@ -323,7 +323,7 @@
                       new-live-list f))
                    (lambda (x)
                      (let ([out-list (send abst interpret-inst my-inst
-                                           (send machine vector->progstate x) k)])
+                                           (send machine vector->progstate x) type k)])
                        (if (list? out-list)
                            (for/list ([out out-list])
                                      (abstract (send machine progstate->vector out)
