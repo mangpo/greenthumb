@@ -11,12 +11,12 @@
 (define arm-simulator-abstract%
   (class object%
     (super-new)
-    (init-field k [all-yes 0] [all-no 0])
+    (init-field k machine [all-yes 0] [all-no 0])
     (public load-abstract-behavior interpret-inst reset-cache)
 
 
-    (define machine (new arm-machine%))
-    (send machine set-config (list 5 0 4)) ;; TODO
+    ;; (define machine (new arm-machine%))
+    ;; (send machine set-config (list 5 0 4)) ;; TODO
     (define nregs (send machine get-nregs))
 
     (define bit (get-field bit machine))
@@ -79,18 +79,23 @@
         (define i (open-input-file (format "abstract_~a_k~a.csv" type k)))
         (define current-mapping (make-hash))
         (define key #f)
+
+        (define convert
+          (if (equal? type `mod)
+              string->number
+              (lambda (x) (arithmetic-shift (string->number x) (- bit 32)))))
         
 	(define (loop line)
 	  (when 
 	   (string? line)
 	   (define tokens (string-split line ","))
            (define prog (map string->number (string-split (first tokens) " ")))
-	   (define in (map string->number (string-split (second tokens) " ")))
+	   (define in (map convert (string-split (second tokens) " ")))
 	   (define out-list 
 	     (if (equal? (third tokens) "#t")
 		 (is-all-true? prog in type k)
                  (for/list ([out-str (string-split (third tokens) ";")])
-                           (map string->number (string-split out-str " ")))))
+                           (map convert (string-split out-str " ")))))
 
 	   (unless (equal? prog key)
 		   (when key
@@ -175,10 +180,6 @@
       (define regs (progstate-regs state))
       (define z (progstate-z state))
       (define fp (progstate-fp state))
-      (define mul 
-	(if (equal? type `mod)
-	    (arithmetic-shift 1 abst-k)
-	    (arithmetic-shift 1 (- bit k))))
       (struct ref (x))
 
       (define (exec)

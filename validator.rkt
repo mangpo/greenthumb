@@ -166,7 +166,7 @@
       (define inputs 
 	(list
 	 (generate-one-input (lambda () (bitwise-ior (random (<< 1 (- bit 1))) 
-                                                     #x40000000)))
+                                                     (<< 1 (- bit 2)))))
 	 (generate-one-input (lambda () 3))))
 
       ;; (when debug

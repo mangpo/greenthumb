@@ -32,7 +32,8 @@
                                #:hard-postfix [hard-postfix (vector)]
                                #:assume-interpret [assume-interpret #t]
                                #:assume [assumption (send machine no-assumption)])
-      (define abst (new arm-simulator-abstract% [k 3]))
+      (define ttt (current-seconds))
+      (define abst (new arm-simulator-abstract% [k 3] [machine machine]))
       (send abst load-abstract-behavior)
 
       (define spec-len (vector-length spec))
@@ -122,6 +123,7 @@
 	(generator
 	 ()
 	 (define (loop iter)
+	   (pretty-display `(time ,(- (current-seconds) ttt)))
 	   (newline)
 	   (pretty-display `(loop ,iter))
 	   (define classes (make-hash))
@@ -311,6 +313,7 @@
                                      (take-high states))]
 			       [abst-states (cons abst-states-mod abst-states-high)]
 			       )
+                          ;;(pretty-display `(? ,bit ,states ,abst-states-mod ,abst-states-high))
 			  (if (hash-has-key? abst-hash abst-states)
 			      (hash-set! abst-hash abst-states
 					 (cons states (hash-ref abst-hash abst-states)))
