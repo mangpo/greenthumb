@@ -93,7 +93,7 @@
       (define (reset)
         (when
          (= (modulo (+ yes no) 1000) 0)
-         (with-output-to-file "progress.log" #:exists 'append
+         (with-output-to-file (format "progress_~a_k~a.log" type k) #:exists 'append
            (thunk (pretty-display 
                    (format "stat, ~a, ~a, ~a, ~a" 
                            (+ yes no) yes no (quotient (current-memory-use) 1000000))))))
@@ -387,29 +387,29 @@
     ))
       
 
-(define abst (new arm-abstract% [k 3]))
-(define machine (new arm-machine%))
-(send machine set-config (list  6 0 4))
-(define printer (new arm-printer% [machine machine]))
-(define parser (new arm-parser%))
-(define my-inst 
-  (vector-ref (send printer encode 
-                    (send parser ast-from-string "clz r2, r0"))
-              ; clz r2, r0
-              0))
+;; (define abst (new arm-abstract% [k 3]))
+;; (define machine (new arm-machine%))
+;; (send machine set-config (list  6 0 4))
+;; (define printer (new arm-printer% [machine machine]))
+;; (define parser (new arm-parser%))
+;; (define my-inst 
+;;   (vector-ref (send printer encode 
+;;                     (send parser ast-from-string "clz r2, r0"))
+;;               ; clz r2, r0
+;;               0))
 
-;; (send abst gen-abstract-behavior my-inst)
-;; (send abst test)
+;; ;; (send abst gen-abstract-behavior my-inst)
+;; ;; (send abst test)
 
-(define t0 (current-seconds))
-(send abst load-abstract-behavior)
-(define t1 (current-seconds))
-(pretty-display `(time ,(- t1 t0)))
-(define input-state (progstate (vector 0 0 0 0 0 0)
-                               (vector) -1 4))
-(define output-states
-  (send abst interpret-inst my-inst input-state `high 1))
-(pretty-display output-states)
-(when (list? output-states)
-      (for ([output-state output-states])
-	   (send machine display-state output-state)))
+;; (define t0 (current-seconds))
+;; (send abst load-abstract-behavior)
+;; (define t1 (current-seconds))
+;; (pretty-display `(time ,(- t1 t0)))
+;; (define input-state (progstate (vector 0 0 0 0 0 0)
+;;                                (vector) -1 4))
+;; (define output-states
+;;   (send abst interpret-inst my-inst input-state `high 1))
+;; (pretty-display output-states)
+;; (when (list? output-states)
+;;       (for ([output-state output-states])
+;; 	   (send machine display-state output-state)))

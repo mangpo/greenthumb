@@ -5,7 +5,8 @@
 
 (require "arm-printer.rkt" "arm-parser.rkt")
 
-(provide arm-simulator-abstract%)
+(provide arm-simulator-abstract% (struct-out universal))
+(struct universal ())
 
 (define arm-simulator-abstract%
   (class object%
@@ -25,51 +26,98 @@
     (define mask (sub1 (arithmetic-shift 1 k)))
 
 
-    (define behavior-mod (make-hash))
-    (define behavior-high (make-hash))
+    (define behavior-mod (make-vector k))
+    (define behavior-high (make-vector k))
 
+    
+    (define (is-all-true? prog-rep in type my-k)
+      (cond
+       [(= my-k k) 
+        ;;(pretty-display `(is-all-true? ,type ,my-k ,prog-rep ,in ,#t))
+        #t]
+       [else
+        (define mapping
+          (hash-ref
+           (vector-ref (if (equal? type `mod) behavior-mod behavior-high) my-k)
+           prog-rep))
+        
+        (define addition 
+          (if (equal? type `mod)
+              (arithmetic-shift 1 my-k)
+              (arithmetic-shift 1 (- bit my-k 1))))
+        
+        (define all-true #t)
+        
+        (define (recurse res in-list)
+          (cond
+           [(universal? all-true) (void)]
+           [(empty? in-list)
+            ;;(pretty-display `(in ,res))
+            (define outs-list (hash-ref mapping res))
+            (when (list? outs-list) (set! all-true (universal)))]
+           [else
+            (recurse (cons (car in-list) res) (cdr in-list))
+            (recurse (cons (+ (car in-list) addition) res) (cdr in-list))]))
+        
+        (when (hash? mapping)
+          ;;(pretty-display `(check ,type ,my-k ,prog-rep ,in))
+          (recurse (list) (reverse in)))
+        
+        ;;(pretty-display `(is-all-true? ,type ,my-k ,prog-rep ,in ,all-true))
+        all-true]))
+  
+  
     (define (load-abstract-behavior)
-      (define (inner type behavior)
-	(define i (open-input-file (format "abstract_~a_k~a.csv" type k)))
-	(define current-mapping (make-hash))
-	(define key-str #f)
-	
+      (define (inner type behavior k)    
+        ;; (define abst-f
+        ;;   (if (equal? type `mod)
+        ;;       (let ([base (arithmetic-shift 1 k)])
+        ;;         (lambda (x) (modulo x base)))
+        ;;       (let ([mask (arithmetic-shift -1 (- bit k))])
+        ;;         (lambda (x) (bitwise-and x mask)))))
+        
+        (define i (open-input-file (format "abstract_~a_k~a.csv" type k)))
+        (define current-mapping (make-hash))
+        (define key #f)
+        
 	(define (loop line)
 	  (when 
 	   (string? line)
 	   (define tokens (string-split line ","))
-	   (define prog-str (first tokens))
+           (define prog (map string->number (string-split (first tokens) " ")))
 	   (define in (map string->number (string-split (second tokens) " ")))
 	   (define out-list 
 	     (if (equal? (third tokens) "#t")
-		 #t
+		 (is-all-true? prog in type k)
                  (for/list ([out-str (string-split (third tokens) ";")])
                            (map string->number (string-split out-str " ")))))
 
-	   (unless (equal? prog-str key-str)
-		   (when key-str
-                         (when (= 0 (count list? (hash-values current-mapping)))
+	   (unless (equal? prog key)
+		   (when key
+                         (when (= 0 (count (lambda (x) (not (equal? x #t))) (hash-values current-mapping)))
                                (set! current-mapping #t))
-			 (hash-set! behavior 
-                                    (map string->number (string-split key-str " "))
-				    current-mapping))
-		   (set! key-str prog-str)
-		   (set! current-mapping (make-hash)))
+			 (hash-set! behavior key current-mapping))
+             (set! key prog)
+             (set! current-mapping (make-hash)))
 	   (hash-set! current-mapping in out-list)
 	   (loop (read-line i))))
 	
 	(loop (read-line i))
 	(close-input-port i)
 
-        (when (= 0 (count list? (hash-values current-mapping)))
+        (when (= 0 (count (lambda (x) (not (equal? x #t))) (hash-values current-mapping)))
               (set! current-mapping #t))
-
-	(hash-set! behavior (map string->number (string-split key-str " ")) 
-                   current-mapping)
+	(hash-set! behavior key current-mapping)
 	(pretty-display `(summary ,(hash-count behavior))))
-
-      (inner `mod behavior-mod)
-      (inner `high behavior-high)
+      
+      (for ([i (list 3 2 1)])
+           (let ([behavior (make-hash)])
+             (inner `mod behavior i)
+             (vector-set! behavior-mod (- i 1) behavior)))
+      (for ([i (list 3 2 1)])
+           (let ([behavior (make-hash)])
+             (inner `high behavior i)
+             (vector-set! behavior-high (- i 1) behavior)))
       )
 
     (define (get-inst-in-out x)
@@ -120,10 +168,7 @@
 
     (define (interpret-inst my-inst state type [abst-k k]) ;; TODO ???
       ;; TODO z
-      (define behavior (if (equal? type `mod) behavior-mod behavior-high))
-      (define my-cache (if (equal? type `mod)
-                           (vector-ref cache-mod (- abst-k 1))
-                           (vector-ref cache-high (- abst-k 1))))
+      (define behavior (vector-ref (if (equal? type `mod) behavior-mod behavior-high) (- abst-k 1)))
       (define opcode-name (vector-ref inst-id (inst-op my-inst)))
       (define cond-type (arm-inst-cond my-inst))
 
@@ -139,58 +184,6 @@
       (define (exec)
 	(define-values (x regs-in regs-out) (get-inst-in-out my-inst))
         (define mapping (hash-ref behavior x))
-        
-        (define (do-it key)
-          ;(pretty-display "[DO-IT]")
-          (define regs-in-val 
-            (for/list ([index (vector-length regs-in)]
-                       [r regs-in]) 
-                      (let ([index-1 (vector-member r regs-in)]
-                            [val (vector-ref regs r)])
-                        (if (= index index-1)
-                            (for/list ([i (arithmetic-shift 1 (- k abst-k))])
-                                      (+ val (* i mul)))
-                            (ref index-1)))))
-          
-
-          (define ret (list))
-          (define visit (list))
-
-          (define (inner regs-in-val)
-            ;(pretty-display `(input ,x ,regs-in-val))
-            (define regs-out-val-list (hash-ref mapping regs-in-val))
-            (if (equal? regs-out-val-list #t)
-                (set! ret #t)
-                (for ([regs-out-val regs-out-val-list])
-                     (unless (member regs-out-val visit)
-                             (let ([new-regs (vector-copy (progstate-regs state))]
-                                   [new-memory (vector-copy (progstate-memory state))])
-                               (for ([r regs-out]
-                                     [v regs-out-val])
-                                    (vector-set! new-regs r v))
-                               (set! ret (cons (progstate new-regs new-memory z fp) ret))
-                               (set! visit (cons regs-out-val visit))
-                               )))))
-
-          (define (recurse lst res)
-            (cond
-             [(empty? lst)
-              (let ([res-vec (list->vector res)])
-                (inner (map (lambda (x) (if (ref? x) (vector-ref res-vec (ref-x x)) x))
-                            res)))]
-             [(list? (car lst))
-              (for ([x (car lst)] #:break (equal? ret #t))
-                   (recurse (cdr lst) (cons x res)))
-              ]
-             [else (recurse (cdr lst) (cons (car lst) res))]
-             ))
-
-          (recurse (reverse regs-in-val) (list))
-
-          (if (list? ret)
-              (hash-set! my-cache key visit)
-              (hash-set! my-cache key ret))
-          ret)
 
         (cond
          [(equal? mapping #t) 
@@ -198,24 +191,18 @@
           #t]
 
          [else
-
-          (define key1 (for/list ([r regs-in]) (vector-ref regs r)))
-          (define key2 (normalize regs-in))
-          (define key (cons key1 key2))
-          ;; ;;(pretty-display `(key ,key))
-          (if (hash-has-key? my-cache key)
-              (let ([regs-out-val-list (hash-ref my-cache key)])
-                ;;(pretty-display "[CACHE]")
-                (if (list? regs-out-val-list)
-                    (for/list ([regs-out-val regs-out-val-list])
-                              (let ([new-regs (vector-copy (progstate-regs state))]
-                                    [new-memory (vector-copy (progstate-memory state))])
-                                (for ([r regs-out]
-                                      [v regs-out-val])
-                                     (vector-set! new-regs r v))
-                                (progstate new-regs new-memory z fp)))
-                    regs-out-val-list))
-              (do-it key))
+          (define regs-in-val (for/list ([r regs-in]) (vector-ref regs r)))
+          ;;(pretty-display `(interpret ,x ,regs-in-val))
+          (define regs-out-val-list (hash-ref mapping regs-in-val))
+          (if (list? regs-out-val-list)
+	      (for/list ([regs-out-val regs-out-val-list])
+                        (let ([new-regs (vector-copy (progstate-regs state))]
+                              [new-memory (vector-copy (progstate-memory state))])
+                          (for ([r regs-out]
+                                [v regs-out-val])
+                               (vector-set! new-regs r v))
+                          (progstate new-regs new-memory z fp)))
+              regs-out-val-list)
           ])
         )
 
@@ -265,7 +252,7 @@
 (define parser (new arm-parser%))
 (define my-inst 
   (vector-ref (send printer encode 
-                    (send parser ast-from-string "sub r5, r4, r3, lsr r2"))
+                    (send parser ast-from-string "sub r5, r4, r3, lsr r1"))
               0))
 
 ;; (send abst gen-abstract-behavior my-inst)
@@ -274,19 +261,12 @@
 (define t0 (current-seconds))
 (define t1 (current-seconds))
 (pretty-display `(time ,(- t1 t0)))
-(define input-state (progstate (vector 0 0 1 2 3 0)
+(define input-state (progstate (vector 0 0 0 0 1 0)
                                (vector) -1 4))
 (define output-states
-  (send abst interpret-inst my-inst input-state `mod 3))
+  (send abst interpret-inst my-inst input-state `mod 1))
 (pretty-display output-states)
 (when (list? output-states)
       (for ([output-state output-states])
 	   (send machine display-state output-state)))
-
-(pretty-display "---------------")
-(define output-states2
-  (send abst interpret-inst my-inst input-state `mod 3))
-(pretty-display output-states2)
-(when (list? output-states2)
-      (for ([output-state output-states2])
-	   (send machine display-state output-state)))|#
+|#

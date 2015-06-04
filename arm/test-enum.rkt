@@ -24,10 +24,12 @@
 	add	r0, r0, r2, asr #1
 "))
 
+(define k 2)
+(define type `high)
 (send enum reset-generate-inst (list input-state) (list 0) #f 
-      `mod-high #f #:no-args #t)
-(define abst (new arm-abstract% [k 3]))
-(send abst set-type! `high)
+      `rest #f #:no-args #t)
+(define abst (new arm-abstract% [k k]))
+(send abst set-type! type)
 
 (define encoded-code (send printer encode code))
 (define iterator (get-field generate-inst enum))
@@ -37,7 +39,7 @@
   (define my-inst (car p))
   (if my-inst
       (begin
-        (with-output-to-file "progress.log" #:exists 'append
+        (with-output-to-file (format "rm progress_~a_k~a.log" type k) #:exists 'append
           (thunk (send printer print-syntax (send printer decode my-inst))))
         (send printer print-syntax (send printer decode my-inst))
 	(send abst gen-abstract-behavior my-inst)
@@ -45,8 +47,8 @@
         )
       count))
 
-(system "rm progress.log")
-;(system "rm abstract.csv")
+;(system (format "rm progress_~a_k~a.log" type k))
+;(system (format "rm abstract_~a_k~a.csv" type k))
 (define mem0 (quotient (current-memory-use) 1000000))
 (define t0 (current-seconds))
 (pretty-display `(count ,(loop 0)))
@@ -57,18 +59,3 @@
 (pretty-display (format "yes: ~a, no: ~a" 
                         (get-field all-yes abst)
                         (get-field all-no abst)))
-
-#|
-(define random-state (car (send validator generate-input-states 2 encoded-code #f #f)))
-(send machine display-state random-state)
-(define k 3)
-(define type `high)
-(define f
-  (cond
-    [(equal? type `mod) 
-     (let ([base (arithmetic-shift 1 k)])
-       (lambda (x) (modulo x base)))]
-    [(equal? type `high) 
-     (let ([mask (arithmetic-shift -1 (- 32 k))])
-       (lambda (x) (bitwise-and x mask)))]))
-(send enum abstract (send machine progstate->vector random-state) (list 0 1 2) f)|#

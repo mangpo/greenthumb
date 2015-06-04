@@ -53,6 +53,7 @@
               assumption extra))
 
       (define-syntax-rule (take-high lst) (take lst 1))
+      (define-syntax-rule (take-mod lst) (drop lst 1))
 
       (define prev-classes (make-hash))
       (define states1 
@@ -71,7 +72,8 @@
            (let* ([base (arithmetic-shift 1 k)]
                   [f (lambda (x) (modulo x base))])
              (vector-set! expect-mod (- k 1) 
-                          (map (lambda (x) (abstract x live2-list f)) states2-vec-spec))))
+                          (map (lambda (x) (abstract x live2-list f)) 
+                               (take-mod states2-vec-spec)))))
 
       (for ([k (list 1 2 3)])
            (let* ([mask (arithmetic-shift -1 (- bit k))]
@@ -127,7 +129,6 @@
 
 	   (define (check-eqv prog states-vec out-loc)
 	     ;(pretty-display `(check-eqv ,prog ,states-vec))
-	     (set! count-t (add1 count-t))
 
 	     ;; (when (concat? prog) 
 	     ;; 	   (let ([x (concat-inst prog)])
@@ -147,149 +148,143 @@
              ;;               (newline))))
 
 	     ;; STEP 1: check equivalence on test cases
-             (define t-xxx (current-milliseconds))
-	     (when
-	      (for/and ([state-spec states2-vec-spec]
-			[state states-vec])
-		       (if virtual
-			   (send machine relaxed-state-eq? state-spec state live2-vec 
-                                 out-loc)
-			   (send machine state-eq? state-spec state live2-vec))
-		       )
-              (set! t-check (+ t-check (- (current-milliseconds) t-xxx)))
+             (set! count-1 (add1 count-1))
+             (define t-refine-start (current-milliseconds))
+             (when debug (pretty-display "[1] correct on first query"))
 
-	      (set! count-1 (add1 count-1))
-	      (define t-refine-start (current-milliseconds))
-	      (when debug (pretty-display "[1] correct on first query"))
+             ;; STEP 2: try on extra test cases
+             (define (inner-loop iterator)
+               (define t0 (current-milliseconds))
+               (define p (and (not (empty? iterator)) (car iterator)))
+               (define t1 (current-milliseconds))
+               (set! t-rename (+ t-rename (- t1 t0)))
+               (when p
+                     (set! count-r (add1 count-r))
+                     ;; (pretty-display "After renaming")
+                     ;; (send printer print-syntax (send printer decode p))
+                     (when
+                      (for/and ([input-output ce-list])
+                               (let* ([input (car input-output)]
+                                      [output-vec (cdr input-output)]
+                                      [my-output-vec
+                                       (with-handlers*
+                                        ([exn? (lambda (e) #f)])
+                                        (send machine progstate->vector
+                                              (send simulator interpret p input #:dep #f)))])
+                                 (and my-output-vec
+                                      (send machine state-eq? output-vec my-output-vec live2-vec))))
+                      (when debug
+                            (pretty-display "[2] all correct")
+                            (pretty-display `(ce-list ,(length ce-list)))
+                            (when (= (length ce-list) 100)
+                                  (for ([i 10]
+                                        [ce ce-list])
+                                       (send machine display-state (car ce)))
+                                  )
+                            )
+                      
+                      (define ce (send validator counterexample 
+                                       (vector-append prefix spec postfix)
+                                       (vector-append prefix p postfix)
+                                       constraint extra #:assume assumption))
 
-	      ;; STEP 2: try on extra test cases
-	      (define (inner-loop iterator)
-                (define t0 (current-milliseconds))
-	      	(define p (and (not (empty? iterator)) (car iterator)))
-                (define t1 (current-milliseconds))
-                (set! t-rename (+ t-rename (- t1 t0)))
-		(when p
-                      (set! count-r (add1 count-r))
-		      ;; (pretty-display "After renaming")
-		      ;; (send printer print-syntax (send printer decode p))
-		      (when
-		       (for/and ([input-output ce-list])
-				(let* ([input (car input-output)]
-				       [output-vec (cdr input-output)]
-				       [my-output-vec
-					(with-handlers*
-					 ([exn? (lambda (e) #f)])
-					 (send machine progstate->vector
-					       (send simulator interpret p input #:dep #f)))])
-				  (and my-output-vec
-				       (send machine state-eq? output-vec my-output-vec live2-vec))))
-		       (when debug
-			     (pretty-display "[2] all correct")
-			     (pretty-display `(ce-list ,(length ce-list)))
-			     (when (= (length ce-list) 100)
-				   (for ([i 10]
-					 [ce ce-list])
-					(send machine display-state (car ce)))
-				   )
-			     )
-		       
-		       (define ce (send validator counterexample 
-					(vector-append prefix spec postfix)
-					(vector-append prefix p postfix)
-					constraint extra #:assume assumption))
-
-		       (if ce
-			   (let* ([ce-input (send simulator interpret prefix ce #:dep #f)]
-				  [ce-output-vec
+                      (if ce
+                          (let* ([ce-input (send simulator interpret prefix ce #:dep #f)]
+                                 [ce-output-vec
 				  (send machine progstate->vector
 					(send simulator interpret spec ce-input #:dep #f))])
-			     (when debug (pretty-display "[3] counterexample"))
-			     (set! ce-list (cons (cons ce-input ce-output-vec) ce-list))
-                             )
-			   (begin
-			     (pretty-display "[4] FOUND!!!")
-			     (let ([total (- (current-seconds) t-start)])
-			       (when (> total 0)
-				     (pretty-display 
-				      `(time ,count-1 ,count-t
-					     ,(exact->inexact (/ count-1 count-t))
-					     ,(exact->inexact (/ t-refine 1000 
-								 (- (current-seconds) t-start)))
-					     ,(exact->inexact (/ t-abst 1000 
-								 (- (current-seconds) t-start)))))))
-			     (let ([groups (hash-keys classes)])
-			       (send printer print-syntax (send printer decode p))
-			       (pretty-display `(groups ,(length groups))))
-			     (yield p)))
-		       ) ;; when all extras are correct.
-                       (let ([t2 (current-milliseconds)])
-                         (set! t-extra (+ t-extra (- t2 t1))))
-		      (inner-loop (cdr iterator))))
+                            (when debug (pretty-display "[3] counterexample"))
+                            (set! ce-list (cons (cons ce-input ce-output-vec) ce-list))
+                            )
+                          (begin
+                            (pretty-display "[4] FOUND!!!")
+                            (let ([total (- (current-seconds) t-start)])
+                              (when (> total 0)
+                                    (pretty-display 
+                                     `(time ,count-1 ,count-t
+                                            ,(exact->inexact (/ count-1 count-t))
+                                            ,(exact->inexact (/ t-refine 1000 
+                                                                (- (current-seconds) t-start)))
+                                            ,(exact->inexact (/ t-abst 1000 
+                                                                (- (current-seconds) t-start)))))))
+                            (let ([groups (hash-keys classes)])
+                              (send printer print-syntax (send printer decode p))
+                              (pretty-display `(groups ,(length groups))))
+                            (yield p)))
+                      ) ;; when all extras are correct.
+                     (let ([t2 (current-milliseconds)])
+                       (set! t-extra (+ t-extra (- t2 t1))))
+                     (inner-loop (cdr iterator))))
 
-	      ;; mapping and loop is for renaming virtual registers.
-	      (define mapping 
-	      	(get-register-mapping org-nregs states2-vec-spec states-vec live2-vec))
+             ;; mapping and loop is for renaming virtual registers.
+             (define mapping 
+               (get-register-mapping org-nregs states2-vec-spec states-vec live2-vec))
 
-	      (define (loop iterator)
-	      	(define p (iterator))
-	      	(when p 
-                      (set! count-p (add1 count-p))
-	      	      ;; (newline)
-	      	      ;; ;; (pretty-display "Before renaming")
-	      	      ;; (send printer print-syntax (send printer decode p))
-	      	      (when mapping
-                            (define t0 (current-milliseconds))
-	      		    (define iterator2 (get-renaming-iterator p mapping out-loc))
-                            (define t1 (current-milliseconds))
-                            (set! t-rename (+ t-rename (- t1 t0)))
-	      		    (inner-loop iterator2)
-	      		    )
-	      	      (loop iterator))
-	      	)
+             (define (loop iterator)
+               (define p (iterator))
+               (when p 
+                     (set! count-p (add1 count-p))
+                     ;; (newline)
+                     ;; ;; (pretty-display "Before renaming")
+                     ;; (send printer print-syntax (send printer decode p))
+                     (when mapping
+                           (define t0 (current-milliseconds))
+                           (define iterator2 (get-renaming-iterator p mapping out-loc))
+                           (define t1 (current-milliseconds))
+                           (set! t-rename (+ t-rename (- t1 t0)))
+                           (inner-loop iterator2)
+                           )
+                     (loop iterator))
+               )
 
-	      (if virtual
-		  (when mapping (loop (get-collection-iterator prog)))
-		  (inner-loop (get-collection-iterator prog)))
-	      (set! t-refine (+ t-refine (- (current-milliseconds) t-refine-start)))
-	      )
+             (if virtual
+                 (when mapping (loop (get-collection-iterator prog)))
+                 (inner-loop (get-collection-iterator prog)))
+             (set! t-refine (+ t-refine (- (current-milliseconds) t-refine-start)))
 	     ) ;; End check-eqv
 
 	   (define (refine-real classes live-list my-vreg my-inst out-loc)
              (define n (length classes))
              (set! count-real (+ count-real n))
-             ;; (pretty-display `(refine-real ,n))
-	     (for ([states classes]
-                   [i n])
-                  ;; (pretty-display (format "real: ~a/~a ~a" i n states))
-		  (let* ([t0 (current-milliseconds)]
-                         [states2-vec 
-                          (with-handlers*
-                           ([exn? (lambda (e) #f)])
-                           (map (lambda (x) 
-                                  (send machine progstate->vector 
-                                        (send simulator interpret (vector my-inst)
-                                              (send machine vector->progstate x)
-                                              #:dep #f))) 
-                                states))]
-                         [t1 (current-milliseconds)]
-                         )
-                    (set! t-real-inter (+ t-real-inter (- t1 t0)))
-                    ;; (when (and (equal? `rsb 
-		    ;; 		       (vector-ref (get-field inst-id machine) (inst-op my-inst)))
-                    ;;            (equal? `lsr 
-                    ;;                    (vector-ref (get-field shf-inst-id machine) 
-                    ;;                                (inst-shfop my-inst)))
-                    ;;            (equal? 2 (inst-shfarg my-inst))
-		    ;; 	       (equal? 4 (vector-ref (inst-args my-inst) 0))
-		    ;; 	       (equal? 3 (vector-ref (inst-args my-inst) 1))
-		    ;; 	       (equal? 3 (vector-ref (inst-args my-inst) 2)))
-                    ;;       (pretty-display `(refine-real ,states ,states2-vec))
-                    ;;       )
-		    (when states2-vec
-			  (check-eqv (concat (class-ref prev-classes live-list my-vreg states) 
-					     my-inst)
-				     states2-vec out-loc)
-                          ))))
+
+             (define (check-loop states states2-vec-spec keep states-org)
+               (cond
+                [(empty? states) 
+                 (check-eqv (concat (class-ref prev-classes live-list my-vreg states-org) 
+                                    my-inst)
+                            (reverse keep) out-loc)]
+
+                [else
+                 (define t0 (current-milliseconds))
+                 (define out
+                   (with-handlers*
+                    ([exn? (lambda (e) #f)])
+                    (send machine progstate->vector 
+                          (send simulator interpret (vector my-inst)
+                                (send machine vector->progstate (car states))
+                                #:dep #f))))
+
+                 (define t1 (current-milliseconds))
+                 (define pass
+                   (and 
+                    out
+                    (if virtual
+                        (send machine relaxed-state-eq? 
+                              (car states2-vec-spec) out live2-vec out-loc)
+                        (send machine state-eq? 
+                              (car states2-vec-spec) out live2-vec))))
+                 (define t2 (current-milliseconds))
+
+                 (set! t-real-inter (+ t-real-inter (- t1 t0)))
+                 (set! t-check (+ t-check (- t2 t1)))
+
+                 (when pass (check-loop (cdr states) (cdr states2-vec-spec)
+                                        (cons out keep) states-org))]
+                ))
+
+             (for ([states classes])
+                  (set! count-t (add1 count-t))
+                  (check-loop states states2-vec-spec (list) states)))
 
 	   (define (refine-abstract classes live-list my-vreg new-live-list my-inst k type out-loc)
 	     (define f-mod
@@ -309,7 +304,8 @@
 		   (set! abst-hash (make-hash))
 		   (for ([states classes])
 			(let* ([abst-states-mod 
-				(map (lambda (x) (abstract x live-list f-mod)) states)]
+				(map (lambda (x) (abstract x live-list f-mod)) 
+                                     (take-mod states))]
 			       [abst-states-high 
 				(map (lambda (x) (abstract x live-list f-high))
                                      (take-high states))]
@@ -358,6 +354,7 @@
 	     (define (check-abst state-spec state)
 		(or 
 		 (equal? state #t)
+                 (universal? state)
 		 (for/or ([s (if (list? state) state (list state))])
 			 (if virtual
 			     (send machine relaxed-state-eq? state-spec s live2-vec out-loc)
