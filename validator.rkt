@@ -162,7 +162,12 @@
                      (vector-ref const-range (random const-range-len))))))
       
       ;;(define inputs (append input-zero input-random input-random-const))
-      (define inputs (append input-random input-random-const))
+      ;; (define inputs (append input-random input-random-const))
+      (define inputs 
+	(list
+	 (generate-one-input (lambda () (random (<< 1 (- bit 1)))))
+	 (generate-one-input (lambda () 3))))
+
       ;; (when debug
       ;;       (pretty-display "Test simulate with symbolic inputs...")
       ;;       (assume-relax start-state assumption)

@@ -32,6 +32,7 @@
                                #:hard-postfix [hard-postfix (vector)]
                                #:assume-interpret [assume-interpret #t]
                                #:assume [assumption (send machine no-assumption)])
+      (define ttt (current-seconds))
       (define abst (new arm-abstract% [k 3]))
       (send abst load-abstract-behavior)
 
@@ -117,6 +118,7 @@
 	(generator
 	 ()
 	 (define (loop iter)
+           (pretty-display `(time ,(- (current-seconds) ttt)))
 	   (newline)
 	   (pretty-display `(loop ,iter))
 	   (define classes (make-hash))
@@ -144,17 +146,6 @@
              ;;               (newline))))
 
 	     ;; STEP 1: check equivalence on test cases
-             (define t-xxx (current-milliseconds))
-	     (when
-	      (for/and ([state-spec states2-vec-spec]
-			[state states-vec])
-		       (if virtual
-			   (send machine relaxed-state-eq? state-spec state live2-vec 
-                                 out-loc)
-			   (send machine state-eq? state-spec state live2-vec))
-		       )
-              (set! t-check (+ t-check (- (current-milliseconds) t-xxx)))
-
 	      (set! count-1 (add1 count-1))
 	      (define t-refine-start (current-milliseconds))
 	      (when debug (pretty-display "[1] correct on first query"))
@@ -248,45 +239,50 @@
 		  (when mapping (loop (get-collection-iterator prog)))
 		  (inner-loop (get-collection-iterator prog)))
 	      (set! t-refine (+ t-refine (- (current-milliseconds) t-refine-start)))
-	      )
 	     ) ;; End check-eqv
 
 	   (define (refine-real classes live-list my-vreg my-inst out-loc)
              (define n (length classes))
              (set! count-real (+ count-real n))
-             ;(pretty-display `(refine-real ,n))
-	     (for ([states classes]
-                   [i n])
-                  ;(pretty-display (format "real: ~a/~a" i n))
-		  (let* ([t0 (current-milliseconds)]
-                         [states2-vec 
-                          (with-handlers*
-                           ([exn? (lambda (e) #f)])
-                           (map (lambda (x) 
-                                  (send machine progstate->vector 
-                                        (send simulator interpret (vector my-inst)
-                                              (send machine vector->progstate x)
-                                              #:dep #f))) 
-                                states))]
-                         [t1 (current-milliseconds)]
-                         )
-                    (set! t-real-inter (+ t-real-inter (- t1 t0)))
-                    ;; (when (and (equal? `rsb 
-		    ;; 		       (vector-ref (get-field inst-id machine) (inst-op my-inst)))
-                    ;;            (equal? `lsr 
-                    ;;                    (vector-ref (get-field shf-inst-id machine) 
-                    ;;                                (inst-shfop my-inst)))
-                    ;;            (equal? 2 (inst-shfarg my-inst))
-		    ;; 	       (equal? 4 (vector-ref (inst-args my-inst) 0))
-		    ;; 	       (equal? 3 (vector-ref (inst-args my-inst) 1))
-		    ;; 	       (equal? 3 (vector-ref (inst-args my-inst) 2)))
-                    ;;       (pretty-display `(refine-real ,states ,states2-vec))
-                    ;;       )
-		    (when states2-vec
-			  (check-eqv (concat (class-ref prev-classes live-list my-vreg states) 
-					     my-inst)
-				     states2-vec out-loc)
-                          ))))
+
+             (define (check-loop states states2-vec-spec keep states-org)
+               (cond
+                [(empty? states) 
+                 (check-eqv (concat (class-ref prev-classes live-list my-vreg states-org) 
+                                    my-inst)
+                            (reverse keep) out-loc)]
+
+                [else
+                 (define t0 (current-milliseconds))
+                 (define out
+                   (with-handlers*
+                    ([exn? (lambda (e) #f)])
+                    (send machine progstate->vector 
+                          (send simulator interpret (vector my-inst)
+                                (send machine vector->progstate (car states))
+                                #:dep #f))))
+
+                 (define t1 (current-milliseconds))
+                 (define pass
+                   (and 
+                    out
+                    (if virtual
+                        (send machine relaxed-state-eq? 
+                              (car states2-vec-spec) out live2-vec out-loc)
+                        (send machine state-eq? 
+                              (car states2-vec-spec) out live2-vec))))
+                 (define t2 (current-milliseconds))
+
+                 (set! t-real-inter (+ t-real-inter (- t1 t0)))
+                 (set! t-check (+ t-check (- t2 t1)))
+
+                 (when pass (check-loop (cdr states) (cdr states2-vec-spec)
+                                        (cons out keep) states-org))]
+                ))
+
+             (for ([states classes])
+                  (set! count-t (add1 count-t))
+                  (check-loop states states2-vec-spec (list) states)))
 
 	   (define (refine-abstract classes live-list my-vreg new-live-list my-inst k type
                                     real-interpret out-loc)
@@ -467,7 +463,7 @@
 	   	   (abst-loop abst-hash live-list my-vreg type real-interpret))
                  eqv-classes))
 
-           (when #t ;(> iter 2)
+           (when (> iter 2)
 	   (for ([pair1 (hash->list prev-classes)])
 	   	(let* ([live-vreg (car pair1)]
 	   	       [live-list (entry-live live-vreg)]
@@ -480,21 +476,22 @@
                        [abst-hash #f])
 		  (pretty-display `(key ,live-vreg ,(length eqv-classes)))
 		  ;; modular abstraction
+                  (pretty-display "MOD: table")
+	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
+				       `rest #f); #:live-limit 3) 
+	   	  (set! abst-hash (abst-loop eqv-classes live-list my-vreg `mod #f))
+
+		  ;; modular abstraction
                   (pretty-display "MOD: valid")
 	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
 				       `mod #f); #:live-limit 3) 
-	   	  (set! abst-hash (abst-loop  eqv-classes live-list my-vreg `mod #t))
+	   	  (set! abst-hash (abst-loop  abst-hash live-list my-vreg `mod #t))
 
 		  ;; high-byte-mask abstraction
 	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
 		  		       `high #f); #:live-limit 3)
 	   	  (abst-loop eqv-classes live-list my-vreg `high #t)
 
-		  ;; modular abstraction
-                  (pretty-display "MOD: table")
-	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
-				       `rest #f); #:live-limit 3) 
-	   	  (abst-loop abst-hash live-list my-vreg `mod #f)
            ))
            )
 
