@@ -52,10 +52,10 @@
 
     ;; If regs is not #f, use virtual registers
     ;; If lex is not #f, impose lexical order. This is only valid with virtual registers.
-    (define (reset-generate-inst states live-in regs type lex 
+    (define (reset-generate-inst state live-in regs type lex 
                                  #:no-args [no-args #f])
       (define mode (cond [regs `vir] [no-args `no-args] [else `basic]))
-      (define z (progstate-z (car states))) ;; enough to look at one state.
+      (define z (vector-ref state 2)) ;; enough to look at one state.
       ;; (define inst-choice '(sub# clz mvn# rsb))
       ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
       (define inst-pool (get-field inst-pool machine))

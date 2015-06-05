@@ -130,7 +130,7 @@
 	   (define ce-list (list))
 
 	   (define (check-eqv prog states-vec out-loc)
-	     ;(pretty-display `(check-eqv ,prog ,states-vec))
+	     ;;(pretty-display `(check-eqv ,prog ,states-vec))
 
 	     ;; (when (concat? prog) 
 	     ;; 	   (let ([x (concat-inst prog)])
@@ -200,15 +200,6 @@
                             )
                           (begin
                             (pretty-display "[4] FOUND!!!")
-                            (let ([total (- (current-seconds) t-start)])
-                              (when (> total 0)
-                                    (pretty-display 
-                                     `(time ,count-1 ,count-t
-                                            ,(exact->inexact (/ count-1 count-t))
-                                            ,(exact->inexact (/ t-refine 1000 
-                                                                (- (current-seconds) t-start)))
-                                            ,(exact->inexact (/ t-abst 1000 
-                                                                (- (current-seconds) t-start)))))))
                             (let ([groups (hash-keys classes)])
                               (send printer print-syntax (send printer decode p))
                               (pretty-display `(groups ,(length groups))))
@@ -245,50 +236,86 @@
              (set! t-refine (+ t-refine (- (current-milliseconds) t-refine-start)))
 	     ) ;; End check-eqv
 
-	   (define (refine-real classes live-list my-vreg my-inst out-loc)
-             (define n (length classes))
-             (set! count-real (+ count-real n))
-
-             (define (check-loop states states2-vec-spec keep states-org)
-               (cond
-                [(empty? states) 
-                 (check-eqv (concat (class-ref prev-classes live-list my-vreg states-org) 
-                                    my-inst)
-                            (reverse keep) out-loc)]
-
-                [else
-                 (define t0 (current-milliseconds))
-                 (define out
-                   (with-handlers*
-                    ([exn? (lambda (e) #f)])
-                    (send machine progstate->vector 
-                          (send simulator interpret (vector my-inst)
-                                (send machine vector->progstate (car states))
-                                #:dep #f))))
-
-                 (define t1 (current-milliseconds))
-                 (define pass
-                   (and 
-                    out
-                    (if virtual
-                        (send machine relaxed-state-eq? 
-                              (car states2-vec-spec) out live2-vec out-loc)
-                        (send machine state-eq? 
-                              (car states2-vec-spec) out live2-vec))))
-                 (define t2 (current-milliseconds))
-
+	   (define (refine-real prevs prevs-out classes expects 
+                                live-list my-vreg my-inst out-loc)
+             ;;(pretty-display `(refine-real ,classes))
+	     (define real-hash classes)
+             ;; (when (and (list? classes) (> (length (car classes)) 1))
+             ;;       ;; TODO: choose best order
+             ;;       (set! real-hash (make-hash))
+             ;;       (for ([states classes])
+             ;;            (if (hash-has-key? real-hash (car states))
+             ;;                (hash-set! real-hash (car states)
+             ;;                           (cons (cdr states)
+             ;;                                 (hash-ref real-hash (car states))))
+             ;;                (hash-set! real-hash (car states)
+             ;;                           (list (cdr states))))))
+             
+             (define (inner state rest)
+               ;(pretty-display `(state ,state))
+               ;(pretty-display `(rest ,rest))
+               (let* ([t0 (current-milliseconds)]
+                      [out 
+                       (with-handlers*
+                        ([exn? (lambda (e) #f)])
+                        (send machine progstate->vector 
+                              (send simulator interpret (vector my-inst)
+                                    (send machine vector->progstate state)
+                                    #:dep #f)))]
+                      [t1 (current-milliseconds)]
+                      [pass 
+                       (and out
+                            (if virtual
+                                (send machine relaxed-state-eq? 
+                                      (car expects) out live2-vec out-loc)
+                                (send machine state-eq? 
+                                      (car expects) out live2-vec)))]
+                      [t2 (current-milliseconds)]
+                      )
+                 ;(pretty-display `(pass ,pass))
                  (set! t-real-inter (+ t-real-inter (- t1 t0)))
                  (set! t-check (+ t-check (- t2 t1)))
+                 (set! count-real (add1 count-real))
+                 (when 
+                  pass
+                  ;; (if (empty? rest)
+                  ;;     (check-eqv 
+                  ;;      (concat (class-ref prev-classes live-list my-vreg 
+                  ;;                         (reverse (cons state prevs)))
+                  ;;              my-inst)
+                  ;;      (reverse (cons out prevs-out)) out-loc)
+                  ;;     (hash-set! real-hash state
+                  ;;                (refine-real (cons state prevs) (cons out prevs-out) 
+                  ;;                             rest (cdr expects) 
+                  ;;                             live-list my-vreg my-inst out-loc)))
+                  (if (list? rest)
+                      (check-eqv 
+                       (concat rest my-inst)
+                       (reverse (cons out prevs-out)) out-loc)
+                      (refine-real (cons state prevs) (cons out prevs-out) 
+                                   rest (cdr expects) 
+                                   live-list my-vreg my-inst out-loc))
+                  ))
+               )
 
-                 (when pass (check-loop (cdr states) (cdr states2-vec-spec)
-                                        (cons out keep) states-org))]
-                ))
+             ;; (if (hash? real-hash)
+             ;;     (for ([pair (hash->list real-hash)])
+             ;;          (inner (car pair) (cdr pair)))
+             ;;     (for ([states real-hash])
+             ;;          (inner (car states) (list))))
 
-             (for ([states classes])
-                  (set! count-t (add1 count-t))
-                  (check-loop states states2-vec-spec (list) states)))
+             ;; real-hash
+
+             
+             (for ([pair (hash->list real-hash)])
+                  (inner (car pair) (cdr pair)))
+             )
 
 	   (define (refine-abstract classes live-list my-vreg new-live-list my-inst k type out-loc)
+
+             (refine-real (list) (list) classes states2-vec-spec
+                          live-list my-vreg my-inst out-loc)
+#|
 	     (define f-mod
 	       (let ([base (arithmetic-shift 1 k)])
 		 (lambda (x) (modulo x base))))
@@ -314,6 +341,7 @@
 			       [abst-states (cons abst-states-mod abst-states-high)]
 			       )
                           ;;(pretty-display `(? ,bit ,states ,abst-states-mod ,abst-states-high))
+
 			  (if (hash-has-key? abst-hash abst-states)
 			      (hash-set! abst-hash abst-states
 					 (cons states (hash-ref abst-hash abst-states)))
@@ -393,7 +421,12 @@
 		       ;; (pretty-display 
 		       ;;  `(abst ,abst-states ,abst-states-out ,abst-expect ,live2-vec))
 		       ;; 
-		       (refine-real real-states live-list my-vreg my-inst out-loc)
+                       (hash-set! 
+                        abst-hash
+                        (cons (reverse mod-final) (reverse high-final))
+                        (refine-real (list) (list) real-states states2-vec-spec
+                                     live-list my-vreg my-inst out-loc)
+                        )
 		       )
 		     )
 		 ]
@@ -431,12 +464,12 @@
 		    (recurse (list) (list) abst-states-mod abst-states-high 
 			     abst-expect-mod abst-expect-high real-states)))
 
-	     abst-hash
+	     abst-hash|#
 	     )
 	     
 
 	   ;; Enmerate all possible program of one instruction
-	   (define (enumerate states progs-collection check) 
+	   (define (enumerate x) 
 	     (define (inner)
                (when debug (pretty-display `(inner1)))
 	       ;; Call instruction generator
@@ -450,21 +483,41 @@
                 my-inst
                 
 		(when debug
-		      (send printer print-syntax-inst (send printer decode-inst my-inst))) 
-		(let ([states2-vec 
-		       (with-handlers*
-			([exn? (lambda (e) #f)])
-			(map (lambda (x) 
-			       (send machine progstate->vector 
-				     (send simulator interpret (vector my-inst)
-					   x #:dep #f))) states))]
-		      [prog (concat progs-collection my-inst)])
-		  (when debug (pretty-display `(after-interpret ,(list? states2-vec))))
+		      (send printer print-syntax-inst (send printer decode-inst my-inst)))
+
+                (define (recurse x states2-vec)
+                  (if (list? x)
+                      (class-insert! classes my-liveout my-vreg (reverse states2-vec)
+                                     (concat x my-inst))
+                      (for ([pair (hash->list x)])
+                           (let* ([state (car pair)]
+                                  [val (cdr pair)]
+                                  [out 
+                                   (with-handlers*
+                                    ([exn? (lambda (e) #f)])
+                                    (send machine progstate->vector 
+                                          (send simulator interpret (vector my-inst)
+                                                (send machine vector->progstate state)
+                                                #:dep #f)))])
+                             (when out
+                                   (recurse val (cons out states2-vec)))))))
+                
+                (recurse x (list))
+ 
+		;; (let ([states2-vec 
+		;;        (with-handlers*
+		;; 	([exn? (lambda (e) #f)])
+		;; 	(map (lambda (x) 
+		;; 	       (send machine progstate->vector 
+		;; 		     (send simulator interpret (vector my-inst)
+		;; 			   x #:dep #f))) states))]
+		;;       [prog (concat progs-collection my-inst)])
+		;;   (when debug (pretty-display `(after-interpret ,(list? states2-vec))))
 		  
-		  (when states2-vec 
-			(class-insert! classes my-liveout my-vreg states2-vec prog)
-			(when check (check-eqv prog states2-vec))
-			))
+		;;   (when states2-vec 
+		;; 	(class-insert! classes my-liveout my-vreg states2-vec prog)
+		;; 	(when check (check-eqv prog states2-vec))
+		;; 	))
 		(inner)))
 	     (inner))
 	   
@@ -482,10 +535,9 @@
              (set! t-collect 0) (set! t-abst-inter 0) (set! t-abst-inter2 0) (set! t-real-inter 0) (set! t-real-inter 0) (set! t-rename 0) (set! t-check 0) (set! t-get-type 0) (set! t-later-use 0) (set! t-extra 0) 
              (set! count-p 0) (set! count-r 0) (set! count-abst 0) (set! count-real 0)
 	     (if my-inst
-                 (let* ([out-loc (get-output-location my-inst)]
-                        [abst-hash 
-                         (refine-abstract eqv-classes live-list my-vreg my-liveout my-inst 
-                                          1 type out-loc)])
+                 (let* ([out-loc (get-output-location my-inst)])
+                   (refine-abstract eqv-classes live-list my-vreg my-liveout my-inst 
+                                    1 type out-loc)
                    (pretty-display (format "~a ms = ~a (~a+~a/~a) ~a/~a ~a ~a ~a ~a ~a | ~a ~a" 
                                            (- (current-milliseconds) t0)
                                            t-collect 
@@ -493,27 +545,26 @@
                                            t-real-inter count-real
                                            t-check t-rename t-get-type t-later-use t-extra
                                            count-p count-r))
-	   	   (abst-loop abst-hash live-list my-vreg type))
+	   	   (abst-loop eqv-classes live-list my-vreg type))
                  eqv-classes))
 
-           (when (> iter 2)
+           (when #t ;(> iter 2)
 	   (for ([pair1 (hash->list prev-classes)])
 	   	(let* ([live-vreg (car pair1)]
 	   	       [live-list (entry-live live-vreg)]
 	   	       [my-vreg (entry-vreg live-vreg)]
 	   	       [hash2 (cdr pair1)]
-	   	       [eqv-classes (hash-keys hash2)]
 		       ;; use only first state
-		       [state-rep-list (list (send machine vector->progstate 
-                                                   (caar eqv-classes)))]
-                       [abst-hash eqv-classes])
-		  (pretty-display `(key ,live-vreg ,(length eqv-classes)))
-		  (for ([type '(rest mod+high mod-high high-mod)])
+		       [state-rep (find-first-state hash2)])
+		  (pretty-display `(key ,live-vreg))
+		  (for ([type '(mod+high mod-high high-mod rest)])
 		       (newline)
 		       (pretty-display (format "TYPE: ~a" type))
-		       (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
+		       (reset-generate-inst state-rep live-list (and virtual my-vreg) 
 					    type #f) 
-		       (set! abst-hash (abst-loop abst-hash live-list my-vreg type)))
+		       (abst-loop hash2 live-list my-vreg type)
+		       ;;(set! abst-hash (abst-loop abst-hash live-list my-vreg type))
+                       )
 		  ))
            )
 
@@ -521,27 +572,41 @@
 	   (pretty-display `(abstract-done))
 
 	   ;; Grow
+	   ;; (for ([pair1 (hash->list prev-classes)])
+	   ;;      (let* ([live-vreg (car pair1)]
+	   ;;             [live-list (entry-live live-vreg)]
+	   ;;             [my-vreg (entry-vreg live-vreg)]
+	   ;;             [hash2 (cdr pair1)])
+	   ;;        (pretty-display `(key ,live-vreg ,(hash-count hash2)))
+	   ;;        (for ([pair2 (hash->list hash2)])
+	   ;;             (let* ([val (cdr pair2)]
+	   ;;      	      [outputs (map (lambda (x) (send machine vector->progstate x)) 
+	   ;;      			    (car pair2))]
+	   ;;      	      [smallest-lex (and virtual (get-smallest-lex val))]
+	   ;;      	      )
+	   ;;      	 ;; Initialize enumeration one instruction process
+	   ;;      	 (when debug
+	   ;;      	       (pretty-display `(ENUM!!!!!!!!!!!!! ,val))
+	   ;;      	       (print-concat val)
+	   ;;      	       )
+	   ;;      	 (reset-generate-inst outputs live-list (and virtual my-vreg)
+	   ;;      			      `all smallest-lex); #:live-limit 3)
+	   ;;      	 (enumerate outputs val #f) ;; no check
+	   ;;      	 ))))
 	   (for ([pair1 (hash->list prev-classes)])
 		(let* ([live-vreg (car pair1)]
 		       [live-list (entry-live live-vreg)]
 		       [my-vreg (entry-vreg live-vreg)]
-		       [hash2 (cdr pair1)])
-		  (pretty-display `(key ,live-vreg ,(hash-count hash2)))
-		  (for ([pair2 (hash->list hash2)])
-		       (let* ([val (cdr pair2)]
-			      [outputs (map (lambda (x) (send machine vector->progstate x)) 
-					    (car pair2))]
-			      [smallest-lex (and virtual (get-smallest-lex val))]
-			      )
-			 ;; Initialize enumeration one instruction process
-			 (when debug
-			       (pretty-display `(ENUM!!!!!!!!!!!!! ,val))
-			       (print-concat val)
-			       )
-			 (reset-generate-inst outputs live-list (and virtual my-vreg)
-					      `all smallest-lex); #:live-limit 3)
-			 (enumerate outputs val #f) ;; no check
-			 ))))
+		       [hash2 (cdr pair1)]
+		       ;; use only first state
+		       [state-rep (find-first-state hash2)])
+		  (pretty-display `(key ,live-vreg))
+
+                  (reset-generate-inst state-rep live-list (and virtual my-vreg)
+                                       `all #f)
+                  (enumerate hash2) ;; no check
+                  ))
+
 	   (when (< iter spec-len)
 		 (pretty-display `(iter ,iter ,spec-len))
 		 (set! prev-classes classes)
@@ -562,23 +627,40 @@
     (define (get-flag state) #f)
 
     (define (class-insert! class live-list my-vreg states-vec prog)
+
+      (define (insert-inner x states-vec prog)
+        (define key (car states-vec))
+        (if (= (length states-vec) 1)
+            (if (hash-has-key? x key)
+                (hash-set! x key (cons prog (hash-ref x key)))
+                (hash-set! x key (list prog)))
+            (let ([has-key (hash-has-key? x key)])
+              (unless has-key (hash-set! x key (make-hash)))
+              (insert-inner (hash-ref x key) (cdr states-vec) prog))))
+
       (when (> (length live-list) live-limit)
       	    (set! live-list (take live-list live-limit)))
+
       (set! states-vec (map (lambda (x) (abstract x live-list identity)) states-vec))
       (define key (entry live-list my-vreg (get-flag (car states-vec))))
-      (if (hash-has-key? class key)
-	  (let ([hash2 (hash-ref class key)])
-	    (if (hash-has-key? hash2 states-vec)
-		(let ([val (hash-ref hash2 states-vec)])
-		  (hash-set! hash2 states-vec (cons prog val)))
-		(hash-set! hash2 states-vec (list prog))))
-	  (hash-set! class key 
-		     (make-hash (list (cons states-vec (list prog)))))))
+      (unless (hash-has-key? class key) (hash-set! class key (make-hash)))
+      (insert-inner (hash-ref class key) states-vec prog))
 
     (define (class-ref class live-vec my-vreg states-vec)
       ;; (pretty-display `(class-ref ,live-vec ,my-vreg ,states-vec))
       ;; (pretty-display `(level1 ,(hash-ref class (entry live-vec my-vreg))))
-      (hash-ref (hash-ref class (entry live-vec my-vreg (get-flag (car states-vec)))) states-vec))
+
+      (define (ref-inner x states-vec)
+        (define key (car states-vec))
+        (define val (hash-ref x key))
+        (if (= (length states-vec) 1)
+            val
+            (ref-inner val (cdr states-vec))))
+
+      (ref-inner 
+       (hash-ref class (entry live-vec my-vreg (get-flag (car states-vec))))
+       states-vec)
+      )
 
     (define (print-concat collection)
       (define (inner x [indent ""])
@@ -875,5 +957,17 @@
       )
 
     (define (get-output-location my-inst) #f)
+
+    (define (find-first-state x)
+      (car (hash-keys x)))
+
+    (define (min-list lst)
+      (foldl min (car lst) (cdr lst)))
+
+    (define (max-list lst)
+      (foldl max (car lst) (cdr lst)))
+
+    (define (average-list lst)
+      (quotient (foldl + 0 lst) (length lst)))
 
     ))
