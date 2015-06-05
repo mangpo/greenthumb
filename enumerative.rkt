@@ -236,76 +236,62 @@
              (set! t-refine (+ t-refine (- (current-milliseconds) t-refine-start)))
 	     ) ;; End check-eqv
 
+           (define cache (make-hash))
+
 	   (define (refine-real prevs prevs-out classes expects 
                                 live-list my-vreg my-inst out-loc)
              ;;(pretty-display `(refine-real ,classes))
 	     (define real-hash classes)
-             ;; (when (and (list? classes) (> (length (car classes)) 1))
-             ;;       ;; TODO: choose best order
-             ;;       (set! real-hash (make-hash))
-             ;;       (for ([states classes])
-             ;;            (if (hash-has-key? real-hash (car states))
-             ;;                (hash-set! real-hash (car states)
-             ;;                           (cons (cdr states)
-             ;;                                 (hash-ref real-hash (car states))))
-             ;;                (hash-set! real-hash (car states)
-             ;;                           (list (cdr states))))))
-             
              (define (inner state rest)
                ;(pretty-display `(state ,state))
                ;(pretty-display `(rest ,rest))
-               (let* ([t0 (current-milliseconds)]
-                      [out 
-                       (with-handlers*
-                        ([exn? (lambda (e) #f)])
-                        (send machine progstate->vector 
-                              (send simulator interpret (vector my-inst)
-                                    (send machine vector->progstate state)
-                                    #:dep #f)))]
-                      [t1 (current-milliseconds)]
-                      [pass 
-                       (and out
-                            (if virtual
-                                (send machine relaxed-state-eq? 
-                                      (car expects) out live2-vec out-loc)
-                                (send machine state-eq? 
-                                      (car expects) out live2-vec)))]
-                      [t2 (current-milliseconds)]
-                      )
-                 ;(pretty-display `(pass ,pass))
-                 (set! t-real-inter (+ t-real-inter (- t1 t0)))
-                 (set! t-check (+ t-check (- t2 t1)))
-                 (set! count-real (add1 count-real))
-                 (when 
-                  pass
-                  ;; (if (empty? rest)
-                  ;;     (check-eqv 
-                  ;;      (concat (class-ref prev-classes live-list my-vreg 
-                  ;;                         (reverse (cons state prevs)))
-                  ;;              my-inst)
-                  ;;      (reverse (cons out prevs-out)) out-loc)
-                  ;;     (hash-set! real-hash state
-                  ;;                (refine-real (cons state prevs) (cons out prevs-out) 
-                  ;;                             rest (cdr expects) 
-                  ;;                             live-list my-vreg my-inst out-loc)))
-                  (if (list? rest)
-                      (check-eqv 
-                       (concat rest my-inst)
-                       (reverse (cons out prevs-out)) out-loc)
-                      (refine-real (cons state prevs) (cons out prevs-out) 
-                                   rest (cdr expects) 
-                                   live-list my-vreg my-inst out-loc))
-                  ))
+               (define out #f)
+               (define pass #f)
+               (set! count-real (add1 count-real))
+               (if (and (list? rest) (hash-has-key? cache state))
+                   (let* ([t0 (current-milliseconds)]
+                          [val (hash-ref cache state)]
+                          [t1 (current-milliseconds)]
+                          )
+                     (set! t-real-inter (+ t-real-inter (- t1 t0)))
+                     (set! out (car val))
+                     (set! pass (cdr val)))
+                   (let* ([t0 (current-milliseconds)]
+                          [tmp-out 
+                           (with-handlers*
+                            ([exn? (lambda (e) #f)])
+                            (send machine progstate->vector 
+                                  (send simulator interpret (vector my-inst)
+                                        (send machine vector->progstate state)
+                                        #:dep #f)))]
+                          [t1 (current-milliseconds)]
+                          [tmp-pass 
+                           (and tmp-out
+                                (if virtual
+                                    (send machine relaxed-state-eq? 
+                                          (car expects) tmp-out live2-vec out-loc)
+                                    (send machine state-eq? 
+                                          (car expects) tmp-out live2-vec)))]
+                          [t2 (current-milliseconds)]
+                          )
+                     ;;(pretty-display `(pass ,pass))
+                     (set! t-real-inter (+ t-real-inter (- t1 t0)))
+                     (set! t-check (+ t-check (- t2 t1)))
+                     (set! out tmp-out)
+                     (set! pass tmp-pass)
+                     (when (list? rest) (hash-set! cache state (cons out pass)))
+                     ))
+
+               (when 
+                pass 
+                (if (list? rest)
+                    (check-eqv 
+                     (concat rest my-inst)
+                     (reverse (cons out prevs-out)) out-loc)
+                    (refine-real (cons state prevs) (cons out prevs-out) 
+                                 rest (cdr expects) 
+                                 live-list my-vreg my-inst out-loc)))
                )
-
-             ;; (if (hash? real-hash)
-             ;;     (for ([pair (hash->list real-hash)])
-             ;;          (inner (car pair) (cdr pair)))
-             ;;     (for ([states real-hash])
-             ;;          (inner (car states) (list))))
-
-             ;; real-hash
-
              
              (for ([pair (hash->list real-hash)])
                   (inner (car pair) (cdr pair)))
@@ -478,6 +464,7 @@
 	       (define my-inst (first inst-liveout-vreg))
 	       (define my-liveout (second inst-liveout-vreg))
 	       (define my-vreg (third inst-liveout-vreg))
+               (set! cache (make-hash))
                (when debug (pretty-display `(inner ,inst-liveout-vreg)))
                (when 
                 my-inst
@@ -491,16 +478,23 @@
                                      (concat x my-inst))
                       (for ([pair (hash->list x)])
                            (let* ([state (car pair)]
+                                  [state-vec (send machine vector->progstate state)]
                                   [val (cdr pair)]
                                   [out 
-                                   (with-handlers*
-                                    ([exn? (lambda (e) #f)])
-                                    (send machine progstate->vector 
-                                          (send simulator interpret (vector my-inst)
-                                                (send machine vector->progstate state)
-                                                #:dep #f)))])
-                             (when out
-                                   (recurse val (cons out states2-vec)))))))
+                                   (if (and (list? val) (hash-has-key? cache state-vec))
+                                       (hash-ref cache state-vec)
+                                       (let ([tmp
+                                              (with-handlers*
+                                               ([exn? (lambda (e) #f)])
+                                               (send machine progstate->vector 
+                                                     (send simulator interpret 
+                                                           (vector my-inst)
+                                                           state-vec
+                                                           #:dep #f)))])
+                                         (when (list? val) (hash-set! cache state-vec tmp))
+                                         tmp))
+                                   ])
+                             (when out (recurse val (cons out states2-vec)))))))
                 
                 (recurse x (list))
  
@@ -528,7 +522,7 @@
 	     (define inst-liveout-vreg (generate-inst)) ;; TODO: close under modulo
 	     (define my-inst (first inst-liveout-vreg))
 	     (define my-liveout (second inst-liveout-vreg))
-             (send abst reset-cache)
+             (set! cache (make-hash))
 
              (when my-inst (send printer print-syntax (send printer decode my-inst)))
              (define t0 (current-milliseconds))
@@ -548,7 +542,7 @@
 	   	   (abst-loop eqv-classes live-list my-vreg type))
                  eqv-classes))
 
-           (when #t ;(> iter 2)
+           (when #t ;;(> iter 2)
 	   (for ([pair1 (hash->list prev-classes)])
 	   	(let* ([live-vreg (car pair1)]
 	   	       [live-list (entry-live live-vreg)]
@@ -557,7 +551,7 @@
 		       ;; use only first state
 		       [state-rep (find-first-state hash2)])
 		  (pretty-display `(key ,live-vreg))
-		  (for ([type '(mod+high mod-high high-mod rest)])
+		  (for ([type '(rest mod+high mod-high high-mod)])
 		       (newline)
 		       (pretty-display (format "TYPE: ~a" type))
 		       (reset-generate-inst state-rep live-list (and virtual my-vreg) 
@@ -572,27 +566,6 @@
 	   (pretty-display `(abstract-done))
 
 	   ;; Grow
-	   ;; (for ([pair1 (hash->list prev-classes)])
-	   ;;      (let* ([live-vreg (car pair1)]
-	   ;;             [live-list (entry-live live-vreg)]
-	   ;;             [my-vreg (entry-vreg live-vreg)]
-	   ;;             [hash2 (cdr pair1)])
-	   ;;        (pretty-display `(key ,live-vreg ,(hash-count hash2)))
-	   ;;        (for ([pair2 (hash->list hash2)])
-	   ;;             (let* ([val (cdr pair2)]
-	   ;;      	      [outputs (map (lambda (x) (send machine vector->progstate x)) 
-	   ;;      			    (car pair2))]
-	   ;;      	      [smallest-lex (and virtual (get-smallest-lex val))]
-	   ;;      	      )
-	   ;;      	 ;; Initialize enumeration one instruction process
-	   ;;      	 (when debug
-	   ;;      	       (pretty-display `(ENUM!!!!!!!!!!!!! ,val))
-	   ;;      	       (print-concat val)
-	   ;;      	       )
-	   ;;      	 (reset-generate-inst outputs live-list (and virtual my-vreg)
-	   ;;      			      `all smallest-lex); #:live-limit 3)
-	   ;;      	 (enumerate outputs val #f) ;; no check
-	   ;;      	 ))))
 	   (for ([pair1 (hash->list prev-classes)])
 		(let* ([live-vreg (car pair1)]
 		       [live-list (entry-live live-vreg)]
