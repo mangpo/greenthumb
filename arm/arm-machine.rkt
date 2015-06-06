@@ -98,8 +98,8 @@
 	      is-virtual-reg update-live)
     (public get-shfarg-range get-arg-types)
 
-    (set! bit 32)
-    (set! random-input-bit 32)
+    (set! bit 8)
+    (set! random-input-bit 8)
     (set! nop-id 0)
     (set! inst-id '#(nop 
                      add sub rsb
@@ -552,12 +552,15 @@
       (define shfarg (and shf (inst-shfarg x)))
       ;; (pretty-display `(shf ,shf ,shfop))
 
-      (define reg-set (set))
+      (define reg-set 
+	(if (and shfop (member shfop '(lsl lsr asr)))
+	    (set shfarg)
+	    (set)))
       (define mem-set (set))
       (define const-set (set))
       (define bit-set (set))	
       (define op2-set
-	(if (and shfop (not (equal? shfop `nop)))
+	(if (and shfop (member shfop '(lsl# lsr# asr#)))
 	    (set shfarg)
 	    (set)))
 

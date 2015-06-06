@@ -151,8 +151,7 @@
       (cond
        [(= nregs 1) (list->vector (range -31 33))]
        [(= nregs 2) (list->vector (range -3 5))]
-       [(= nregs 3) (list->vector (range -1 3))]
-       [else (raise "arm-psql: does not support nregs > 3")]))
+       [(= nregs 3) (list->vector (range -1 3))]))
     (define z-range-db (vector -1 0 1 2 3))
 
     ;; TODO: include #live-in

@@ -24,7 +24,7 @@
 	    lexical-cmp get-flag get-output-location)
 
     (define bit (get-field bit machine))
-    (define live-limit 3)
+    (define live-limit 5)
 
     (define (synthesize-window spec sketch prefix postfix constraint extra 
                                [cost #f] [time-limit 3600]
@@ -51,7 +51,7 @@
       (define ntests 2)
       (define inits
 	(send validator generate-input-states ntests (vector-append prefix spec postfix)
-              assumption extra))
+              assumption extra #:db #t))
 
       (define-syntax-rule (take-high lst) (take lst 1))
       (define-syntax-rule (take-mod lst) (drop lst 1))
@@ -542,7 +542,7 @@
 	   	   (abst-loop eqv-classes live-list my-vreg type))
                  eqv-classes))
 
-           (when #t ;;(> iter 2)
+           (when (> iter 2)
 	   (for ([pair1 (hash->list prev-classes)])
 	   	(let* ([live-vreg (car pair1)]
 	   	       [live-list (entry-live live-vreg)]
