@@ -123,7 +123,6 @@
 	(generator
 	 ()
 	 (define (loop iter)
-	   (pretty-display `(time ,(- (current-seconds) ttt)))
 	   (newline)
 	   (pretty-display `(loop ,iter))
 	   (define classes (make-hash))
@@ -579,9 +578,12 @@
                                        `all #f)
                   (enumerate hash2) ;; no check
                   ))
+	   (pretty-display `(behavior ,n-behaviors ,n-progs))
+	   (pretty-display `(time ,(- (current-seconds) ttt)))
+	   (set! n-behaviors 0)
+	   (set! n-progs 0)
 
 	   (when (< iter spec-len)
-		 (pretty-display `(iter ,iter ,spec-len))
 		 (set! prev-classes classes)
 		 (loop (add1 iter))))
 	 (loop 0)))
@@ -599,14 +601,19 @@
 
     (define (get-flag state) #f)
 
+    (define n-behaviors 0)
+    (define n-progs 0)
     (define (class-insert! class live-list my-vreg states-vec prog)
+      (set! n-progs (add1 n-progs))
 
       (define (insert-inner x states-vec prog)
         (define key (car states-vec))
         (if (= (length states-vec) 1)
             (if (hash-has-key? x key)
                 (hash-set! x key (cons prog (hash-ref x key)))
-                (hash-set! x key (list prog)))
+		(begin
+		  (set! n-behaviors (add1 n-behaviors))
+		  (hash-set! x key (list prog))))
             (let ([has-key (hash-has-key? x key)])
               (unless has-key (hash-set! x key (make-hash)))
               (insert-inner (hash-ref x key) (cdr states-vec) prog))))
