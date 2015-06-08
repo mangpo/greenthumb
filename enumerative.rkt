@@ -24,7 +24,7 @@
 	    lexical-cmp get-flag get-output-location)
 
     (define bit (get-field bit machine))
-    (define live-limit 5)
+    (define live-limit 3)
 
     (define (synthesize-window spec sketch prefix postfix constraint extra 
                                [cost #f] [time-limit 3600]
@@ -154,9 +154,12 @@
              (when debug (pretty-display "[1] correct on first query"))
 
              ;; STEP 2: try on extra test cases
-             (define (inner-loop iterator)
+             (define (inner-loop iterator is-iter)
                (define t0 (current-milliseconds))
-               (define p (and (not (empty? iterator)) (car iterator)))
+               (define p
+                 (if is-iter
+                     (iterator)
+                     (and (not (empty? iterator)) (car iterator))))
                (define t1 (current-milliseconds))
                (set! t-rename (+ t-rename (- t1 t0)))
                (when p
@@ -206,7 +209,11 @@
                       ) ;; when all extras are correct.
                      (let ([t2 (current-milliseconds)])
                        (set! t-extra (+ t-extra (- t2 t1))))
-                     (inner-loop (cdr iterator))))
+                     (define next
+                       (if is-iter
+                           iterator
+                           (cdr iterator)))
+                     (inner-loop next is-iter)))
 
              ;; mapping and loop is for renaming virtual registers.
              (define mapping 
@@ -224,14 +231,14 @@
                            (define iterator2 (get-renaming-iterator p mapping out-loc))
                            (define t1 (current-milliseconds))
                            (set! t-rename (+ t-rename (- t1 t0)))
-                           (inner-loop iterator2)
+                           (inner-loop iterator2 #f)
                            )
                      (loop iterator))
                )
 
              (if virtual
                  (when mapping (loop (get-collection-iterator prog)))
-                 (inner-loop (get-collection-iterator prog)))
+                 (inner-loop (get-collection-iterator prog) #t))
              (set! t-refine (+ t-refine (- (current-milliseconds) t-refine-start)))
 	     ) ;; End check-eqv
 
@@ -550,7 +557,7 @@
 		       ;; use only first state
 		       [state-rep (find-first-state hash2)])
 		  (pretty-display `(key ,live-vreg))
-		  (for ([type '(rest mod+high mod-high high-mod)])
+		  (for ([type '(mod+high mod-high high-mod rest)])
 		       (newline)
 		       (pretty-display (format "TYPE: ~a" type))
 		       (reset-generate-inst state-rep live-list (and virtual my-vreg) 
