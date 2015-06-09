@@ -21,7 +21,8 @@
 
 (define code
 (send parser ast-from-string "
-mvn r3, r1, asr r0
+clz r2, r1
+mvn r3, 0
 "))
 
 (send printer print-struct code)

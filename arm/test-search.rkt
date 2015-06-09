@@ -45,11 +45,11 @@ sub r0, r0, r1
 
 (define (f)
 (define t (current-seconds))
-(send stitch synthesize-window
+(send enum synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch = spec in this case
       encoded-prefix encoded-postfix
-      (constraint machine [reg 0 1] [mem]) #f #f 3600)
+      (constraint machine [reg 0] [mem]) #f #f 3600)
   
 (pretty-display `(time ,(- (current-seconds) t)))
   )

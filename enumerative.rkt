@@ -48,7 +48,7 @@
       (define live1-list (send machine get-operand-live live1))
       (define live2-list (send machine get-operand-live live2))
 
-      (define ntests 2)
+      (define ntests 1)
       (define inits
 	(send validator generate-input-states ntests (vector-append prefix spec postfix)
               assumption extra #:db #t))
@@ -65,6 +65,18 @@
 	(map (lambda (x) 
 	       (send machine progstate->vector 
 		     (send simulator interpret spec x #:dep #f))) states1))
+      
+      (define ce-in-vec (make-vector 100))
+      (define ce-out-vec (make-vector 100))
+      (define ce-out-list (reverse states2-vec-spec))
+      (define ce-count ntests)
+
+      (for ([i ntests]
+            [in states1]
+            [out states2-vec-spec])
+           (vector-set! ce-in-vec i in)
+           (vector-set! ce-out-vec i out))
+           
 
       (define expect-mod (make-vector 3))
       (define expect-high (make-vector 3))
@@ -106,7 +118,7 @@
       (define count-t 0)
       (define count-1 0)
 
-      (define t-collect 0)
+      (define t-hash 0)
       (define t-abst-inter 0)
       (define t-abst-inter2 0)
       (define t-real-inter 0)
@@ -126,26 +138,25 @@
 	   (newline)
 	   (pretty-display `(loop ,iter))
 	   (define classes (make-hash))
-	   (define ce-list (list))
 
 	   (define (check-eqv prog states-vec out-loc)
 	     ;;(pretty-display `(check-eqv ,prog ,states-vec))
 
 	     ;; (when (concat? prog) 
 	     ;; 	   (let ([x (concat-inst prog)])
-             ;;         (when (and (equal? `rsb 
-             ;;                            (vector-ref (get-field inst-id machine) (inst-op x)))
-             ;;                    (equal? `lsr 
-             ;;                            (vector-ref (get-field shf-inst-id machine) 
-             ;;                                        (inst-shfop x)))
-             ;;                    (equal? 2 (inst-shfarg x))
-             ;;                    (equal? 4 (vector-ref (inst-args x) 0))
-             ;;                    (equal? 3 (vector-ref (inst-args x) 1))
-             ;;                    (equal? 3 (vector-ref (inst-args x) 2)))
+             ;;           (when (and (equal? `rsb
+             ;;                              (vector-ref (get-field inst-id machine) (inst-op x)))
+             ;;                      (equal? `lsr 
+             ;;                              (vector-ref (get-field shf-inst-id machine) 
+             ;;                                          (inst-shfop x)))
+             ;;                      (equal? 2 (inst-shfarg x))
+             ;;                      (equal? 4 (vector-ref (inst-args x) 0))
+             ;;                      (equal? 3 (vector-ref (inst-args x) 1))
+             ;;                      (equal? 3 (vector-ref (inst-args x) 2)))
              ;;               (newline)
 	     ;; 		   (pretty-display `(check-eqv ,live2-vec
 	     ;; 					       ,states-vec
-	     ;; 					       ,states2-vec-spec))
+	     ;; 					       ,ce-out-list))
              ;;               (newline))))
 
 	     ;; STEP 1: check equivalence on test cases
@@ -166,47 +177,39 @@
                      (set! count-r (add1 count-r))
                      ;; (pretty-display "After renaming")
                      ;; (send printer print-syntax (send printer decode p))
-                     (when
-                      (for/and ([input-output ce-list])
-                               (let* ([input (car input-output)]
-                                      [output-vec (cdr input-output)]
-                                      [my-output-vec
-                                       (with-handlers*
-                                        ([exn? (lambda (e) #f)])
-                                        (send machine progstate->vector
-                                              (send simulator interpret p input #:dep #f)))])
-                                 (and my-output-vec
-                                      (send machine state-eq? output-vec my-output-vec live2-vec))))
-                      (when debug
-                            (pretty-display "[2] all correct")
-                            (pretty-display `(ce-list ,(length ce-list)))
-                            (when (= (length ce-list) 100)
-                                  (for ([i 10]
-                                        [ce ce-list])
-                                       (send machine display-state (car ce)))
-                                  )
-                            )
-                      
-                      (define ce (send validator counterexample 
-                                       (vector-append prefix spec postfix)
-                                       (vector-append prefix p postfix)
-                                       constraint extra #:assume assumption))
+                     (when debug
+                           (pretty-display "[2] all correct")
+                           (pretty-display `(ce-count ,ce-count))
+                           (when (= ce-count 100)
+                                 (raise "Too many counterexamples")
+                                 )
+                           )
+                     
+                     (define ce (send validator counterexample 
+                                      (vector-append prefix spec postfix)
+                                      (vector-append prefix p postfix)
+                                      constraint extra #:assume assumption))
 
-                      (if ce
-                          (let* ([ce-input (send simulator interpret prefix ce #:dep #f)]
-                                 [ce-output-vec
-				  (send machine progstate->vector
-					(send simulator interpret spec ce-input #:dep #f))])
-                            (when debug (pretty-display "[3] counterexample"))
-                            (set! ce-list (cons (cons ce-input ce-output-vec) ce-list))
-                            )
-                          (begin
-                            (pretty-display "[4] FOUND!!!")
-                            (let ([groups (hash-keys classes)])
-                              (send printer print-syntax (send printer decode p))
-                              (pretty-display `(groups ,(length groups))))
-                            (yield p)))
-                      ) ;; when all extras are correct.
+                     (if ce
+                         (let* ([ce-input (send simulator interpret prefix ce #:dep #f)]
+                                [ce-output-vec
+                                 (send machine progstate->vector
+                                       (send simulator interpret spec ce-input #:dep #f))])
+                           (when debug
+                                 (pretty-display "[3] counterexample")
+                                 (send machine display-state ce-input)
+                                 (pretty-display `(ce-out-vec ,ce-output-vec)))
+                           (vector-set! ce-in-vec ce-count ce-input)
+                           (vector-set! ce-out-vec ce-count ce-output-vec)
+                           (set! ce-out-list (cons ce-output-vec ce-out-list))
+                           (set! ce-count (add1 ce-count))
+                           )
+                         (begin
+                           (pretty-display "[4] FOUND!!!")
+                           (send printer print-syntax (send printer decode p))
+                           (pretty-display `(ce-count ,ce-count))
+                           (yield p)))
+
                      (let ([t2 (current-milliseconds)])
                        (set! t-extra (+ t-extra (- t2 t1))))
                      (define next
@@ -217,7 +220,10 @@
 
              ;; mapping and loop is for renaming virtual registers.
              (define mapping 
-               (get-register-mapping org-nregs states2-vec-spec states-vec live2-vec))
+               (get-register-mapping org-nregs 
+                                     ce-out-list
+                                     states-vec 
+                                     live2-vec))
 
              (define (loop iterator)
                (define p (iterator))
@@ -242,23 +248,77 @@
              (set! t-refine (+ t-refine (- (current-milliseconds) t-refine-start)))
 	     ) ;; End check-eqv
 
-           (define cache (make-hash))
+           (define cache #f)
 
-	   (define (refine-real prevs prevs-out classes expects 
+	   (define (refine-real level prevs-out classes 
                                 live-list my-vreg my-inst out-loc)
-             ;;(pretty-display `(refine-real ,classes))
+             
+             ;; (let ([x my-inst])
+             ;;   (when (and (equal? `rsb
+             ;;                      (vector-ref (get-field inst-id machine) (inst-op x)))
+             ;;              (equal? `lsr 
+             ;;                      (vector-ref (get-field shf-inst-id machine) 
+             ;;                                  (inst-shfop x)))
+             ;;              (equal? 2 (inst-shfarg x))
+             ;;              (equal? 4 (vector-ref (inst-args x) 0))
+             ;;              (equal? 3 (vector-ref (inst-args x) 1))
+             ;;              (equal? 3 (vector-ref (inst-args x) 2)))
+             ;;         (newline)
+             ;;         (pretty-display `(refine-real ,level ,ce-count))))
+
 	     (define real-hash classes)
+             (when (list? real-hash) ;; list of programs
+                   (define t0 (current-milliseconds))
+                   (set! real-hash (make-hash))
+                   (define input (vector-ref ce-in-vec level))
+                   (for ([progs classes])
+                        (define (loop iterator)
+                          (define prog (iterator))
+                          (when 
+                           prog
+                           (let ([state
+                                  ;; (with-handlers*
+                                  ;;  ([exn? (lambda (e) #f)])
+                                  (abstract
+                                   (send machine progstate->vector 
+                                         (send simulator interpret prog input #:dep #f))
+                                   live-list identity)
+                                        ;)
+                                  ])
+                             (if (hash-has-key? real-hash state)
+                                 (hash-set! real-hash state
+                                            (cons prog (hash-ref real-hash state)))
+                                 (hash-set! real-hash state (list prog))))
+                           (loop iterator)))
+                        (loop (get-collection-iterator progs)))
+                   (define t1(current-milliseconds))
+                   (set! t-hash (+ t-hash (- t1 t0)))
+                   )
+
+             (define cache-level (vector-ref cache level))
+             (define expect (vector-ref ce-out-vec level))
              (define (inner state rest)
                ;(pretty-display `(state ,state))
                ;(pretty-display `(rest ,rest))
                (define out #f)
                (define pass #f)
                (set! count-real (add1 count-real))
-               (if (and (list? rest) (hash-has-key? cache state))
+               (if (and (> level 0) (hash-has-key? cache-level state))
                    (let* ([t0 (current-milliseconds)]
-                          [val (hash-ref cache state)]
+                          [val (hash-ref cache-level state)]
                           [t1 (current-milliseconds)]
                           )
+                     ;; (let ([x my-inst])
+                     ;;   (when (and (equal? `rsb
+                     ;;                      (vector-ref (get-field inst-id machine) (inst-op x)))
+                     ;;              (equal? `lsr 
+                     ;;                      (vector-ref (get-field shf-inst-id machine) 
+                     ;;                                  (inst-shfop x)))
+                     ;;              (equal? 2 (inst-shfarg x))
+                     ;;              (equal? 4 (vector-ref (inst-args x) 0))
+                     ;;              (equal? 3 (vector-ref (inst-args x) 1))
+                     ;;              (equal? 3 (vector-ref (inst-args x) 2)))
+                     ;;         (pretty-display `(compare-cache ,state ,(car val) ,expect ,live2-vec ,(cdr val)))))
                      (set! t-real-inter (+ t-real-inter (- t1 t0)))
                      (set! out (car val))
                      (set! pass (cdr val)))
@@ -275,38 +335,50 @@
                            (and tmp-out
                                 (if virtual
                                     (send machine relaxed-state-eq? 
-                                          (car expects) tmp-out live2-vec out-loc)
+                                          expect tmp-out live2-vec out-loc)
                                     (send machine state-eq? 
-                                          (car expects) tmp-out live2-vec)))]
+                                          expect tmp-out live2-vec)))]
                           [t2 (current-milliseconds)]
                           )
-                     ;;(pretty-display `(pass ,pass))
+                     ;; (let ([x my-inst])
+                     ;;   (when (and (equal? `rsb
+                     ;;                      (vector-ref (get-field inst-id machine) (inst-op x)))
+                     ;;              (equal? `lsr 
+                     ;;                      (vector-ref (get-field shf-inst-id machine) 
+                     ;;                                  (inst-shfop x)))
+                     ;;              (equal? 2 (inst-shfarg x))
+                     ;;              (equal? 4 (vector-ref (inst-args x) 0))
+                     ;;              (equal? 3 (vector-ref (inst-args x) 1))
+                     ;;              (equal? 3 (vector-ref (inst-args x) 2)))
+                     ;;         (pretty-display `(compare ,state ,tmp-out ,expect ,live2-vec ,tmp-pass))))
+
                      (set! t-real-inter (+ t-real-inter (- t1 t0)))
                      (set! t-check (+ t-check (- t2 t1)))
                      (set! out tmp-out)
                      (set! pass tmp-pass)
-                     (when (list? rest) (hash-set! cache state (cons out pass)))
+                     (when (> level 0) (hash-set! cache-level state (cons out pass)))
                      ))
 
                (when 
                 pass 
-                (if (list? rest)
+                (if (= 1 (- ce-count level))
                     (check-eqv 
                      (concat rest my-inst)
-                     (reverse (cons out prevs-out)) out-loc)
-                    (refine-real (cons state prevs) (cons out prevs-out) 
-                                 rest (cdr expects) 
-                                 live-list my-vreg my-inst out-loc)))
+                     (cons out prevs-out) out-loc)
+                    (hash-set! real-hash state
+                               (refine-real (add1 level) (cons out prevs-out) 
+                                            rest live-list my-vreg my-inst out-loc))))
                )
              
              (for ([pair (hash->list real-hash)])
                   (inner (car pair) (cdr pair)))
+
+             real-hash
              )
 
 	   (define (refine-abstract classes live-list my-vreg new-live-list my-inst k type out-loc)
 
-             (refine-real (list) (list) classes states2-vec-spec
-                          live-list my-vreg my-inst out-loc)
+             (refine-real 0 (list) classes live-list my-vreg my-inst out-loc)
 #|
 	     (define f-mod
 	       (let ([base (arithmetic-shift 1 k)])
@@ -528,11 +600,12 @@
 	     (define inst-liveout-vreg (generate-inst)) ;; TODO: close under modulo
 	     (define my-inst (first inst-liveout-vreg))
 	     (define my-liveout (second inst-liveout-vreg))
-             (set! cache (make-hash))
+             (set! cache (make-vector 100))
+             (for ([i 100]) (vector-set! cache i (make-hash)))
 
              (when my-inst (send printer print-syntax (send printer decode my-inst)))
              (define t0 (current-milliseconds))
-             (set! t-collect 0) (set! t-abst-inter 0) (set! t-abst-inter2 0) (set! t-real-inter 0) (set! t-real-inter 0) (set! t-rename 0) (set! t-check 0) (set! t-get-type 0) (set! t-later-use 0) (set! t-extra 0) 
+             (set! t-hash 0) (set! t-abst-inter 0) (set! t-abst-inter2 0) (set! t-real-inter 0) (set! t-real-inter 0) (set! t-rename 0) (set! t-check 0) (set! t-get-type 0) (set! t-later-use 0) (set! t-extra 0) 
              (set! count-p 0) (set! count-r 0) (set! count-abst 0) (set! count-real 0)
 	     (if my-inst
                  (let* ([out-loc (get-output-location my-inst)])
@@ -540,7 +613,7 @@
                                     1 type out-loc)
                    (pretty-display (format "~a ms = ~a (~a+~a/~a) ~a/~a ~a ~a ~a ~a ~a | ~a ~a" 
                                            (- (current-milliseconds) t0)
-                                           t-collect 
+                                           t-hash 
 					   t-abst-inter t-abst-inter2 count-abst 
                                            t-real-inter count-real
                                            t-check t-rename t-get-type t-later-use t-extra
@@ -553,7 +626,7 @@
 	   	(let* ([live-vreg (car pair1)]
 	   	       [live-list (entry-live live-vreg)]
 	   	       [my-vreg (entry-vreg live-vreg)]
-	   	       [hash2 (cdr pair1)]
+	   	       [hash2 (hash-copy* (cdr pair1))]
 		       ;; use only first state
 		       [state-rep (find-first-state hash2)])
 		  (pretty-display `(key ,live-vreg))
@@ -956,5 +1029,15 @@
 
     (define (average-list lst)
       (quotient (foldl + 0 lst) (length lst)))
+
+    (define (hash-copy* x)
+      (define ans (make-hash))
+      (for ([pair (hash->list x)])
+           (let ([key (car pair)]
+                 [val (cdr pair)])
+             (if (hash? val)
+                 (hash-set! ans key (hash-copy* val))
+                 (hash-set! ans key val))))
+      ans)
 
     ))
