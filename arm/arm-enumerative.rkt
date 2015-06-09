@@ -210,7 +210,7 @@
 	     (yield (list #f #f #f)))))
 
     (define (get-register-mapping org-nregs states-vec-spec states-vec liveout-vec)
-      ;;(pretty-display `(get-register-mapping ,states-vec-spec ,states-vec ,liveout-vec))
+      ;;(pretty-display `(get-register-mapping ,org-nregs ,states-vec-spec ,states-vec ,liveout-vec))
       (define all-nregs (send machine get-nregs))
       (define regs-spec (map (lambda (x) (vector-ref x 0)) states-vec-spec)) ;; list
       (define regs (map (lambda (x) (vector-ref x 0)) states-vec))

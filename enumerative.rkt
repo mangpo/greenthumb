@@ -1,12 +1,13 @@
 #lang racket
 
 (require "ast.rkt" "machine.rkt" "decomposer.rkt" 
-         "arm/arm-psql.rkt" "arm/arm-simulator-abstract.rkt" "arm/arm-ast.rkt")
+         "arm/arm-psql.rkt" "arm/arm-simulator-abstract.rkt" "arm/arm-ast.rkt" "arm/arm-machine.rkt")
 (require racket/generator profile)
 
 (provide enumerative%)
 
 (struct concat (collection inst))
+(struct box (val))
 
 (define-syntax-rule (entry live vreg flag) (list live vreg flag))
 (define-syntax-rule (entry-live x) (first x))
@@ -48,10 +49,14 @@
       (define live1-list (send machine get-operand-live live1))
       (define live2-list (send machine get-operand-live live2))
 
-      (define ntests 1)
+      (define ntests 2)
+      ;; (define inits
+      ;;   (send validator generate-input-states ntests (vector-append prefix spec postfix)
+      ;;         assumption extra #:db #t))
       (define inits
-	(send validator generate-input-states ntests (vector-append prefix spec postfix)
-              assumption extra #:db #t))
+        (list
+         (progstate (vector 5 -5 0 0 0 0 0) (vector) 0 4)
+         (progstate (vector 7 2 0 0 0 0 0) (vector) 0 4)))
 
       (define-syntax-rule (take-high lst) (take lst 1))
       (define-syntax-rule (take-mod lst) (drop lst 1))
@@ -71,6 +76,7 @@
       (define ce-out-vec (make-vector ce-limit))
       (define ce-out-list (reverse states2-vec-spec))
       (define ce-count ntests)
+      (define ce-count-extra ntests)
 
       (for ([i ntests]
             [in states1]
@@ -140,8 +146,8 @@
 	   (pretty-display `(loop ,iter))
 	   (define classes (make-hash))
 
-	   (define (check-eqv prog states-vec out-loc)
-	     ;;(pretty-display `(check-eqv ,prog ,states-vec))
+	   (define (check-eqv prog states-vec out-loc my-ce-count)
+	     ;;(pretty-display `(check-eqv ,my-ce-count ,ce-count-extra))
 
 	     ;; (when (concat? prog) 
 	     ;; 	   (let ([x (concat-inst prog)])
@@ -175,15 +181,26 @@
                (define t1 (current-milliseconds))
                (set! t-rename (+ t-rename (- t1 t0)))
                (when p
+                     (when
+                      (for/and ([i (range my-ce-count ce-count-extra)])
+                               (let* ([input (vector-ref ce-in-vec i)]
+                                      [output-vec (vector-ref ce-out-vec i)]
+                                      [my-output-vec
+                                       (with-handlers*
+                                        ([exn? (lambda (e) #f)])
+                                        (send machine progstate->vector
+                                              (send simulator interpret p input #:dep #f)))])
+                                 (and my-output-vec
+                                      (send machine state-eq? output-vec my-output-vec live2-vec))))
                      (set! count-r (add1 count-r))
                      ;; (pretty-display "After renaming")
                      ;; (send printer print-syntax (send printer decode p))
-                     (when debug
+                     (when #t
                            (pretty-display "[2] all correct")
-                           (pretty-display `(ce-count ,ce-count))
-                           (when (= ce-count ce-limit)
-                                 (raise "Too many counterexamples")
-                                 )
+                           (pretty-display `(ce-count-extra ,ce-count-extra))
+                           )
+                     (when (= ce-count-extra ce-limit)
+                           (raise "Too many counterexamples")
                            )
                      
                      (define ce (send validator counterexample 
@@ -200,17 +217,17 @@
                                  (pretty-display "[3] counterexample")
                                  (send machine display-state ce-input)
                                  (pretty-display `(ce-out-vec ,ce-output-vec)))
-                           (vector-set! ce-in-vec ce-count ce-input)
-                           (vector-set! ce-out-vec ce-count ce-output-vec)
+                           (vector-set! ce-in-vec ce-count-extra ce-input)
+                           (vector-set! ce-out-vec ce-count-extra ce-output-vec)
                            (set! ce-out-list (cons ce-output-vec ce-out-list))
-                           (set! ce-count (add1 ce-count))
+                           (set! ce-count-extra (add1 ce-count-extra))
                            )
                          (begin
                            (pretty-display "[4] FOUND!!!")
                            (send printer print-syntax (send printer decode p))
-                           (pretty-display `(ce-count ,ce-count))
+                           (pretty-display `(ce-count-extra ,ce-count-extra))
                            (yield p)))
-
+                     )
                      (let ([t2 (current-milliseconds)])
                        (set! t-extra (+ t-extra (- t2 t1))))
                      (define next
@@ -221,10 +238,11 @@
 
              ;; mapping and loop is for renaming virtual registers.
              (define mapping 
-               (get-register-mapping org-nregs 
-                                     ce-out-list
-                                     states-vec 
-                                     live2-vec))
+               (get-register-mapping 
+                org-nregs 
+                (reverse (vector->list (vector-copy ce-out-vec 0 my-ce-count)))
+                states-vec 
+                live2-vec))
 
              (define (loop iterator)
                (define p (iterator))
@@ -253,6 +271,7 @@
 
 	   (define (refine-real level prevs-out classes 
                                 live-list my-vreg my-inst out-loc)
+             ;;(pretty-display `(refine-real ,level))
              
              ;; (let ([x my-inst])
              ;;   (when (and (equal? `rsb
@@ -268,15 +287,17 @@
              ;;         (pretty-display `(refine-real ,level ,ce-count))))
 
 	     (define real-hash classes)
-             (when (list? real-hash) ;; list of programs
+             (when (and (list? real-hash) (> (count-collection classes) 10)) 
+                   ;; list of programs
                    (define t0 (current-milliseconds))
                    (set! real-hash (make-hash))
                    (define input (vector-ref ce-in-vec level))
-                   (for ([progs classes])
+                   (define count-progs 0)
                         (define (loop iterator)
                           (define prog (iterator))
                           (when 
                            prog
+                           (set! count-progs (add1 count-progs))
                            (let ([state
                                   ;; (with-handlers*
                                   ;;  ([exn? (lambda (e) #f)])
@@ -291,9 +312,11 @@
                                             (cons prog (hash-ref real-hash state)))
                                  (hash-set! real-hash state (list prog))))
                            (loop iterator)))
-                        (loop (get-collection-iterator progs)))
+                        (loop (get-collection-iterator classes))
                    (define t1(current-milliseconds))
                    (set! t-hash (+ t-hash (- t1 t0)))
+                   ;; (define lst (map length (hash-values real-hash)))
+                   ;; (pretty-display (format "Ratio: ~a ~a/~a | ~a ~a ~a" level count-progs (hash-count real-hash) (min-list lst) (average-list lst) (max-list lst)))
                    )
 
              (define cache-level (vector-ref cache level))
@@ -363,18 +386,32 @@
                (when 
                 pass 
                 (if (= 1 (- ce-count level))
-                    (check-eqv 
-                     (concat rest my-inst)
-                     (cons out prevs-out) out-loc)
+                    (begin
+                      (check-eqv 
+                       (concat rest my-inst)
+                       (cons out prevs-out) out-loc ce-count)
+                      (set! ce-count ce-count-extra)
+                    )
                     (hash-set! real-hash state
                                (refine-real (add1 level) (cons out prevs-out) 
                                             rest live-list my-vreg my-inst out-loc))))
                )
              
-             (for ([pair (hash->list real-hash)])
-                  (inner (car pair) (cdr pair)))
+             (cond
+              [(hash? real-hash)
+               (for ([pair (hash->list real-hash)])
+                    (inner (car pair) (cdr pair)))
+               real-hash]
 
-             real-hash
+              [(list? real-hash)
+               (check-eqv (concat real-hash my-inst) prevs-out out-loc level)
+               (set! ce-count ce-count-extra)
+               (box real-hash)]
+
+              [(box? real-hash)
+               (check-eqv (concat (box-val real-hash) my-inst) prevs-out out-loc level)
+               (set! ce-count ce-count-extra)
+               real-hash])
              )
 
 	   (define (refine-abstract classes live-list my-vreg new-live-list my-inst k type out-loc)
@@ -612,13 +649,13 @@
                  (let* ([out-loc (get-output-location my-inst)])
                    (refine-abstract eqv-classes live-list my-vreg my-liveout my-inst 
                                     1 type out-loc)
-                   (pretty-display (format "~a ms = ~a (~a+~a/~a) ~a/~a ~a ~a ~a ~a ~a | ~a ~a" 
+                   (pretty-display (format "~a ms = ~a (~a+~a/~a) ~a/~a ~a ~a ~a ~a ~a | ~a ~a ~a" 
                                            (- (current-milliseconds) t0)
                                            t-hash 
 					   t-abst-inter t-abst-inter2 count-abst 
                                            t-real-inter count-real
                                            t-check t-rename t-get-type t-later-use t-extra
-                                           count-p count-r))
+                                           count-p count-r ce-count))
 	   	   (abst-loop eqv-classes live-list my-vreg type))
                  eqv-classes))
 
@@ -811,6 +848,12 @@
 	 (loop collection (vector))
 	 #f))
       iterate-collection)
+
+    (define (count-collection x)
+      (cond
+       [(concat? x) (count-collection (concat-collection x))]
+       [(vector? x) 1]
+       [(list? x) (foldl + 0 (map count-collection x))]))
      
     (define (get-register-mapping nregs states-vec-spec states-vec liveout-vec)
       #t)

@@ -30,7 +30,7 @@
 clz r1, r1
 clz r2, r0
 rsb r2, r1, r2
-lsr r0, r2, 31
+lsr r0, r2, 3
 "))
 
 (define sketch
