@@ -147,7 +147,7 @@
 	   (define classes (make-hash))
 
 	   (define (check-eqv prog states-vec out-loc my-ce-count)
-	     ;;(pretty-display `(check-eqv ,my-ce-count ,ce-count-extra))
+	     ;(pretty-display `(check-eqv ,my-ce-count ,ce-count-extra))
 
 	     ;; (when (concat? prog) 
 	     ;; 	   (let ([x (concat-inst prog)])
@@ -255,9 +255,16 @@
                      (loop (cdr iterator)))
                )
 
+             (define progs
+               (if (= my-ce-count ntests)
+                   (get-collection-iterator prog)
+                   (let ([my-inst (concat-inst prog)])
+                     (for/list ([x (concat-collection prog)])
+                               (vector-append x (vector my-inst))))))
+
              (if virtual
-                 (when mapping (loop (get-collection-iterator prog)))
-                 (inner-loop (get-collection-iterator prog)))
+                 (when mapping (loop progs))
+                 (inner-loop progs))
              (set! t-refine (+ t-refine (- (current-milliseconds) t-refine-start)))
 	     ) ;; End check-eqv
 
@@ -308,7 +315,7 @@
                       (loop (cdr iterator))
                       ))
 
-                   (if (= level 2)
+                   (if (= level ntests)
                        (loop (get-collection-iterator classes))
                        (loop classes))
                    (define t1(current-milliseconds))
