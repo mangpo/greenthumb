@@ -172,17 +172,14 @@
              (when debug (pretty-display "[1] correct on first query"))
 
              ;; STEP 2: try on extra test cases
-             (define (inner-loop iterator is-iter)
+             (define (inner-loop iterator)
                (define t0 (current-milliseconds))
-               (define p
-                 (if is-iter
-                     (iterator)
-                     (and (not (empty? iterator)) (car iterator))))
+               (define p (and (not (empty? iterator)) (car iterator)))
                (define t1 (current-milliseconds))
                (set! t-rename (+ t-rename (- t1 t0)))
                (when p
                      (when
-                      (for/and ([i (range my-ce-count ce-count-extra)])
+                      (for/and ([i (reverse (range my-ce-count ce-count-extra))])
                                (let* ([input (vector-ref ce-in-vec i)]
                                       [output-vec (vector-ref ce-out-vec i)]
                                       [my-output-vec
@@ -195,7 +192,7 @@
                      (set! count-r (add1 count-r))
                      ;; (pretty-display "After renaming")
                      ;; (send printer print-syntax (send printer decode p))
-                     (when #t
+                     (when debug
                            (pretty-display "[2] all correct")
                            (pretty-display `(ce-count-extra ,ce-count-extra))
                            )
@@ -230,11 +227,8 @@
                      )
                      (let ([t2 (current-milliseconds)])
                        (set! t-extra (+ t-extra (- t2 t1))))
-                     (define next
-                       (if is-iter
-                           iterator
-                           (cdr iterator)))
-                     (inner-loop next is-iter)))
+                     (define next (cdr iterator))
+                     (inner-loop next)))
 
              ;; mapping and loop is for renaming virtual registers.
              (define mapping 
@@ -245,7 +239,7 @@
                 live2-vec))
 
              (define (loop iterator)
-               (define p (iterator))
+               (define p (and (not (empty? iterator)) (car iterator)))
                (when p 
                      (set! count-p (add1 count-p))
                      ;; (newline)
@@ -256,14 +250,14 @@
                            (define iterator2 (get-renaming-iterator p mapping out-loc))
                            (define t1 (current-milliseconds))
                            (set! t-rename (+ t-rename (- t1 t0)))
-                           (inner-loop iterator2 #f)
+                           (inner-loop iterator2)
                            )
-                     (loop iterator))
+                     (loop (cdr iterator)))
                )
 
              (if virtual
                  (when mapping (loop (get-collection-iterator prog)))
-                 (inner-loop (get-collection-iterator prog) #t))
+                 (inner-loop (get-collection-iterator prog)))
              (set! t-refine (+ t-refine (- (current-milliseconds) t-refine-start)))
 	     ) ;; End check-eqv
 
@@ -287,32 +281,36 @@
              ;;         (pretty-display `(refine-real ,level ,ce-count))))
 
 	     (define real-hash classes)
-             (when (and (list? real-hash) (> (count-collection classes) 10)) 
+             (when (and (list? real-hash) (> (count-collection classes) 256)) 
                    ;; list of programs
                    (define t0 (current-milliseconds))
                    (set! real-hash (make-hash))
                    (define input (vector-ref ce-in-vec level))
                    (define count-progs 0)
-                        (define (loop iterator)
-                          (define prog (iterator))
-                          (when 
-                           prog
-                           (set! count-progs (add1 count-progs))
-                           (let ([state
-                                  ;; (with-handlers*
-                                  ;;  ([exn? (lambda (e) #f)])
-                                  (abstract
-                                   (send machine progstate->vector 
-                                         (send simulator interpret prog input #:dep #f))
-                                   live-list identity)
+                   (define (loop iterator)
+                     (define prog (and (not (empty? iterator)) (car iterator)))
+                     (when 
+                      prog
+                      (set! count-progs (add1 count-progs))
+                      (let ([state
+                             ;; (with-handlers*
+                             ;;  ([exn? (lambda (e) #f)])
+                             (abstract
+                              (send machine progstate->vector 
+                                    (send simulator interpret prog input #:dep #f))
+                              live-list identity)
                                         ;)
-                                  ])
-                             (if (hash-has-key? real-hash state)
-                                 (hash-set! real-hash state
-                                            (cons prog (hash-ref real-hash state)))
-                                 (hash-set! real-hash state (list prog))))
-                           (loop iterator)))
-                        (loop (get-collection-iterator classes))
+                             ])
+                        (if (hash-has-key? real-hash state)
+                            (hash-set! real-hash state
+                                       (cons prog (hash-ref real-hash state)))
+                            (hash-set! real-hash state (list prog))))
+                      (loop (cdr iterator))
+                      ))
+
+                   (if (= level 2)
+                       (loop (get-collection-iterator classes))
+                       (loop classes))
                    (define t1(current-milliseconds))
                    (set! t-hash (+ t-hash (- t1 t0)))
                    ;; (define lst (map length (hash-values real-hash)))
@@ -832,22 +830,19 @@
              (get-first-program (first x) postfix))]))
 
     (define (get-collection-iterator collection)
-      (define iterate-collection
-	(generator
-	 ()
-	 (define (loop x postfix)
-	   (cond
-	    [(concat? x)
-	     (loop (concat-collection x) (vector-append (vector (concat-inst x)) postfix))]
-	    [(vector? x) 
-	     (yield (vector-append x postfix))]
-	    [(list? x) 
-	     (if (empty? x)
-		 (yield postfix)
-		 (for ([i x]) (loop i postfix)))]))
-	 (loop collection (vector))
-	 #f))
-      iterate-collection)
+      (define ans (list))
+      (define (loop x postfix)
+        (cond
+         [(concat? x)
+          (loop (concat-collection x) (vector-append (vector (concat-inst x)) postfix))]
+         [(vector? x) 
+          (set! ans (cons (vector-append x postfix) ans))]
+         [(list? x) 
+          (if (empty? x)
+              (set! ans (cons postfix ans))
+              (for ([i x]) (loop i postfix)))]))
+      (loop collection (vector))
+      ans)
 
     (define (count-collection x)
       (cond
