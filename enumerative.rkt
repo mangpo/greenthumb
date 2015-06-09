@@ -66,8 +66,9 @@
 	       (send machine progstate->vector 
 		     (send simulator interpret spec x #:dep #f))) states1))
       
-      (define ce-in-vec (make-vector 100))
-      (define ce-out-vec (make-vector 100))
+      (define ce-limit 10000)
+      (define ce-in-vec (make-vector ce-limit))
+      (define ce-out-vec (make-vector ce-limit))
       (define ce-out-list (reverse states2-vec-spec))
       (define ce-count ntests)
 
@@ -180,7 +181,7 @@
                      (when debug
                            (pretty-display "[2] all correct")
                            (pretty-display `(ce-count ,ce-count))
-                           (when (= ce-count 100)
+                           (when (= ce-count ce-limit)
                                  (raise "Too many counterexamples")
                                  )
                            )
@@ -600,8 +601,8 @@
 	     (define inst-liveout-vreg (generate-inst)) ;; TODO: close under modulo
 	     (define my-inst (first inst-liveout-vreg))
 	     (define my-liveout (second inst-liveout-vreg))
-             (set! cache (make-vector 100))
-             (for ([i 100]) (vector-set! cache i (make-hash)))
+             (set! cache (make-vector ce-limit))
+             (for ([i ce-limit]) (vector-set! cache i (make-hash)))
 
              (when my-inst (send printer print-syntax (send printer decode my-inst)))
              (define t0 (current-milliseconds))
