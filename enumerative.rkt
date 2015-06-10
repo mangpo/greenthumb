@@ -8,6 +8,7 @@
 
 (struct concat (collection inst))
 (struct box (val))
+(struct abstbox (val))
 
 (define-syntax-rule (entry live vreg flag) (list live vreg flag))
 (define-syntax-rule (entry-live x) (first x))
@@ -429,11 +430,15 @@
                real-hash])
              )
 
-           (define (collapse-classes mapping live-list)
+           (define (collapse-classes mapping live-list mode)
              (define k 3)
-	     (define f-mod
-	       (let ([base (arithmetic-shift 1 k)])
-		 (lambda (x) (modulo x base))))
+	     (define f
+               (if (equal? mode `mod)
+                   (let ([base (arithmetic-shift 1 k)])
+                     (lambda (x) (modulo x base)))
+                   (let ([mask (arithmetic-shift -1 (- bit k))])
+                     (lambda (x) (bitwise-and x mask)))))
+                   
 
 	     ;; (define f-high
 	     ;;   (let ([mask (arithmetic-shift -1 (- bit k))])
@@ -443,9 +448,9 @@
              (for ([pair (hash->list mapping)])
                   (let* ([state (car pair)]
                          [subgroups (cdr pair)]
-                         [abst-state-mod (abstract state live-list f-mod)]
+                         [abst-state (abstract state live-list f)]
                          ;; [abst-state-high (abstract state live-list f-high)]
-                         [abst-state abst-state-mod]
+                         [abst-state abst-state]
                          )
 
                     (if (hash-has-key? abst-hash abst-state)
@@ -458,15 +463,19 @@
                           (hash-set! abst-hash abst-state sub-hash)))))
              abst-hash)
 
-           (define (refine-abstract abst-hash live-list my-vreg new-live-list my-inst k 
-                                    type out-loc)
+           (define (refine-abstract classes live-list my-vreg new-live-list
+                                    my-inst k type out-loc)
+             (define cache-abst (make-hash))
              (define k 3)
 	     (define abst-expect-mod (vector-ref expect-mod (- k 1)))
-	     ;;(define abst-expect-high (vector-ref expect-high (- k 1)))
+	     (define abst-expect-high (vector-ref expect-high (- k 1)))
              
              (define f-mod
                (let ([base (arithmetic-shift 1 k)])
                  (lambda (x) (modulo x base))))
+	     (define f-high
+	       (let ([mask (arithmetic-shift -1 (- bit k))])
+		 (lambda (x) (bitwise-and x mask))))
 
 	     (define (interpret-real f) 
 	       (lambda (x)
@@ -489,6 +498,10 @@
                (if (member type '(mod+high mod-high))
 		   (interpret-real f-mod)
 		   (interpret-abst f-mod `mod)))
+             (define interpret-high 
+               (if (member type '(mod+high high-mod))
+		   (interpret-real f-high)
+		   (interpret-abst f-high `high)))
 
 	     (define (check-abst state-spec state)
 		(or 
@@ -498,27 +511,62 @@
 			 (if virtual
 			     (send machine relaxed-state-eq? state-spec s live2-vec out-loc)
 			     (send machine state-eq? state-spec s live2-vec)))))
+
+             (define (inner classes mode)
+               (define abst-hash 
+                 (if (hash? classes)
+                     (collapse-classes classes live-list mode)
+                     (abstbox-val classes)))
              
-             (define n (hash-count abst-hash))
-             (set! count-abst (+ count-abst n))
+               (define n (hash-count abst-hash))
+               (set! count-abst (+ count-abst n))
 
-	     (define (check-one-state abst-state real-states)
-               (define t0 (current-milliseconds))
-               (define out (interpret-mod abst-state))
-               (define t1 (current-milliseconds))
-               (set! t-abst-inter (+ t-abst-inter (- t1 t0)))
-               (when (and out (check-abst abst-expect-mod out))
-                     (refine-real 0 (list) real-states live-list my-vreg my-inst out-loc))
-	       )
+               (define (check-one-state abst-state real-states)
+                 (cond
+                  [(equal? mode `mod)
+                   (define t0 (current-milliseconds))
+                   (define out (interpret-mod abst-state))
+                   (define t1 (current-milliseconds))
+                   (set! t-abst-inter (+ t-abst-inter (- t1 t0)))
+                   (when (and out (check-abst abst-expect-mod out))
+                         (hash-set! abst-hash
+                                    abst-state
+                                    (inner real-states `high)))
+                   ]
+                  
+                  [(equal? mode `high)
+                   (cond
+                    [(hash-has-key? cache-abst abst-state)
+                     (define t0 (current-milliseconds))
+                     (define out-pass (hash-ref cache-abst abst-state))
+                     (define out (car out-pass))
+                     (define pass (cdr out-pass))
+                     (define t1 (current-milliseconds))
+                     (set! t-abst-inter2 (+ t-abst-inter2 (- t1 t0)))
+                     (when pass
+                           (refine-real 0 (list) real-states live-list my-vreg my-inst out-loc))
+                     ]
 
-	     (for ([pair (hash->list abst-hash)]
-                   [i n])
-		  (let* ([abst-state (car pair)]
-			 [abst-state-mod abst-state]
-			 [real-groups (cdr pair)])
-		    ;; (pretty-display `(mod ,abst-states-mod))
-		    ;; (pretty-display `(high ,abst-states-high))
-		    (check-one-state abst-state real-groups)))
+                    [else
+                     (define t0 (current-milliseconds))
+                     (define out (interpret-high abst-state))
+                     (define t1 (current-milliseconds))
+                     (set! t-abst-inter2 (+ t-abst-inter2 (- t1 t0)))
+                     (define pass (and out (check-abst abst-expect-high out)))
+                     (hash-set! cache-abst abst-state (cons out pass))
+                     (when pass
+                           (refine-real 0 (list) real-states live-list my-vreg my-inst out-loc))
+                     ])
+                   ])
+                 )
+
+               (for ([pair (hash->list abst-hash)]
+                     [i n])
+                    (let* ([abst-state (car pair)]
+                           [real-groups (cdr pair)])
+                      (check-one-state abst-state real-groups)))
+               (abstbox abst-hash))
+             (inner classes `mod)
              ) 
                     
 #|
@@ -751,9 +799,11 @@
              (set! t-hash 0) (set! t-abst-inter 0) (set! t-abst-inter2 0) (set! t-real-inter0 0) (set! t-real-inter 0) (set! t-rename 0) (set! t-check 0) (set! t-get-type 0) (set! t-later-use 0) (set! t-extra 0) 
              (set! count-p 0) (set! count-r 0) (set! count-abst 0) (set! count-real0 0) (set! count-real 0)
 	     (if my-inst
-                 (let* ([out-loc (get-output-location my-inst)])
-                   (refine-abstract eqv-classes live-list my-vreg my-liveout my-inst 
-                                    1 type out-loc)
+                 (let* ([out-loc (get-output-location my-inst)]
+                        [new-classes
+                         (refine-abstract eqv-classes live-list
+                                          my-vreg my-liveout my-inst 
+                                          1 type out-loc)])
                    (pretty-display (format "~a ms = ~a (~a+~a/~a) ~a/~a ~a/~a ~a ~a ~a ~a ~a | ~a ~a ~a" 
                                            (- (current-milliseconds) t0)
                                            t-hash 
@@ -762,7 +812,7 @@
                                            t-real-inter count-real
                                            t-check t-rename t-get-type t-later-use t-extra
                                            count-p count-r ce-count))
-	   	   (abst-loop eqv-classes live-list my-vreg type))
+	   	   (abst-loop new-classes live-list my-vreg type))
                  eqv-classes))
 
            (when (> iter 2)
@@ -770,8 +820,7 @@
 	   	(let* ([live-vreg (car pair1)]
 	   	       [live-list (entry-live live-vreg)]
 	   	       [my-vreg (entry-vreg live-vreg)]
-	   	       ;;[hash2 (hash-copy* (cdr pair1))]
-                       [hash2 (collapse-classes (cdr pair1) live-list)]
+	   	       [abst-hash (hash-copy* (cdr pair1))]
 		       ;; use only first state
 		       [state-rep (find-first-state (cdr pair1))])
 		  (pretty-display `(key ,live-vreg))
@@ -780,8 +829,7 @@
 		       (pretty-display (format "TYPE: ~a" type))
 		       (reset-generate-inst state-rep live-list (and virtual my-vreg) 
 					    type #f) 
-		       (abst-loop hash2 live-list my-vreg type)
-		       ;;(set! abst-hash (abst-loop abst-hash live-list my-vreg type))
+		       (set! abst-hash (abst-loop abst-hash live-list my-vreg type))
                        )
 		  ))
            )
