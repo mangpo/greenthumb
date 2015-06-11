@@ -52,7 +52,7 @@
       (define ntests 2)
       (define inits
 	(send validator generate-input-states ntests (vector-append prefix spec postfix)
-              assumption extra))
+              assumption extra #:db #t))
 
       (define prev-classes (make-hash))
       (define states1 
@@ -382,6 +382,7 @@
 			     [state abst-states-out])
 			    (or 
 			     (equal? state #t)
+			     (universal? state)
 			     (for/or ([s (if (list? state) state (list state))])
 			       (if virtual
 				   (send machine relaxed-state-eq? state-spec s live2-vec
@@ -463,7 +464,7 @@
 	   	   (abst-loop abst-hash live-list my-vreg type real-interpret))
                  eqv-classes))
 
-           (when (> iter 2)
+           (when #t ;;(> iter 2)
 	   (for ([pair1 (hash->list prev-classes)])
 	   	(let* ([live-vreg (car pair1)]
 	   	       [live-list (entry-live live-vreg)]
@@ -475,11 +476,7 @@
                                                    (caar eqv-classes)))]
                        [abst-hash #f])
 		  (pretty-display `(key ,live-vreg ,(length eqv-classes)))
-		  ;; modular abstraction
-                  (pretty-display "MOD: table")
-	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
-				       `rest #f); #:live-limit 3) 
-	   	  (set! abst-hash (abst-loop eqv-classes live-list my-vreg `mod #f))
+		  (set! abst-hash eqv-classes)
 
 		  ;; modular abstraction
                   (pretty-display "MOD: valid")
@@ -491,6 +488,12 @@
 	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
 		  		       `high #f); #:live-limit 3)
 	   	  (abst-loop eqv-classes live-list my-vreg `high #t)
+
+		  ;; modular abstraction
+                  (pretty-display "MOD: table")
+	   	  (reset-generate-inst state-rep-list live-list (and virtual my-vreg) 
+				       `rest #f); #:live-limit 3) 
+	   	  (set! abst-hash (abst-loop abst-hash live-list my-vreg `mod #f))
 
            ))
            )
