@@ -208,7 +208,9 @@
                                 (recurse-args opcode-name opcode-id 0 #f cond-type 
                                               (list) arg-ranges v-reg)
 				))))))
-	     (yield (list #f #f #f)))))
+	     (yield (list #f #f #f))))
+      generate-inst 
+      )
 
     (define (get-register-mapping org-nregs states-vec-spec states-vec liveout-vec)
       ;;(pretty-display `(get-register-mapping ,org-nregs ,states-vec-spec ,states-vec ,liveout-vec))

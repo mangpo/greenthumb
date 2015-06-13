@@ -98,8 +98,8 @@
 	      is-virtual-reg update-live)
     (public get-shfarg-range get-arg-types)
 
-    (set! bit 32)
-    (set! random-input-bit 32)
+    (set! bit 4)
+    (set! random-input-bit 4)
     (set! nop-id 0)
     (set! inst-id '#(nop 
                      add sub rsb
@@ -522,8 +522,8 @@
         	     asr# lsr#
                      mul mla mls
 
-                     ;; smull umull
-                     ;; smmul smmla smmls
+                     smull umull
+                     smmul smmla smmls
 
                      sdiv udiv
         	     uxtah uxth uxtb
@@ -532,8 +532,8 @@
                      clz
                      ;; ldr str
                      ;; ldr# str#
-                     ;; tst cmp
-                     ;; tst# cmp#
+                     tst cmp
+                     tst# cmp#
                      ))
                                 
       (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))

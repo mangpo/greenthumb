@@ -2,7 +2,7 @@
 
 (require "ast.rkt" "machine.rkt" "decomposer.rkt" 
          "arm/arm-psql.rkt" "arm/arm-simulator-abstract.rkt" "arm/arm-ast.rkt" "arm/arm-machine.rkt")
-(require racket/generator profile)
+(require racket/generator)
 
 (provide enumerative%)
 
@@ -55,16 +55,16 @@
       ;;   (send validator generate-input-states ntests (vector-append prefix spec postfix)
       ;;         assumption extra #:db #t))
       ;; p11
-      ;; (define inits
-      ;;   (list
-      ;;    (progstate (vector 5 -5 0 0 0 0 0) (vector) 0 4)
-      ;;    (progstate (vector 7 2 0 0 0 0 0) (vector) 0 4)))
-      ;; p24
       (define inits
         (list
-         (progstate (vector 3 0 0 0 0 0) (vector) 0 4)
-         (progstate (vector 71 0 0 0 0 0) (vector) 0 4)
-         ))
+         (progstate (vector 5 -5 0 0 0 0 0) (vector) -1 4)
+         (progstate (vector 7 2 0 0 0 0 0) (vector) -1 4)))
+      ;; p24
+      ;; (define inits
+      ;;   (list
+      ;;    (progstate (vector 3 0 0 0 0 0) (vector) -1 4)
+      ;;    (progstate (vector 71 0 0 0 0 0) (vector) -1 4)
+      ;;    ))
 
       (define-syntax-rule (take-high lst) (take lst 1))
       (define-syntax-rule (take-mod lst) (drop lst 1))
@@ -738,7 +738,7 @@
                (when 
                 my-inst
                 
-		(when debug
+		(when #t
 		      (send printer print-syntax-inst (send printer decode-inst my-inst)))
 
                 (define (recurse x states2-vec)
@@ -1135,7 +1135,7 @@
             (when 
              my-inst
              
-             (when #t
+             (when debug
                    (send printer print-syntax-inst (send printer decode-inst my-inst))) 
              (send time start `normal-test)
              (let ([out-states 
