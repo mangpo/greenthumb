@@ -225,9 +225,9 @@
 		  (set! c-behaviors (add1 c-behaviors))
 		  (hash-set! x key (list behavior))))
             (begin
-              (unless (hash-has-key? class key)
-                      (hash-set! class key (make-hash)))
-              (inner (hash-ref class key) (cdr states-id) behavior))))
+              (unless (hash-has-key? x key)
+                      (hash-set! x key (make-hash)))
+              (inner (hash-ref x key) (cdr states-id) behavior))))
 
       (inner class states-id behavior))
 
@@ -236,17 +236,19 @@
     (define (get-programs pgc id)
       (define val (vector-ref id2progs id))
       (cond
-       [val val]
+       [(list? val) val]
        [else
         (define str (query-value pgc (format "select program from arm_programs_size2 where id = ~a" id)))
-        (define progs-str (string-split str ";"))
-        (define ret
-          (for/list ([p-str progs-str])
-                    (send printer encode (send parser ast-from-string p-str))))
-        (vector-set! id ret)
+        ;; (define progs-str (string-split str ";"))
+        ;; (define ret
+        ;;   (for/list ([p-str progs-str])
+        ;;             (send printer encode (send parser ast-from-string p-str))))
+        (define p-str (car (string-split str ";")))
+        (define ret (list (send printer encode (send parser ast-from-string p-str))))
+        (vector-set! id2progs id ret)
         ret]))
 
-    (define (load-backward-behavior pgc id)
+    (define (load-behavior pgc id)
       (define str (query-value pgc (format "select behavior from arm_behaviors_size2 where id = ~a" id)))
       (define behavior (map convert (string-split str ";")))
       (define behavior-bw (make-vector (length behavior)))
@@ -258,16 +260,30 @@
                    (if val
                        (vector-set! behavior-bw out (cons in val))
                        (vector-set! behavior-bw out (list in))))))
-      behavior-bw)
+      (values (list->vector behavior) behavior-bw))
 
-    (define (load-behavior pgc id)
-      (define str (query-value pgc (format "select behavior from arm_behaviors_size2 where id = ~a" id)))
-      (list->vector (map convert (string-split str ";"))))
+    ;; (define (load-backward-behavior pgc id)
+    ;;   (define str (query-value pgc (format "select behavior from arm_behaviors_size2 where id = ~a" id)))
+    ;;   (define behavior (map convert (string-split str ";")))
+    ;;   (define behavior-bw (make-vector (length behavior)))
+
+    ;;   (for ([in (in-naturals)]
+    ;;         [out behavior])
+    ;;        (when out
+    ;;              (let ([val (vector-ref behavior-bw out)])
+    ;;                (if val
+    ;;                    (vector-set! behavior-bw out (cons in val))
+    ;;                    (vector-set! behavior-bw out (list in))))))
+    ;;   behavior-bw)
+
+    ;; (define (load-behavior pgc id)
+    ;;   (define str (query-value pgc (format "select behavior from arm_behaviors_size2 where id = ~a" id)))
+    ;;   (list->vector (map convert (string-split str ";"))))
     
-    (define (get-behavior pgc id in)
-      (define str (query-value pgc (format "select behavior from arm_behaviors_size2 where id = ~a" id)))
-      (define behavior (map convert (string-split str ";")))
-      (list-ref behavior in))
+    ;; (define (get-behavior pgc id in)
+    ;;   (define str (query-value pgc (format "select behavior from arm_behaviors_size2 where id = ~a" id)))
+    ;;   (define behavior (map convert (string-split str ";")))
+    ;;   (list-ref behavior in))
 
     (define (find-first-state x)
       (car (hash-keys x)))
@@ -299,7 +315,19 @@
       (cond
        [(concat? x) (count-collection (concat-collection x))]
        [(vector? x) 1]
-       [(list? x) (foldl + 0 (map count-collection x))]))
+       [(list? x) (foldl + 0 (map count-collection x))]
+       [else (raise (format "count-collection: unimplemented for ~a" x))]))
+
+    (define t-load 0)
+    (define t-build 0)
+    (define t-intersect 0)
+    (define t-extra 0)
+    (define t-verify 0)
+    (define c-intersect 0)
+    (define c-extra 0)
+
+    (define t-collect 0)
+    (define t-check 0)
     
     (define (synthesize-window spec sketch prefix postfix constraint extra 
                                [cost #f] [time-limit 3600]
@@ -316,12 +344,15 @@
       (define live1-list (send machine get-operand-live live1))
       (define live2-list (send machine get-operand-live live2))
              
-      (define ntests 2)
-      ;; p11
+      (define ntests 4)
       (define inits
-        (list
-         (progstate (vector 5 -5) (vector) -1 4)
-         (progstate (vector 7 2) (vector) -1 4)))
+        (send validator generate-input-states ntests (vector-append prefix spec postfix)
+              assumption extra #:db #t))
+      ;; p11
+      ;; (define inits
+      ;;   (list
+      ;;    (progstate (vector 5 -5) (vector) -1 4)
+      ;;    (progstate (vector 7 2) (vector) -1 4)))
       ;; p24
       ;; (define inits
       ;;   (list
@@ -334,8 +365,15 @@
 	(map (lambda (x) (send simulator interpret spec x #:dep #f)) states1))
       (define states1-vec 
 	(map (lambda (x) (send machine progstate->vector x)) states1))
-      (define state1-id (map (lambda (x) (progstate->id x)) states1))
-      (define state2-id-spec (map (lambda (x) (progstate->ids x live2)) states2))
+      (define states2-vec 
+	(map (lambda (x) (send machine progstate->vector x)) states2))
+      (define states1-id (map (lambda (x) (progstate->id x)) states1))
+      (define states2-id-spec (map (lambda (x) (progstate->ids x live2)) states2))
+
+      (pretty-display `(states1-vec ,states1-vec))
+      (pretty-display `(states2-vec ,states2-vec))
+      (pretty-display `(states2-id-spec ,states2-id-spec))
+      (pretty-display `(live2-vec ,live2-vec))
       
       (define ce-limit 10000)
       (define ce-in (make-vector ce-limit))
@@ -345,19 +383,34 @@
       (define ce-count ntests)
       (define ce-count-extra ntests)
 
+      (for ([i ntests]
+            [in states1]
+            [out states2-vec]
+            [in-id states1-id]
+            [out-id states2-id-spec])
+           (vector-set! ce-in i in)
+           (vector-set! ce-out-vec i out)
+           (vector-set! ce-in-id i in-id)
+           (vector-set! ce-out-id i out-id)
+           )
+
       (define pgc (postgresql-connect #:user "mangpo" #:database "mangpo" #:password ""))
       (define n-behavior (add1 (query-value pgc "select max(id) from arm_behaviors_size2")))
-      (set! id2progs (make-vector n-behavior))
+      (set! id2progs (make-vector n-behavior #f))
 
       (define prev-classes (make-hash))
-      ;;(class-insert! prev-classes state1-id #f)
       (class-insert! prev-classes states1-vec (vector))
 
       (define classes (make-hash))
 
-        (define (check-eqv progs my-ce-count)
+      (define (check-eqv progs h2 beh2 my-ce-count)
+        (define t00 (current-milliseconds))
 
           (define (inner-progs p)
+            ;; (when (= h2 3130)
+            ;;       (pretty-display `(inner-progs))
+            ;;       (send printer print-syntax (send printer decode p))
+            ;;       (newline))
                  
             ;; (pretty-display "After renaming")
             ;; (send printer print-syntax (send printer decode p))
@@ -400,37 +453,68 @@
 
 
           (define (inner-behaviors p1 h2 beh2)
+            (define t0 (current-milliseconds))
+            (when (concat? p1) (pretty-display `(my-ce-count ,my-ce-count ,ntests)))
+            ;; (when (= h2 3130)
+            ;;       (pretty-display `(ce ,my-ce-count ,ce-count-extra))
+            ;;       (send printer print-syntax (send printer decode p1))
+            ;;       (newline))
+
+            (define
+              pass
+              (for/and ([i (reverse (range my-ce-count ce-count-extra))])
+                       (let* ([input (vector-ref ce-in i)]
+                              [output-ids (vector-ref ce-out-id i)]
+                              [my-id-iter
+                               ;; (with-handlers*
+                               ;;  ([exn? (lambda (e) #f)])
+                               (progstate->id (send simulator interpret p1 input #:dep #f))
+                               ;; )
+                               ]
+                              [my-id
+                               (and my-id-iter (vector-ref beh2 my-id-iter))])
+                         ;; (when (= h2 3130)
+                         ;;       (pretty-display `(id ,input ,output-ids ,my-id-iter ,my-id)))
+                         (and my-id (member my-id output-ids)))))
+            (define t1 (current-milliseconds))
+            (set! t-extra (+ t-extra (- t1 t0)))
+            (set! c-extra (+ c-extra (- ce-count-extra my-ce-count)))
             (when 
-             (for/and ([i (reverse (range my-ce-count ce-count-extra))])
-                      (let* ([input (vector-ref ce-in i)]
-                             [output-ids (vector-ref ce-out-id i)]
-                             [my-id-iter
-                              (with-handlers*
-                               ([exn? (lambda (e) #f)])
-                               (progstate->id (send simulator interpret p1 input #:dep #f)))]
-                             [my-id
-                              (and my-id-iter (vector-ref beh2 my-id-iter))])
-                        (and my-id (member my-id output-ids))))
-        
+             pass
              (define half2 (get-programs pgc h2))
 
              (for* ([h2 half2])
-                   (inner-progs (vector-append p1 h2)))))
+                   (inner-progs (vector-append p1 h2)))
+             (define t2 (current-milliseconds))
+             (set! t-verify (+ t-verify (- t2 t1)))
 
-          (define progs
+             ))
+
+          (define h1
             (if (= my-ce-count ntests)
-                (get-collection-iterator (concat-collection progs))
+                (get-collection-iterator progs)
                 progs))
              
-          (define h2 (concat-inst progs))
-          (define beh2 (load-behavior pgc h2))
+          (define t11 (current-milliseconds))
           
-          (for ([p1 progs])
-               (inner-behaviors p1 h2 beh2)))
+          (for ([p1 h1])
+               (inner-behaviors p1 h2 beh2))
+          (define t22 (current-milliseconds))
+          (set! t-collect (+ t-collect (- t11 t00)))
+          (set! t-check (+ t-check (- t22 t11)))
+          )
 
-        (define (refine my-classes id behavior-bw level)
+      (define (refine my-classes id level)
+        (define t00 (current-milliseconds))
+        (define-values (behavior behavior-bw) (load-behavior pgc id))
+        (define t11 (current-milliseconds))
+        (set! t-load (+ t-load (- t11 t00)))
+        (define (outer my-classes level)
           (define real-hash my-classes)
-          (when (and (list? real-hash) (> (count-collection classes) 256)) 
+          ;; (when (list? real-hash)
+          ;;       (pretty-display `(refine ,id ,level ,(count-collection real-hash))))
+          (when (and (list? real-hash) (> (count-collection real-hash) 256))
+                (pretty-display "here!!!!!")
             ;; list of programs
                 (define t0 (current-milliseconds))
                 (set! real-hash (make-hash))
@@ -453,59 +537,54 @@
                 (if (= level ntests)
                     (loop (get-collection-iterator classes))
                     (loop classes))
-                ;;(define t1 (current-milliseconds))
-                ;;(set! t-hash (+ t-hash (- t1 t0)))
+                (define t1 (current-milliseconds))
+                (set! t-build (+ t-build (- t1 t0)))
                 )
 
           (define expect (vector-ref ce-out-id level))
 
           (define (inner)
+            (define t0 (current-milliseconds))
             (define inters-fw (list->set (hash-keys real-hash)))
             (define inters-bw
               (list->set
                (flatten (for/list ([e expect]) (vector-ref behavior-bw e)))))
 
             (define inters (set-intersect inters-fw inters-bw))
+            (define t1 (current-milliseconds))
+            (set! t-intersect (+ t-intersect (- t1 t0)))
+            (set! c-intersect (add1 c-intersect))
 
-            (if (and (= 1 (- ce-count level)) (not (set-empty? inters)))
-                (check-eqv (concat rest id) ce-count)
+            ;; (when (= id 3130)
+            ;;       (pretty-display `(refine-inner ,expect ,inters-fw ,inters-bw ,inters)))
+
+            (if (= 1 (- ce-count level))
+                (begin
+                  (for ([inter inters])
+                       (check-eqv (hash-ref real-hash inter) id behavior ce-count))
+                  (set! ce-count ce-count-extra)
+                  )
                 (for ([inter inters])
                      (hash-set! real-hash inter
-                                (refine rest id behavior-bw (add1 level))))))
-
+                                (outer (hash-ref real-hash inter) (add1 level))))))
+          
           (cond
            [(hash? real-hash)
             (inner)
             real-hash]
 
            [(list? real-hash)
-            (check-eqv (concat real-hash id) level)
+            (check-eqv real-hash id behavior level)
             (box real-hash)]
 
            [(box? real-hash)
-            (check-eqv (concat (box-val real-hash) id) level)
+            (check-eqv (box-val real-hash) id behavior level)
             real-hash]
 
            )
-
           )
-          
-
-        (define (grow id)
-          (define behavior (load-behavior pgc id))
-          
-          (define (recurse x states2-id)
-            (if (list? x)
-                ;; insert to new classes
-                (class-insert! classes states2-id id)
-                (for ([pair (hash->list x)])
-                     (let* ([val (cdr pair)]
-                            [in-id (car pair)]
-                            [out-id (vector-ref behavior in-id)])
-                       (when out-id (recurse val (cons out-id states2-id)))))))
-
-          ;; ref from old classes
-          (recurse prev-classes (list)))
+        (outer my-classes level)
+        )
 
               ;; Enmerate all possible program of one instruction
       (define (enumerate iterator) 
@@ -516,7 +595,7 @@
         (when 
          my-inst
          
-         (when #t
+         (when debug
                (send printer print-syntax-inst (send printer decode-inst my-inst)))
 
          (define (recurse x states2-vec)
@@ -572,9 +651,23 @@
       ;;      (grow id))
 
       ;; Search
-      (for ([id n-behavior])
-           (pretty-display (format "search ~a/~a" id n-behavior))
-           (refine prev-classes id (load-backward-behavior pgc id) 0))
+      (define ttt (current-milliseconds))
+      (for ([id (range n-behavior)])
+           (when (= 0 (modulo id 10))
+                 (pretty-display (format "search ~a/~a | ~a = ~a ~a ~a/~a ~a/~a ~a = ~a ~a" id n-behavior
+                                         (- (current-milliseconds) ttt)
+                                         t-load t-build
+                                         t-intersect c-intersect
+                                         t-extra c-extra
+                                         t-verify
+                                         t-collect t-check
+                                         ))
+                 (set! t-load 0) (set! t-build 0) (set! t-intersect 0) (set! t-extra 0) (set! t-verify 0)
+                 (set! c-intersect 0) (set! c-extra 0)
+                 (set! t-collect 0) (set! t-check 0)
+                 (set! ttt (current-milliseconds)))
+           (refine prev-classes id 0)
+           )
       
       )
 
