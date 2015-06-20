@@ -47,14 +47,16 @@ lsr r0, r0, 3
 
 
 (define (f)
-(define t (current-seconds))
-(send db synthesize-window
-      encoded-code ;; spec
-      encoded-sketch ;; sketch = spec in this case
-      encoded-prefix encoded-postfix
-      (constraint machine [reg 0] [mem]) #f #f 3600)
+  (define t (current-seconds))
+  (with-handlers*
+   ([exn? (lambda (e) #f)])
+   (send db synthesize-window
+         encoded-code ;; spec
+         encoded-sketch ;; sketch = spec in this case
+         encoded-prefix encoded-postfix
+         (constraint machine [reg 0] [mem]) #f #f 3600))
   
-(pretty-display `(time ,(- (current-seconds) t)))
+  (pretty-display `(time ,(- (current-seconds) t)))
   )
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem]) ;; constraint

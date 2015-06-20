@@ -28,8 +28,6 @@
              (hash-set! x k (list v))))
     
     (define/public (gen-behavior-base)
-      (system "rm progress.log")
-      (send machine reset-inst-pool)
       (define constraint-all (send machine constraint-all))
       (define constraint-all-vec (send machine progstate->vector constraint-all))
       (define live-list (send machine get-operand-live constraint-all))
@@ -82,6 +80,31 @@
 
       behavior2progs
       )
+
+    (define (gen-behavior-usable)
+      (define behavior2progs (gen-behavior-base))
+      (define n (hash-count behavior2progs))
+      (set! id2progs (make-vector n))
+      (set! id2beh (make-vector n))
+      (set! id2bw (make-vector n))
+
+      (for ([pair (hash->list behavior2progs)]
+            [id (in-naturals)])
+           (let* ([beh (car pair)]
+                  [beh-bw (make-vector (vector-length beh) #f)]
+                  [progs (cdr pair)])
+
+             (for ([in (in-naturals)]
+                   [out beh])
+                  (when out
+                        (let ([val (vector-ref beh-bw out)])
+                          (if val
+                              (vector-set! beh-bw out (cons in val))
+                              (vector-set! beh-bw out (list in))))))
+             
+             (vector-set! id2progs id progs)
+             (vector-set! id2beh id beh)
+             (vector-set! id2bw id beh-bw))))
 
     (define/public (gen-behavior)
       (clear-temp-storage)
@@ -231,7 +254,45 @@
 
       (inner class states-id behavior))
 
+    (define c-behaviors-bw 0)
+    (define c-progs-bw 0)
+    (define (class-insert-bw! class states-id behavior)
+      ;;(pretty-display `(class-insert-bw! ,states-id ,behavior))
+      (set! c-progs-bw (add1 c-progs-bw))
+
+      (define (inner x states-id behavior)
+        (define key-list (car states-id))
+        (if (= 1 (length states-id))
+            (for ([key key-list])
+                 (if (hash-has-key? x key)
+                     (hash-set! x key (cons behavior (hash-ref x key)))
+                     (begin
+                       (set! c-behaviors-bw (add1 c-behaviors-bw))
+                       (hash-set! x key (list behavior)))))
+            (for ([key key-list])
+                 (unless (hash-has-key? x key)
+                         (hash-set! x key (make-hash)))
+                 (inner (hash-ref x key) (cdr states-id) behavior))))
+
+      (inner class states-id behavior)
+      ;;(pretty-display `(end ,class))
+      )
+
     (define id2progs #f)
+    (define id2beh #f)
+    (define id2bw #f)
+
+    (define (interpret prog in)
+      (define ret in)
+      (for ([x prog])
+           (set! ret (and ret (vector-ref (vector-ref id2beh x) ret))))
+      ret)
+
+    ;; only works with programs with one instruction
+    (define (interpret-bw prog out)
+      ;;(pretty-display `(interpret-bw ,prog ,out))
+      (define x (vector-ref prog 0))
+      (vector-ref (vector-ref id2bw x) out))
 
     (define (get-programs pgc id)
       (define val (vector-ref id2progs id))
@@ -262,28 +323,6 @@
                        (vector-set! behavior-bw out (list in))))))
       (values (list->vector behavior) behavior-bw))
 
-    ;; (define (load-backward-behavior pgc id)
-    ;;   (define str (query-value pgc (format "select behavior from arm_behaviors_size2 where id = ~a" id)))
-    ;;   (define behavior (map convert (string-split str ";")))
-    ;;   (define behavior-bw (make-vector (length behavior)))
-
-    ;;   (for ([in (in-naturals)]
-    ;;         [out behavior])
-    ;;        (when out
-    ;;              (let ([val (vector-ref behavior-bw out)])
-    ;;                (if val
-    ;;                    (vector-set! behavior-bw out (cons in val))
-    ;;                    (vector-set! behavior-bw out (list in))))))
-    ;;   behavior-bw)
-
-    ;; (define (load-behavior pgc id)
-    ;;   (define str (query-value pgc (format "select behavior from arm_behaviors_size2 where id = ~a" id)))
-    ;;   (list->vector (map convert (string-split str ";"))))
-    
-    ;; (define (get-behavior pgc id in)
-    ;;   (define str (query-value pgc (format "select behavior from arm_behaviors_size2 where id = ~a" id)))
-    ;;   (define behavior (map convert (string-split str ";")))
-    ;;   (list-ref behavior in))
 
     (define (find-first-state x)
       (car (hash-keys x)))
@@ -307,7 +346,13 @@
          [(list? x) 
           (if (empty? x)
               (set! ans (cons postfix ans))
-              (for ([i x]) (loop i postfix)))]))
+              (for ([i x]) (loop i postfix)))]
+         [(set? x) 
+          (if (set-empty? x)
+              (set! ans (cons postfix ans))
+              (for ([i x]) (loop i postfix)))]
+
+         ))
       (loop collection (vector))
       ans)
 
@@ -321,9 +366,11 @@
     (define t-load 0)
     (define t-build 0)
     (define t-intersect 0)
+    (define t-interpret 0)
     (define t-extra 0)
     (define t-verify 0)
     (define c-intersect 0)
+    (define c-interpret 0)
     (define c-extra 0)
 
     (define t-collect 0)
@@ -344,7 +391,7 @@
       (define live1-list (send machine get-operand-live live1))
       (define live2-list (send machine get-operand-live live2))
              
-      (define ntests 4)
+      (define ntests 6)
       (define inits
         (send validator generate-input-states ntests (vector-append prefix spec postfix)
               assumption extra #:db #t))
@@ -513,9 +560,9 @@
           (define real-hash my-classes)
           ;; (when (list? real-hash)
           ;;       (pretty-display `(refine ,id ,level ,(count-collection real-hash))))
-          (when (and (list? real-hash) (> (count-collection real-hash) 256))
-                (pretty-display "here!!!!!")
-            ;; list of programs
+          (when (and (list? real-hash) (> (count-collection real-hash) 0))
+                ;;(pretty-display "here!!!!!")
+                ;; list of programs
                 (define t0 (current-milliseconds))
                 (set! real-hash (make-hash))
                 (define input (vector-ref ce-in level))
@@ -535,8 +582,8 @@
                    ))
 
                 (if (= level ntests)
-                    (loop (get-collection-iterator classes))
-                    (loop classes))
+                    (loop (get-collection-iterator my-classes)) ;; check
+                    (loop my-classes)) ;; check
                 (define t1 (current-milliseconds))
                 (set! t-build (+ t-build (- t1 t0)))
                 )
@@ -645,11 +692,6 @@
       (set! prev-classes (convert-vec2id prev-classes))
       (pretty-display `(convert done))
 
-      ;; Grow
-      ;; (for ([id n-behavior])
-      ;;      (pretty-display (format "grow ~a/~a" id n-behavior))
-      ;;      (grow id))
-
       ;; Search
       (define ttt (current-milliseconds))
       (for ([id (range n-behavior)])
@@ -668,6 +710,379 @@
                  (set! ttt (current-milliseconds)))
            (refine prev-classes id 0)
            )
+      
+      )
+
+    (define (collect-behaviors x)
+      (if (list? x)
+	  x
+	  (let ([ans (list)])
+            (for ([val (hash-values x)])
+                 (set! ans (append (collect-behaviors val) ans)))
+            ans)))
+     
+    (define/public
+      (synthesize-window2 spec sketch prefix postfix constraint extra 
+                          [cost #f] [time-limit 3600]
+                          #:hard-prefix [hard-prefix (vector)] 
+                          #:hard-postfix [hard-postfix (vector)]
+                          #:assume-interpret [assume-interpret #t]
+                          #:assume [assumption (send machine no-assumption)])
+      
+      (send machine analyze-opcode prefix spec postfix)
+      (send machine analyze-args prefix spec postfix #:vreg 0)
+      (define live2 (send validator get-live-in postfix constraint extra))
+      (define live2-vec (send machine progstate->vector live2))
+      (define live1 (send validator get-live-in spec live2 extra))
+      (define live1-list (send machine get-operand-live live1))
+      (define live2-list (send machine get-operand-live live2))
+             
+      (define ntests 2)
+      (define inits
+        (send validator generate-input-states ntests (vector-append prefix spec postfix)
+              assumption extra #:db #t))
+      ;; p11
+      ;; (define inits
+      ;;   (list
+      ;;    (progstate (vector 5 -5) (vector) -1 4)
+      ;;    (progstate (vector 7 2) (vector) -1 4)))
+      ;; p24
+      ;; (define inits
+      ;;   (list
+      ;;    (progstate (vector 3 0 0 0 0 0) (vector) -1 4)
+      ;;    (progstate (vector 71 0 0 0 0 0) (vector) -1 4)
+      ;;    ))
+      (define states1 
+	(map (lambda (x) (send simulator interpret prefix x #:dep #f)) inits))
+      (define states2
+	(map (lambda (x) (send simulator interpret spec x #:dep #f)) states1))
+      (define states1-vec 
+	(map (lambda (x) (send machine progstate->vector x)) states1))
+      (define states2-vec 
+	(map (lambda (x) (send machine progstate->vector x)) states2))
+      (define states1-id (map (lambda (x) (progstate->id x)) states1))
+      (define states2-id-spec (map (lambda (x) (progstate->ids x live2)) states2))
+
+      (pretty-display `(states1-vec ,states1-vec))
+      (pretty-display `(states2-vec ,states2-vec))
+      (pretty-display `(states2-id-spec ,states2-id-spec))
+      (pretty-display `(live2-vec ,live2-vec))
+      
+      (define ce-limit 10000)
+      (define ce-in (make-vector ce-limit))
+      (define ce-out-vec (make-vector ce-limit))
+      (define ce-in-id (make-vector ce-limit))
+      (define ce-out-id (make-vector ce-limit))
+      (define ce-count ntests)
+      (define ce-count-extra ntests)
+
+      (for ([i ntests]
+            [in states1]
+            [out states2-vec]
+            [in-id states1-id]
+            [out-id states2-id-spec])
+           (vector-set! ce-in i in)
+           (vector-set! ce-out-vec i out)
+           (vector-set! ce-in-id i in-id)
+           (vector-set! ce-out-id i out-id)
+           )
+
+      (gen-behavior-usable)
+      (pretty-display `(gen-behavior-usable done))
+      (define n-behaviors (vector-length id2progs))
+
+      (define prev-classes (make-hash))
+      (class-insert! prev-classes states1-id (vector))
+      (define prev-classes-bw (make-hash))
+      (class-insert-bw! prev-classes-bw states2-id-spec (vector))
+
+      (define classes (make-hash))
+      (define classes-bw (make-hash))
+      
+      (define (check-eqv progs progs-bw beh-id beh my-ce-count)
+        (define t00 (current-milliseconds))
+
+          (define (inner-progs p)
+            ;; (when (= h2 3130)
+            ;;       (pretty-display `(inner-progs))
+            ;;       (send printer print-syntax (send printer decode p))
+            ;;       (newline))
+                 
+            ;; (pretty-display "After renaming")
+            ;; (send printer print-syntax (send printer decode p))
+            (when debug
+                  (pretty-display "[2] all correct")
+                  (pretty-display `(ce-count-extra ,ce-count-extra))
+                  )
+            (when (= ce-count-extra ce-limit)
+                  (raise "Too many counterexamples")
+                  )
+            
+            (define ce (send validator counterexample 
+                             (vector-append prefix spec postfix)
+                             (vector-append prefix p postfix)
+                             constraint extra #:assume assumption))
+
+            (if ce
+                (let* ([ce-input (send simulator interpret prefix ce #:dep #f)]
+                       [ce-output
+                        (send simulator interpret spec ce-input #:dep #f)]
+                       [ce-input-id (progstate->id ce-input)]
+                       [ce-output-id (progstate->ids ce-output live2)]
+                       [ce-output-vec
+                        (send machine progstate->vector ce-output)])
+                  (when debug
+                        (pretty-display "[3] counterexample")
+                        (send machine display-state ce-input)
+                        (pretty-display `(ce-out-vec ,ce-output-vec)))
+                  (vector-set! ce-in ce-count-extra ce-input)
+                  (vector-set! ce-out-vec ce-count-extra ce-output-vec)
+                  (vector-set! ce-in-id ce-count-extra ce-input-id)
+                  (vector-set! ce-out-id ce-count-extra ce-output-id)
+                  (set! ce-count-extra (add1 ce-count-extra))
+                  )
+                (begin
+                  (pretty-display "[4] FOUND!!!")
+                  (send printer print-syntax (send printer decode p))
+                  (pretty-display `(ce-count-extra ,ce-count-extra))
+                  (raise p))))
+
+
+          (define (inner-behaviors p1 p2 beh-id beh)
+            (define t0 (current-milliseconds))
+
+            (define
+              pass
+              (for/and ([i (reverse (range my-ce-count ce-count-extra))])
+                       (let* ([input (vector-ref ce-in-id i)]
+                              [output-ids (vector-ref ce-out-id i)]
+                              [inter1 (interpret p1 input)]
+                              [inter2 (and inter1 (vector-ref beh inter1))]
+                              [my-id (interpret p2 inter2)])
+                         (and my-id (member my-id output-ids)))))
+            (define t1 (current-milliseconds))
+            (set! t-extra (+ t-extra (- t1 t0)))
+            (set! c-extra (+ c-extra (- ce-count-extra my-ce-count)))
+            (when 
+             pass
+             (define progs (vector-append p1 (vector beh-id) p2))
+             (inner-progs
+              (for/vector ([p progs])
+                          (vector-ref (car (vector-ref id2progs p)) 0)))
+             (define t2 (current-milliseconds))
+             (set! t-verify (+ t-verify (- t2 t1)))
+
+             ))
+
+          (define h1
+            (if (= my-ce-count ntests)
+                (get-collection-iterator progs)
+                progs))
+
+          (define h2
+            (if (= my-ce-count ntests)
+                (get-collection-iterator progs-bw)
+                progs-bw))
+             
+          (define t11 (current-milliseconds))
+          
+          (for* ([p1 h1]
+                 [p2 h2])
+               (inner-behaviors p1 p2 beh-id beh))
+          (define t22 (current-milliseconds))
+          (set! t-collect (+ t-collect (- t11 t00)))
+          (set! t-check (+ t-check (- t22 t11)))
+          )
+
+      (define (refine my-classes my-classes-bw beh-id)
+        (define t00 (current-milliseconds))
+        (define behavior (vector-ref id2beh beh-id))
+        (define t11 (current-milliseconds))
+        (set! t-load (+ t-load (- t11 t00)))
+        
+        (define (outer my-classes my-classes-bw level)
+          ;;(pretty-display `(outer ,beh-id ,level ,my-classes ,my-classes-bw))
+          (define real-hash my-classes)
+          (define real-hash-bw my-classes-bw)
+          (when (and (list? real-hash) (> (count-collection real-hash) 0))
+                ;; list of programs
+                (define t0 (current-milliseconds))
+                (set! real-hash (make-hash))
+                (define input (vector-ref ce-in-id level))
+                
+                (define (loop iterator)
+                  (define prog (and (not (empty? iterator)) (car iterator)))
+                  (when 
+                   prog
+                   (let ([state (interpret prog input)])
+                     (if (hash-has-key? real-hash state)
+                         (hash-set! real-hash state
+                                    (cons prog (hash-ref real-hash state)))
+                         (hash-set! real-hash state (list prog))))
+                   (loop (cdr iterator))
+                   ))
+
+                (if (= level ntests)
+                    (loop (get-collection-iterator my-classes))
+                    (loop my-classes))
+                (define t1 (current-milliseconds))
+                (set! t-build (+ t-build (- t1 t0)))
+                )
+          
+          (when (and (list? real-hash-bw) (> (count-collection real-hash-bw) 0))
+                ;; list of programs
+                (define t0 (current-milliseconds))
+                (set! real-hash-bw (make-hash))
+                (define outputs (vector-ref ce-out-id level))
+                
+                (define (loop-bw iterator)
+                  (define prog (and (not (empty? iterator)) (car iterator)))
+                  (when 
+                   prog
+                   (for ([out outputs])
+                        (let ([states (interpret-bw prog out)])
+                          (when
+                           states
+                           (for ([state states])
+                                (if (hash-has-key? real-hash-bw state)
+                                    (hash-set! real-hash-bw state
+                                               (cons prog (hash-ref real-hash-bw state)))
+                                    (hash-set! real-hash-bw state (list prog)))))))
+                   (loop-bw (cdr iterator))
+                   ))
+                
+                (if (= level ntests)
+                    (loop-bw (get-collection-iterator my-classes-bw))
+                    (loop-bw my-classes-bw))
+                (define t1 (current-milliseconds))
+                (set! t-build (+ t-build (- t1 t0)))
+                )
+
+          (define (inner)
+            (define t0 (current-milliseconds))
+            (define inters-fw (hash-keys real-hash))
+            (define inters-bw (list->set (hash-keys real-hash-bw)))
+            (define t1 (current-milliseconds))
+            (set! t-intersect (+ t-intersect (- t1 t0)))
+            (set! c-intersect (add1 c-intersect))
+
+            (for ([inter inters-fw])
+                 (let* ([t0 (current-milliseconds)]
+                        [out (vector-ref behavior inter)]
+                        [condition (and out (set-member? inters-bw out))]
+                        [t1 (current-milliseconds)]
+                        )
+                   (set! t-interpret (+ t-interpret (- t1 t0)))
+                   (set! c-interpret (add1 c-interpret))
+                   (when
+                    condition
+                    (if (= 1 (- ce-count level))
+                        (begin
+                          (check-eqv (hash-ref real-hash inter)
+                                     (hash-ref real-hash-bw out)
+                                     beh-id behavior ce-count) ;; TODO
+                          (set! ce-count ce-count-extra))
+                        (let-values ([(a b)
+                                      (outer (hash-ref real-hash inter)
+                                             (hash-ref real-hash-bw out)
+                                             (add1 level))])
+                          (hash-set! real-hash inter a)
+                          (hash-set! real-hash-bw out b))))))
+            )
+            
+          (cond
+           [(and (hash? real-hash) (hash? real-hash-bw))
+            (inner)
+            (values real-hash real-hash-bw)]
+
+           [(list? real-hash)
+            (check-eqv (collect-behaviors real-hash)
+                       (list->set (collect-behaviors real-hash-bw))
+                       beh-id behavior level)
+            (values (box real-hash) (box real-hash-bw))]
+
+           [(box? real-hash)
+            (check-eqv (collect-behaviors (box-val real-hash))
+                       (list->set (collect-behaviors (box-val real-hash-bw)))
+                       beh-id behavior level)
+            (values real-hash real-hash-bw)]))
+        
+        (outer my-classes my-classes-bw 0)
+        )
+
+      (define (build-hash beh-id)
+        (define behavior (vector-ref id2beh beh-id))
+         (define (recurse x states2-id)
+           (if (list? x)
+               (class-insert! classes (reverse states2-id) (concat x beh-id))
+               (for ([pair (hash->list x)])
+                    (let* ([state-id (car pair)]
+                           [val (cdr pair)]
+                           [out (vector-ref behavior state-id)])
+                      (when out (recurse val (cons out states2-id)))))))
+         
+         (recurse prev-classes (list)))
+
+      (define (build-hash-bw beh-id)
+        (define behavior-bw (vector-ref id2bw beh-id))
+         (define (recurse x states-id-accum)
+           (if (list? x)
+               (class-insert-bw! classes-bw (reverse states-id-accum) (concat x beh-id))
+               (for ([pair (hash->list x)])
+                    (let* ([state-id (car pair)]
+                           [val (cdr pair)]
+                           [out (vector-ref behavior-bw state-id)])
+                      (when out (recurse val (cons out states-id-accum)))))))
+         
+         (recurse prev-classes-bw (list)))
+      
+      ;; Grow forward
+      (for ([i 2])
+        (newline)
+        (pretty-display `(grow ,i))
+        (set! classes (make-hash))
+        (for ([beh-id n-behaviors])
+             (build-hash beh-id))
+        (set! prev-classes classes)
+        (pretty-display `(behavior ,i ,c-behaviors ,c-progs))
+        (set! c-behaviors 0)
+        (set! c-progs 0)
+        )
+
+      ;; Grow backward
+      (for ([i 1])
+           (set! classes-bw (make-hash))
+           (for ([beh-id n-behaviors])
+                (build-hash-bw beh-id))
+           (set! prev-classes-bw classes-bw)
+           (pretty-display `(behavior-bw ,i ,c-behaviors-bw ,c-progs-bw))
+           (set! c-behaviors-bw 0)
+           (set! c-progs-bw 0)
+        )
+      (pretty-display `(grow done))
+
+      ;; Search
+      (define ttt (current-milliseconds))
+      (for ([id (range n-behaviors)])
+           ;;(when (= 0 (modulo id 10))
+                 (pretty-display (format "search ~a/~a | ~a = ~a ~a ~a/~a ~a/~a ~a/~a ~a = ~a ~a" 
+                                         id n-behaviors
+                                         (- (current-milliseconds) ttt)
+                                         t-load t-build
+                                         t-intersect c-intersect
+                                         t-interpret c-interpret
+                                         t-extra c-extra
+                                         t-verify
+                                         t-collect t-check
+                                         ))
+                 (set! t-load 0) (set! t-build 0) (set! t-intersect 0) (set! t-interpret 0) (set! t-extra 0) (set! t-verify 0)
+                 (set! c-intersect 0) (set! c-interpret 0) (set! c-extra 0)
+                 (set! t-collect 0) (set! t-check 0)
+                 (set! ttt (current-milliseconds))
+                 ;;)
+           (refine prev-classes prev-classes-bw id)
+           )
+
       
       )
 
