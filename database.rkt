@@ -732,7 +732,12 @@
         (let ([ans (list)])
           (for ([val x])
                (when val (set! ans (append (collect-behaviors val) ans))))
-          ans)]))
+          ans)]
+       [(box? x) (collect-behaviors (box-val x))]
+       [else
+        (raise (format "collect-behaviors: unimplemented for ~a" x))]
+
+       ))
      
     (define/public
       (synthesize-window2 spec sketch prefix postfix constraint extra 
@@ -917,7 +922,7 @@
           ;;(pretty-display `(outer ,beh-id ,level ,my-classes ,my-classes-bw))
           (define real-hash my-classes)
           (define real-hash-bw my-classes-bw)
-          (when (and (list? real-hash) (> (count-collection real-hash) 0))
+          (when (and (list? real-hash) (> (count-collection real-hash) 256))
                 ;; list of programs
                 (define t0 (current-milliseconds))
                 (set! real-hash (make-hash))
@@ -950,7 +955,7 @@
                 (set! t-build (+ t-build (- t1 t0)))
                 )
           
-          (when (and (list? real-hash-bw) (> (count-collection real-hash-bw) 0))
+          (when (and (list? real-hash-bw) (> (count-collection real-hash-bw) 256))
                 ;; list of programs
                 (define t0 (current-milliseconds))
                 (set! real-hash-bw (make-vector n-states #f))
@@ -1025,18 +1030,20 @@
             (inner)
             (values real-hash real-hash-bw)]
 
-           [(list? real-hash)
+           [else
             (check-eqv (collect-behaviors real-hash)
                        (list->set (collect-behaviors real-hash-bw))
                        beh-id behavior level)
-            (values (box real-hash) (box real-hash-bw))]
-
-           [(box? real-hash)
-            (check-eqv (collect-behaviors (box-val real-hash))
-                       (list->set (collect-behaviors (box-val real-hash-bw)))
-                       beh-id behavior level)
-            (values real-hash real-hash-bw)]))
-        
+            (values (cond
+                     [(hash? real-hash) real-hash]
+                     [(box? real-hash) real-hash]
+                     [else (box real-hash)])
+                    (cond
+                     [(vector? real-hash-bw) real-hash-bw]
+                     [(box? real-hash-bw) real-hash-bw]
+                     [else (box real-hash-bw)]))
+            ]))
+       
         (outer my-classes my-classes-bw 0)
         )
 
@@ -1096,16 +1103,16 @@
       (define ttt (current-milliseconds))
       (for ([id (range n-behaviors)])
            ;;(when (= 0 (modulo id 10))
-                 (pretty-display (format "search ~a/~a | ~a = ~a ~a\t(~a + ~a/~a + ~a/~a)\t~a/~a\t~a/~a\t~a/~a ~a" 
+                 (pretty-display (format "search ~a/~a | ~a = ~a\t(~a + ~a/~a + ~a/~a)\t~a/~a\t~a/~a\t~a/~a ~a" 
                                          id n-behaviors
                                          (- (current-milliseconds) ttt)
-                                         t-load t-build t-build-inter t-build-hash c-build-hash t-build-hash2 c-build-hash2
+                                         t-build t-build-inter t-build-hash c-build-hash t-build-hash2 c-build-hash2
                                          t-intersect c-intersect
                                          t-interpret c-interpret
                                          t-extra c-extra
                                          t-verify
                                          ))
-                 (set! t-load 0) (set! t-build 0) (set! t-build-inter 0) (set! t-build-hash 0) (set! t-build-hash2 0) (set! t-intersect 0) (set! t-interpret 0) (set! t-extra 0) (set! t-verify 0)
+                 (set! t-build 0) (set! t-build-inter 0) (set! t-build-hash 0) (set! t-build-hash2 0) (set! t-intersect 0) (set! t-interpret 0) (set! t-extra 0) (set! t-verify 0)
                  (set! c-build-hash 0) (set! c-build-hash2 0) (set! c-intersect 0) (set! c-interpret 0) (set! c-extra 0)
                  (set! t-collect 0) (set! t-check 0)
                  (set! ttt (current-milliseconds))
