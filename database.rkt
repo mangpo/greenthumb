@@ -33,7 +33,7 @@
       (define live-list (send machine get-operand-live constraint-all))
       
       (define all-states (get-all-states))
-      (define n-states (length all-states))
+      (set! n-states (length all-states))
       (define all-states-id (range n-states))
       (pretty-display `(n-states ,n-states))
 
@@ -264,20 +264,22 @@
         (define key-list (car states-id))
         (if (= 1 (length states-id))
             (for ([key key-list])
-                 (if (hash-has-key? x key)
-                     (hash-set! x key (cons behavior (hash-ref x key)))
-                     (begin
-                       (set! c-behaviors-bw (add1 c-behaviors-bw))
-                       (hash-set! x key (list behavior)))))
+                 (let ([val (vector-ref x key)])
+                   (if val
+                       (vector-set! x key (cons behavior val))
+                       (begin
+                         (set! c-behaviors-bw (add1 c-behaviors-bw))
+                         (vector-set! x key (list behavior))))))
             (for ([key key-list])
-                 (unless (hash-has-key? x key)
-                         (hash-set! x key (make-hash)))
-                 (inner (hash-ref x key) (cdr states-id) behavior))))
+                 (unless (vector-ref x key)
+                         (vector-set! x key (make-vector n-states #f)))
+                 (inner (vector-ref x key) (cdr states-id) behavior))))
 
       (inner class states-id behavior)
       ;;(pretty-display `(end ,class))
       )
 
+    (define n-states #f)
     (define id2progs #f)
     (define id2beh #f)
     (define id2bw #f)
@@ -719,12 +721,18 @@
       )
 
     (define (collect-behaviors x)
-      (if (list? x)
-	  x
-	  (let ([ans (list)])
-            (for ([val (hash-values x)])
-                 (set! ans (append (collect-behaviors val) ans)))
-            ans)))
+      (cond
+       [(list? x)  x]
+       [(hash? x)
+        (let ([ans (list)])
+          (for ([val (hash-values x)])
+               (set! ans (append (collect-behaviors val) ans)))
+          ans)]
+       [(vector? x)
+        (let ([ans (list)])
+          (for ([val x])
+               (when val (set! ans (append (collect-behaviors val) ans))))
+          ans)]))
      
     (define/public
       (synthesize-window2 spec sketch prefix postfix constraint extra 
@@ -798,11 +806,11 @@
 
       (define prev-classes (make-hash))
       (class-insert! prev-classes states1-id (vector))
-      (define prev-classes-bw (make-hash))
+      (define prev-classes-bw (make-vector n-states #f))
       (class-insert-bw! prev-classes-bw states2-id-spec (vector))
 
       (define classes (make-hash))
-      (define classes-bw (make-hash))
+      (define classes-bw (make-vector n-states #f))
       
       (define (check-eqv progs progs-bw beh-id beh my-ce-count)
         (define t00 (current-milliseconds))
@@ -945,7 +953,7 @@
           (when (and (list? real-hash-bw) (> (count-collection real-hash-bw) 0))
                 ;; list of programs
                 (define t0 (current-milliseconds))
-                (set! real-hash-bw (make-hash))
+                (set! real-hash-bw (make-vector n-states #f))
                 (define outputs (vector-ref ce-out-id level))
                 
                 (define (loop-bw iterator)
@@ -959,10 +967,11 @@
                           (when
                            states
                            (for ([state states])
-                                (if (hash-has-key? real-hash-bw state)
-                                    (hash-set! real-hash-bw state
-                                               (cons prog (hash-ref real-hash-bw state)))
-                                    (hash-set! real-hash-bw state (list prog)))))
+                                (let ([val (vector-ref real-hash-bw state)])
+                                  (if val
+                                      (vector-set! real-hash-bw state
+                                                   (cons prog val))
+                                      (vector-set! real-hash-bw state (list prog))))))
                           
                           (let ([s2 (current-milliseconds)])
                             (set! t-build-inter (+ t-build-inter (- s1 s0)))
@@ -983,7 +992,6 @@
           (define (inner)
             (define t0 (current-milliseconds))
             (define inters-fw (hash-keys real-hash))
-            (define inters-bw (hash-keys real-hash-bw))
             (define t1 (current-milliseconds))
             (set! t-intersect (+ t-intersect (- t1 t0)))
             (set! c-intersect (add1 c-intersect))
@@ -991,7 +999,7 @@
             (for ([inter inters-fw])
                  (let* ([t0 (current-milliseconds)]
                         [out (vector-ref behavior inter)]
-                        [condition (and out (member out inters-bw))]
+                        [condition (and out (vector-ref real-hash-bw out))]
                         [t1 (current-milliseconds)]
                         )
                    (set! t-interpret (+ t-interpret (- t1 t0)))
@@ -1001,19 +1009,19 @@
                     (if (= 1 (- ce-count level))
                         (begin
                           (check-eqv (hash-ref real-hash inter)
-                                     (hash-ref real-hash-bw out)
-                                     beh-id behavior ce-count) ;; TODO
+                                     (vector-ref real-hash-bw out)
+                                     beh-id behavior ce-count)
                           (set! ce-count ce-count-extra))
                         (let-values ([(a b)
                                       (outer (hash-ref real-hash inter)
-                                             (hash-ref real-hash-bw out)
+                                             (vector-ref real-hash-bw out)
                                              (add1 level))])
                           (hash-set! real-hash inter a)
-                          (hash-set! real-hash-bw out b))))))
+                          (vector-set! real-hash-bw out b))))))
             )
             
           (cond
-           [(and (hash? real-hash) (hash? real-hash-bw))
+           [(and (hash? real-hash) (vector? real-hash-bw))
             (inner)
             (values real-hash real-hash-bw)]
 
@@ -1047,16 +1055,17 @@
 
       (define (build-hash-bw beh-id)
         (define behavior-bw (vector-ref id2bw beh-id))
-         (define (recurse x states-id-accum)
-           (if (list? x)
-               (class-insert-bw! classes-bw (reverse states-id-accum) (concat x beh-id))
-               (for ([pair (hash->list x)])
-                    (let* ([state-id (car pair)]
-                           [val (cdr pair)]
-                           [out (vector-ref behavior-bw state-id)])
-                      (when out (recurse val (cons out states-id-accum)))))))
+        (define (recurse x states-id-accum)
+          (if (list? x)
+              (class-insert-bw! classes-bw (reverse states-id-accum) (concat x beh-id))
+              (for ([state-id (in-naturals)]
+                    [val x])
+                   (when
+                    val
+                    (let ([out (vector-ref behavior-bw state-id)])
+                      (when out (recurse val (cons out states-id-accum))))))))
          
-         (recurse prev-classes-bw (list)))
+        (recurse prev-classes-bw (list)))
       
       ;; Grow forward
       (for ([i 2])
@@ -1073,7 +1082,7 @@
 
       ;; Grow backward
       (for ([i 1])
-           (set! classes-bw (make-hash))
+           (set! classes-bw (make-vector n-states #f))
            (for ([beh-id n-behaviors])
                 (build-hash-bw beh-id))
            (set! prev-classes-bw classes-bw)
