@@ -1,30 +1,29 @@
 #lang s-exp rosette
 
 (require "arm-validator.rkt" "arm-machine.rkt" "arm-printer.rkt"
-         "arm-parser.rkt" "arm-ast.rkt" "arm-simulator-rosette.rkt")
+         "arm-parser.rkt" "arm-ast.rkt")
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine%))
+(define machine (new arm-machine% [bit 4]))
 (send machine set-config (list 5 3 4))
 (define printer (new arm-printer% [machine machine]))
-(define simulator-rosette (new arm-simulator-rosette% [machine machine]))
-(define validator (new arm-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
-
+(define validator (new arm-validator% [machine (new arm-machine% [bit 32])]))
+                       
 (define code
 (send parser ast-from-string "
-sub r0, r0, 1
-clz r1, r0
-mvn r0, 0
-rsb r0, r0, r0, lsr r1
+clz r1, r1
+clz r0, r0
+rsb r0, r1, r0
+lsr r0, r0, 3
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-sub r2, r0, 1
-clz r3, r2
-rsb r4, r0, r2
-rsb r0, r4, r4, lsr r3
+bic r1, r1, r0, lsr 1
+lsr r1, r0, r1
+mvn r0, 1
+rsb r0, r0, r0, asr r1
 "))
 
 (define encoded-code (send printer encode code))

@@ -11,8 +11,11 @@
 (define database%
   (class object%
     (super-new)
-    (init-field machine enum simulator printer validator parser)
-    (abstract get-all-states vector->id progstate->id progstate->ids)
+    (init-field machine enum simulator simulator-precise
+                printer parser
+                validator validator-precise)
+    (abstract get-all-states vector->id progstate->id progstate->ids
+              reduce-precision increase-precision)
     (public synthesize-window)
     
     (define debug #f)
@@ -738,6 +741,20 @@
         (raise (format "collect-behaviors: unimplemented for ~a" x))]
 
        ))
+
+    (define (get-one-program beh-vec)
+      (for/vector ([b beh-vec])
+                  (vector-ref (car (vector-ref id2progs b)) 0)))
+
+    (define (get-all-programs beh-vec)
+      (define ret (list))
+      (define (inner ans rest)
+        (if (empty? rest)
+            (set! ret (cons ans ret))
+            (for ([x (vector-ref id2progs (car rest))])
+                 (inner (vector-append ans x) (cdr rest)))))
+      (inner (vector) (vector->list beh-vec))
+      ret)     
      
     (define/public
       (synthesize-window2 spec sketch prefix postfix constraint extra 
@@ -746,6 +763,15 @@
                           #:hard-postfix [hard-postfix (vector)]
                           #:assume-interpret [assume-interpret #t]
                           #:assume [assumption (send machine no-assumption)])
+
+      (define spec-precise spec)
+      (define prefix-precise prefix)
+      (define postfix-precise postfix)
+      (set! spec (reduce-precision spec))
+      (set! prefix (reduce-precision prefix))
+      (set! postfix (reduce-precision postfix))
+
+      (send printer print-syntax (send printer decode spec))
       
       (send machine analyze-opcode prefix spec postfix)
       (send machine analyze-args prefix spec postfix #:vreg 0)
@@ -794,6 +820,9 @@
       (define ce-count ntests)
       (define ce-count-extra ntests)
 
+      (define ce-in-final (list))
+      (define ce-out-vec-final (list))
+
       (for ([i ntests]
             [in states1]
             [out states2-vec]
@@ -816,55 +845,93 @@
 
       (define classes (make-hash))
       (define classes-bw (make-vector n-states #f))
+
+      (define (check-final p)
+        (pretty-display (format "[5] check-final ~a" (length ce-in-final)))
+        (send printer print-syntax (send printer decode p))
+        (define
+          pass
+          (for/and ([input ce-in-final]
+                    [output-vec ce-out-vec-final])
+                   (let ([my-output-vec
+                          (send machine progstate->vector
+                                (send simulator-precise interpret p input #:dep #f))])
+                     (send machine state-eq? output-vec my-output-vec live2-vec))))
+
+        (when
+         pass
+         (define ce (send validator-precise counterexample 
+                          (vector-append prefix-precise spec-precise postfix-precise)
+                          (vector-append prefix-precise p postfix-precise)
+                          constraint extra #:assume assumption))
+
+         (if ce
+             (let* ([ce-input
+                     (send simulator-precise interpret prefix-precise ce #:dep #f)]
+                    [ce-output
+                     (send simulator-precise interpret spec-precise ce-input #:dep #f)]
+                    [ce-output-vec
+                     (send machine progstate->vector ce-output)])
+               (when debug
+                     (pretty-display "[6] counterexample (precise)")
+                     (send machine display-state ce-input)
+                     (pretty-display `(ce-out-vec ,ce-output-vec)))
+               (set! ce-in-final (cons ce-input ce-in-final))
+               (set! ce-out-vec-final (cons ce-output-vec ce-out-vec-final))
+               )
+             (begin
+               (pretty-display "[7] FOUND!!!")
+               (send printer print-syntax (send printer decode p))
+               (pretty-display `(ce-count ,ce-count-extra))
+               (pretty-display `(ce-count-precise ,(length ce-in-final)))
+               (raise p))))
+        )
       
       (define (check-eqv progs progs-bw beh-id beh my-ce-count)
         (define t00 (current-milliseconds))
 
-          (define (inner-progs p)
-            ;; (when (= h2 3130)
-            ;;       (pretty-display `(inner-progs))
-            ;;       (send printer print-syntax (send printer decode p))
-            ;;       (newline))
-                 
-            ;; (pretty-display "After renaming")
-            ;; (send printer print-syntax (send printer decode p))
-            (when debug
-                  (pretty-display "[2] all correct")
-                  (pretty-display `(ce-count-extra ,ce-count-extra))
-                  )
-            (when (= ce-count-extra ce-limit)
-                  (raise "Too many counterexamples")
-                  )
-            
-            (define ce (send validator counterexample 
-                             (vector-append prefix spec postfix)
-                             (vector-append prefix p postfix)
-                             constraint extra #:assume assumption))
+        (define (inner-progs h)
+          (define p (get-one-program h))
+          
+          ;; (pretty-display "After renaming")
+          ;; (send printer print-syntax (send printer decode p))
+          (when debug
+                (pretty-display "[2] all correct")
+                (pretty-display `(ce-count-extra ,ce-count-extra))
+                )
+          (when (= ce-count-extra ce-limit)
+                (raise "Too many counterexamples")
+                )
+          
+          (define ce (send validator counterexample 
+                           (vector-append prefix spec postfix)
+                           (vector-append prefix p postfix)
+                           constraint extra #:assume assumption))
 
-            (if ce
-                (let* ([ce-input (send simulator interpret prefix ce #:dep #f)]
-                       [ce-output
-                        (send simulator interpret spec ce-input #:dep #f)]
-                       [ce-input-id (progstate->id ce-input)]
-                       [ce-output-id (progstate->ids ce-output live2)]
-                       [ce-output-vec
-                        (send machine progstate->vector ce-output)])
-                  (when debug
-                        (pretty-display "[3] counterexample")
-                        (send machine display-state ce-input)
-                        (pretty-display `(ce-out-vec ,ce-output-vec)))
-                  (vector-set! ce-in ce-count-extra ce-input)
-                  (vector-set! ce-out-vec ce-count-extra ce-output-vec)
-                  (vector-set! ce-in-id ce-count-extra ce-input-id)
-                  (vector-set! ce-out-id ce-count-extra ce-output-id)
-                  (set! ce-count-extra (add1 ce-count-extra))
-                  )
-                (begin
-                  (pretty-display "[4] FOUND!!!")
-                  (send printer print-syntax (send printer decode p))
-                  (pretty-display `(ce-count-extra ,ce-count-extra))
-                  (raise p))))
-
+          (if ce
+              (let* ([ce-input (send simulator interpret prefix ce #:dep #f)]
+                     [ce-output
+                      (send simulator interpret spec ce-input #:dep #f)]
+                     [ce-input-id (progstate->id ce-input)]
+                     [ce-output-id (progstate->ids ce-output live2)]
+                     [ce-output-vec
+                      (send machine progstate->vector ce-output)])
+                (when debug
+                      (pretty-display "[3] counterexample")
+                      (send machine display-state ce-input)
+                      (pretty-display `(ce-out-vec ,ce-output-vec)))
+                (vector-set! ce-in ce-count-extra ce-input)
+                (vector-set! ce-out-vec ce-count-extra ce-output-vec)
+                (vector-set! ce-in-id ce-count-extra ce-input-id)
+                (vector-set! ce-out-id ce-count-extra ce-output-id)
+                (set! ce-count-extra (add1 ce-count-extra))
+                )
+              (begin
+                (pretty-display "[4] found")
+                (send printer print-syntax (send printer decode p))
+                (for ([p (get-all-programs h)])
+                     (check-final (increase-precision p)))
+                )))
 
           (define (inner-behaviors p1 p2 beh-id beh)
             (define t0 (current-milliseconds))
@@ -883,10 +950,11 @@
             (set! c-extra (+ c-extra (- ce-count-extra my-ce-count)))
             (when 
              pass
-             (define progs (vector-append p1 (vector beh-id) p2))
-             (inner-progs
-              (for/vector ([p progs])
-                          (vector-ref (car (vector-ref id2progs p)) 0)))
+             (inner-progs (vector-append p1 (vector beh-id) p2))
+             ;; (define progs (vector-append p1 (vector beh-id) p2))
+             ;; (inner-progs
+             ;;  (for/vector ([p progs])
+             ;;              (vector-ref (car (vector-ref id2progs p)) 0)))
              (define t2 (current-milliseconds))
              (set! t-verify (+ t-verify (- t2 t1)))
 

@@ -98,8 +98,7 @@
 	      is-virtual-reg update-live)
     (public get-shfarg-range get-arg-types)
 
-    (set! bit 4)
-    (set! random-input-bit 4)
+    (set! random-input-bit bit)
     (set! nop-id 0)
     (set! inst-id '#(nop 
                      add sub rsb

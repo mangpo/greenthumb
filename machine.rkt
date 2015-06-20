@@ -8,7 +8,7 @@
 (define machine%
   (class object%
     (super-new)
-    (init-field [bit #f] [random-input-bit #f] [inst-id #f] [inst-pool #f] 
+    (init-field bit [random-input-bit #f] [inst-id #f] [inst-pool #f] 
 		[classes #f] [classes-len #f] [classes-filtered #f]
 		[perline 8] [nop-id #f])
     (abstract set-config get-config set-config-string

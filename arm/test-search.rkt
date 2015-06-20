@@ -8,16 +8,26 @@
 
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine%))
+(define machine (new arm-machine% [bit 4]))
 (send machine set-config (list 2 0 4))
+(define machine-precise (new arm-machine% [bit 32]))
+(send machine-precise set-config (list 2 0 4))
+
 (define printer (new arm-printer% [machine machine]))
 (define simulator-racket (new arm-simulator-racket% [machine machine]))
+(define simulator-racket-precise (new arm-simulator-racket% [machine machine-precise]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
-(define validator (new arm-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
+(define validator (new arm-validator% [machine machine]))
+(define validator-precise (new arm-validator% [machine machine-precise]))
+
 (define enum (new arm-enumerative% [machine machine] [printer printer] [parser parser]))
 (define symbolic (new arm-symbolic% [machine machine] [printer printer] [parser parser]))
 (define stoch (new arm-stochastic% [machine machine] [printer printer] [parser parser] [syn-mode #t]))
-(define db (new arm-database% [machine machine] [enum enum] [simulator simulator-racket] [printer printer] [validator validator] [parser parser]))
+(define db (new arm-database% [machine machine] [enum enum] 
+                [simulator simulator-racket]
+                [simulator-precise simulator-racket-precise]
+                [printer printer] [parser parser] 
+                [validator validator] [validator-precise validator-precise]))
 
 (define prefix
 (send parser ast-from-string "
@@ -32,7 +42,7 @@
 clz r1, r1
 clz r0, r0
 rsb r0, r1, r0
-lsr r0, r0, 3
+lsr r0, r0, 31
 "))
 
 (define sketch

@@ -15,7 +15,7 @@
 (define validator%
   (class object%
     (super-new)
-    (init-field machine printer 
+    (init-field machine [printer #f]
                 [simulator #f] 
                 [bit (get-field bit machine)]
                 [random-input-bit (get-field random-input-bit machine)]
