@@ -738,14 +738,14 @@
       (define live2-list (send machine get-operand-live live2))
              
       (define ntests 2)
-      (define inits
-        (send validator generate-input-states ntests (vector-append prefix spec postfix)
-              assumption extra #:db #t))
-      ;; p11
       ;; (define inits
-      ;;   (list
-      ;;    (progstate (vector 5 -5) (vector) -1 4)
-      ;;    (progstate (vector 7 2) (vector) -1 4)))
+      ;;   (send validator generate-input-states ntests (vector-append prefix spec postfix)
+      ;;         assumption extra #:db #t))
+      ;; p11
+      (define inits
+        (list
+         (progstate (vector 5 -5) (vector) -1 4)
+         (progstate (vector 7 2) (vector) -1 4)))
       ;; p24
       ;; (define inits
       ;;   (list
@@ -961,7 +961,7 @@
           (define (inner)
             (define t0 (current-milliseconds))
             (define inters-fw (hash-keys real-hash))
-            (define inters-bw (list->set (hash-keys real-hash-bw)))
+            (define inters-bw (hash-keys real-hash-bw))
             (define t1 (current-milliseconds))
             (set! t-intersect (+ t-intersect (- t1 t0)))
             (set! c-intersect (add1 c-intersect))
@@ -969,7 +969,7 @@
             (for ([inter inters-fw])
                  (let* ([t0 (current-milliseconds)]
                         [out (vector-ref behavior inter)]
-                        [condition (and out (set-member? inters-bw out))]
+                        [condition (and out (member out inters-bw))]
                         [t1 (current-milliseconds)]
                         )
                    (set! t-interpret (+ t-interpret (- t1 t0)))
