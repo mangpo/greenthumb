@@ -56,7 +56,7 @@
 
         (when
          my-inst
-         (send printer print-syntax-inst (send printer decode-inst my-inst))
+         ;;(send printer print-syntax-inst (send printer decode-inst my-inst))
          (set! n-progs (add1 n-progs))
          (define behavior (make-vector n-states))
          (for ([state all-states]
@@ -764,6 +764,7 @@
                           #:assume-interpret [assume-interpret #t]
                           #:assume [assumption (send machine no-assumption)])
 
+      (define start-time (current-seconds))
       (define spec-precise spec)
       (define prefix-precise prefix)
       (define postfix-precise postfix)
@@ -781,21 +782,23 @@
       (define live1-list (send machine get-operand-live live1))
       (define live2-list (send machine get-operand-live live2))
              
-      (define ntests 2)
+      (define ntests 3)
       ;; (define inits
       ;;   (send validator generate-input-states ntests (vector-append prefix spec postfix)
       ;;         assumption extra #:db #t))
       ;; p11
-      (define inits
-        (list
-         (progstate (vector 5 -5) (vector) -1 4)
-         (progstate (vector 7 2) (vector) -1 4)))
-      ;; p24
       ;; (define inits
       ;;   (list
-      ;;    (progstate (vector 3 0 0 0 0 0) (vector) -1 4)
-      ;;    (progstate (vector 71 0 0 0 0 0) (vector) -1 4)
-      ;;    ))
+      ;;    (progstate (vector 4 0) (vector) -1 4)
+      ;;    (progstate (vector -8 -4) (vector) -1 4)
+      ;;    (progstate (vector -6 4) (vector) -1 4)))
+      ;; p24
+      (define inits
+        (list
+         (progstate (vector 5 0) (vector) -1 4)
+         (progstate (vector 3 0) (vector) -1 4)
+         (progstate (vector -1 0) (vector) -1 4)
+         ))
       (define states1 
 	(map (lambda (x) (send simulator interpret prefix x #:dep #f)) inits))
       (define states2
@@ -835,7 +838,7 @@
            )
 
       (gen-behavior-usable)
-      (pretty-display `(gen-behavior-usable done))
+      (pretty-display `(gen-behavior-usable ,(- (current-seconds) start-time)))
       (define n-behaviors (vector-length id2progs))
 
       (define prev-classes (make-hash))
@@ -884,6 +887,7 @@
                (send printer print-syntax (send printer decode p))
                (pretty-display `(ce-count ,ce-count-extra))
                (pretty-display `(ce-count-precise ,(length ce-in-final)))
+	       (pretty-display `(time ,(- (current-seconds) start-time)))
                (raise p))))
         )
       
@@ -990,7 +994,7 @@
           ;;(pretty-display `(outer ,beh-id ,level ,my-classes ,my-classes-bw))
           (define real-hash my-classes)
           (define real-hash-bw my-classes-bw)
-          (when (and (list? real-hash) (> (count-collection real-hash) 256))
+          (when (and (list? real-hash) (> (count-collection real-hash) 8))
                 ;; list of programs
                 (define t0 (current-milliseconds))
                 (set! real-hash (make-hash))
@@ -1023,7 +1027,7 @@
                 (set! t-build (+ t-build (- t1 t0)))
                 )
           
-          (when (and (list? real-hash-bw) (> (count-collection real-hash-bw) 256))
+          (when (and (list? real-hash-bw) (> (count-collection real-hash-bw) 128))
                 ;; list of programs
                 (define t0 (current-milliseconds))
                 (set! real-hash-bw (make-vector n-states #f))
@@ -1150,7 +1154,7 @@
         (for ([beh-id n-behaviors])
              (build-hash beh-id))
         (set! prev-classes classes)
-        (pretty-display `(behavior ,i ,c-behaviors ,c-progs))
+        (pretty-display `(behavior ,i ,c-behaviors ,c-progs ,(- (current-seconds) start-time)))
         (set! c-behaviors 0)
         (set! c-progs 0)
         )
@@ -1159,9 +1163,10 @@
       (for ([i 1])
            (set! classes-bw (make-vector n-states #f))
            (for ([beh-id n-behaviors])
+		(pretty-display (format "bw ~a/~a" beh-id n-behaviors))
                 (build-hash-bw beh-id))
            (set! prev-classes-bw classes-bw)
-           (pretty-display `(behavior-bw ,i ,c-behaviors-bw ,c-progs-bw))
+           (pretty-display `(behavior-bw ,i ,c-behaviors-bw ,c-progs-bw ,(- (current-seconds) start-time)))
            (set! c-behaviors-bw 0)
            (set! c-progs-bw 0)
         )

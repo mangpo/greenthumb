@@ -39,10 +39,10 @@
 
 (define code
 (send parser ast-from-string "
-clz r1, r1
-clz r0, r0
-rsb r0, r1, r0
-lsr r0, r0, 31
+sub r0, r0, 1
+clz r1, r0
+mvn r0, 0
+rsb r0, r0, r0, lsr r1
 "))
 
 (define sketch
@@ -57,18 +57,12 @@ lsr r0, r0, 31
 
 
 (define (f)
-  (define t (current-seconds))
-  ;; (with-handlers*
-  ;;  ([exn? (lambda (e) #f)])
    (send db synthesize-window2
          encoded-code ;; spec
          encoded-sketch ;; sketch = spec in this case
          encoded-prefix encoded-postfix
          (constraint machine [reg 0] [mem]) #f #f 3600)
-   ;; )
-  
-  (pretty-display `(time ,(- (current-seconds) t)))
-  )
+   )
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem]) ;; constraint
       (constraint machine [reg 0] [mem]) ;; live-in
