@@ -365,10 +365,15 @@
 
     (define t-load 0)
     (define t-build 0)
+    (define t-build-inter 0)
+    (define t-build-hash 0)
+    (define t-build-hash2 0)
     (define t-intersect 0)
     (define t-interpret 0)
     (define t-extra 0)
     (define t-verify 0)
+    (define c-build-hash 0)
+    (define c-build-hash2 0)
     (define c-intersect 0)
     (define c-interpret 0)
     (define c-extra 0)
@@ -914,11 +919,19 @@
                   (define prog (and (not (empty? iterator)) (car iterator)))
                   (when 
                    prog
-                   (let ([state (interpret prog input)])
+                   (let* ([s0 (current-milliseconds)]
+                          [state (interpret prog input)]
+                          [s1 (current-milliseconds)])
                      (if (hash-has-key? real-hash state)
                          (hash-set! real-hash state
                                     (cons prog (hash-ref real-hash state)))
-                         (hash-set! real-hash state (list prog))))
+                         (hash-set! real-hash state (list prog)))
+                     (let ([s2 (current-milliseconds)])
+                       (set! t-build-inter (+ t-build-inter (- s1 s0)))
+                       (set! t-build-hash (+ t-build-hash (- s2 s1)))
+                       (set! c-build-hash (add1 c-build-hash))
+                       )
+                     )
                    (loop (cdr iterator))
                    ))
 
@@ -940,14 +953,23 @@
                   (when 
                    prog
                    (for ([out outputs])
-                        (let ([states (interpret-bw prog out)])
+                        (let ([s0 (current-milliseconds)]
+                              [states (interpret-bw prog out)]
+                              [s1 (current-milliseconds)])
                           (when
                            states
                            (for ([state states])
                                 (if (hash-has-key? real-hash-bw state)
                                     (hash-set! real-hash-bw state
                                                (cons prog (hash-ref real-hash-bw state)))
-                                    (hash-set! real-hash-bw state (list prog)))))))
+                                    (hash-set! real-hash-bw state (list prog)))))
+                          
+                          (let ([s2 (current-milliseconds)])
+                            (set! t-build-inter (+ t-build-inter (- s1 s0)))
+                            (set! t-build-hash2 (+ t-build-hash2 (- s2 s1)))
+                            (set! c-build-hash2 (add1 c-build-hash2))
+                            )
+                          ))
                    (loop-bw (cdr iterator))
                    ))
                 
@@ -1065,18 +1087,17 @@
       (define ttt (current-milliseconds))
       (for ([id (range n-behaviors)])
            ;;(when (= 0 (modulo id 10))
-                 (pretty-display (format "search ~a/~a | ~a = ~a ~a ~a/~a ~a/~a ~a/~a ~a = ~a ~a" 
+                 (pretty-display (format "search ~a/~a | ~a = ~a ~a\t(~a + ~a/~a + ~a/~a)\t~a/~a\t~a/~a\t~a/~a ~a" 
                                          id n-behaviors
                                          (- (current-milliseconds) ttt)
-                                         t-load t-build
+                                         t-load t-build t-build-inter t-build-hash c-build-hash t-build-hash2 c-build-hash2
                                          t-intersect c-intersect
                                          t-interpret c-interpret
                                          t-extra c-extra
                                          t-verify
-                                         t-collect t-check
                                          ))
-                 (set! t-load 0) (set! t-build 0) (set! t-intersect 0) (set! t-interpret 0) (set! t-extra 0) (set! t-verify 0)
-                 (set! c-intersect 0) (set! c-interpret 0) (set! c-extra 0)
+                 (set! t-load 0) (set! t-build 0) (set! t-build-inter 0) (set! t-build-hash 0) (set! t-build-hash2 0) (set! t-intersect 0) (set! t-interpret 0) (set! t-extra 0) (set! t-verify 0)
+                 (set! c-build-hash 0) (set! c-build-hash2 0) (set! c-intersect 0) (set! c-interpret 0) (set! c-extra 0)
                  (set! t-collect 0) (set! t-check 0)
                  (set! ttt (current-milliseconds))
                  ;;)
