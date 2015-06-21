@@ -20,10 +20,10 @@ lsr r0, r0, 31
 
 (define sketch
 (send parser ast-from-string "
-bic r0, r0, r1
-sub r1, r1, r0
-add r1, r0, r1, lsr 1
-mov r0, r1, lsr 31
+	bic	r0, r0, r1
+	cmp	r0, r1
+	movls	r0, #0
+	movhi	r0, #1
 "))
 
 (define encoded-code (send printer encode code))

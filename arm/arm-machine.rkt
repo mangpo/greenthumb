@@ -199,7 +199,7 @@
       (set! fp (third info))
       
       (set! reg-range (list->vector (range nregs)))
-      (set! operand2-range (vector 0 1))
+      (set! operand2-range (vector 0 1 3))
 	    ;; (list->vector ;(range 17)))
 	    ;;  (append (range bit) (list #x3f #xff0000 #xff00 (- #xff000000) (- #x80000000)))))
 

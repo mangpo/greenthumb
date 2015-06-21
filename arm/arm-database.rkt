@@ -66,8 +66,7 @@
 
     ;; TODO: test
     (define (progstate->ids state live)
-      (define use-cmp (member cmp-id (get-field inst-pool machine)))
-      (pretty-display `(use-cmp ,use-cmp))
+      ;; (define use-cmp (member cmp-id (get-field inst-pool machine)))
       (define regs-live (progstate-regs live))
       (define regs (progstate-regs state))
       (define z-live (progstate-z live))
@@ -95,18 +94,19 @@
                  (reverse (vector->list regs))
                  (reverse (vector->list regs-live))
                  (* (vector-member z z-range-db) (power max-val nregs)))]
-       [(not use-cmp)
+       [else ;;(not use-cmp)
         (recurse (list)
                  (reverse (vector->list regs))
                  (reverse (vector->list regs-live))
                  0)]
-       [else
-        (for ([i (vector-length z-range-db)])
-             (pretty-display `(plus ,(* i (power max-val nregs)) ,i ,max-val ,nregs))
-             (recurse (list)
-                      (reverse (vector->list regs))
-                      (reverse (vector->list regs-live))
-                      (* i (power max-val nregs))))])
+       ;; [else
+       ;;  (for ([i (vector-length z-range-db)])
+       ;;       (pretty-display `(plus ,(* i (power max-val nregs)) ,i ,max-val ,nregs))
+       ;;       (recurse (list)
+       ;;                (reverse (vector->list regs))
+       ;;                (reverse (vector->list regs-live))
+       ;;                (* i (power max-val nregs))))]
+       )
       ret)
       
     (define (power b p)

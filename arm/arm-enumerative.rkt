@@ -26,7 +26,8 @@
     (define cond-type-len (vector-length (get-field cond-inst-id machine)))
     (define shf-inst-id (get-field shf-inst-id machine))
     (define shf-inst-len (vector-length shf-inst-id))
-    (define cmp-id (vector-member `cmp inst-id))
+    (define cmp-inst
+      (map (lambda (x) (vector-member x inst-id))'(cmp tst cmp# tst#)))
 
     (define inst-mod '(add sub rsb
 			and orr eor bic orn
@@ -56,13 +57,13 @@
     (define (reset-generate-inst state live-in regs type lex 
                                  #:no-args [no-args #f])
       (define mode (cond [regs `vir] [no-args `no-args] [else `basic]))
-      (define inst-choice '(clz rsb lsr#))
-      (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
-      ;; (define inst-pool (get-field inst-pool machine))
+      ;; (define inst-choice '(clz rsb lsr# cmp))
+      ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
+      (define inst-pool (get-field inst-pool machine))
+      (set! inst-pool (remove* cmp-inst inst-pool))
       (define z
         (cond
          [state (vector-ref state 2)]
-         [(member cmp-id inst-pool) 0]
          [else -1]))
       (cond
        [(equal? type `mod+high) 
