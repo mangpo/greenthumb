@@ -79,7 +79,7 @@
       (pretty-display (format "# of programs = ~a" n-progs))
       (pretty-display (format "# of behavior = ~a" (hash-count behavior2progs)))
 
-      behavior2progs
+      (save-to-file behavior2progs 0)
       )
 
     (define (gen-behavior-usable)

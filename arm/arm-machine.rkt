@@ -518,21 +518,21 @@
                      rev rev16 revsh rbit
                      asr lsl lsr
                      lsl# 
-        	     asr# lsr#
-                     mul mla mls
+        	     ;; asr# lsr#
+                     ;; mul mla mls
 
-                     smull umull
-                     smmul smmla smmls
+                     ;; smull umull
+                     ;; smmul smmla smmls
 
-                     sdiv udiv
-        	     uxtah uxth uxtb
-                     bfc bfi
-                     sbfx ubfx
+                     ;; sdiv udiv
+        	     ;; uxtah uxth uxtb
+                     ;; bfc bfi
+                     ;; sbfx ubfx
                      clz
                      ;; ldr str
                      ;; ldr# str#
-                     tst cmp
-                     tst# cmp#
+                     ;; tst cmp
+                     ;; tst# cmp#
                      ))
                                 
       (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
