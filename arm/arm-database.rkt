@@ -18,6 +18,8 @@
     (define nmems (send machine get-nmems))
     (define max-val (arithmetic-shift 1 bit))
     (define mask (sub1 (arithmetic-shift 1 bit)))
+    (define inst-id (get-field inst-id machine))
+    (define cmp-id (vector-member `cmp inst-id))
 
     (define reg-range-db
       (for/vector ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
@@ -64,30 +66,47 @@
 
     ;; TODO: test
     (define (progstate->ids state live)
+      (define use-cmp (member cmp-id (get-field inst-pool machine)))
+      (pretty-display `(use-cmp ,use-cmp))
       (define regs-live (progstate-regs live))
       (define regs (progstate-regs state))
+      (define z-live (progstate-z live))
       (define z (progstate-z state))
 
       (define ret (list))
 
-      (define (inner regs)
+      (define (inner regs plus)
         (define id 0)
         (for ([r regs]) (set! id (+ (* id max-val) (bitwise-and r mask))))
-        (set! ret (cons id ret)))
+        (set! ret (cons (+ plus id) ret)))
 
-      (define (recurse ans regs live )
+      (define (recurse ans regs live plus)
         (cond
-         [(empty? regs) (inner ans)]
-         [(car live) (recurse (cons (car regs) ans) (cdr regs) (cdr live))]
+         [(empty? regs) (inner ans plus)]
+         [(car live) (recurse (cons (car regs) ans) (cdr regs) (cdr live) plus)]
          [else
           (for ([v reg-range-db])
-               (recurse (cons v ans) (cdr regs) (cdr live)))]
+               (recurse (cons v ans) (cdr regs) (cdr live) plus))]
          ))
 
-      (recurse (list)
-               (reverse (vector->list regs))
-               (reverse (vector->list regs-live)))
-
+      (cond
+       [z-live 
+        (recurse (list)
+                 (reverse (vector->list regs))
+                 (reverse (vector->list regs-live))
+                 (* (vector-member z z-range-db) (power max-val nregs)))]
+       [(not use-cmp)
+        (recurse (list)
+                 (reverse (vector->list regs))
+                 (reverse (vector->list regs-live))
+                 0)]
+       [else
+        (for ([i (vector-length z-range-db)])
+             (pretty-display `(plus ,(* i (power max-val nregs)) ,i ,max-val ,nregs))
+             (recurse (list)
+                      (reverse (vector->list regs))
+                      (reverse (vector->list regs-live))
+                      (* i (power max-val nregs))))])
       ret)
       
     (define (power b p)

@@ -41,9 +41,7 @@
       (pretty-display `(n-states ,n-states))
 
       (define inst-iterator
-        (send enum reset-generate-inst 
-              (send machine progstate->vector (car all-states))
-              live-list #f `all #f))
+        (send enum reset-generate-inst #f live-list #f `all #f))
 
       (define behavior2progs (make-hash))
       (define n-progs 0)
@@ -56,7 +54,7 @@
 
         (when
          my-inst
-         ;;(send printer print-syntax-inst (send printer decode-inst my-inst))
+         (send printer print-syntax-inst (send printer decode-inst my-inst))
          (set! n-progs (add1 n-progs))
          (define behavior (make-vector n-states))
          (for ([state all-states]
@@ -1145,7 +1143,7 @@
                       (when out (recurse val (cons out states-id-accum))))))))
          
         (recurse prev-classes-bw (list)))
-      
+
       ;; Grow forward
       (for ([i 2])
         (newline)
