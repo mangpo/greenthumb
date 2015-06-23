@@ -16,9 +16,8 @@
     (super-new)
     (init-field k [all-yes 0] [all-no 0])
     (public set-type! gen-abstract-behavior load-abstract-behavior interpret-inst)
-
-
-    (define machine (new arm-machine%))
+    
+    (define machine (new arm-machine% [bit 32]))
     (send machine set-config (list 5 0 4)) ;; TODO: memory
     (define simulator (new arm-simulator-rosette% [machine machine]))
 
