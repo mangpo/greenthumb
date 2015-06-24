@@ -137,17 +137,13 @@
 	
         ret)
      
-      (define (same) (list (vector (vector-copy regs) (vector-copy mem) z fp)))
-      (define (convert x) (and x (for/list ([i x]) (vector i (vector-copy mem) z fp))))
- 
+      (define (same) (list (vector (vector-copy regs) (vector-copy mem) -1 fp)))
+      (define (convert x) (and x (for/list ([i x]) (vector i (vector-copy mem) -1 fp))))
+      ;; TODO: z != -1
+
       (cond
-       [(member opcode-name '(tst cmp tst# cmp#))
-	(define ret (exec))
-	(if (list? ret)
-            (for*/list ([x ret]
-                        [new-z (list -1 0 1 2 3)])
-              (vector x (vector-copy mem) new-z fp))
-	    ret)]
+       ;; [(member opcode-name '(tst cmp tst# cmp#))
+       ;;  (convert (exec))]
 
        [(or (equal? cond-type 0) (equal? z -1))
 	(convert (exec))]

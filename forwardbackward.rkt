@@ -140,6 +140,7 @@
       (set! spec (reduce-precision spec))
       (set! prefix (reduce-precision prefix))
       (set! postfix (reduce-precision postfix))
+      (send printer print-syntax (send printer decode spec))
 
       (send machine analyze-opcode prefix spec postfix)
       (send machine analyze-args prefix spec postfix #:vreg 0)
@@ -153,12 +154,32 @@
       ;; (define inits
       ;;   (send validator generate-input-states ntests (vector-append prefix spec postfix)
       ;;         assumption extra #:db #t))
-      ;; p19
+      ;; p10
       (define inits
         (list
-         (progstate (vector -6 -5 3 5) (vector) -1 4)
-         (progstate (vector 6 3 4 5) (vector) -1 4)
-         ))
+         (progstate (vector -7 5 0) (vector) -1 4)
+         (progstate (vector 5 7 0) (vector) -1 4)
+      	 ))
+      ;; p11
+      ;; (define inits
+      ;;   (list
+      ;;    (progstate (vector 4 0) (vector) -1 4)
+      ;;    (progstate (vector -8 -4) (vector) -1 4)
+      ;;    ;; (progstate (vector -6 4) (vector) -1 4)
+      ;; 	 ))
+      ;; p24
+      ;; (define inits
+      ;;   (list
+      ;;    (progstate (vector 5 0) (vector) -1 4)
+      ;;    (progstate (vector 3 0) (vector) -1 4)
+      ;;    (progstate (vector -1 0) (vector) -1 4)
+      ;;    ))
+      ;; p19
+      ;; (define inits
+      ;;   (list
+      ;;    (progstate (vector -6 -5 3 5) (vector) -1 4)
+      ;;    (progstate (vector 6 3 4 5) (vector) -1 4)
+      ;;    ))
       (define states1 
 	(map (lambda (x) (send simulator interpret prefix x #:dep #f)) inits))
       (define states2
@@ -354,11 +375,14 @@
           (define real-hash my-classes)
           (define real-hash-bw my-classes-bw)
                                             
-          (when (and (list? real-hash)
-                     (or (> (count-collection real-hash) 8)
-                         (hash? real-hash-bw)
-                         (and (list? real-hash-bw)
-                              (> (count-collection real-hash-bw) 8))))
+          (when 
+	   ;;(list? real-hash) 
+	   (and (list? real-hash)
+		(or (> (count-collection real-hash) 256)
+		    (hash? real-hash-bw)
+		    (and (list? real-hash-bw)
+			 (> (count-collection real-hash-bw) 256))))
+		;;(pretty-display `(build-fw ,level ,(count-collection real-hash) ,(hash? real-hash-bw)))
                 ;; list of programs
                 (define t0 (current-milliseconds))
                 (set! real-hash (make-hash))
@@ -392,9 +416,12 @@
                 (set! t-build (+ t-build (- t1 t0)))
                 )
           
-          (when (and (list? real-hash-bw)
-                     (hash? real-hash))
+          (when 
+	   ;;(list? real-hash-bw)
+	   (and (list? real-hash-bw)
+		(hash? real-hash))
                      ;;(> (count-collection real-hash-bw) 8))
+		;;(pretty-display `(build-bw ,level))
                 ;; list of programs
                 (define t0 (current-milliseconds))
                 (set! real-hash-bw (make-hash))
@@ -465,7 +492,8 @@
                        (check-eqv (hash-ref real-hash inter)
                                   (hash-ref real-hash-bw out-vec)
                                   my-inst ce-count)
-                       (set! ce-count ce-count-extra))
+                       (set! ce-count ce-count-extra)
+		       )
                      (let-values ([(a b)
                                    (outer (hash-ref real-hash inter)
                                           (hash-ref real-hash-bw out-vec)
@@ -483,6 +511,7 @@
             (check-eqv (collect-behaviors real-hash)
                        (collect-behaviors real-hash-bw)
                        my-inst level)
+	    (set! ce-count ce-count-extra)
             ;; (values (cond
             ;;          [(hash? real-hash) real-hash]
             ;;          [(box? real-hash) real-hash]
@@ -539,6 +568,12 @@
         (define inst-liveout-vreg (iterator))
 	(define my-inst (first inst-liveout-vreg))
 	(define my-liveout (third inst-liveout-vreg))
+
+	;; (define my-inst 
+	;;   (vector-ref (send printer encode 
+	;; 		    (send parser ast-from-string "lsr r0, r1, 3"))
+	;; 	      0))
+	;; (define my-liveout '(1))
 
 	(when my-inst
           ;;(send printer print-syntax-inst (send printer decode-inst my-inst))
@@ -599,7 +634,10 @@
       (define (refine-all hash1 live1 hash2 live2 iterator)
 	(define inst-liveout-vreg (iterator))
         (define my-inst (first inst-liveout-vreg))
-
+	;; (define my-inst 
+	;;   (vector-ref (send printer encode 
+	;; 		    (send parser ast-from-string "add r1, r0, r1"))
+	;; 	      0))
         (when 
             my-inst
           (send printer print-syntax-inst (send printer decode-inst my-inst))
@@ -616,7 +654,8 @@
           (set! t-build 0) (set! t-build-inter 0) (set! t-build-hash 0) (set! t-build-hash2 0) (set! t-intersect 0) (set! t-interpret 0) (set! t-extra 0) (set! t-verify 0)
           (set! c-build-hash 0) (set! c-build-hash2 0) (set! c-intersect 0) (set! c-interpret 0) (set! c-extra 0) (set! c-check 0)
           (set! t-collect 0) (set! t-check 0)
-          (refine-all hash1 live1 hash2 live2 iterator)))
+          (refine-all hash1 live1 hash2 live2 iterator)
+	  ))
 
       ;; Search
       (define ttt (current-milliseconds))
@@ -630,7 +669,7 @@
                    (send enum reset-generate-inst #f live1 live2 #f `all #f)])
              (newline)
              (pretty-display `(refine ,live1 ,live2))
-             (refine-all my-hash1 live1 my-hash2 live2 iterator)
+	     (refine-all my-hash1 live1 my-hash2 live2 iterator)
              ))
       )
     ))

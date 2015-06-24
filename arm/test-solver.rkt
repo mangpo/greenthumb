@@ -11,19 +11,19 @@
 
 (define code
 (send parser ast-from-string "
-clz r1, r1
-clz r0, r0
-rsb r0, r1, r0
-lsr r0, r0, 31
+bic	r0, r0, r1
+cmp	r0, r1
+movls	r0, #0
+movhi	r0, #1
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-	bic	r0, r0, r1
-	cmp	r0, r1
-	movls	r0, #0
-	movhi	r0, #1
+orr r0, r0, r1
+rsb r0, r0, r0, lsr 1
+add r1, r0, r1
+lsr r0, r1, 31
 "))
 
 (define encoded-code (send printer encode code))
