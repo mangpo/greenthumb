@@ -7,7 +7,7 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine% [bit 4]))
-(send machine set-config (list 4 0 4))
+(send machine set-config (list 3 0 4))
 (define printer (new arm-printer% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 (define simulator (new arm-simulator-racket% [machine machine]))
@@ -30,8 +30,8 @@
 
 (define k 2)
 (define type `high)
-(send enum reset-generate-inst #f (list 0) #f 
-      `all #f #:no-args #t)
+(send enum reset-generate-inst #f (list 0 1) (list 0) #f 
+      `all #f #:no-args #f)
 (define abst (new arm-abstract% [k k]))
 (send abst set-type! type)
 
@@ -47,8 +47,8 @@
         ;; (with-output-to-file (format "rm progress_~a_k~a.log" type k) #:exists 'append
         ;;   (thunk (send printer print-syntax (send printer decode my-inst))))
         (send printer print-syntax (send printer decode my-inst))
-        (let ([pair (send inverse gen-inverse-behavior my-inst)])
-          (hash-set! behavior (car pair) (cdr pair)))
+        ;(let ([pair (send inverse gen-inverse-behavior my-inst)])
+        ;  (hash-set! behavior (car pair) (cdr pair)))
 	;; (send abst gen-abstract-behavior my-inst)
         (loop (add1 count))
         )

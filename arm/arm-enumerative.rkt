@@ -54,7 +54,7 @@
 
     ;; If regs is not #f, use virtual registers
     ;; If lex is not #f, impose lexical order. This is only valid with virtual registers.
-    (define (reset-generate-inst state live-in regs type lex 
+    (define (reset-generate-inst state live-in live-out regs type lex 
                                  #:no-args [no-args #f])
       (define mode (cond [regs `vir] [no-args `no-args] [else `basic]))
       ;; (define inst-choice '(clz rsb lsr# cmp))
@@ -90,7 +90,10 @@
                (define (check-yield)  
                  (let* ([i (arm-inst opcode-id (list->vector (reverse args)) 
                                      shfop shfarg cond-type)]
-                        [ret (list i (send machine update-live live-in i) v-reg)])
+                        [ret (list i 
+				   (and live-in (send machine update-live live-in i))
+				   (and live-out (send machine update-live-backward live-out i))
+				   v-reg)])
                    (if lex
                        (let ([my-lex (lexical-skeleton i)])
                          (if my-lex
@@ -186,6 +189,7 @@
 			    [arg-ranges 
 			     (vector->list 
 			      (send machine get-arg-ranges opcode-name #f live-in 
+				    #:live-out live-out
 				    #:mode mode))]
 			    [v-reg (cond [regs regs] [no-args (cons 0 3)] [else #f])]
 			    [cond-bound (if (or (= z -1) regs) 1 cond-type-len)]) ;; TODO
@@ -213,7 +217,7 @@
                                 (recurse-args opcode-name opcode-id 0 #f cond-type 
                                               (list) arg-ranges v-reg)
 				))))))
-	     (yield (list #f #f #f))))
+	     (yield (list #f #f #f #f))))
       generate-inst 
       )
 

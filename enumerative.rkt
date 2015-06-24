@@ -732,7 +732,7 @@
                (when debug (pretty-display `(inner2)))
 	       (define my-inst (first inst-liveout-vreg))
 	       (define my-liveout (second inst-liveout-vreg))
-	       (define my-vreg (third inst-liveout-vreg))
+	       (define my-vreg (fourth inst-liveout-vreg))
                (set! cache (make-hash))
                (when debug (pretty-display `(inner ,inst-liveout-vreg)))
                (when 
@@ -827,7 +827,7 @@
 		  (for ([type '(mod+high mod-high high-mod rest)])
 		       (newline)
 		       (pretty-display (format "TYPE: ~a" type))
-		       (reset-generate-inst state-rep live-list (and virtual my-vreg) 
+		       (reset-generate-inst state-rep live-list #f (and virtual my-vreg) 
 					    type #f) 
 		       (set! abst-hash (abst-loop abst-hash live-list my-vreg type))
                        )
@@ -847,7 +847,7 @@
 		       [state-rep (find-first-state hash2)])
 		  (pretty-display `(key ,live-vreg))
 
-                  (reset-generate-inst state-rep live-list (and virtual my-vreg)
+                  (reset-generate-inst state-rep live-list #f (and virtual my-vreg)
                                        `all #f)
                   (enumerate hash2) ;; no check
                   ))
@@ -1131,7 +1131,7 @@
             (define inst-liveout-vreg (generate-inst))
             (define my-inst (first inst-liveout-vreg))
             (define my-liveout (second inst-liveout-vreg))
-            (define my-vreg (third inst-liveout-vreg))
+            (define my-vreg (fourth inst-liveout-vreg))
             (when 
              my-inst
              
@@ -1175,7 +1175,7 @@
         ;; (for ([x data])
         ;;      (let ([progs (record-progs x)]
         ;;            [outputs (record-states x)])
-        ;;        (reset-generate-inst outputs live-list #f `all #f)
+        ;;        (reset-generate-inst outputs live-list #f #f `all #f)
         ;;        (enumerate outputs progs)))
 
         (send time start `hash)
@@ -1186,7 +1186,7 @@
              (let ([outputs 
                     (map (lambda (x) (send machine vector->progstate x)) (car pair))]
                    [progs (cdr pair)])
-               (reset-generate-inst outputs live-list #f `all #f)
+               (reset-generate-inst outputs live-list #f #f `all #f)
                (enumerate outputs progs)))
 
         (when (< len max-size) (update-hash prev-classes classes))

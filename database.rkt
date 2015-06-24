@@ -41,7 +41,7 @@
       (pretty-display `(n-states ,n-states))
 
       (define inst-iterator
-        (send enum reset-generate-inst #f live-list #f `all #f))
+        (send enum reset-generate-inst #f live-list #f #f `all #f))
 
       (define behavior2progs (make-hash))
       (define n-progs 0)
@@ -50,7 +50,7 @@
         (define inst-liveout-vreg (iterator))
         (define my-inst (first inst-liveout-vreg))
         (define my-liveout (second inst-liveout-vreg))
-        (define my-vreg (third inst-liveout-vreg))
+        (define my-vreg (fourth inst-liveout-vreg))
 
         (when
          my-inst
@@ -686,9 +686,7 @@
         (set! classes (make-hash))
         (let ([state-rep (find-first-state prev-classes)]) ;; TODO
           (enumerate
-           (send enum reset-generate-inst state-rep
-                 (range (send machine get-nregs))
-                 #f `all #f)))
+           (send enum reset-generate-inst state-rep #f #f #f `all #f)))
         (set! prev-classes classes)
         (pretty-display `(behavior ,c-behaviors ,c-progs))
         (set! c-behaviors 0)

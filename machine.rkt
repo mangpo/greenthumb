@@ -22,7 +22,7 @@
             output-assume-string get-state-liveness
             display-state-text parse-state-text get-states-from-file syntax-equal?
 	    clean-code state-eq? relaxed-state-eq?
-	    update-live filter-live get-operand-live
+	    update-live update-live-backward filter-live get-operand-live
 	    analyze-opcode analyze-args get-nregs
             reset-inst-pool is-virtual-reg)
 
@@ -104,19 +104,9 @@
     (define (relaxed-state-eq? state1 state2 pred [out-loc #f])
       (state-eq? state1 state2 pred))
 
-    ;; (define (update-live live x)
-    ;;   (define (add-live ele lst)
-    ;;     (if (member ele lst) lst (cons ele lst)))
-    ;;   (and live
-    ;;        (cond
-    ;;         [(= (vector-length (inst-args x)) 0) live]
-    ;;         [else
-    ;;          (let ([def (vector-ref (inst-args x) 0)])
-    ;;            (if (number? def)
-    ;;                (add-live def live)
-    ;;                (foldl add-live live def)))])))
 
     (define (update-live live x) live)
+    (define (update-live-backward live x) live)
 
     (define (filter-live range live)
       (if live

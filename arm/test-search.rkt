@@ -4,14 +4,14 @@
          "arm-parser.rkt" "arm-ast.rkt"
          "arm-simulator-rosette.rkt" "arm-simulator-racket.rkt" 
          "arm-enumerative.rkt" "arm-symbolic.rkt" "arm-stochastic.rkt"
-         "arm-database.rkt")
+         "arm-database.rkt" "arm-inverse.rkt" "arm-forwardbackward.rkt")
 
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine% [bit 4]))
-(send machine set-config (list 2 0 4))
-(define machine-precise (new arm-machine% [bit 32]))
-(send machine-precise set-config (list 2 0 4))
+(send machine set-config (list 4 0 4))
+(define machine-precise (new arm-machine% [bit 4]))
+(send machine-precise set-config (list 4 0 4))
 
 (define printer (new arm-printer% [machine machine]))
 (define simulator-racket (new arm-simulator-racket% [machine machine]))
@@ -29,6 +29,13 @@
                 [printer printer] [parser parser] 
                 [validator validator] [validator-precise validator-precise]))
 
+(define inverse (new arm-inverse% [machine machine] [simulator simulator-racket]))
+(define backward (new arm-forwardbackward% [machine machine] [enum enum] 
+		      [simulator simulator-racket]
+		      [simulator-precise simulator-racket-precise]
+		      [printer printer] [parser parser] [inverse inverse]
+		      [validator validator] [validator-precise validator-precise]))
+
 (define prefix
 (send parser ast-from-string "
 "))
@@ -39,10 +46,10 @@
 
 (define code
 (send parser ast-from-string "
-	bic	r0, r0, r1
-	cmp	r0, r1
-	movls	r0, #0
-	movhi	r0, #1
+	eor	r3, r0, r0, asr r2
+	and	r1, r3, r1
+	eor	r0, r1, r0
+	eor	r0, r0, r1, asl r2
 "))
 
 (define sketch
@@ -57,11 +64,11 @@
 
 
 (define (f)
-   (send db synthesize-window2
+   (send backward synthesize-window
          encoded-code ;; spec
          encoded-sketch ;; sketch = spec in this case
          encoded-prefix encoded-postfix
-         (constraint machine [reg 0] [mem]) #f #f 3600)
+         (constraint machine [reg 0 1] [mem]) #f #f 3600)
    )
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem]) ;; constraint

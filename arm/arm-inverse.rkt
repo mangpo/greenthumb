@@ -10,7 +10,7 @@
   (class object%
     (super-new)
     (init-field machine simulator)
-    (public gen-inverse-behavior)
+    (public gen-inverse-behavior interpret-inst)
 
     (define bit (get-field bit machine))
     (define inst-id (get-field inst-id machine))
@@ -42,8 +42,9 @@
 	    [(equal? type `reg-io) (set! in (cons arg in)) (set! out (cons arg out))]
 	    [else (set! inst-type (cons arg inst-type))]))
 
-      (values (reverse inst-type) (list->vector (reverse in)) (list->vector (reverse out))))
+      (values (reverse inst-type) (reverse in) (reverse out)))
     
+    (define behaviors-bw (make-hash))
     (define (gen-inverse-behavior my-inst)
       (define opcode-name (vector-ref inst-id (inst-op my-inst)))
       (define in (make-vector 5 #f))
@@ -93,7 +94,81 @@
       (recurse-regs (reverse (vector->list in)) (list))
       
       (define-values (x regs-in regs-out) (get-inst-in-out my-inst))
-      (cons x behavior-bw))
+      (hash-set! behaviors-bw x behavior-bw))
+
+    (define (interpret-inst my-inst state-vec old-liveout)
+      (pretty-display `(interpret ,state-vec ,old-liveout))
+      (define opcode-name (vector-ref inst-id (inst-op my-inst)))
+      (define cond-type (arm-inst-cond my-inst))
+
+      (define regs (vector-ref state-vec 0))
+      (define mem (vector-ref state-vec 1))
+      (define z (vector-ref state-vec 2))
+
+
+      (define (exec)
+	(define-values (x regs-in regs-out) (get-inst-in-out my-inst))
+	(define regs-base (make-vector (vector-length regs) #f))
+	(for ([i old-liveout])
+	     (unless (member i regs-out) (vector-set! regs-base i (vector-ref regs i))))
+	(define regs-out-val 
+	  (for/list ([r regs-out]) (vector-ref regs r)))
+
+	(define mapping (hash-ref behaviors-bw x))
+        (define ret (and (hash-has-key? mapping regs-out-val) (list)))
+
+	(when ret
+	      (define regs-in-val-list (hash-ref mapping regs-out-val))
+	      (for ([regs-in-val regs-in-val-list])
+		   (let ([new-regs (vector-copy regs-base)]
+			 [pass #t])
+		     (for ([r regs-in]
+			   [v regs-in-val] #:break (not pass))
+			  (cond
+			   [(vector-ref new-regs r)
+			    (unless (= v (vector-ref new-regs r))
+				    (set! pass #f))]
+			   [else (vector-set! new-regs r v)]))
+		     (when pass (set! ret (cons new-regs ret))))))
+	
+        ret)
+     
+      (define (same) (list (vector (vector-copy regs) (vector-copy mem) z fp)))
+      (define (convert x) (and x (for/list ([i x]) (vector i (vector-copy mem) z fp))))
+ 
+      (cond
+       [(member opcode-name '(tst cmp tst# cmp#))
+	(define ret (exec))
+	(if (list? ret)
+            (for*/list ([x ret]
+                        [new-z (list -1 0 1 2 3)])
+              (vector x (vector-copy mem) new-z fp))
+	    ret)]
+
+       [(or (equal? cond-type 0) (equal? z -1))
+	(convert (exec))]
+
+       [(equal? cond-type 1) ;; eq
+	(if (equal? z 0) (convert (exec)) (same))]
+
+       [(equal? cond-type 2) ;; ne
+	(if (member z (list 1 2 3)) (convert (exec)) (same))]
+
+       [(equal? cond-type 3) ;; ls
+	(if (member z (list 0 2)) (convert (exec)) (same))]
+
+       [(equal? cond-type 4) ;; hi
+	(if (equal? z 3) (convert (exec)) (same))]
+
+       [(equal? cond-type 5) ;; cc
+	(if (equal? z 2) (convert (exec)) (same))]
+
+       [(equal? cond-type 6) ;; cs
+	(if (member z (list 0 3)) (convert (exec)) (same))]
+       
+       [else (raise (format "illegal cond-type ~a" cond-type))]
+       ))
+      
 
     ))
 
@@ -102,13 +177,18 @@
 (define simulator (new arm-simulator-racket% [machine machine]))
 
 (define inverse (new arm-inverse% [machine machine] [simulator simulator]))
-(send machine set-config (list 5 0 4))
+(send machine set-config (list 4 0 4))
 (define printer (new arm-printer% [machine machine]))
 (define parser (new arm-parser%))
 (define my-inst 
   (vector-ref (send printer encode 
-                    (send parser ast-from-string "bfc r0, 1, 2"))
+                    (send parser ast-from-string "add r1, r1, r2, asr r3"))
               0))
 
+(define input-state (vector (vector -1 1 -8 1)
+			    (vector) -1 4))
+
 (send inverse gen-inverse-behavior my-inst)
+(send inverse interpret-inst my-inst input-state (list 0 1))
 |#
+

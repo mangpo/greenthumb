@@ -95,7 +95,7 @@
 	      get-arg-ranges get-operand-live
 	      window-size clean-code 
 	      analyze-opcode analyze-args relaxed-state-eq? get-nregs
-	      is-virtual-reg update-live)
+	      is-virtual-reg update-live update-live-backward)
     (public get-shfarg-range get-arg-types)
 
     (set! random-input-bit bit)
@@ -389,6 +389,26 @@
 	    [(member opcode-name '(nop str#)) live]
 	    [else (add-live (vector-ref args 0) live)])))
 
+    (define (update-live-backward live x)
+      (define opcode-name (vector-ref inst-id (inst-op x)))
+      (define args (inst-args x))
+      (define args-type (get-arg-types opcode-name))
+
+      (define (add-live ele lst)
+	(if (member ele lst) 
+	    ;; remove and add because we want the latest reg at the beginning.
+	    (cons ele (remove ele lst))
+	    (cons ele lst)))
+
+      (for ([arg args]
+	    [type args-type])
+	   (cond
+	    [(equal? type `reg-o) (set! live (remove arg live))]
+	    [(equal? type `reg-i) (set! live (add-live arg live))]))
+
+      live)
+      
+
     (define (get-arg-types opcode-name)
       (define class-id (get-class-id opcode-name))
       (cond
@@ -407,16 +427,29 @@
     
       
     ;; nargs, ranges
-    (define (get-arg-ranges opcode-name entry live-in #:mode [mode `basic])
-      (define-syntax-rule (reg)
-        (filter-live reg-range live-in))
+    (define (get-arg-ranges opcode-name entry live-in #:live-out [live-out #f] #:mode [mode `basic])
+      (define reg-i
+	(if live-in
+	    (filter-live reg-range live-in)
+	    reg-range))
+
+      (define reg-o
+	(if live-out
+	    (filter-live reg-range live-out)
+	    reg-range))
+
+      (define reg-io (list))
+      (for ([i reg-i])
+	   (when (vector-member i reg-o) (set! reg-io (cons i reg-io))))
+      (set! reg-io (list->vector (reverse reg-io)))
+
       (for/vector 
        ([type (get-arg-types opcode-name)])
        (if (equal? mode `basic)
 	   (cond
-	    [(equal? type `reg-o)  reg-range]
-	    [(equal? type `reg-i)  (reg)]
-	    [(equal? type `reg-io) (reg)]
+	    [(equal? type `reg-o)  reg-o]
+	    [(equal? type `reg-i)  reg-i]
+	    [(equal? type `reg-io) reg-io]
 	    [(equal? type `op2)    operand2-range]
 	    [(equal? type `const)  const-range]
 	    [(equal? type `bit)    bit-range]
@@ -425,8 +458,8 @@
 	    [(equal? type `fp)     (vector "fp")])
 	   (cond
 	    [(equal? type `reg-o)  `reg-o]
-	    [(equal? type `reg-i)  (if (equal? mode `vir) (reg) `reg-i)]
-	    [(equal? type `reg-io) (if (equal? mode `vir) (reg) `reg-i)]
+	    [(equal? type `reg-i)  (if (equal? mode `vir) reg-i `reg-i)]
+	    [(equal? type `reg-io) (if (equal? mode `vir) reg-io `reg-i)]
 	    [(equal? type `op2)    operand2-range]
 	    [(equal? type `const)  const-range]
 	    [(equal? type `bit)    bit-range]
