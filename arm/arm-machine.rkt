@@ -393,12 +393,17 @@
       (define opcode-name (vector-ref inst-id (inst-op x)))
       (define args (inst-args x))
       (define args-type (get-arg-types opcode-name))
+      (define shfop (inst-shfop x))
+      (define shfarg (inst-shfarg x))
 
       (define (add-live ele lst)
 	(if (member ele lst) 
 	    ;; remove and add because we want the latest reg at the beginning.
 	    (cons ele (remove ele lst))
 	    (cons ele lst)))
+
+      (when (member (vector-ref shf-inst-id shfop) '(asr lsl lsr))
+            (set! live (add-live shfarg live)))
 
       (for ([arg args]
 	    [type args-type])

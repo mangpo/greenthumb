@@ -66,6 +66,7 @@
                (when m (set! out-list (cons r out-list))))
           
           (define key (reverse out-list))
+          ;;(pretty-display `(inout ,in-res ,(progstate-regs out-state) ,in-list-filtered ,key))
           (if (hash-has-key? behavior-bw key)
               (hash-set! behavior-bw key
                          (cons in-list-filtered (hash-ref behavior-bw key)))
@@ -94,10 +95,11 @@
       (recurse-regs (reverse (vector->list in)) (list))
       
       (define-values (x regs-in regs-out) (get-inst-in-out my-inst))
+      ;;(pretty-display `(behavior-bw ,behavior-bw))
       (hash-set! behaviors-bw x behavior-bw))
 
     (define (interpret-inst my-inst state-vec old-liveout)
-      (pretty-display `(interpret ,state-vec ,old-liveout))
+      ;;(pretty-display `(interpret ,state-vec ,old-liveout))
       (define opcode-name (vector-ref inst-id (inst-op my-inst)))
       (define cond-type (arm-inst-cond my-inst))
 
@@ -119,6 +121,7 @@
 
 	(when ret
 	      (define regs-in-val-list (hash-ref mapping regs-out-val))
+              ;;(pretty-display `(ref ,regs-out-val ,regs-in-val-list))
 	      (for ([regs-in-val regs-in-val-list])
 		   (let ([new-regs (vector-copy regs-base)]
 			 [pass #t])
@@ -127,7 +130,8 @@
 			  (cond
 			   [(vector-ref new-regs r)
 			    (unless (= v (vector-ref new-regs r))
-				    (set! pass #f))]
+                              
+                              (set! pass #f))]
 			   [else (vector-set! new-regs r v)]))
 		     (when pass (set! ret (cons new-regs ret))))))
 	
@@ -180,15 +184,19 @@
 (send machine set-config (list 4 0 4))
 (define printer (new arm-printer% [machine machine]))
 (define parser (new arm-parser%))
-(define my-inst 
+(define my-inst-0
   (vector-ref (send printer encode 
-                    (send parser ast-from-string "add r1, r1, r2, asr r3"))
+                    (send parser ast-from-string "eor r3, r1, r2, lsl r0"))
               0))
 
-(define input-state (vector (vector -1 1 -8 1)
+(define my-inst 
+  (vector-ref (send printer encode 
+                    (send parser ast-from-string "eor r0, r0, r1, lsl r2"))
+              0))
+
+(define input-state (vector (vector 4 2 4 6)
 			    (vector) -1 4))
 
-(send inverse gen-inverse-behavior my-inst)
-(send inverse interpret-inst my-inst input-state (list 0 1))
-|#
+(send inverse gen-inverse-behavior my-inst-0)
+(send inverse interpret-inst my-inst input-state (list 0 1))|#
 

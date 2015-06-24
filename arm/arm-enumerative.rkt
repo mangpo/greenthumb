@@ -57,8 +57,9 @@
     (define (reset-generate-inst state live-in live-out regs type lex 
                                  #:no-args [no-args #f])
       (define mode (cond [regs `vir] [no-args `no-args] [else `basic]))
-      ;; (define inst-choice '(clz rsb lsr# cmp))
-      ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
+      (define inst-choice '(eor and))
+      ;;(define inst-choice '(clz rsb lsr#))
+      ;;(define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
       (define inst-pool (get-field inst-pool machine))
       (set! inst-pool (remove* cmp-inst inst-pool))
       (define z

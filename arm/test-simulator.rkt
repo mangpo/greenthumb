@@ -5,24 +5,23 @@
          "arm-simulator-racket.rkt"
          )
 
-(current-bitwidth 32)
+(current-bitwidth 4)
 (define parser (new arm-parser%))
-(define machine (new arm-machine%))
-(send machine set-config (list  5 0 4)) ;; argument = (list num-regs memory)
+(define machine (new arm-machine% [bit 4]))
+(send machine set-config (list  4 0 4)) ;; argument = (list num-regs memory)
 (define printer (new arm-printer% [machine machine]))
 (define simulator-racket (new arm-simulator-racket% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 
 ;; Input machine state
-(define input-state (progstate (vector 536870912 -1610612736 0 0 0)
+(define input-state (progstate (vector -2 1 2 1)
                                (vector) -1 4))
 
 ;; Section 1: Concrete program
 
 (define code
 (send parser ast-from-string "
-clz r2, r1
-mvn r3, 0
+eor	r0, r0, r1
 "))
 
 (send printer print-struct code)
