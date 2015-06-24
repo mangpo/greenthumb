@@ -79,7 +79,8 @@
       (pretty-display (format "# of programs = ~a" n-progs))
       (pretty-display (format "# of behavior = ~a" (hash-count behavior2progs)))
 
-      (save-to-file behavior2progs 0)
+      ;;(save-to-file behavior2progs 0)
+      behavior2progs
       )
 
     (define (gen-behavior-usable)
@@ -783,18 +784,19 @@
       ;;   (send validator generate-input-states ntests (vector-append prefix spec postfix)
       ;;         assumption extra #:db #t))
       ;; p11
-      ;; (define inits
-      ;;   (list
-      ;;    (progstate (vector 4 0) (vector) -1 4)
-      ;;    (progstate (vector -8 -4) (vector) -1 4)
-      ;;    (progstate (vector -6 4) (vector) -1 4)))
-      ;; p24
       (define inits
         (list
-         (progstate (vector 5 0) (vector) -1 4)
-         (progstate (vector 3 0) (vector) -1 4)
-         (progstate (vector -1 0) (vector) -1 4)
-         ))
+         (progstate (vector 4 0) (vector) -1 4)
+         (progstate (vector -8 -4) (vector) -1 4)
+         (progstate (vector -6 4) (vector) -1 4)
+	 ))
+      ;; p24
+      ;; (define inits
+      ;;   (list
+      ;;    (progstate (vector 5 0) (vector) -1 4)
+      ;;    (progstate (vector 3 0) (vector) -1 4)
+      ;;    (progstate (vector -1 0) (vector) -1 4)
+      ;;    ))
       (define states1 
 	(map (lambda (x) (send simulator interpret prefix x #:dep #f)) inits))
       (define states2
