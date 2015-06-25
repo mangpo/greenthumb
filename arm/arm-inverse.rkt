@@ -55,22 +55,27 @@
 	(cond
 	 [(empty? in-list)
           (define out-state
-            (send simulator interpret
-                  (vector my-inst)
-                  (progstate (list->vector in-res) (vector) -1 fp) #:dep #f))
+	    (with-handlers*
+	     ([exn? (lambda (e) #f)])
+	     (send simulator interpret
+		   (vector my-inst)
+		   (progstate (list->vector in-res) (vector) -1 fp) #:dep #f)))
           
-          (define in-list-filtered (filter number? in-res))
-          (define out-list (list))
-          (for ([r (progstate-regs out-state)]
-                [m out])
-               (when m (set! out-list (cons r out-list))))
-          
-          (define key (reverse out-list))
-          ;;(pretty-display `(inout ,in-res ,(progstate-regs out-state) ,in-list-filtered ,key))
-          (if (hash-has-key? behavior-bw key)
-              (hash-set! behavior-bw key
-                         (cons in-list-filtered (hash-ref behavior-bw key)))
-              (hash-set! behavior-bw key (list in-list-filtered)))]
+	  (when 
+	   out-state
+	   (define in-list-filtered (filter number? in-res))
+	   (define out-list (list))
+	   (for ([r (progstate-regs out-state)]
+		 [m out])
+		(when m (set! out-list (cons r out-list))))
+	   
+	   (define key (reverse out-list))
+	   ;;(pretty-display `(inout ,in-res ,(progstate-regs out-state) ,in-list-filtered ,key))
+	   (if (hash-has-key? behavior-bw key)
+	       (hash-set! behavior-bw key
+			  (cons in-list-filtered (hash-ref behavior-bw key)))
+	       (hash-set! behavior-bw key (list in-list-filtered))))
+	  ]
 
          [else
           (if (car in-list)

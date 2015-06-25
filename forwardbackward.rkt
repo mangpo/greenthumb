@@ -110,15 +110,18 @@
     (define t-load 0)
     (define t-build 0)
     (define t-build-inter 0)
+    (define t-build-inter2 0)
     (define t-build-hash 0)
     (define t-build-hash2 0)
     (define t-intersect 0)
+    (define t-interpret-0 0)
     (define t-interpret 0)
     (define t-extra 0)
     (define t-verify 0)
     (define c-build-hash 0)
     (define c-build-hash2 0)
     (define c-intersect 0)
+    (define c-interpret-0 0)
     (define c-interpret 0)
     (define c-extra 0)
     (define c-check 0)
@@ -194,8 +197,9 @@
       (pretty-display `(states2-vec ,states2-vec))
       (pretty-display `(live2-vec ,live2-vec))
       
-      (define ce-limit 10000)
+      (define ce-limit 100)
       (define ce-in (make-vector ce-limit))
+      (define ce-in-vec (make-vector ce-limit)) ;;TODO
       (define ce-out-vec (make-vector ce-limit))
       (define ce-count ntests)
       (define ce-count-extra ntests)
@@ -230,10 +234,13 @@
           pass
           (for/and ([input ce-in-final]
                     [output-vec ce-out-vec-final])
-                   (let ([my-output-vec
-                          (send machine progstate->vector
-                                (send simulator-precise interpret p input #:dep #f))])
-                     (send machine state-eq? output-vec my-output-vec live2-vec))))
+                   (let* ([my-output 
+			   (with-handlers*
+			    ([exn? (lambda (e) #f)])
+			    (send simulator-precise interpret p input #:dep #f))]
+			  [my-output-vec
+			   (and my-output (send machine progstate->vector my-output))])
+                     (and my-output (send machine state-eq? output-vec my-output-vec live2-vec)))))
 
         (when
          pass
@@ -300,6 +307,7 @@
                       ;;(send machine display-state ce-input)
                       (pretty-display `(ce ,ce-count-extra ,ce-input-vec ,ce-output-vec)))
                 (vector-set! ce-in ce-count-extra ce-input)
+                (vector-set! ce-in-vec ce-count-extra ce-input-vec)
                 (vector-set! ce-out-vec ce-count-extra ce-output-vec)
                 (set! ce-count-extra (add1 ce-count-extra))
                 )
@@ -318,7 +326,10 @@
             (for/and ([i (reverse (range my-ce-count ce-count-extra))])
                      (let* ([input (vector-ref ce-in i)]
                             [output-vec (vector-ref ce-out-vec i)]
-                            [my-output (send simulator interpret p input #:dep #f)]
+                            [my-output 
+			     (with-handlers*
+			      ([exn? (lambda (e) #f)])
+			      (send simulator interpret p input #:dep #f))]
                             [my-output-vec (and my-output (send machine progstate->vector my-output))])
                        (and my-output
                             (send machine state-eq? output-vec my-output-vec live2-vec)))))
@@ -369,8 +380,11 @@
         )
 
       (define (refine my-classes my-classes-bw my-inst my-live1 my-live2)
-        
+        (define cache (make-vector ce-limit))
+	(for ([i ce-limit]) (vector-set! cache i (make-hash)))
+
         (define (outer my-classes my-classes-bw level)
+	  (define cache-level (vector-ref cache level))
           ;;(pretty-display `(outer ,beh-id ,level ,my-classes ,my-classes-bw))
           (define real-hash my-classes)
           (define real-hash-bw my-classes-bw)
@@ -378,15 +392,15 @@
           (when 
 	   ;;(list? real-hash) 
 	   (and (list? real-hash)
-		(or (> (count-collection real-hash) 256)
-		    (hash? real-hash-bw)
-		    (and (list? real-hash-bw)
-			 (> (count-collection real-hash-bw) 256))))
+	   	(or (> (count-collection real-hash) 256)
+	   	    (hash? real-hash-bw)
+	   	    (and (list? real-hash-bw)
+	   		 (> (count-collection real-hash-bw) 256))))
 		;;(pretty-display `(build-fw ,level ,(count-collection real-hash) ,(hash? real-hash-bw)))
                 ;; list of programs
                 (define t0 (current-milliseconds))
                 (set! real-hash (make-hash))
-                (define input (vector-ref ce-in level)) ;;TODO
+                (define input (vector-ref ce-in level))
                 
                 (define (loop iterator)
                   (define prog (and (not (empty? iterator)) (car iterator)))
@@ -406,6 +420,7 @@
                        (set! c-build-hash (add1 c-build-hash))
                        )
                      )
+
                    (loop (cdr iterator))
                    ))
 
@@ -419,7 +434,7 @@
           (when 
 	   ;;(list? real-hash-bw)
 	   (and (list? real-hash-bw)
-		(hash? real-hash))
+	   	(hash? real-hash))
                      ;;(> (count-collection real-hash-bw) 8))
 		;;(pretty-display `(build-bw ,level))
                 ;; list of programs
@@ -443,7 +458,7 @@
                                          (cons prog (hash-ref real-hash-bw state-vec)))
                               (hash-set! real-hash-bw state-vec (list prog)))))        
                       (let ([s2 (current-milliseconds)])
-                        (set! t-build-inter (+ t-build-inter (- s1 s0)))
+                        (set! t-build-inter2 (+ t-build-inter2 (- s1 s0)))
                         (set! t-build-hash2 (+ t-build-hash2 (- s2 s1)))
                         (set! c-build-hash2 (add1 c-build-hash2))
                         )
@@ -466,40 +481,40 @@
 
             (for ([inter inters-fw])
               (let* ([t0 (current-milliseconds)]
-                     [out (send simulator interpret (vector my-inst) (send machine vector->progstate inter) #:dep #f)]
-                     [out-vec (and out (mask-in (send machine progstate->vector out) my-live2))]
-                     [condition (and out (hash-has-key? real-hash-bw out-vec))]
-                     [t1 (current-milliseconds)]
-                     )
-                ;; (let ([x my-inst])
-                ;;   (when (and (equal? `eor
-                ;;                      (vector-ref (get-field inst-id machine) (inst-op x)))
-                ;;              (equal? `nop 
-                ;;                      (vector-ref (get-field shf-inst-id machine) 
-                ;;                                  (inst-shfop x)))
-                ;;              (equal? 0 (vector-ref (inst-args x) 0))
-                ;;              (equal? 0 (vector-ref (inst-args x) 1))
-                ;;              (equal? 1 (vector-ref (inst-args x) 2))
-                ;;              )
-                ;;         (pretty-display `(inner ,level ,inter ,out-vec ,condition))))
-                       
-                (set! t-interpret (+ t-interpret (- t1 t0)))
-                (set! c-interpret (add1 c-interpret))
-                (when
-                 condition
-                 (if (= 1 (- ce-count level))
-                     (begin
-                       (check-eqv (hash-ref real-hash inter)
-                                  (hash-ref real-hash-bw out-vec)
-                                  my-inst ce-count)
-                       (set! ce-count ce-count-extra)
-		       )
-                     (let-values ([(a b)
-                                   (outer (hash-ref real-hash inter)
-                                          (hash-ref real-hash-bw out-vec)
-                                          (add1 level))])
-                       (hash-set! real-hash inter a)
-                       (hash-set! real-hash-bw out-vec b))))))
+		     [out-vec #f])
+
+		(if (and (> level 0) (hash-has-key? cache-level inter))
+		    (set! out-vec (hash-ref cache-level inter))
+		    (let ([out 
+			   (with-handlers*
+			    ([exn? (lambda (e) #f)])
+			    (send simulator interpret (vector my-inst) (send machine vector->progstate inter) #:dep #f))])
+		      (set! out-vec (and out (mask-in (send machine progstate->vector out) my-live2)))
+		      (hash-set! cache-level inter out-vec)))
+
+		(let* ([condition (and out-vec (hash-has-key? real-hash-bw out-vec))]
+		       [t1 (current-milliseconds)])
+		  (set! t-interpret (+ t-interpret (- t1 t0)))
+		  (set! c-interpret (add1 c-interpret))
+		  (when (= level 0)
+			(set! t-interpret-0 (+ t-interpret-0 (- t1 t0)))
+			(set! c-interpret-0 (add1 c-interpret-0)))
+		      
+		  (when
+		   condition
+		   (if (= 1 (- ce-count level))
+		       (begin
+			 (check-eqv (hash-ref real-hash inter)
+				    (hash-ref real-hash-bw out-vec)
+				    my-inst ce-count)
+			 (set! ce-count ce-count-extra)
+			 )
+		       (let-values ([(a b)
+				     (outer (hash-ref real-hash inter)
+					    (hash-ref real-hash-bw out-vec)
+					    (add1 level))])
+			 (hash-set! real-hash inter a)
+			 (hash-set! real-hash-bw out-vec b)))))))
             )
             
           (cond
@@ -643,16 +658,19 @@
           (send printer print-syntax-inst (send printer decode-inst my-inst))
           (define ttt (current-milliseconds))
           (refine hash1 hash2 my-inst live1 live2)
-          (pretty-display (format "search ~a = ~a\t(~a + ~a/~a + ~a/~a)\t~a/~a\t~a/~a\t~a/~a (~a) ~a" 
-                                  (- (current-milliseconds) ttt)
-                                  t-build t-build-inter t-build-hash c-build-hash t-build-hash2 c-build-hash2
-                                  t-intersect c-intersect
-                                  t-interpret c-interpret
-                                  t-extra c-extra c-check
-                                  t-verify
-                                  ))
-          (set! t-build 0) (set! t-build-inter 0) (set! t-build-hash 0) (set! t-build-hash2 0) (set! t-intersect 0) (set! t-interpret 0) (set! t-extra 0) (set! t-verify 0)
-          (set! c-build-hash 0) (set! c-build-hash2 0) (set! c-intersect 0) (set! c-interpret 0) (set! c-extra 0) (set! c-check 0)
+	  (when 
+	   (> (- (current-milliseconds) ttt) 1000)
+	   (pretty-display (format "search ~a ~a = ~a\t(~a + ~a/~a + ~a + ~a/~a)\t~a/~a\t[~a/~a]\t~a/~a\t~a/~a (~a) ~a" 
+				   (- (current-milliseconds) ttt) ce-count-extra
+				   t-build t-build-inter t-build-hash c-build-hash t-build-inter2 t-build-hash2 c-build-hash2
+				   t-intersect c-intersect
+				   t-interpret-0 c-interpret-0
+				   t-interpret c-interpret
+				   t-extra c-extra c-check
+				   t-verify
+				   )))
+          (set! t-build 0) (set! t-build-inter 0) (set! t-build-inter2 0) (set! t-build-hash 0) (set! t-build-hash2 0) (set! t-intersect 0) (set! t-interpret-0 0) (set! t-interpret 0) (set! t-extra 0) (set! t-verify 0)
+          (set! c-build-hash 0) (set! c-build-hash2 0) (set! c-intersect 0) (set! c-interpret-0 0) (set! c-interpret 0) (set! c-extra 0) (set! c-check 0)
           (set! t-collect 0) (set! t-check 0)
           (refine-all hash1 live1 hash2 live2 iterator)
 	  ))
@@ -669,7 +687,8 @@
                    (send enum reset-generate-inst #f live1 live2 #f `all #f)])
              (newline)
              (pretty-display `(refine ,live1 ,live2))
-	     (refine-all my-hash1 live1 my-hash2 live2 iterator)
+      	     (refine-all my-hash1 live1 my-hash2 live2 iterator)
              ))
+
       )
     ))
