@@ -820,15 +820,15 @@
 	   	(let* ([live-vreg (car pair1)]
 	   	       [live-list (entry-live live-vreg)]
 	   	       [my-vreg (entry-vreg live-vreg)]
-	   	       [abst-hash (hash-copy* (cdr pair1))]
-		       ;; use only first state
-		       [state-rep (find-first-state (cdr pair1))])
+		       [my-flag (entry-flag live-vreg)]
+	   	       [abst-hash (hash-copy* (cdr pair1))])
 		  (pretty-display `(key ,live-vreg))
 		  (for ([type '(mod+high mod-high high-mod rest)])
 		       (newline)
 		       (pretty-display (format "TYPE: ~a" type))
-		       (reset-generate-inst state-rep live-list #f (and virtual my-vreg) 
-					    type #f) 
+		       (reset-generate-inst 
+			live-list #f my-flag #f
+			(and virtual my-vreg) type #f) 
 		       (set! abst-hash (abst-loop abst-hash live-list my-vreg type))
                        )
 		  ))
@@ -842,13 +842,13 @@
 		(let* ([live-vreg (car pair1)]
 		       [live-list (entry-live live-vreg)]
 		       [my-vreg (entry-vreg live-vreg)]
-		       [hash2 (cdr pair1)]
-		       ;; use only first state
-		       [state-rep (find-first-state hash2)])
+		       [my-flag (entry-flag live-vreg)]
+		       [hash2 (cdr pair1)])
 		  (pretty-display `(key ,live-vreg))
 
-                  (reset-generate-inst state-rep live-list #f (and virtual my-vreg)
-                                       `all #f)
+                  (reset-generate-inst 
+		   live-list #f my-flag #f
+		   (and virtual my-vreg) `all #f)
                   (enumerate hash2) ;; no check
                   ))
 	   (pretty-display `(behavior ,n-behaviors ,n-progs))
@@ -1170,14 +1170,6 @@
             
         (send psql create-table len)
 
-        ;; (define data (send psql select-all (sub1 len)))
-        ;; (send time reset)
-        ;; (for ([x data])
-        ;;      (let ([progs (record-progs x)]
-        ;;            [outputs (record-states x)])
-        ;;        (reset-generate-inst outputs live-list #f #f `all #f)
-        ;;        (enumerate outputs progs)))
-
         (send time start `hash)
         (define pairs (hash->list prev-classes))
         (set! prev-classes (make-hash)) ;; prepare to save current groups
@@ -1186,7 +1178,8 @@
              (let ([outputs 
                     (map (lambda (x) (send machine vector->progstate x)) (car pair))]
                    [progs (cdr pair)])
-               (reset-generate-inst outputs live-list #f #f `all #f)
+               (reset-generate-inst #f #f #f #f
+				    #f `all #f)
                (enumerate outputs progs)))
 
         (when (< len max-size) (update-hash prev-classes classes))
@@ -1213,9 +1206,6 @@
       )
 
     (define (get-output-location my-inst) #f)
-
-    (define (find-first-state x)
-      (car (hash-keys x)))
 
     (define (min-list lst)
       (foldl min (car lst) (cdr lst)))

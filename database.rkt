@@ -41,7 +41,8 @@
       (pretty-display `(n-states ,n-states))
 
       (define inst-iterator
-        (send enum reset-generate-inst #f live-list #f #f `all #f))
+        (send enum reset-generate-inst live-list #f #f #f
+	      #f `all #f))
 
       (define behavior2progs (make-hash))
       (define n-progs 0)
@@ -326,10 +327,6 @@
                        (vector-set! behavior-bw out (cons in val))
                        (vector-set! behavior-bw out (list in))))))
       (values (list->vector behavior) behavior-bw))
-
-
-    (define (find-first-state x)
-      (car (hash-keys x)))
 
     (define (convert-vec2id x)
       (make-hash
@@ -685,9 +682,9 @@
         (newline)
         (pretty-display `(grow ,i))
         (set! classes (make-hash))
-        (let ([state-rep (find-first-state prev-classes)]) ;; TODO
-          (enumerate
-           (send enum reset-generate-inst state-rep #f #f #f `all #f)))
+	(enumerate
+	 (send enum reset-generate-inst #f #f #f #f 
+	       #f `all #f))
         (set! prev-classes classes)
         (pretty-display `(behavior ,c-behaviors ,c-progs))
         (set! c-behaviors 0)

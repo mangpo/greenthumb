@@ -54,18 +54,24 @@
 
     ;; If regs is not #f, use virtual registers
     ;; If lex is not #f, impose lexical order. This is only valid with virtual registers.
-    (define (reset-generate-inst state live-in live-out regs type lex 
-                                 #:no-args [no-args #f])
+    (define (reset-generate-inst 
+	     live-in live-out flag-in flag-out
+	     regs type lex #:no-args [no-args #f] #:try-cmp [try-cmp #f])
+
       (define mode (cond [regs `vir] [no-args `no-args] [else `basic]))
       (define inst-choice '(eor and))
       ;;(define inst-choice '(clz rsb lsr#))
       ;;(define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
       (define inst-pool (get-field inst-pool machine))
-      (set! inst-pool (remove* cmp-inst inst-pool))
       (define z
         (cond
-         [state (vector-ref state 2)]
+         [try-cmp (or flag-in flag-out -1)]
          [else -1]))
+      (if try-cmp 
+	  (when (and (number? flag-in) (number? flag-out) 
+		     (not (= flag-in flag-out)))
+		(set! inst-pool cmp-inst))
+	  (set! inst-pool (remove* cmp-inst inst-pool)))
       (cond
        [(equal? type `mod+high) 
 	(set! inst-pool 
@@ -367,10 +373,7 @@
 	(set! ops-ret (list opcode-id shfop))
 	(list (sort args-ret >) (reverse args-ret) ops-ret)]))
 
-    (define (get-flag state-vec) 
-      (define z (vector-ref state-vec 2))
-      (= z -1))
-
+    (define (get-flag state-vec) (vector-ref state-vec 2))
 
     (define (get-output-location my-inst)
       (for/or ([type (send machine get-arg-types (vector-ref inst-id (inst-op my-inst)))]

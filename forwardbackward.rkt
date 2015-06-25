@@ -6,6 +6,10 @@
 (struct concat (collection inst))
 (struct box (val))
 
+(define-syntax-rule (entry live flag) (list live flag))
+(define-syntax-rule (entry-live x) (first x))
+(define-syntax-rule (entry-flag x) (second x))
+
 (define forwardbackward%
   (class object%
     (super-new)
@@ -38,7 +42,7 @@
 	      (insert-inner (hash-ref x key) (cdr states-vec) prog))))
 
       ;(set! states-vec (map (lambda (x) (abstract x live-list identity)) states-vec))
-      (define key (sort live <))
+      (define key (entry (sort live <) (send enum get-flag (car states-vec))))
       (unless (hash-has-key? class key) (hash-set! class key (make-hash)))
       (insert-inner (hash-ref class key) states-vec prog))
 
@@ -60,10 +64,12 @@
 	       (for ([key key-list])
 		    (if (hash-has-key? my-hash key)
 			(hash-set! my-hash key (set-add (hash-ref my-hash key) c-progs-bw))
-			(hash-set! my-hash key (set c-progs-bw)))))))
+			(begin
+			  (set! c-behaviors-bw (add1 c-behaviors-bw))
+			  (hash-set! my-hash key (set c-progs-bw))))))))
 
       ;(set! states-vec (map (lambda (x) (abstract x live-list identity)) states-vec))
-      (define key (sort live <))
+      (define key (entry (sort live <) (send enum get-flag (car (car states-vec)))))
       (unless (hash-has-key? class key) 
 	      (hash-set! class key (vector (list) (make-vector ce-limit #f))))
       (insert-inner (hash-ref class key))
@@ -165,18 +171,18 @@
       ;;   (send validator generate-input-states ntests (vector-append prefix spec postfix)
       ;;         assumption extra #:db #t))
       ;; p10
-      (define inits
-        (list
-         (progstate (vector -7 5 0) (vector) -1 4)
-         (progstate (vector 5 7 0) (vector) -1 4)
-      	 ))
-      ;; p11
       ;; (define inits
       ;;   (list
-      ;;    (progstate (vector 4 0) (vector) -1 4)
-      ;;    (progstate (vector -8 -4) (vector) -1 4)
-      ;;    ;; (progstate (vector -6 4) (vector) -1 4)
+      ;;    (progstate (vector -7 5 0) (vector) -1 4)
+      ;;    (progstate (vector 5 7 0) (vector) -1 4)
       ;; 	 ))
+      ;; p11
+      (define inits
+        (list
+         (progstate (vector 4 0) (vector) -1 4)
+         (progstate (vector -8 -4) (vector) -1 4)
+         ;; (progstate (vector -6 4) (vector) -1 4)
+      	 ))
       ;; p24
       ;; (define inits
       ;;   (list
@@ -231,7 +237,8 @@
           (gen-inverse-behaviors iterator)
           ))
       
-      (gen-inverse-behaviors (send enum reset-generate-inst #f #f #f #f `all #f #:no-args #t))
+      (gen-inverse-behaviors (send enum reset-generate-inst #f #f #f #f 
+				   #f `all #f #:no-args #t))
 
       (define (check-final p)
         (pretty-display (format "[5] check-final ~a" (length ce-in-final)))
@@ -595,15 +602,19 @@
 	)
 
       ;; Grow forward
-      (for ([i 3])
+      (for ([i 2])
         (newline)
         (pretty-display `(grow ,i))
         (set! c-behaviors 0)
         (set! c-progs 0)
       	(for ([pair (hash->list prev-classes)])
-      	     (let* ([live-list (car pair)]
+      	     (let* ([key (car pair)]
+		    [live-list (entry-live key)]
+		    [flag (entry-flag key)]
       		    [my-hash (cdr pair)]
-      		    [iterator (send enum reset-generate-inst #f live-list #f #f `all #f)])
+      		    [iterator (send enum reset-generate-inst 
+				    live-list #f flag #f
+				    #f `all #f)])
                (pretty-display `(live ,live-list))
       	       (build-hash live-list my-hash iterator)))
         (set! prev-classes classes)
@@ -616,7 +627,9 @@
       (pretty-display `(grow-bw))
       (set! c-behaviors-bw 0)
       (set! c-progs-bw 0)
-      (let ([iterator (send enum reset-generate-inst #f #f live2-list #f `all #f)])
+      (let ([iterator (send enum reset-generate-inst 
+			    #f live2-list #f -1 
+			    #f `all #f)])
 	(build-hash-bw live2-list iterator))
       (set! prev-classes-bw classes-bw)
       (set! classes-bw (make-hash))
@@ -657,12 +670,16 @@
       (define ttt (current-milliseconds))
       (for* ([pair1 (hash->list prev-classes)]
              [pair2 (hash->list prev-classes-bw)])
-           (let* ([live1 (car pair1)]
+           (let* ([flag1 (entry-flag (car pair1))]
+		  [live1 (entry-live (car pair1))]
                   [my-hash1 (cdr pair1)]
-                  [live2 (car pair2)]
+		  [flag2 (entry-flag (car pair2))]
+                  [live2 (entry-live (car pair2))]
                   [my-hash2 (cdr pair2)]
                   [iterator
-                   (send enum reset-generate-inst #f live1 live2 #f `all #f)])
+                   (send enum reset-generate-inst 
+			 live1 live2 flag1 flag2
+			 #f `all #f)])
              (newline)
              (pretty-display `(refine ,live1 ,live2))
       	     (refine-all my-hash1 live1 my-hash2 live2 iterator)
