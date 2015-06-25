@@ -8,7 +8,7 @@
   (class forwardbackward%
     (super-new)
     (inherit-field machine validator validator-precise)
-    (override vector->id mask-in
+    (override vector->id mask-in inst->vector
               reduce-precision increase-precision)
 
     (define bit (get-field bit machine))
@@ -24,6 +24,9 @@
       
       ;; (+ id (* (vector-member z z-range-db) (power max-val nregs))))
       id)
+
+    (define (inst->vector x)
+      (vector (inst-op x) (inst-args x) (inst-shfop x) (inst-shfarg x) (inst-cond x)))
 
     ;; TODO: memory, z
     (define (mask-in state-vec live-list)

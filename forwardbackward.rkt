@@ -13,7 +13,7 @@
                 printer parser
                 validator validator-precise
 		inverse)
-    (abstract vector->id mask-in
+    (abstract vector->id mask-in inst->vector
               reduce-precision increase-precision)
     (public synthesize-window)
     
@@ -381,10 +381,14 @@
 
       (define (refine my-classes my-classes-bw my-inst my-live1 my-live2)
         (define cache (make-vector ce-limit))
-	(for ([i ce-limit]) (vector-set! cache i (make-hash)))
+	(define cache-bw (make-vector ce-limit))
+	(for ([i ce-limit]) 
+	     (vector-set! cache i (make-hash))
+	     (vector-set! cache-bw i (make-hash)))
 
         (define (outer my-classes my-classes-bw level)
 	  (define cache-level (vector-ref cache level))
+	  (define cache-bw-level (vector-ref cache-bw level))
           ;;(pretty-display `(outer ,beh-id ,level ,my-classes ,my-classes-bw))
           (define real-hash my-classes)
           (define real-hash-bw my-classes-bw)
@@ -392,10 +396,10 @@
           (when 
 	   ;;(list? real-hash) 
 	   (and (list? real-hash)
-	   	(or (> (count-collection real-hash) 256)
+	   	(or (> (count-collection real-hash) 4)
 	   	    (hash? real-hash-bw)
 	   	    (and (list? real-hash-bw)
-	   		 (> (count-collection real-hash-bw) 256))))
+	   		 (> (count-collection real-hash-bw) 4))))
 		;;(pretty-display `(build-fw ,level ,(count-collection real-hash) ,(hash? real-hash-bw)))
                 ;; list of programs
                 (define t0 (current-milliseconds))
@@ -447,21 +451,28 @@
                   (when 
                    prog
                     (let ([s0 (current-milliseconds)]
-                          [states-vec (send inverse interpret-inst (vector-ref prog 0) output-vec live2-list)] ;; only work with 1 instruction
-                          [s1 (current-milliseconds)])
-                                             
-                      (when
-                          states-vec
-                        (for ([state-vec states-vec])
-                          (if (hash-has-key? real-hash-bw state-vec)
-                              (hash-set! real-hash-bw state-vec
-                                         (cons prog (hash-ref real-hash-bw state-vec)))
-                              (hash-set! real-hash-bw state-vec (list prog)))))        
-                      (let ([s2 (current-milliseconds)])
-                        (set! t-build-inter2 (+ t-build-inter2 (- s1 s0)))
-                        (set! t-build-hash2 (+ t-build-hash2 (- s2 s1)))
-                        (set! c-build-hash2 (add1 c-build-hash2))
-                        )
+			  [inst-rep (inst->vector (vector-ref prog 0))] 
+			  ;; only work with 1 instruction
+                          [states-vec #f])
+		      (if (and (> level 0) (hash-has-key? cache-bw-level inst-rep))
+			  (set! states-vec (hash-ref cache-bw-level inst-rep))
+			  (begin 
+			    (set! states-vec (send inverse interpret-inst (vector-ref prog 0) output-vec live2-list))
+			    (hash-set! cache-bw-level inst-rep states-vec)))
+				 
+		      (let ([s1 (current-milliseconds)])
+			(when
+			 states-vec
+			 (for ([state-vec states-vec])
+			      (if (hash-has-key? real-hash-bw state-vec)
+				  (hash-set! real-hash-bw state-vec
+					     (cons prog (hash-ref real-hash-bw state-vec)))
+				  (hash-set! real-hash-bw state-vec (list prog)))))        
+			(let ([s2 (current-milliseconds)])
+			  (set! t-build-inter2 (+ t-build-inter2 (- s1 s0)))
+			  (set! t-build-hash2 (+ t-build-hash2 (- s2 s1)))
+			  (set! c-build-hash2 (add1 c-build-hash2))
+			  ))
                       )
                     (loop-bw (cdr iterator))))
                 
