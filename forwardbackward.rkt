@@ -110,6 +110,9 @@
          ))
       (loop collection (vector))
       ans)
+
+    (define-syntax-rule (intersect l s)
+      (filter (lambda (x) (set-member? s x)) l))
     
     (define t-load 0)
     (define t-build 0)
@@ -483,8 +486,8 @@
 		       [new-candidates
 			(and has-key
 			     (if (= level 0)
-				 progs-set
-				 (set-intersect candidates progs-set)))]
+				 (set->list progs-set)
+				 (intersect candidates progs-set)))]
 		       [t2 (current-milliseconds)])
 		  (set! t-interpret (+ t-interpret (- t1 t0)))
 		  (set! t-intersect (+ t-intersect (- t2 t1)))
@@ -494,13 +497,13 @@
 			(set! c-interpret-0 (add1 c-interpret-0)))
 		      
 		  (when
-		   (and new-candidates (not (set-empty? new-candidates)))
+		   (and new-candidates (not (empty? new-candidates)))
 		   (if (= 1 (- ce-count level))
 		       (begin
 			 ;;(pretty-display `(check-eqv-leaf ,level ,ce-count))
 			 (check-eqv (hash-ref real-hash inter)
 				    (map (lambda (x) (vector (vector-ref progs-bw x)))
-					 (set->list new-candidates))
+					 new-candidates)
 				    my-inst ce-count)
 			 (set! ce-count ce-count-extra)
 			 )
@@ -519,7 +522,7 @@
 	    ;;(pretty-display `(check-eqv-inter ,level))
             (check-eqv (collect-behaviors real-hash)
 		       (map (lambda (x) (vector (vector-ref progs-bw x)))
-			    (set->list candidates))
+			    candidates)
                        my-inst level)
 	    (set! ce-count ce-count-extra)
             real-hash
@@ -592,7 +595,7 @@
 	)
 
       ;; Grow forward
-      (for ([i 2])
+      (for ([i 3])
         (newline)
         (pretty-display `(grow ,i))
         (set! c-behaviors 0)
@@ -634,7 +637,7 @@
           (define ttt (current-milliseconds))
           (refine hash1 hash2 my-inst live1 live2)
 	  (when 
-	   (or (> (- (current-milliseconds) ttt) 500) (> c-build-hash2 0))
+	   (or (> (- (current-milliseconds) ttt) 100) (> c-build-hash2 0))
 	   (pretty-display (format "search ~a ~a = ~a\t(~a + ~a/~a + ~a + ~a/~a)\t~a/~a\t[~a/~a]\t~a/~a\t~a/~a (~a) ~a" 
 	  			   (- (current-milliseconds) ttt) ce-count-extra
 	  			   t-build t-build-inter t-build-hash c-build-hash t-build-inter2 t-build-hash2 c-build-hash2
