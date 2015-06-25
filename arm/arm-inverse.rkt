@@ -199,5 +199,10 @@
 			    (vector) -1 4))
 
 (send inverse gen-inverse-behavior my-inst-0)
-(send inverse interpret-inst my-inst input-state (list 0 1))|#
+
+(define t (current-seconds))
+(define x
+(for/list ([i (* 16 930)])
+  (send inverse interpret-inst my-inst input-state (list 0 1))))
+(pretty-display `(t ,(- (current-seconds) t) ,(length x)))|#
 
