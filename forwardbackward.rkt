@@ -18,11 +18,13 @@
                 validator validator-precise
 		inverse)
     (abstract vector->id mask-in inst->vector
-              reduce-precision increase-precision)
+              reduce-precision increase-precision
+	      get-live-mask)
     (public synthesize-window)
     
     (define debug #f)
     (define ce-limit 30)
+    (define try-cmp #t)
 
     (define c-behaviors 0)
     (define c-progs 0)
@@ -50,6 +52,20 @@
     (define c-progs-bw 0)
     (define progs-bw (make-vector 10000 #f))
 
+    (define (class-insert-bw-inner! top-hash key-list prog)
+      (let* ([first-key (car key-list)]
+	     [live-mask (get-live-mask first-key)])
+	(unless (hash-has-key? top-hash live-mask)
+		(hash-set! top-hash live-mask (make-hash)))
+	(let ([my-hash (hash-ref top-hash live-mask)])
+	  (for ([key key-list])
+	       (if (hash-has-key? my-hash key)
+		   (hash-set! my-hash key (set-add (hash-ref my-hash key) prog))
+		   (begin
+		     (set! c-behaviors-bw (add1 c-behaviors-bw))
+		     (hash-set! my-hash key (set prog))))))))
+      
+
     (define (class-insert-bw! class live states-vec prog)
       ;;(pretty-display `(class-insert-bw! ,(map length states-vec)))
       (vector-set! progs-bw c-progs-bw prog)
@@ -60,13 +76,7 @@
 	(for ([test (in-naturals)]
 	      [key-list states-vec])
 	     (unless (vector-ref x test) (vector-set! x test (make-hash)))
-	     (let ([my-hash (vector-ref x test)])
-	       (for ([key key-list])
-		    (if (hash-has-key? my-hash key)
-			(hash-set! my-hash key (set-add (hash-ref my-hash key) c-progs-bw))
-			(begin
-			  (set! c-behaviors-bw (add1 c-behaviors-bw))
-			  (hash-set! my-hash key (set c-progs-bw))))))))
+	     (class-insert-bw-inner! (vector-ref x test) key-list c-progs-bw)))
 
       ;(set! states-vec (map (lambda (x) (abstract x live-list identity)) states-vec))
       (define key (entry (sort live <) (send enum get-flag (car (car states-vec)))))
@@ -203,7 +213,7 @@
       (define states1-vec 
 	(map (lambda (x) (send machine progstate->vector x)) states1))
       (define states2-vec 
-	(map (lambda (x) (send machine progstate->vector x)) states2))
+	(map (lambda (x) (mask-in (send machine progstate->vector x) live2-list #:keep-flag try-cmp)) states2))
       (define states2-vec-list (map list states2-vec))
 
       (pretty-display `(states1-vec ,states1-vec))
@@ -292,7 +302,6 @@
         (define (inner-progs p)
           
           ;; (pretty-display "After renaming")
-          ;;(send printer print-syntax (send printer decode p))
           (when debug
                 (pretty-display "[2] all correct")
                 (pretty-display `(ce-count-extra ,ce-count-extra))
@@ -315,12 +324,12 @@
                      [ce-output-vec
                       (send machine progstate->vector ce-output)])
                 (when debug
+		      (newline)
                       (pretty-display "[3] counterexample")
-                      ;;(send machine display-state ce-input)
                       (pretty-display `(ce ,ce-count-extra ,ce-input-vec ,ce-output-vec)))
                 (vector-set! ce-in ce-count-extra ce-input)
                 (vector-set! ce-in-vec ce-count-extra ce-input-vec)
-                (vector-set! ce-out-vec ce-count-extra ce-output-vec)
+                (vector-set! ce-out-vec ce-count-extra (mask-in ce-output-vec live2-list #:keep-flag try-cmp))
                 (set! ce-count-extra (add1 ce-count-extra))
                 )
               (begin
@@ -331,7 +340,8 @@
 
         (define (inner-behaviors p)
           (define t0 (current-milliseconds))
-          ;;(pretty-display `(inner-behaviors ,my-ce-count ,ce-count-extra))
+          ;; (pretty-display `(inner-behaviors ,my-ce-count ,ce-count-extra))
+	  ;; (send printer print-syntax (send printer decode p))
           
           (define
             pass
@@ -401,7 +411,6 @@
 	  ;;(pretty-display `(outer ,level ,candidates))
 	  (define my-classes-bw-level (vector-ref my-classes-bw level))
 	  (define cache-level (vector-ref cache level))
-          ;;(pretty-display `(outer ,beh-id ,level ,my-classes ,my-classes-bw))
           (define real-hash my-classes)
                                             
           (when (list? real-hash)
@@ -451,11 +460,7 @@
 		       [inputs-vec (send inverse interpret-inst (vector-ref progs-bw p-bw) output-vec live2-list)]
 		       [s1 (current-milliseconds)])
 		  (when inputs-vec
-			(for ([input-vec inputs-vec])
-			     (if (hash-has-key? my-classes-bw-level input-vec)
-				 (hash-set! my-classes-bw-level input-vec 
-					    (set-add (hash-ref my-classes-bw-level input-vec) p-bw))
-				 (hash-set! my-classes-bw-level input-vec (set p-bw))))
+			(class-insert-bw-inner! my-classes-bw-level inputs-vec p-bw)
 			(let ([s2 (current-milliseconds)])
 			  (set! t-build-inter2 (+ t-build-inter2 (- s1 s0)))
 			  (set! t-build-hash2 (+ t-build-hash2 (- s2 s1)))
@@ -475,8 +480,8 @@
             (set! c-intersect (add1 c-intersect))
 
             (for ([inter inters-fw])
-              (let* ([t0 (current-milliseconds)]
-		     [out-vec #f])
+              (let ([t0 (current-milliseconds)]
+		    [out-vec #f])
 
 		(if (and (> level 0) (hash-has-key? cache-level inter))
 		    (set! out-vec (hash-ref cache-level inter))
@@ -487,38 +492,49 @@
 		      (set! out-vec (and out (mask-in (send machine progstate->vector out) my-live2)))
 		      (hash-set! cache-level inter out-vec)))
 
-		(let* ([t1 (current-milliseconds)]
-		       [has-key (and out-vec (hash-has-key? my-classes-bw-level out-vec))]
-		       [progs-set (and has-key (hash-ref my-classes-bw-level out-vec))]
-		       [new-candidates
-			(and has-key
-			     (if (= level 0)
-				 (set->list progs-set)
-				 (intersect candidates progs-set)))]
-		       [t2 (current-milliseconds)])
+		(let ([t1 (current-milliseconds)])
 		  (set! t-interpret (+ t-interpret (- t1 t0)))
-		  (set! t-intersect (+ t-intersect (- t2 t1)))
 		  (set! c-interpret (add1 c-interpret))
 		  (when (= level 0)
 			(set! t-interpret-0 (+ t-interpret-0 (- t1 t0)))
-			(set! c-interpret-0 (add1 c-interpret-0)))
-		      
-		  (when
-		   (and new-candidates (not (empty? new-candidates)))
-		   (if (= 1 (- ce-count level))
-		       (begin
-			 ;;(pretty-display `(check-eqv-leaf ,level ,ce-count))
-			 (check-eqv (hash-ref real-hash inter)
-				    (map (lambda (x) (vector (vector-ref progs-bw x)))
-					 new-candidates)
-				    my-inst ce-count)
-			 (set! ce-count ce-count-extra)
-			 )
-		       (let ([a (outer (hash-ref real-hash inter)
-				       new-candidates
-				       (add1 level))])
-			 (hash-set! real-hash inter a)))))))
-            )
+			(set! c-interpret-0 (add1 c-interpret-0))))
+
+		(when 
+		 out-vec
+		 (for ([pair (hash->list my-classes-bw-level)])
+		      (let* ([live-mask (car pair)]
+			     [classes (cdr pair)]
+			     [out-vec-masked (mask-in out-vec live-mask)]
+			     [has-key (hash-has-key? classes out-vec-masked)]
+			     [progs-set (and has-key (hash-ref classes out-vec-masked))]
+			     [t2 (current-milliseconds)]
+			     [new-candidates
+			      (and has-key
+				   (if (= level 0)
+				       (set->list progs-set)
+				       (intersect candidates progs-set)))]
+			     [t3 (current-milliseconds)])
+			;; (pretty-display `(inner ,level ,inter ,out-vec-masked ,new-candidates))
+			;; (when (>= level 2)
+			;;       (pretty-display `(result ,classes ,progs-set)))
+			(set! t-intersect (+ t-intersect (- t3 t2)))
+			
+			(when
+			 (and new-candidates (not (empty? new-candidates)))
+			 (if (= 1 (- ce-count level))
+			     (begin
+			       ;;(pretty-display `(check-eqv-leaf ,level ,ce-count))
+			       (check-eqv (hash-ref real-hash inter)
+					  (map (lambda (x) (vector (vector-ref progs-bw x)))
+					       new-candidates)
+					  my-inst ce-count)
+			       (set! ce-count ce-count-extra)
+			       )
+			     (let ([a (outer (hash-ref real-hash inter)
+					     new-candidates
+					     (add1 level))])
+			       (hash-set! real-hash inter a)))))))
+		)))
             
           (cond
            [(hash? real-hash)
@@ -539,16 +555,27 @@
         )
 
 
-      (define (build-hash old-liveout my-hash iterator) 
+      (define (build-hash old-liveout my-hash iterator level) 
         ;; Call instruction generator
         (define inst-liveout-vreg (iterator))
         (define my-inst (first inst-liveout-vreg))
 	(define my-liveout (second inst-liveout-vreg))
 
+	;; (define my-inst 
+	;;   (if (= level 0)
+	;;       (vector-ref (send printer encode 
+	;; 			(send parser ast-from-string "bic r0, r0, r1"))
+	;; 		  0)
+	;;       (vector-ref (send printer encode 
+	;; 			(send parser ast-from-string "cmp r0, r1"))
+	;; 		  0)))
+	;; (define my-liveout '(0 1))
+
         (define cache (make-hash))
         (when 
          my-inst
-         ;;(send printer print-syntax-inst (send printer decode-inst my-inst))
+         (send printer print-syntax-inst (send printer decode-inst my-inst))
+	 ;; (pretty-display my-liveout)
 
          (define (recurse x states2-vec)
            (if (list? x)
@@ -574,7 +601,8 @@
                       (when out (recurse val (cons out states2-vec)))))))
          
          (recurse my-hash (list))
-         (build-hash old-liveout my-hash iterator)))
+         (build-hash old-liveout my-hash iterator level)
+	 ))
 
       (define (build-hash-bw old-liveout iterator)
         (define inst-liveout-vreg (iterator))
@@ -583,16 +611,17 @@
 
 	;; (define my-inst 
 	;;   (vector-ref (send printer encode 
-	;; 		    (send parser ast-from-string "lsr r0, r1, 3"))
+	;; 		    (send parser ast-from-string "movhi r0, 1"))
 	;; 	      0))
-	;; (define my-liveout '(1))
+	;; (define my-liveout '(0))
 
 	(when my-inst
-	      ;;(send printer print-syntax-inst (send printer decode-inst my-inst))
-	      ;;(pretty-display `(live ,my-liveout))
+	      (send printer print-syntax-inst (send printer decode-inst my-inst))
+	      ;; (pretty-display `(live ,my-liveout))
 	      (define states-vec
 		(for/list ([out-vec states2-vec])
 			  (send inverse interpret-inst my-inst out-vec old-liveout)))
+	      ;;(pretty-display `(states-vec ,states-vec))
 	      (define fail (or (member #f states-vec) (member '() states-vec)))
 	      (unless fail
 		      (class-insert-bw! classes-bw my-liveout states-vec my-inst))
@@ -614,9 +643,9 @@
       		    [my-hash (cdr pair)]
       		    [iterator (send enum reset-generate-inst 
 				    live-list #f flag #f
-				    #f `all #f)])
-               (pretty-display `(live ,live-list))
-      	       (build-hash live-list my-hash iterator)))
+				    #f `all #f #:try-cmp try-cmp)])
+               (pretty-display `(live ,live-list ,flag))
+      	       (build-hash live-list my-hash iterator i)))
         (set! prev-classes classes)
         (set! classes (make-hash))
         (pretty-display `(behavior ,i ,c-behaviors ,c-progs ,(- (current-seconds) start-time)))
@@ -628,8 +657,8 @@
       (set! c-behaviors-bw 0)
       (set! c-progs-bw 0)
       (let ([iterator (send enum reset-generate-inst 
-			    #f live2-list #f -1 
-			    #f `all #f)])
+			    #f live2-list #f -1 ;;(send enum get-flag (car states2-vec))
+			    #f `all #f #:try-cmp try-cmp)])
 	(build-hash-bw live2-list iterator))
       (set! prev-classes-bw classes-bw)
       (set! classes-bw (make-hash))
@@ -641,7 +670,7 @@
         (define my-inst (first inst-liveout-vreg))
 	;; (define my-inst 
 	;;   (vector-ref (send printer encode 
-	;; 		    (send parser ast-from-string "add r1, r0, r1"))
+	;; 		    (send parser ast-from-string "movls r0, 0"))
 	;; 	      0))
         (when 
             my-inst
@@ -671,19 +700,19 @@
       (for* ([pair1 (hash->list prev-classes)]
              [pair2 (hash->list prev-classes-bw)])
            (let* ([flag1 (entry-flag (car pair1))]
-		  [live1 (entry-live (car pair1))]
+      		  [live1 (entry-live (car pair1))]
                   [my-hash1 (cdr pair1)]
-		  [flag2 (entry-flag (car pair2))]
+      		  [flag2 (entry-flag (car pair2))]
                   [live2 (entry-live (car pair2))]
                   [my-hash2 (cdr pair2)]
                   [iterator
                    (send enum reset-generate-inst 
-			 live1 live2 flag1 flag2
-			 #f `all #f)])
+      			 live1 live2 flag1 flag2
+      			 #f `all #f #:try-cmp try-cmp)])
              (newline)
-             (pretty-display `(refine ,live1 ,live2))
+             (pretty-display `(refine ,live1 ,flag1 ,live2 ,flag2))
       	     (refine-all my-hash1 live1 my-hash2 live2 iterator)
-	     (pretty-display `(middle-count ,middle))
+      	     (pretty-display `(middle-count ,middle))
              ))
 
       )

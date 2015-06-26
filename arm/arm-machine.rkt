@@ -141,13 +141,14 @@
 		  '(mov mvn 
 			rev rev16 revsh rbit
 			uxth uxtb
-			clz
-                        tst cmp) ;;rr
-		  '(mov# mvn# tst# cmp#) ;; ri
+			clz) ;;rr
+		  '(mov# mvn#) ;; ri
 		  '(movw# movt#) ;; ri
 		  '(mla mls smmla smmls) ;; rrrr
 		  '(smull umull) ;; ddrr
 		  '(bfi sbfx ubfx) ;; rrii
+		  '(tst cmp) ;; rr
+		  '(tst# cmp#) ;; ri
                   '(ldr# str#) ;; rri
 		  ;'(bfc) ;; rii
                   ))
@@ -395,6 +396,7 @@
       (define args-type (get-arg-types opcode-name))
       (define shfop (inst-shfop x))
       (define shfarg (inst-shfarg x))
+      (define cond-type (inst-cond x))
 
       (define (add-live ele lst)
 	(if (member ele lst) 
@@ -408,7 +410,7 @@
       (for ([arg args]
 	    [type args-type])
 	   (cond
-	    [(equal? type `reg-o) (set! live (remove arg live))]
+	    [(equal? type `reg-o) (when (= cond-type 0) (set! live (remove arg live)))]
 	    [(equal? type `reg-i) (set! live (add-live arg live))]))
 
       live)
@@ -425,6 +427,8 @@
        [(equal? class-id 5) (vector `reg-o `reg-i `reg-i `reg-i)]
        [(equal? class-id 6) (vector `reg-o `reg-o `reg-i `reg-i)]
        [(equal? class-id 7) (vector `reg-o `reg-i `bit `bit-no-0)]
+       [(equal? class-id 8) (vector `reg-i `reg-i)]
+       [(equal? class-id 9) (vector `reg-i `const)]
        [(equal? opcode-name `ldr#) (vector `reg-o `fp `mem)]
        [(equal? opcode-name `str#) (vector `reg-i `fp `mem)]
        [(equal? opcode-name `bfc) (vector `reg-io `bit `bit-no-0)]

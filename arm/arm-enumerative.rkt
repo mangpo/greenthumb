@@ -59,9 +59,8 @@
 	     regs type lex #:no-args [no-args #f] #:try-cmp [try-cmp #f])
 
       (define mode (cond [regs `vir] [no-args `no-args] [else `basic]))
-      (define inst-choice '(eor and))
-      ;;(define inst-choice '(clz rsb lsr#))
-      ;;(define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
+      ;; (define inst-choice '(bic mov# cmp))
+      ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
       (define inst-pool (get-field inst-pool machine))
       (define z
         (cond
@@ -70,7 +69,7 @@
       (if try-cmp 
 	  (when (and (number? flag-in) (number? flag-out) 
 		     (not (= flag-in flag-out)))
-		(set! inst-pool cmp-inst))
+		(set! inst-pool (filter (lambda (x) (member x cmp-inst)) inst-pool)))
 	  (set! inst-pool (remove* cmp-inst inst-pool)))
       (cond
        [(equal? type `mod+high) 
@@ -199,7 +198,11 @@
 				    #:live-out live-out
 				    #:mode mode))]
 			    [v-reg (cond [regs regs] [no-args (cons 0 3)] [else #f])]
-			    [cond-bound (if (or (= z -1) regs) 1 cond-type-len)]) ;; TODO
+			    [cond-bound 
+			     (if (or (= z -1) regs (member opcode-id cmp-inst))
+				 1 
+				 (list 0 3 4) ;;cond-type-len
+				 )])
 		       (when debug (pretty-display `(iterate ,opcode-name ,arg-ranges ,cond-bound)))
 		       (for ([cond-type cond-bound])
 			    (if shf?

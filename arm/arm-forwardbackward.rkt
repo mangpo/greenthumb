@@ -9,7 +9,8 @@
     (super-new)
     (inherit-field machine validator validator-precise)
     (override vector->id mask-in inst->vector
-              reduce-precision increase-precision)
+              reduce-precision increase-precision
+	      get-live-mask)
 
     (define bit (get-field bit machine))
     (define max-val (arithmetic-shift 1 bit))
@@ -29,7 +30,7 @@
       (vector (inst-op x) (inst-args x) (inst-shfop x) (inst-shfarg x) (inst-cond x)))
 
     ;; TODO: memory, z
-    (define (mask-in state-vec live-list)
+    (define (mask-in state-vec live-list #:keep-flag [keep #t])
       (define regs (vector-ref state-vec 0))
       (define mems (vector-ref state-vec 1))
       (define z (vector-ref state-vec 2))
@@ -38,7 +39,7 @@
        (for/vector ([r regs] [i (vector-length regs)])
 		   (and (member i live-list) r))
        (vector-copy mems)
-       z fp))
+       (if keep z -1) fp))
 
     
     (define bit-nonprecise (get-field bit (get-field machine validator)))
@@ -83,5 +84,11 @@
          [(= arg (/ bit-nonprecise 2)) (/ bit-precise 2)]
          [else arg]))
       (for/vector ([x prog]) (reduce-inst x change)))
+
+    (define (get-live-mask state-vec)
+      (filter number?
+	      (for/list ([i (in-naturals)]
+			 [r (vector-ref state-vec 0)])
+			(and r i))))
 
     ))
