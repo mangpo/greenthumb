@@ -93,19 +93,29 @@
 	     (when debug (pretty-display `(reset-generate-inst ,inst-pool)))
 
 	     (define arg-types #f)
+	     (define global-out (if (and live-in live-out) (set-subtract live-out live-in) (list)))
+	     (define global-in (if (and live-in live-out) (set-subtract (take live-in 1) live-out) (list)))
 
 	     (define (recurse-args opcode opcode-id shfop shfarg cond-type args ranges v-reg)
                (define (check-yield)  
                  (define new-args (reverse args))
 		 (define pass #t)
-		 (when (and live-in live-out)
-		       (define out (set-subtract live-out live-in))
-		       (unless (empty? out)
-			       (for ([r new-args]
-				     [type arg-types])
-				    (when (equal? type `reg-o) (set! out (remove r out))))
-			       (unless (empty? out)
-				       (set! pass #f))))
+		 (define out global-out)
+		 (define in global-in)
+		 
+		 (unless (empty? out)
+			 (for ([r new-args]
+			       [type arg-types])
+			      (when (equal? type `reg-o) (set! out (remove r out))))
+			 (unless (empty? out)
+				 (set! pass #f)))
+		 ;; (when (and pass (not (empty? in)))
+		 ;;       (for ([r new-args]
+		 ;; 	     [type arg-types])
+		 ;; 	    (when (equal? type `reg-i) (set! in (remove r in))))
+		 ;;       (unless (empty? in)
+		 ;; 	       (set! pass #f)))
+
 		 (when
 		  pass
 		  (let* ([i (arm-inst opcode-id (list->vector new-args) 

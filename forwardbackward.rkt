@@ -44,7 +44,9 @@
 	      (insert-inner (hash-ref x key) (cdr states-vec) prog))))
 
       ;(set! states-vec (map (lambda (x) (abstract x live-list identity)) states-vec))
-      (define key (entry (sort live <) (send enum get-flag (car states-vec))))
+      (define key (entry (sort live <)
+			 ;;(cons (car live) (sort (drop live 1) <))
+			 (send enum get-flag (car states-vec))))
       (unless (hash-has-key? class key) (hash-set! class key (make-hash)))
       (insert-inner (hash-ref class key) states-vec prog))
 
@@ -136,6 +138,8 @@
     (define t-build-inter2 0)
     (define t-build-hash 0)
     (define t-build-hash2 0)
+    (define t-mask 0)
+    (define t-hash 0)
     (define t-intersect 0)
     (define t-interpret-0 0)
     (define t-interpret 0)
@@ -149,6 +153,7 @@
     (define c-extra 0)
     (define c-check 0)
 
+    (define t-refine 0)
     (define t-collect 0)
     (define t-check 0)
 
@@ -401,6 +406,7 @@
         )
 
       (define (refine my-classes my-classes-bw-entry my-inst my-live1 my-live2)
+	(define t00 (current-milliseconds))
 	(define all-progs-bw (vector-ref my-classes-bw-entry 0))
 	(define my-classes-bw (vector-ref my-classes-bw-entry 1))
         (define cache (make-vector ce-limit))
@@ -501,39 +507,50 @@
 
 		(when 
 		 out-vec
-		 (for ([pair (hash->list my-classes-bw-level)])
-		      (let* ([live-mask (car pair)]
-			     [classes (cdr pair)]
-			     [out-vec-masked (mask-in out-vec live-mask)]
-			     [has-key (hash-has-key? classes out-vec-masked)]
-			     [progs-set (and has-key (hash-ref classes out-vec-masked))]
-			     [t2 (current-milliseconds)]
-			     [new-candidates
-			      (and has-key
-				   (if (= level 0)
-				       (set->list progs-set)
-				       (intersect candidates progs-set)))]
-			     [t3 (current-milliseconds)])
-			;; (pretty-display `(inner ,level ,inter ,out-vec-masked ,new-candidates))
-			;; (when (>= level 2)
-			;;       (pretty-display `(result ,classes ,progs-set)))
-			(set! t-intersect (+ t-intersect (- t3 t2)))
-			
-			(when
-			 (and new-candidates (not (empty? new-candidates)))
-			 (if (= 1 (- ce-count level))
-			     (begin
-			       ;;(pretty-display `(check-eqv-leaf ,level ,ce-count))
-			       (check-eqv (hash-ref real-hash inter)
-					  (map (lambda (x) (vector (vector-ref progs-bw x)))
-					       new-candidates)
-					  my-inst ce-count)
-			       (set! ce-count ce-count-extra)
-			       )
-			     (let ([a (outer (hash-ref real-hash inter)
-					     new-candidates
-					     (add1 level))])
-			       (hash-set! real-hash inter a)))))))
+		 (let* ([s0 (current-milliseconds)]
+			[pairs (hash->list my-classes-bw-level)]
+			[s1 (current-milliseconds)])
+		   (set! t-hash (+ t-hash (- s1 s0)))
+		   (for ([pair pairs])
+			(let* ([t0 (current-milliseconds)]
+			       [live-mask (car pair)]
+			       [classes (cdr pair)]
+			       [out-vec-masked 
+				(if (and try-cmp (not (equal? live-mask my-live2)))
+				    (mask-in out-vec live-mask)
+				    out-vec)]
+			       [t1 (current-milliseconds)]
+			       [has-key (hash-has-key? classes out-vec-masked)]
+			       [progs-set (and has-key (hash-ref classes out-vec-masked))]
+			       [t2 (current-milliseconds)]
+			       [new-candidates
+				(and has-key
+				     (if (= level 0)
+					 (set->list progs-set)
+					 (intersect candidates progs-set)))]
+			       [t3 (current-milliseconds)])
+			  ;; (pretty-display `(inner ,level ,inter ,out-vec-masked ,new-candidates))
+			  ;; (when (>= level 2)
+			  ;;       (pretty-display `(result ,classes ,progs-set)))
+			  ;; (set! t-mask (+ t-mask (- t1 t0)))
+			  (set! t-intersect (+ t-intersect (- t3 t0)))
+			  
+			  (when
+			   (and new-candidates (not (empty? new-candidates)))
+			   (if (= 1 (- ce-count level))
+			       (begin
+				 ;;(pretty-display `(check-eqv-leaf ,level ,ce-count))
+				 (check-eqv (hash-ref real-hash inter)
+					    (map (lambda (x) (vector (vector-ref progs-bw x)))
+						 new-candidates)
+					    my-inst ce-count)
+				 (set! ce-count ce-count-extra)
+				 )
+			       (let ([a (outer (hash-ref real-hash inter)
+					       new-candidates
+					       (add1 level))])
+				 (hash-set! real-hash inter a)))))))
+		 )
 		)))
             
           (cond
@@ -552,6 +569,8 @@
             ]))
        
         (outer my-classes #f 0)
+	(define t11 (current-milliseconds))
+	(set! t-refine (+ t-refine (- t11 t00)))
         )
 
 
@@ -574,7 +593,7 @@
         (define cache (make-hash))
         (when 
          my-inst
-         ;;(send printer print-syntax-inst (send printer decode-inst my-inst))
+         ;; (send printer print-syntax-inst (send printer decode-inst my-inst))
 	 ;; (pretty-display my-liveout)
 
          (define (recurse x states2-vec)
@@ -679,19 +698,20 @@
           (define ttt (current-milliseconds))
           (refine hash1 hash2 my-inst live1 live2)
 	  (when 
-	   (or (> (- (current-milliseconds) ttt) 100) (> c-build-hash2 0))
-	   (pretty-display (format "search ~a ~a = ~a\t(~a + ~a/~a + ~a + ~a/~a)\t~a/~a\t[~a/~a]\t~a/~a\t~a/~a (~a) ~a" 
+	   (> (- (current-milliseconds) ttt) 500)
+	   (pretty-display (format "search ~a ~a = ~a + ~a + ~a | ~a\t(~a + ~a/~a + ~a + ~a/~a)\t~a ~a ~a/~a\t[~a/~a]\t~a/~a\t~a/~a (~a) ~a" 
 	  			   (- (current-milliseconds) ttt) ce-count-extra
+				   t-refine t-collect t-check
 	  			   t-build t-build-inter t-build-hash c-build-hash t-build-inter2 t-build-hash2 c-build-hash2
-	  			   t-intersect c-intersect
+	  			   t-mask t-hash t-intersect c-intersect
 	  			   t-interpret-0 c-interpret-0
 	  			   t-interpret c-interpret
 	  			   t-extra c-extra c-check
 	  			   t-verify
 	  			   )))
-          (set! t-build 0) (set! t-build-inter 0) (set! t-build-inter2 0) (set! t-build-hash 0) (set! t-build-hash2 0) (set! t-intersect 0) (set! t-interpret-0 0) (set! t-interpret 0) (set! t-extra 0) (set! t-verify 0)
+          (set! t-build 0) (set! t-build-inter 0) (set! t-build-inter2 0) (set! t-build-hash 0) (set! t-build-hash2 0) (set! t-mask 0) (set! t-hash 0) (set! t-intersect 0) (set! t-interpret-0 0) (set! t-interpret 0) (set! t-extra 0) (set! t-verify 0)
           (set! c-build-hash 0) (set! c-build-hash2 0) (set! c-intersect 0) (set! c-interpret-0 0) (set! c-interpret 0) (set! c-extra 0) (set! c-check 0)
-          (set! t-collect 0) (set! t-check 0)
+          (set! t-refine 0) (set! t-collect 0) (set! t-check 0)
           (refine-all hash1 live1 hash2 live2 iterator)
 	  ))
 
