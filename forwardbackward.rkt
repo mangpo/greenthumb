@@ -24,7 +24,7 @@
     
     (define debug #f)
     (define ce-limit 30)
-    (define try-cmp #t)
+    (define try-cmp #f)
 
     (define c-behaviors 0)
     (define c-progs 0)
@@ -187,12 +187,12 @@
       ;;    (progstate (vector 5 7 0) (vector) -1 4)
       ;; 	 ))
       ;; p11
-      (define inits
-        (list
-         (progstate (vector 4 0) (vector) -1 4)
-         (progstate (vector -8 -4) (vector) -1 4)
-         ;; (progstate (vector -6 4) (vector) -1 4)
-      	 ))
+      ;; (define inits
+      ;;   (list
+      ;;    (progstate (vector 4 0) (vector) -1 4)
+      ;;    (progstate (vector -8 -4) (vector) -1 4)
+      ;;    ;; (progstate (vector -6 4) (vector) -1 4)
+      ;; 	 ))
       ;; p24
       ;; (define inits
       ;;   (list
@@ -201,11 +201,11 @@
       ;;    (progstate (vector -1 0) (vector) -1 4)
       ;;    ))
       ;; p19
-      ;; (define inits
-      ;;   (list
-      ;;    (progstate (vector -6 -5 3 5) (vector) -1 4)
-      ;;    (progstate (vector 6 3 4 5) (vector) -1 4)
-      ;;    ))
+      (define inits
+        (list
+         (progstate (vector -6 -5 3 5) (vector) -1 4)
+         (progstate (vector 6 3 4 5) (vector) -1 4)
+         ))
       (define states1 
 	(map (lambda (x) (send simulator interpret prefix x #:dep #f)) inits))
       (define states2
@@ -459,7 +459,7 @@
 		(let* ([s0 (current-milliseconds)]
 		       [inputs-vec (send inverse interpret-inst (vector-ref progs-bw p-bw) output-vec live2-list)]
 		       [s1 (current-milliseconds)])
-		  (when inputs-vec
+		  (when (and inputs-vec (not (empty? inputs-vec)))
 			(class-insert-bw-inner! my-classes-bw-level inputs-vec p-bw)
 			(let ([s2 (current-milliseconds)])
 			  (set! t-build-inter2 (+ t-build-inter2 (- s1 s0)))
@@ -574,7 +574,7 @@
         (define cache (make-hash))
         (when 
          my-inst
-         (send printer print-syntax-inst (send printer decode-inst my-inst))
+         ;;(send printer print-syntax-inst (send printer decode-inst my-inst))
 	 ;; (pretty-display my-liveout)
 
          (define (recurse x states2-vec)
@@ -616,7 +616,7 @@
 	;; (define my-liveout '(0))
 
 	(when my-inst
-	      (send printer print-syntax-inst (send printer decode-inst my-inst))
+	      ;;(send printer print-syntax-inst (send printer decode-inst my-inst))
 	      ;; (pretty-display `(live ,my-liveout))
 	      (define states-vec
 		(for/list ([out-vec states2-vec])
