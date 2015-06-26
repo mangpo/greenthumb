@@ -695,13 +695,17 @@
           (refine-all hash1 live1 hash2 live2 iterator)
 	  ))
 
+      (define keys (hash-keys prev-classes))
+      (pretty-display keys)
+      (set! keys (sort keys (lambda (x y) (> (length (entry-live x)) (length (entry-live y))))))
+
       ;; Search
       (define ttt (current-milliseconds))
-      (for* ([pair1 (hash->list prev-classes)]
+      (for* ([key1 keys]
              [pair2 (hash->list prev-classes-bw)])
-           (let* ([flag1 (entry-flag (car pair1))]
-      		  [live1 (entry-live (car pair1))]
-                  [my-hash1 (cdr pair1)]
+           (let* ([flag1 (entry-flag key1)]
+      		  [live1 (entry-live key1)]
+                  [my-hash1 (hash-ref prev-classes key1)]
       		  [flag2 (entry-flag (car pair2))]
                   [live2 (entry-live (car pair2))]
                   [my-hash2 (cdr pair2)]

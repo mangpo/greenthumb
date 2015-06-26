@@ -92,21 +92,37 @@
 	     ()
 	     (when debug (pretty-display `(reset-generate-inst ,inst-pool)))
 
+	     (define arg-types #f)
+
 	     (define (recurse-args opcode opcode-id shfop shfarg cond-type args ranges v-reg)
                (define (check-yield)  
-                 (let* ([i (arm-inst opcode-id (list->vector (reverse args)) 
-                                     shfop shfarg cond-type)]
-                        [ret (list i 
-				   (and live-in (send machine update-live live-in i))
-				   (and live-out (send machine update-live-backward live-out i))
-				   v-reg)])
-                   (if lex
-                       (let ([my-lex (lexical-skeleton i)])
-                         (if my-lex
-                             (when (>= (lexical-cmp my-lex lex) 0)
-                                   (yield ret))
-                             (yield ret)))
-                       (yield ret))))
+                 (define new-args (reverse args))
+		 (define pass #t)
+		 (when (and live-in live-out)
+		       (define out (set-subtract live-out live-in))
+		       (unless (empty? out)
+			       (for ([r new-args]
+				     [type arg-types])
+				    (when (equal? type `reg-o) (set! out (remove r out))))
+			       (unless (empty? out)
+				       (set! pass #f))))
+		 (when
+		  pass
+		  (let* ([i (arm-inst opcode-id (list->vector new-args) 
+				      shfop shfarg cond-type)]
+			 [ret (list i 
+				    (and live-in (send machine update-live live-in i))
+				    (and live-out (send machine update-live-backward live-out i))
+				    v-reg)])
+		    (yield ret))))
+                   ;; (if lex
+                   ;;     (let ([my-lex (lexical-skeleton i)])
+                   ;;       (if my-lex
+                   ;;           (when (>= (lexical-cmp my-lex lex) 0)
+                   ;;                 (yield ret))
+                   ;;           (yield ret)))
+                   ;;     (yield ret))))
+		   
                  
 	       (when debug (pretty-display `(recurse-args ,args ,ranges ,shfop ,v-reg)))
 	       ;; Symmetry reduction for commutative operations
@@ -189,6 +205,7 @@
 
 	     (for ([opcode-id inst-pool])
 		  (let ([opcode-name (vector-ref inst-id opcode-id)])
+		    (set! arg-types (send machine get-arg-types opcode-name))
 		    (unless 
 		     (equal? opcode-name `nop)
 		     (let* ([shf? (member opcode-name inst-with-shf)]
