@@ -404,15 +404,15 @@
 	    (cons ele (remove ele lst))
 	    (cons ele lst)))
 
-      (when (member (vector-ref shf-inst-id shfop) '(asr lsl lsr))
-            (set! live (add-live shfarg live)))
-
       (for ([arg args]
 	    [type args-type])
 	   (cond
+            ;; kill first
 	    [(equal? type `reg-o) (when (= cond-type 0) (set! live (remove arg live)))]
 	    [(equal? type `reg-i) (set! live (add-live arg live))]))
 
+      (when (member (vector-ref shf-inst-id shfop) '(asr lsl lsr))
+            (set! live (add-live shfarg live)))
       live)
       
 

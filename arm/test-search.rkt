@@ -8,7 +8,7 @@
 
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine% [bit 4]))
+(define machine (new arm-machine% [bit 3]))
 (send machine set-config (list 4 0 4))
 (define machine-precise (new arm-machine% [bit 32]))
 (send machine-precise set-config (list 4 0 4))

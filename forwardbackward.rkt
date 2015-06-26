@@ -57,6 +57,12 @@
     (define (class-insert-bw-inner! top-hash key-list prog)
       (let* ([first-key (car key-list)]
 	     [live-mask (get-live-mask first-key)])
+        ;; (when debug
+        ;;       (unless (equal? debug live-mask)
+        ;;               (send printer print-syntax
+        ;;                     (send printer decode
+        ;;                           (vector (vector-ref progs-bw prog))))
+        ;;               (raise (format "not-eq ~a ~a" debug live-mask))))
 	(unless (hash-has-key? top-hash live-mask)
 		(hash-set! top-hash live-mask (make-hash)))
 	(let ([my-hash (hash-ref top-hash live-mask)])
@@ -72,6 +78,7 @@
       ;;(pretty-display `(class-insert-bw! ,(map length states-vec)))
       (vector-set! progs-bw c-progs-bw prog)
 
+      (define key (entry (sort live <) (send enum get-flag (car (car states-vec)))))
       (define (insert-inner xxx)
 	(vector-set! xxx 0 (cons c-progs-bw (vector-ref xxx 0)))
 	(define x (vector-ref xxx 1))
@@ -81,7 +88,6 @@
 	     (class-insert-bw-inner! (vector-ref x test) key-list c-progs-bw)))
 
       ;(set! states-vec (map (lambda (x) (abstract x live-list identity)) states-vec))
-      (define key (entry (sort live <) (send enum get-flag (car (car states-vec)))))
       (unless (hash-has-key? class key) 
 	      (hash-set! class key (vector (list) (make-vector ce-limit #f))))
       (insert-inner (hash-ref class key))
@@ -206,10 +212,15 @@
       ;;    (progstate (vector -1 0) (vector) -1 4)
       ;;    ))
       ;; p19
+      ;; (define inits
+      ;;   (list
+      ;;    (progstate (vector -6 -5 3 5) (vector) -1 4)
+      ;;    (progstate (vector 6 3 4 5) (vector) -1 4)
+      ;;    ))
       (define inits
         (list
-         (progstate (vector -6 -5 3 5) (vector) -1 4)
-         (progstate (vector 6 3 4 5) (vector) -1 4)
+         (progstate (vector -4 3 1 2) (vector) -1 4)
+         (progstate (vector 1 -1 2 -4) (vector) -1 4)
          ))
       (define states1 
 	(map (lambda (x) (send simulator interpret prefix x #:dep #f)) inits))
@@ -510,6 +521,10 @@
 		 (let* ([s0 (current-milliseconds)]
 			[pairs (hash->list my-classes-bw-level)]
 			[s1 (current-milliseconds)])
+                   (when (> (length pairs) 1)
+                         (raise
+                          (pretty-display `(debug ,level ,(hash-keys my-classes-bw-level)))
+                          (format "(length pairs) = ~a" (length pairs))))
 		   (set! t-hash (+ t-hash (- s1 s0)))
 		   (for ([pair pairs])
 			(let* ([t0 (current-milliseconds)]
@@ -635,7 +650,7 @@
 	;; (define my-liveout '(0))
 
 	(when my-inst
-	      ;;(send printer print-syntax-inst (send printer decode-inst my-inst))
+	      ;; (send printer print-syntax-inst (send printer decode-inst my-inst))
 	      ;; (pretty-display `(live ,my-liveout))
 	      (define states-vec
 		(for/list ([out-vec states2-vec])
@@ -657,12 +672,12 @@
         (set! c-progs 0)
       	(for ([pair (hash->list prev-classes)])
       	     (let* ([key (car pair)]
-		    [live-list (entry-live key)]
-		    [flag (entry-flag key)]
+        	    [live-list (entry-live key)]
+        	    [flag (entry-flag key)]
       		    [my-hash (cdr pair)]
       		    [iterator (send enum reset-generate-inst 
-				    live-list #f flag #f
-				    #f `all #f #:try-cmp try-cmp)])
+        			    live-list #f flag #f
+        			    #f `all #f #:try-cmp try-cmp)])
                (pretty-display `(live ,live-list ,flag))
       	       (build-hash live-list my-hash iterator i)))
         (set! prev-classes classes)
@@ -698,7 +713,7 @@
           (define ttt (current-milliseconds))
           (refine hash1 hash2 my-inst live1 live2)
 	  (when 
-	   (> (- (current-milliseconds) ttt) 500)
+	   (> (- (current-milliseconds) ttt) 100)
 	   (pretty-display (format "search ~a ~a = ~a + ~a + ~a | ~a\t(~a + ~a/~a + ~a + ~a/~a)\t~a ~a ~a/~a\t[~a/~a]\t~a/~a\t~a/~a (~a) ~a" 
 	  			   (- (current-milliseconds) ttt) ce-count-extra
 				   t-refine t-collect t-check
@@ -719,6 +734,8 @@
       (pretty-display keys)
       (set! keys (sort keys (lambda (x y) (> (length (entry-live x)) (length (entry-live y))))))
 
+      (define order 0)
+
       ;; Search
       (define ttt (current-milliseconds))
       (for* ([key1 keys]
@@ -734,9 +751,13 @@
       			 live1 live2 flag1 flag2
       			 #f `all #f #:try-cmp try-cmp)])
              (newline)
-             (pretty-display `(refine ,live1 ,flag1 ,live2 ,flag2))
-      	     (refine-all my-hash1 live1 my-hash2 live2 iterator)
+             (pretty-display `(refine ,order ,live1 ,flag1 ,live2 ,flag2))
+             ;; (when (and (equal? live1 '(0 1 2 3)) (equal? live2 '(1 2 3)))
+             ;;        (pretty-display "===================")
+                    (refine-all my-hash1 live1 my-hash2 live2 iterator)
+                    ;; )
       	     (pretty-display `(middle-count ,middle))
+             (set! order (add1 order))
              ))
 
       )
