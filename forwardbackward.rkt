@@ -108,7 +108,7 @@
 		     (hash-set! my-hash key progs)))))))
       
 
-    (define (class-insert-bw! class live test key-list my-inst progs)
+    (define (class-insert-bw! class live test key-list new-progs)
       ;;(pretty-display `(class-insert-bw! ,class ,live ,test ,key-list ,my-inst ,progs))
 
       (define key (entry (sort live <) (send enum get-flag (car key-list))))
@@ -116,9 +116,6 @@
       ;(set! states-vec (map (lambda (x) (abstract x live-list identity)) states-vec))
       (unless (hash-has-key? class key) 
 	      (hash-set! class key (make-vector ce-limit #f)))
-
-      (define inst-id (inst->id my-inst))
-      (define new-progs (concat-progs inst-id progs))
 
       (define tests (hash-ref class key))
       (unless (vector-ref tests test) (vector-set! tests test (make-hash)))
@@ -235,19 +232,20 @@
       (define live1 (send validator get-live-in spec live2 extra))
       (define live1-list (send machine get-operand-live live1))
       (define live2-list (send machine get-operand-live live2))
-             
-      (define step-bw 1)
+
+      (define step-fw 3)
+      (define step-bw 2)
       (define ntests 2)
       (define ntests-expand 0)
       ;; (define inits
       ;;   (send validator generate-input-states ntests (vector-append prefix spec postfix)
       ;;         assumption extra #:db #t))
       ;; p10
-      ;; (define inits
-      ;;   (list
-      ;;    (progstate (vector -7 5 0) (vector) -1 4)
-      ;;    (progstate (vector 5 7 0) (vector) -1 4)
-      ;; 	 ))
+      (define inits
+        (list
+         (progstate (vector -7 5 0) (vector) -1 4)
+         (progstate (vector 5 7 0) (vector) -1 4)
+      	 ))
       ;; (define inits
       ;;   (list
       ;;    (progstate (vector 1 -3 0) (vector) -1 4)
@@ -268,11 +266,11 @@
       ;;    (progstate (vector -1 0) (vector) -1 4)
       ;;    ))
       ;; p19
-      (define inits
-        (list
-         (progstate (vector -6 -5 3 5) (vector) -1 4)
-         (progstate (vector 6 3 4 5) (vector) -1 4)
-         ))
+      ;; (define inits
+      ;;   (list
+      ;;    (progstate (vector -6 -5 3 5) (vector) -1 4)
+      ;;    (progstate (vector 6 3 4 5) (vector) -1 4)
+      ;;    ))
       ;; (define inits
       ;;   (list
       ;;    (progstate (vector -4 3 1 2) (vector) -1 4)
@@ -703,8 +701,11 @@
 			   [iterator (send enum reset-generate-inst 
 					   #f live-list #f flag
 					   #f `all #f #:try-cmp try-cmp)])
-		      (pretty-display `(live ,live-list ,flag))
-		      (build-hash-bw test current live-list my-hash iterator))))
+		      (pretty-display `(live ,live-list ,flag
+                                             ,(hash-count (vector-ref my-hash test))
+                                             ,(hash-count (car (hash-values (vector-ref my-hash test))))))
+                      (build-hash-bw test current live-list my-hash iterator)
+                      )))
 	     (pretty-display `(behavior-bw ,test ,step ,c-behaviors-bw ,c-progs-bw ,(- (current-seconds) start-time)))
 	     )
 	)
@@ -723,22 +724,37 @@
 	  ;; (define my-liveout '(0))
 
 	  (when my-inst
-		;;(send printer print-syntax-inst (send printer decode-inst my-inst))
+		;; (send printer print-syntax-inst (send printer decode-inst my-inst))
+                (define inst-id (inst->id my-inst))
+                ;; (define t-interpret 0)
+                ;; (define t-hash 0)
+                ;; (define c 0)
 		(for* ([mapping (hash-values my-hash-test)]
 		       [pair (hash->list mapping)])
 		      (let* ([out-vec (car pair)]
 			     [progs (cdr pair)]
-			     [in-vec (send inverse interpret-inst my-inst out-vec old-liveout)])
+                             ;;[t0 (current-milliseconds)]
+			     [in-vec (send inverse interpret-inst my-inst out-vec old-liveout)]
+                             ;;[t1 (current-milliseconds)]
+                             )
 			;;(pretty-display `(test-live ,test ,my-liveout ,(and in-vec (length in-vec))))
 			(when (and in-vec (not (empty? in-vec)))
 			      (class-insert-bw! current my-liveout test 
-						in-vec my-inst progs))))
+						in-vec (concat-progs inst-id progs)))
+                        ;; (let ([t2 (current-milliseconds)])
+                        ;;   (set! t-interpret (+ t-interpret (- t1 t0)))
+                        ;;   (set! t-hash (+ t-hash (- t2 t1)))
+                        ;;   (when (list? in-vec) (set! c (+ c (length in-vec))))
+                        ;;   )
+                        )
+                      )
+                ;; (pretty-display `(time ,t-interpret ,t-hash ,c))
 		(inner)
 		))
 	(inner))
 
       ;; Grow forward
-      (for ([i 2])
+      (for ([i step-fw])
         (newline)
         (pretty-display `(grow ,i))
         (set! c-behaviors 0)
@@ -759,7 +775,8 @@
         )
 
       ;; Grow backward
-      (for ([test ntests]) (build-hash-bw-all test))
+      (for ([test ntests])
+           (build-hash-bw-all test))
 
       (define middle 0)
       (define (refine-all hash1 live1 flag1 hash2 live2 flag2 iterator)
@@ -816,19 +833,13 @@
              (newline)
              (pretty-display `(refine ,order ,live1 ,flag1 ,live2 ,flag2))
       	     ;;(pretty-display `(hash ,(vector-ref my-hash2 0) ,(vector-ref my-hash2 1)))
-             ;;(when (and (equal? live1 '(0 1 2 3)) (equal? live2 '(1 2 3)))
-                    ;;(pretty-display "===================")
+             ;; (when (and (equal? live1 '(0 1 2 3)) (equal? live2 '(1 2 3)))
+             ;;        (pretty-display "===================")
                     (refine-all my-hash1 live1 flag1 my-hash2 live2 flag2 iterator)
-                    ;;)
+                    ;; )
       	     (pretty-display `(middle-count ,middle))
              (set! order (add1 order))
              ))
-
-      ;; (for ([id (list 651 676)])
-      ;; 	   (send printer print-syntax (send printer decode (id->real-progs id)))
-      ;; 	   (newline))
-     
-      ;; (pretty-display (hash-ref (vector-ref classes-bw step-bw) (entry '(0) -1)))
 
       )
     ))
