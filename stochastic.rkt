@@ -82,7 +82,7 @@
                  (send machine display-state i))
             )
       (set-field! best-correct-program stat spec)
-      (set-field! best-correct-cost stat (send simulator performance-cost spec))
+      (set-field! best-correct-cost stat (add1 (send simulator performance-cost spec))) ;; TODO: remove add1 for real tool
       (send stat set-name name)
 
       ;; MCMC sampling

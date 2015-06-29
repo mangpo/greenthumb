@@ -13,9 +13,9 @@
     ;; mode = `linear, `binary, `syn, `opt
     (public optimize)
     
-    (define (optimize-inner code-org live-out-org live-in-org rootdir cores time-limit size 
+    (define (optimize-inner code-org live-out-org live-in-org rootdir cores time-limit prog-size 
                             assume extra-info input-file start-prog)
-      (pretty-display (format "SEACH TYPE: ~a" search-type))
+      (pretty-display (format "SEACH TYPE: ~a size=~a" search-type prog-size))
       ;;(define path (format "~a/driver" dir))
       (system (format "rm -r ~a" rootdir))
       (system (format "mkdir ~a" rootdir))
@@ -96,7 +96,7 @@
                 (format "(send search superoptimize encoded-code ~a ~a \"~a-~a\" ~a ~a ~a #:assume ~a #:input-file ~a #:start-prog ~a #:prefix encoded-prefix #:postfix encoded-postfix)" 
                         (send machine output-constraint-string "machine" live-out)
                         (send machine output-constraint-string "machine" live-in)
-                        path id time-limit size extra-info
+                        path id time-limit prog-size extra-info
                         (send machine output-assume-string "machine" assume)
                         (if input-file (string-append "\"" input-file "\"") #f)
                         (if start-prog "encoded-start-code" #f)

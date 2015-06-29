@@ -4,26 +4,31 @@
          "arm-parser.rkt" "arm-ast.rkt")
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine% [bit 32]))
-(send machine set-config (list 5 3 4))
+(define machine (new arm-machine% [bit 4]))
+(send machine set-config (list 6 12 12))
 (define printer (new arm-printer% [machine machine]))
 (define validator (new arm-validator% [machine machine]))
 
 (define code
 (send parser ast-from-string "
-bic	r0, r0, r1
-cmp	r0, r1
-movls	r0, #0
-movhi	r0, #1
+	uxth	r5, r0
+	mov	r3, r0, asr #2
+	uxth	r4, r1
+	mov	r1, r1, asr #2
+	mul	r2, r5, r4
+	mul	r4, r3, r4
+	mul	r5, r5, r1
+	add	r2, r4, r2, lsr #2
+	mov	r0, r2, asr #2
+	uxtah	r2, r5, r2
+	mla	r0, r1, r3, r0
+	add	r0, r0, r2, asr #2
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-orr r0, r0, r1
-rsb r0, r0, r0, lsr 1
-add r1, r0, r1
-lsr r0, r1, 31
+smmul r0, r0, r1
 "))
 
 (define encoded-code (send printer encode code))
