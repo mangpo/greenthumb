@@ -228,7 +228,8 @@
 			    [cond-bound 
 			     (if (or (= z -1) regs (member opcode-id cmp-inst))
 				 1 
-				 (list 0 3 4) ;;cond-type-len
+				 ;;(list 0 3 4) 
+				 cond-type-len
 				 )])
 		       (when debug (pretty-display `(iterate ,opcode-name ,arg-ranges ,cond-bound)))
 		       (for ([cond-type cond-bound])

@@ -24,7 +24,7 @@
     
     (define debug #f)
     (define ce-limit 100)
-    (define try-cmp #f)
+    (define try-cmp #t)
 
     (define c-behaviors 0)
     (define c-progs 0)
@@ -124,11 +124,13 @@
     (define (class-init-bw! class live test state-vec)
       (define key (entry (sort live <) (send enum get-flag state-vec)))
 
-      (define tests (make-vector ce-limit #f))
+      (unless (hash-has-key? class key)
+	      (hash-set! class key (make-vector ce-limit #f)))
+
+      (define tests (hash-ref class key))
       (define low-hash (make-hash))
       (define my-hash (make-hash))
 
-      (hash-set! class key tests)
       (vector-set! tests test low-hash)
       (hash-set! low-hash (get-live-mask state-vec) my-hash)
       (hash-set! my-hash state-vec (set 0))
@@ -224,7 +226,8 @@
       (set! prefix (reduce-precision prefix))
       (set! postfix (reduce-precision postfix))
       (send printer print-syntax (send printer decode spec))
-
+      
+      ;;(define size (if sketch sketch 4))
       (send machine analyze-opcode prefix spec postfix)
       (send machine analyze-args prefix spec postfix #:vreg 0)
       (define live2 (send validator get-live-in postfix constraint extra))
@@ -233,19 +236,19 @@
       (define live1-list (send machine get-operand-live live1))
       (define live2-list (send machine get-operand-live live2))
 
-      (define step-fw 3)
-      (define step-bw 2)
+      (define step-fw 1)
+      (define step-bw 0)
       (define ntests 2)
       (define ntests-expand 0)
-      ;; (define inits
-      ;;   (send validator generate-input-states ntests (vector-append prefix spec postfix)
-      ;;         assumption extra #:db #t))
-      ;; p10
       (define inits
-        (list
-         (progstate (vector -7 5 0) (vector) -1 4)
-         (progstate (vector 5 7 0) (vector) -1 4)
-      	 ))
+        (send validator generate-input-states ntests (vector-append prefix spec postfix)
+              assumption extra #:db #t))
+      ;; p10
+      ;; (define inits
+      ;;   (list
+      ;;    (progstate (vector -7 5 0) (vector) -1 4)
+      ;;    (progstate (vector 5 7 0) (vector) -1 4)
+      ;; 	 ))
       ;; (define inits
       ;;   (list
       ;;    (progstate (vector 1 -3 0) (vector) -1 4)
@@ -395,7 +398,7 @@
                       (send simulator interpret spec ce-input #:dep #f)]
                      [ce-output-vec
                       (send machine progstate->vector ce-output)])
-                (when debug
+                (when #t
 		      (newline)
                       (pretty-display "[3] counterexample")
                       (pretty-display `(ce ,ce-count-extra ,ce-input-vec ,ce-output-vec)))
@@ -479,7 +482,7 @@
 	     (vector-set! cache i (make-hash)))
 
         (define (outer my-classes candidates level)
-	  ;;(pretty-display `(outer ,level ,candidates))
+	  ;; (pretty-display `(outer ,level ,candidates))
 	  (define my-classes-bw-level (vector-ref my-classes-bw level))
 	  (define cache-level (vector-ref cache level))
           (define real-hash my-classes)
@@ -634,24 +637,20 @@
 
       (define (build-hash old-liveout my-hash iterator level) 
         ;; Call instruction generator
-        (define inst-liveout-vreg (iterator))
-        (define my-inst (first inst-liveout-vreg))
-	(define my-liveout (second inst-liveout-vreg))
+        ;; (define inst-liveout-vreg (iterator))
+        ;; (define my-inst (first inst-liveout-vreg))
+	;; (define my-liveout (second inst-liveout-vreg))
 
-	;; (define my-inst 
-	;;   (if (= level 0)
-	;;       (vector-ref (send printer encode 
-	;; 			(send parser ast-from-string "bic r0, r0, r1"))
-	;; 		  0)
-	;;       (vector-ref (send printer encode 
-	;; 			(send parser ast-from-string "cmp r0, r1"))
-	;; 		  0)))
-	;; (define my-liveout '(0 1))
+	(define my-inst 
+	  (vector-ref (send printer encode 
+			    (send parser ast-from-string "cmp r0, r1"))
+		      0))
+	(define my-liveout '(0 1))
 
         (define cache (make-hash))
         (when 
          my-inst
-         ;; (send printer print-syntax-inst (send printer decode-inst my-inst))
+         (send printer print-syntax-inst (send printer decode-inst my-inst))
 	 ;; (pretty-display my-liveout)
 
          (define (recurse x states2-vec)
@@ -678,7 +677,7 @@
                       (when out (recurse val (cons out states2-vec)))))))
          
          (recurse my-hash (list))
-         (build-hash old-liveout my-hash iterator level)
+         ;;(build-hash old-liveout my-hash iterator level)
 	 ))
 
       (define (build-hash-bw-all test)
@@ -784,7 +783,7 @@
         (define my-inst (first inst-liveout-vreg))
 	;; (define my-inst 
 	;;   (vector-ref (send printer encode 
-	;; 		    (send parser ast-from-string "movls r0, 0"))
+	;; 		    (send parser ast-from-string "movcc r0, r1"))
 	;; 	      0))
         (when 
             my-inst
