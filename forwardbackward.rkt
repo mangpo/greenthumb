@@ -90,6 +90,7 @@
 
     (define (class-insert-bw-inner! top-hash key-list progs)
       (let* ([first-key (car key-list)]
+	     [flag (send enum get-falg first-key)]
 	     [live-mask (get-live-mask first-key)])
         ;; (when debug
         ;;       (unless (equal? debug live-mask)
@@ -97,9 +98,12 @@
         ;;                     (send printer decode
         ;;                           (vector (vector-ref progs-bw prog))))
         ;;               (raise (format "not-eq ~a ~a" debug live-mask))))
-	(unless (hash-has-key? top-hash live-mask)
-		(hash-set! top-hash live-mask (make-hash)))
-	(let ([my-hash (hash-ref top-hash live-mask)])
+	(unless (hash-has-key? top-hash flag)
+		(hash-set! top-hash falg (make-hash)))
+	(define middle-hash (hash-ref top-hash flag))
+	(unless (hash-has-key? middle-hash live-mask)
+		(hash-set! middle-hash live-mask (make-hash)))
+	(let ([my-hash (hash-ref middle-hash live-mask)])
 	  (for ([key key-list])
 	       (if (hash-has-key? my-hash key)
 		   (hash-set! my-hash key (set-union (hash-ref my-hash key) progs))
@@ -111,7 +115,8 @@
     (define (class-insert-bw! class live test key-list new-progs)
       ;;(pretty-display `(class-insert-bw! ,class ,live ,test ,key-list ,my-inst ,progs))
 
-      (define key (entry (sort live <) (send enum get-flag (car key-list))))
+      ;;(define key (entry (sort live <) (send enum get-flag (car key-list))))
+      (define key (sort live <))
 
       ;(set! states-vec (map (lambda (x) (abstract x live-list identity)) states-vec))
       (unless (hash-has-key? class key) 
@@ -122,24 +127,27 @@
       (class-insert-bw-inner! (vector-ref tests test) key-list new-progs))
 
     (define (class-init-bw! class live test state-vec)
-      (define key (entry (sort live <) (send enum get-flag state-vec)))
+      ;;(define key (entry (sort live <) (send enum get-flag state-vec)))
+      (define key (sort live <))
 
       (unless (hash-has-key? class key)
 	      (hash-set! class key (make-vector ce-limit #f)))
 
       (define tests (hash-ref class key))
-      (define low-hash (make-hash))
+      (define top-hash (make-hash))
+      (define middle-hash (make-hash))
       (define my-hash (make-hash))
 
-      (vector-set! tests test low-hash)
-      (hash-set! low-hash (get-live-mask state-vec) my-hash)
+      (vector-set! tests test top-hash)
+      (hash-set! top-hash (send enum get-flag state-vec) middle-hash)
+      (hash-set! middle-hash (get-live-mask state-vec) my-hash)
       (hash-set! my-hash state-vec (set 0))
 
       (hash-set! prog2id (list) 0)
       (vector-set! id2prog 0 (list)))
 
     (define (class-ref-bw class live flag test)
-      (vector-ref (hash-ref class (entry live flag)) test))
+      (vector-ref (hash-ref class live) test))
       
 
     (define (count-collection x)
@@ -564,53 +572,56 @@
 
 		(when 
 		 out-vec
-		 (let* ([s0 (current-milliseconds)]
-			[pairs (hash->list my-classes-bw-level)]
-			[s1 (current-milliseconds)])
-                   (when (> (length pairs) 1)
-                         (raise
-                          (pretty-display `(debug ,level ,(hash-keys my-classes-bw-level)))
-                          (format "(length pairs) = ~a" (length pairs))))
-		   (set! t-hash (+ t-hash (- s1 s0)))
-		   (for ([pair pairs])
-			(let* ([t0 (current-milliseconds)]
-			       [live-mask (car pair)]
-			       [classes (cdr pair)]
-			       [out-vec-masked 
-				(if (and try-cmp (not (equal? live-mask my-live2)))
-				    (mask-in out-vec live-mask)
-				    out-vec)]
-			       [t1 (current-milliseconds)]
-			       [has-key (hash-has-key? classes out-vec-masked)]
-			       [progs-set (and has-key (hash-ref classes out-vec-masked))]
-			       [t2 (current-milliseconds)]
-			       [new-candidates
-				(and has-key
-				     (if (= level 0)
-					 (set->list progs-set)
-					 (intersect candidates progs-set)))]
-			       [t3 (current-milliseconds)])
-			  ;; (pretty-display `(inner ,level ,inter ,out-vec-masked ,new-candidates))
-			  ;; (when (>= level 2)
-			  ;;       (pretty-display `(result ,classes ,progs-set)))
-			  ;; (set! t-mask (+ t-mask (- t1 t0)))
-			  (set! t-intersect (+ t-intersect (- t3 t0)))
-			  
-			  (when
-			   (and new-candidates (not (empty? new-candidates)))
-			   (if (= 1 (- ce-count level))
-			       (begin
-				 ;;(pretty-display `(check-eqv-leaf ,level ,ce-count))
-				 (check-eqv (hash-ref real-hash inter)
-					    (map id->real-progs new-candidates)
-					    my-inst ce-count)
-				 (set! ce-count ce-count-extra)
-				 )
-			       (let ([a (outer (hash-ref real-hash inter)
-					       new-candidates
-					       (add1 level))])
-				 (hash-set! real-hash inter a)))))))
-		 )
+		 (let ([flag (send enum get-flag out-vec)])
+		   (when
+		    (hash-has-key? my-classes-bw-level flag)
+		    (let* ([s0 (current-milliseconds)]
+			   [pairs (hash->list (hash-ref my-classes-bw-level flag))]
+			   [s1 (current-milliseconds)])
+		      (when (> (length pairs) 1)
+			    (raise
+			     (pretty-display `(debug ,level ,(hash-keys my-classes-bw-level)))
+			     (format "(length pairs) = ~a" (length pairs))))
+		      (set! t-hash (+ t-hash (- s1 s0)))
+		      (for ([pair pairs])
+			   (let* ([t0 (current-milliseconds)]
+				  [live-mask (car pair)]
+				  [classes (cdr pair)]
+				  [out-vec-masked 
+				   (if (and try-cmp (not (equal? live-mask my-live2)))
+				       (mask-in out-vec live-mask)
+				       out-vec)]
+				  [t1 (current-milliseconds)]
+				  [has-key (hash-has-key? classes out-vec-masked)]
+				  [progs-set (and has-key (hash-ref classes out-vec-masked))]
+				  [t2 (current-milliseconds)]
+				  [new-candidates
+				   (and has-key
+					(if (= level 0)
+					    (set->list progs-set)
+					    (intersect candidates progs-set)))]
+				  [t3 (current-milliseconds)])
+			     ;; (pretty-display `(inner ,level ,inter ,out-vec-masked ,new-candidates))
+			     ;; (when (>= level 2)
+			     ;;       (pretty-display `(result ,classes ,progs-set)))
+			     ;; (set! t-mask (+ t-mask (- t1 t0)))
+			     (set! t-intersect (+ t-intersect (- t3 t0)))
+			     
+			     (when
+			      (and new-candidates (not (empty? new-candidates)))
+			      (if (= 1 (- ce-count level))
+				  (begin
+				    ;;(pretty-display `(check-eqv-leaf ,level ,ce-count))
+				    (check-eqv (hash-ref real-hash inter)
+					       (map id->real-progs new-candidates)
+					       my-inst ce-count)
+				    (set! ce-count ce-count-extra)
+				    )
+				  (let ([a (outer (hash-ref real-hash inter)
+						  new-candidates
+						  (add1 level))])
+				    (hash-set! real-hash inter a)))))))
+		    )))
 		)))
             
           (cond
@@ -822,12 +833,13 @@
            (let* ([flag1 (entry-flag key1)]
       		  [live1 (entry-live key1)]
                   [my-hash1 (hash-ref prev-classes key1)]
-      		  [flag2 (entry-flag (car pair2))]
-                  [live2 (entry-live (car pair2))]
+      		  ;;[flag2 (entry-flag (car pair2))]
+                  [live2 (car pair2)]
                   [my-hash2 (cdr pair2)]
+		  [flag2 (hash-keys (vector-ref my-hash2 0))]
                   [iterator
                    (send enum reset-generate-inst 
-      			 live1 live2 flag1 flag2
+      			 live1 live2 flag1 #f
       			 #f `all #f #:try-cmp try-cmp)])
              (newline)
              (pretty-display `(refine ,order ,live1 ,flag1 ,live2 ,flag2))
