@@ -59,7 +59,7 @@
 	     regs type lex #:no-args [no-args #f] #:try-cmp [try-cmp #f])
 
       (define mode (cond [regs `vir] [no-args `no-args] [else `basic]))
-      ;; (define inst-choice '(bic mov# cmp))
+      ;; (define inst-choice '(mov#))
       ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
       (define inst-pool (get-field inst-pool machine))
       (define z

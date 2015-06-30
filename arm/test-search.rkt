@@ -46,8 +46,7 @@
 
 (define code
 (send parser ast-from-string "
-	cmp	r0, r1
-	movcc	r0, r1
+smmul r0, r0, r1
 "))
 
 

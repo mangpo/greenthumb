@@ -157,22 +157,27 @@
               [i (vector-length ranges)])
              (when (or (equal? range #f) (> (vector-length range) 1))
                    (set! okay-indexes (cons i okay-indexes))))
-        (define change (random-from-list okay-indexes))
-        (define valid-vals (vector-ref ranges change))
-        (define new-val 
-          (if (vector? valid-vals)
-              (random-from-vec-ex valid-vals (vector-ref args change))
-              (mutate-operand-specific opcode-name args change live-in)))
         
-        (define new-p (vector-copy p))
-        (when debug
-              (pretty-display (format " --> org = ~a ~a" opcode-name args))
-	      (pretty-display (format " --> choices = ~a" (vector-ref ranges change)))
-              (pretty-display (format " --> new = [~a]->~a)" change new-val)))
-        (vector-set! args change new-val)
-        (vector-set! new-p index (inst-copy-with-args entry args))
-        (send stat inc-propose `operand)
-        new-p]
+        (cond
+         [(empty? okay-indexes) (mutate p)]
+         [else
+          (define change (random-from-list okay-indexes))
+          (define valid-vals (vector-ref ranges change))
+          (define new-val 
+            (if (vector? valid-vals)
+                (random-from-vec-ex valid-vals (vector-ref args change))
+                (mutate-operand-specific opcode-name args change live-in)))
+          
+          (define new-p (vector-copy p))
+          (when debug
+                (pretty-display (format " --> org = ~a ~a" opcode-name args))
+                (pretty-display (format " --> choices = ~a" (vector-ref ranges change)))
+                (pretty-display (format " --> new = [~a]->~a)" change new-val)))
+          (vector-set! args change new-val)
+          (vector-set! new-p index (inst-copy-with-args entry args))
+          (send stat inc-propose `operand)
+          new-p])
+        ]
 
        [else (mutate p)]))
 
