@@ -2,7 +2,10 @@
 
 (require "../parallel.rkt" "../ast.rkt" "../fitness-learner.rkt"
          "arm-parser.rkt" "arm-meta.rkt" "arm-machine.rkt" 
-         "arm-printer.rkt" "arm-compress.rkt" "arm-validator.rkt")
+         "arm-printer.rkt" "arm-compress.rkt" "arm-validator.rkt"
+	 ;; for enumerative search
+	 "arm-simulator-racket.rkt"
+	 "arm-enumerative.rkt" "arm-inverse.rkt" "arm-forwardbackward.rkt")
 
 (provide optimize arm-generate-inputs)
 
@@ -39,6 +42,39 @@
         #:need-filter need-filter #:dir dir #:cores cores 
         #:time-limit time-limit #:size size #:input-file input-file)
   )
+
+(define (optimize-enum code-org live-out-org live-in-org size)
+  (define machine-precise (new arm-machine%))
+  (define compress (new arm-compress% [machine machine-precise]))
+  (define-values (code live-out live-in map-back machine-info) 
+    (send compress compress-reg-space code-org live-out-org live-in-org))
+  (send machine-precise set-config machine-info)
+  
+  (define machine (new arm-machine% [bit 3]))
+  (send machine set-config machine-info)
+
+  (define parser (new arm-parser%))
+  (define printer (new arm-printer% [machine machine]))
+
+  (define simulator-racket (new arm-simulator-racket% [machine machine]))
+  (define simulator-racket-precise (new arm-simulator-racket% [machine machine-precise]))
+  (define validator (new arm-validator% [machine machine]))
+  (define validator-precise (new arm-validator% [machine machine-precise]))
+
+  (define enum (new arm-enumerative% [machine machine] [printer printer] [parser parser]))
+  (define inverse (new arm-inverse% [machine machine] [simulator simulator-racket]))
+  (define backward (new arm-forwardbackward% [machine machine] [enum enum] 
+			[simulator simulator-racket]
+			[simulator-precise simulator-racket-precise]
+			[printer printer] [parser parser] [inverse inverse]
+			[validator validator] [validator-precise validator-precise]))
+
+     (send backward synthesize-window
+         (send printer encode code)
+         size
+         (vector) (vector)
+         (send machine-precise output-constraint live-out) #f #f 3600)
+   )
   
 (define (arm-generate-inputs code machine-config dir)
   (define machine (new arm-machine%))
