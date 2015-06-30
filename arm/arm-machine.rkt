@@ -543,7 +543,7 @@
             (for/vector ([c classes])
                         (map (lambda (x) (vector-member x inst-id))
                              (filter (lambda (x) (member x inst-choice)) c))))
-      (when debug
+      (when #t
 	    (pretty-display `(inst-choice ,inst-choice))
 	    (pretty-display `(classes-filtered ,classes-filtered)))
 
