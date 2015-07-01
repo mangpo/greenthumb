@@ -9,9 +9,9 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine% [bit 4]))
-(send machine set-config (list 2 0 4))
+(send machine set-config (list 2 0 0))
 (define machine-precise (new arm-machine% [bit 32]))
-(send machine-precise set-config (list 2 0 4))
+(send machine-precise set-config (list 2 0 0))
 
 (define printer (new arm-printer% [machine machine]))
 (define simulator-racket (new arm-simulator-racket% [machine machine]))
@@ -46,7 +46,10 @@
 
 (define code
 (send parser ast-from-string "
-smmul r0, r0, r1
+bic	r0, r0, r1
+cmp	r0, r1
+movhi	r0, #0
+movls	r0, #1
 "))
 
 

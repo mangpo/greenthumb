@@ -111,12 +111,12 @@
       (define regs (vector-ref state-vec 0))
       (define mem (vector-ref state-vec 1))
       (define z (vector-ref state-vec 2))
+      (define fp (vector-ref state-vec 3))
 
-
-      (define (exec)
+      (define (exec-reg)
 	(define-values (x regs-in regs-out) (get-inst-in-out my-inst))
 	(define regs-base (make-vector (vector-length regs) #f))
-	(for ([i old-liveout])
+	(for ([i (car old-liveout)])
 	     (unless (member i regs-out) (vector-set! regs-base i (vector-ref regs i))))
 	(define regs-out-val 
 	  (for/list ([r regs-out]) (vector-ref regs r)))
@@ -138,12 +138,52 @@
                               
                               (set! pass #f))]
 			   [else (vector-set! new-regs r v)]))
-		     (when pass (set! ret (cons new-regs ret))))))
+		     (when pass (set! ret (cons
+                                           (vector new-regs mem z fp)
+                                           ret))))))
 	
         ret)
+
+      (define (exec)
+        (cond
+         [(equal? opcode-name `ldr#)
+          (define args (inst-args my-inst))
+          (define mem-index (+ fp (vector-ref args 2)))
+          ;;(pretty-display `(debug ,fp ,mem-index))
+          (define reg-index (vector-ref args 0))
+          (define reg-val (vector-ref regs reg-index))
+          (define pass #t)
+          (when (and (member mem-index (cdr old-liveout))
+                     (not (= (vector-ref mem mem-index) reg-val)))
+            (set! pass #f))
+          
+          (and pass
+               (let ([new-mem (vector-copy mem)]
+                     [new-regs (vector-copy regs)])
+                 (vector-set! new-mem mem-index reg-val)
+                 (vector-set! new-regs reg-index #f)
+                 (list (vector new-regs new-mem z fp))))
+          ]
+
+         [(equal? opcode-name `str#)
+          (define args (inst-args my-inst))
+          (define mem-index (+ fp (vector-ref args 2)))
+          (define reg-index (vector-ref args 0))
+          (define mem-val (vector-ref mem mem-index))
+          (define pass #t)
+          (when (and (member reg-index (car old-liveout))
+                     (not (= (vector-ref regs reg-index) mem-val)))
+            (set! pass #f))
+          
+          (and pass
+               (let ([new-mem (vector-copy mem)]
+                     [new-regs (vector-copy regs)])
+                 (vector-set! new-regs reg-index mem-val)
+                 (vector-set! new-mem mem-index #f)
+                 (list (vector new-regs new-mem z fp))))]
+         [else (exec-reg)]))
      
-      (define (same) (list (vector (vector-copy regs) (vector-copy mem) z fp)))
-      (define (convert x) (and x (for/list ([i x]) (vector i (vector-copy mem) z fp))))
+      (define (same) (list state-vec))
       ;; TODO: z != -1
 
       (cond
@@ -151,25 +191,25 @@
         (list (vector (vector-copy regs) (vector-copy mem) -1 fp))]
 
        [(or (equal? cond-type 0) (equal? z -1))
-	(convert (exec))]
+	(exec)]
 
        [(equal? cond-type 1) ;; eq
-	(if (equal? z 0) (convert (exec)) (same))]
+	(if (equal? z 0) (exec) (same))]
 
        [(equal? cond-type 2) ;; ne
-	(if (member z (list 1 2 3)) (convert (exec)) (same))]
+	(if (member z (list 1 2 3)) (exec) (same))]
 
        [(equal? cond-type 3) ;; ls
-	(if (member z (list 0 2)) (convert (exec)) (same))]
+	(if (member z (list 0 2)) (exec) (same))]
 
        [(equal? cond-type 4) ;; hi
-	(if (equal? z 3) (convert (exec)) (same))]
+	(if (equal? z 3) (exec) (same))]
 
        [(equal? cond-type 5) ;; cc
-	(if (equal? z 2) (convert (exec)) (same))]
+	(if (equal? z 2) (exec) (same))]
 
        [(equal? cond-type 6) ;; cs
-	(if (member z (list 0 3)) (convert (exec)) (same))]
+	(if (member z (list 0 3)) (exec) (same))]
        
        [else (raise (format "illegal cond-type ~a" cond-type))]
        ))
@@ -179,10 +219,10 @@
 
 #|
 (define machine (new arm-machine% [bit 4]))
+(send machine set-config (list 4 3 4))
 (define simulator (new arm-simulator-racket% [machine machine]))
 
 (define inverse (new arm-inverse% [machine machine] [simulator simulator]))
-(send machine set-config (list 4 0 4))
 (define printer (new arm-printer% [machine machine]))
 (define parser (new arm-parser%))
 (define my-inst-0
@@ -192,14 +232,17 @@
 
 (define my-inst 
   (vector-ref (send printer encode 
-                    (send parser ast-from-string "eor r0, r0, r1, lsl r2"))
+                    (send parser ast-from-string "str r0, fp, -16"))
               0))
 
 (define input-state (vector (vector 4 2 4 6)
-			    (vector) -1 4))
+			    (vector -1 0 0) -1 4))
 
-(send inverse gen-inverse-behavior my-inst-0)
+;; (send inverse gen-inverse-behavior my-inst-0)
+(send inverse interpret-inst my-inst input-state (cons (list 0) (list 0)))
+|#
 
+#|
 (define t (current-seconds))
 (define x
 (for/list ([i (* 16 930)])

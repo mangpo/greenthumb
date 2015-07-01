@@ -240,14 +240,14 @@
     (define (counterexample spec program constraint [extra #f]
                             #:assume [assumption (send machine no-assumption)])
       ;;(pretty-display (format "solver = ~a" (current-solver)))
-      (when debug 
+      (when debug
             (pretty-display (format "program-eq? START bit = ~a" bit))
             (pretty-display "spec:")
-            (print-struct spec)
+            (print-syntax (decode spec))
             (pretty-display "program:")
-            (print-struct program)
-            ;; (pretty-display "constraint:")
-            ;; (display-state constraint)
+            (print-syntax (decode program))
+            (pretty-display "constraint:")
+            (display-state constraint)
             ;; (pretty-display (format "assumption: ~a" assumption))
             )
       

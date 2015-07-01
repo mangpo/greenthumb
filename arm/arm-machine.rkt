@@ -367,16 +367,26 @@
     (define (get-operand-live state)
       (and state
            (let ([regs (progstate-regs state)]
-                 [live (list)])
+                 [live-reg (list)]
+                 [mem (progstate-memory state)]
+                 [live-mem (list)]
+                 )
              (for ([i (vector-length regs)]
                    [r regs])
                   (when (and r (vector-member i reg-range))
-			(set! live (cons i live))))
-             live)))
+			(set! live-reg (cons i live-reg))))
+             (for ([i (vector-length mem)]
+                   [m mem])
+                  (when (and m (vector-member (- i fp) mem-range))
+			(set! live-mem (cons i live-mem))))
+             (cons live-reg live-mem))))
     
     ;; 'live' is a list of live-in registers.
     ;; return: a list of live-out regsiters.
     (define (update-live live x)
+      (define live-reg (car live))
+      (define live-mem (cdr live))
+      
       (define args (inst-args x))
       (define opcode-name (vector-ref inst-id (inst-op x)))
       (define (add-live ele lst)
@@ -387,11 +397,24 @@
       (and live
 	   (cond
 	    [(member opcode-name '(smull umull))
-	     (add-live (vector-ref args 0) (add-live (vector-ref args 1) live))]
-	    [(member opcode-name '(nop str#)) live]
-	    [else (add-live (vector-ref args 0) live)])))
+             (cons 
+              (add-live (vector-ref args 0)
+                        (add-live (vector-ref args 1) live-reg))
+              live-mem)]
+	    [(member opcode-name '(nop)) live]
+            [(member opcode-name '(nop str str#))
+             (cons
+              live-reg
+              (add-live (+ fp (vector-ref args 2)) live-mem))]
+	    [else
+             (cons
+              (add-live (vector-ref args 0) live-reg)
+              live-mem)])))
 
     (define (update-live-backward live x)
+      (define live-reg (car live))
+      (define live-mem (cdr live))
+      
       (define opcode-name (vector-ref inst-id (inst-op x)))
       (define args (inst-args x))
       (define args-type (get-arg-types opcode-name))
@@ -409,13 +432,17 @@
 	    [type args-type])
 	   (cond
             ;; kill first
-	    [(equal? type `reg-o) (when (= cond-type 0) (set! live (remove arg live)))]
-	    [(equal? type `reg-i) (set! live (add-live arg live))]))
+	    [(equal? type `reg-o) (when (= cond-type 0) (set! live-reg (remove arg live-reg)))]
+	    [(equal? type `reg-i) (set! live-reg (add-live arg live-reg))]
+	    [(and (equal? type `mem) (member opcode-name '(str# str)))
+             (when (= cond-type 0) (set! live-mem (remove (+ fp arg) live-mem)))]
+	    [(and (equal? type `mem) (member opcode-name '(ldr# ldr)))
+             (set! live-mem (add-live (+ arg fp) live-mem))]
+            ))
 
       (when (member (vector-ref shf-inst-id shfop) '(asr lsl lsr))
-            (set! live (add-live shfarg live)))
-      live)
-      
+            (set! live-reg (add-live shfarg live-reg)))
+      (cons live-reg live-mem))
 
     (define (get-arg-types opcode-name)
       (define class-id (get-class-id opcode-name))
@@ -437,16 +464,29 @@
     
       
     ;; nargs, ranges
-    (define (get-arg-ranges opcode-name entry live-in #:live-out [live-out #f] #:mode [mode `basic])
+    (define (get-arg-ranges opcode-name entry live-in
+                            #:live-out [live-out #f] #:mode [mode `basic])
+      ;; (pretty-display `(get-arg-ranges-in ,live-in))
+      ;; (pretty-display `(get-arg-ranges-out ,live-out))
       (define reg-i
 	(if live-in
-	    (filter-live reg-range live-in)
+	    (filter-live reg-range (car live-in))
 	    reg-range))
 
       (define reg-o
 	(if live-out
-	    (filter-live reg-range live-out)
+	    (filter-live reg-range (car live-out))
 	    reg-range))
+      
+      (define mem-i
+	(if live-in
+	    (filter-live mem-range (map (lambda (x) (- x fp)) (cdr live-in)))
+	    mem-range))
+
+      (define mem-o
+	(if live-out
+	    (filter-live mem-range (map (lambda (x) (- x fp)) (cdr live-out)))
+	    mem-range))
 
       (define reg-io (list))
       (for ([i reg-i])
@@ -464,7 +504,8 @@
 	    [(equal? type `const)  const-range]
 	    [(equal? type `bit)    bit-range]
 	    [(equal? type `bit-no-0) bit-range-no-0]
-	    [(equal? type `mem)    mem-range]
+	    [(and (equal? type `mem) (member opcode-name '(str# str))) mem-o]
+	    [(and (equal? type `mem) (member opcode-name '(ldr# ldr))) mem-i]
 	    [(equal? type `fp)     (vector "fp")])
 	   (cond
 	    [(equal? type `reg-o)  `reg-o]
@@ -483,9 +524,11 @@
       (if (member shfop-name '(asr lsr lsl)) 
 	  (if (equal? mode `no-args)
 	      `reg-i
-	      (filter-live reg-range live-in))
+              (if live-in
+                  (filter-live reg-range (car live-in))
+                  reg-range))
 	  shf-range))
-
+    
     (define (code-has code inst-list)
       (for/or ([i code])
               (let ([opcode-name (vector-ref inst-id (inst-op i))])
@@ -494,6 +537,16 @@
     ;; Return #t, if kodkod solver can be used.
     (define (analyze-opcode prefix code postfix)
       (set! code (vector-append prefix code postfix))
+      ;; (define inst-choice '(nop 
+      ;;                       mov mvn
+      ;;                       mov# mvn#
+      ;;                       add sub rsb 
+      ;;                       add# sub# rsb#
+      ;;                       asr lsl lsr
+      ;;                       asr# lsl# lsr#
+      ;;                       clz
+      ;;                       and orr eor bic orn
+      ;;                       and# orr# eor# bic# orn#))
       (define inst-choice '(nop 
                             add sub rsb 
                             add# sub# rsb#

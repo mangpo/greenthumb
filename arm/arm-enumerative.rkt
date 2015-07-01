@@ -28,6 +28,8 @@
     (define shf-inst-len (vector-length shf-inst-id))
     (define cmp-inst
       (map (lambda (x) (vector-member x inst-id))'(cmp tst cmp# tst#)))
+    (define ldst-inst
+      (map (lambda (x) (vector-member x inst-id))'(ldr# str#)))
 
     (define inst-mod '(add sub rsb
 			and orr eor bic orn
@@ -64,13 +66,25 @@
       (define inst-pool (get-field inst-pool machine))
       (define z
         (cond
-         [try-cmp (or flag-in flag-out -1)]
+         [try-cmp
+          (or flag-in
+              (and flag-out (findf (lambda (x) (not (= x -1))) flag-out))
+              -1)]
          [else -1]))
-      (if try-cmp 
-	  (when (and (number? flag-in) (number? flag-out) 
-		     (not (= flag-in flag-out)))
-		(set! inst-pool (filter (lambda (x) (member x cmp-inst)) inst-pool)))
-	  (set! inst-pool (remove* cmp-inst inst-pool)))
+
+      (pretty-display `(enumerate ,flag-in ,flag-out ,z))
+
+      ;; Remove some opcode from inst-pool
+      (cond
+       [try-cmp 
+        (when (and (number? flag-in) (list? flag-out)
+                   (not (member flag-in flag-out)))
+              (set! inst-pool (filter (lambda (x) (member x cmp-inst)) inst-pool)))]
+       [no-args
+        (set! inst-pool (remove* (append ldst-inst cmp-inst) inst-pool))]
+       [else
+        (set! inst-pool (remove* cmp-inst inst-pool))])
+      
       (cond
        [(equal? type `mod+high) 
 	(set! inst-pool 
@@ -90,11 +104,10 @@
       (set! generate-inst 
 	    (generator 
 	     ()
-	     (when debug (pretty-display `(reset-generate-inst ,inst-pool)))
 
 	     (define arg-types #f)
-	     (define global-out (if (and live-in live-out) (set-subtract live-out live-in) (list)))
-	     (define global-in (if (and live-in live-out) (set-subtract (take live-in 1) live-out) (list)))
+	     (define global-out (if (and live-in live-out) (set-subtract (car live-out) (car live-in)) (list)))
+	     (define global-in (if (and live-in live-out) (set-subtract (take (car live-in) 1) (car live-out)) (list)))
 
 	     (define (recurse-args opcode opcode-id shfop shfarg cond-type args ranges v-reg)
                (define (check-yield)  
@@ -231,7 +244,7 @@
 				 ;;(list 0 3 4) 
 				 cond-type-len
 				 )])
-		       (when debug (pretty-display `(iterate ,opcode-name ,arg-ranges ,cond-bound)))
+		       (when debug (pretty-display `(iterate ,opcode-name ,arg-ranges ,cond-bound ,live-in)))
 		       (for ([cond-type cond-bound])
 			    (if shf?
 				(begin

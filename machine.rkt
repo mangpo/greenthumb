@@ -3,7 +3,7 @@
 (require "ast.rkt")
 (provide debug machine%)
 
-(define debug #t)
+(define debug #f)
 
 (define machine%
   (class object%

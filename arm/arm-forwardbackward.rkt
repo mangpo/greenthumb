@@ -29,18 +29,20 @@
     (define (inst->vector x)
       (vector (inst-op x) (inst-args x) (inst-shfop x) (inst-shfarg x) (inst-cond x)))
 
-    ;; TODO: memory, z
     (define (mask-in state-vec live-list #:keep-flag [keep #t])
+      (define live-reg (car live-list))
+      (define live-mem (cdr live-list))
+      
       (define regs (vector-ref state-vec 0))
       (define mems (vector-ref state-vec 1))
       (define z (vector-ref state-vec 2))
       (define fp (vector-ref state-vec 3))
       (vector
-       (for/vector ([r regs] [i (vector-length regs)])
-		   (and (member i live-list) r))
-       (vector-copy mems)
+       (for/vector ([r regs] [i (in-naturals)])
+		   (and (member i live-reg) r))
+       (for/vector ([m mems] [i (in-naturals)])
+		   (and (member i live-mem) m))
        (if keep z -1) fp))
-
     
     (define bit-nonprecise (get-field bit (get-field machine validator)))
     (define bit-precise (get-field bit (get-field machine validator-precise)))
@@ -86,9 +88,16 @@
       (for/vector ([x prog]) (reduce-inst x change)))
 
     (define (get-live-mask state-vec)
-      (filter number?
-	      (for/list ([i (in-naturals)]
-			 [r (vector-ref state-vec 0)])
-			(and r i))))
+      (cons
+       (filter number?
+               (for/list ([i (in-naturals)]
+                          [r (vector-ref state-vec 0)])
+                         (and r i)))
+       (filter number?
+               (for/list ([i (in-naturals)]
+                          [r (vector-ref state-vec 1)])
+                         (and r i)))
+       )
+      )
 
     ))
