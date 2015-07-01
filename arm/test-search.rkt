@@ -9,9 +9,9 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine% [bit 4]))
-(send machine set-config (list 2 0 0))
+(send machine set-config (list 4 0 0))
 (define machine-precise (new arm-machine% [bit 32]))
-(send machine-precise set-config (list 2 0 0))
+(send machine-precise set-config (list 4 0 0))
 
 (define printer (new arm-printer% [machine machine]))
 (define simulator-racket (new arm-simulator-racket% [machine machine]))
@@ -46,10 +46,9 @@
 
 (define code
 (send parser ast-from-string "
-bic	r0, r0, r1
-cmp	r0, r1
-movhi	r0, #0
-movls	r0, #1
+clz r0, r1
+mvn r1, 0
+rsb r1, r1, r1, lsr r0
 "))
 
 
@@ -69,7 +68,7 @@ movls	r0, #1
          encoded-code ;; spec
          encoded-sketch ;; sketch = spec in this case
          encoded-prefix encoded-postfix
-         (constraint machine [reg 0] [mem]) #f #f 3600)
+         (constraint machine [reg 1] [mem]) #f #f 3600)
    )
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem]) ;; constraint

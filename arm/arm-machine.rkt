@@ -307,7 +307,7 @@
       (default-state this init [set-z -1] [set-fp fp]))
 
     (define (get-state-liveness init extra)
-      (default-state this init))
+      (default-state this init [set-z (init)] [set-fp fp]))
 
     ;; Pretty print functions
     (define (display-state s)

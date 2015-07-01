@@ -72,7 +72,7 @@
               -1)]
          [else -1]))
 
-      (pretty-display `(enumerate ,flag-in ,flag-out ,z))
+      ;; (pretty-display `(enumerate ,flag-in ,flag-out ,z))
 
       ;; Remove some opcode from inst-pool
       (cond

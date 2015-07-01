@@ -1,6 +1,7 @@
 #lang racket
 
-(require "../forwardbackward.rkt" "../ast.rkt" "arm-ast.rkt")
+(require "../forwardbackward.rkt" "../ast.rkt"
+         "arm-ast.rkt" "arm-machine.rkt")
 
 (provide arm-forwardbackward%)
 
@@ -10,11 +11,15 @@
     (inherit-field machine validator validator-precise)
     (override vector->id mask-in inst->vector
               reduce-precision increase-precision
-	      get-live-mask)
+	      get-live-mask
+              try-cmp?)
 
     (define bit (get-field bit machine))
     (define max-val (arithmetic-shift 1 bit))
     (define mask (sub1 (arithmetic-shift 1 bit)))
+    (define inst-id (get-field inst-id machine))
+    (define cmp-inst
+      (map (lambda (x) (vector-member x inst-id))'(cmp tst cmp# tst#)))
 
     (define (vector->id state)
       ;; (define z (vector-ref state 2))
@@ -99,5 +104,17 @@
                          (and r i)))
        )
       )
+
+    (define (try-cmp? code state live)
+      (define z (progstate-z state))
+      (define live-z (progstate-z live))
+      (define use-cond1 (for/or ([x code]) (member (inst-op x) cmp-inst)))
+      (define use-cond2 (for/or ([x code]) (not (= (inst-cond x) 0))))
+
+      (cond
+       [(and live-z (> z -1) use-cond1) 1]
+       [(and (> z -1) (or use-cond1 use-cond2)) 2]
+       [else 0]))
+      
 
     ))
