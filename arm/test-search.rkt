@@ -46,15 +46,16 @@
 
 (define code
 (send parser ast-from-string "
-clz r0, r1
-mvn r1, 0
-rsb r1, r1, r1, lsr r0
+bic	r0, r0, r1
+cmp	r0, r1
+movls	r0, #0
+movhi	r0, #1
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-? ?
+? ? ? ?
 "))
 
 (define encoded-prefix (send printer encode prefix))
@@ -68,7 +69,7 @@ rsb r1, r1, r1, lsr r0
          encoded-code ;; spec
          encoded-sketch ;; sketch = spec in this case
          encoded-prefix encoded-postfix
-         (constraint machine [reg 1] [mem]) #f #f 3600)
+         (constraint machine [reg 0] [mem]) #f #f 3600)
    )
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem]) ;; constraint

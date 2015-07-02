@@ -5,24 +5,28 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine% [bit 32]))
-(send machine set-config (list 4 2 5))
+(send machine set-config (list 4 3 4))
 (define printer (new arm-printer% [machine machine]))
 (define validator (new arm-validator% [machine machine]))
 
 (define code
 (send parser ast-from-string "
-str r0, fp, -16
-str r1, fp, -20
-ldr r2, fp, -16
-ldr r3, fp, -20
+        sub     r0, r0, #1
+        orr     r0, r0, r0, asr #1
+        orr     r0, r0, r0, asr #2
+        orr     r0, r0, r0, asr #4
+        orr     r0, r0, r0, asr #8
+        orr     r0, r0, r0, asr #16
+        add     r0, r0, #1
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-str r1, fp, -20
-rsb r2, r0, r0, lsl 1
-ldr r3, fp, -20
+sub r0, r0, 1
+clz r1, r0
+mvn r0, 0
+rsb r0, r0, r0, lsr r1
 "))
 
 (define encoded-code (send printer encode code))
@@ -30,7 +34,7 @@ ldr r3, fp, -20
 
 (define ex 
   (send validator counterexample encoded-code encoded-sketch 
-        (constraint machine [reg 2 3] [mem])))
+        (constraint machine [reg 0] [mem])))
 
 (pretty-display "Counterexample:")
 (if ex 
