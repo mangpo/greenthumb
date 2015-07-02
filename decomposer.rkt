@@ -11,7 +11,8 @@
     (init-field machine printer parser [simulator #f] [validator #f] [syn-mode `linear]
 		[stat (new stat% [printer printer])])
     (abstract len-limit window-size synthesize-window)
-    (public superoptimize)
+    (public superoptimize
+            superoptimize-linear superoptimize-binary)
 
     (define (superoptimize spec constraint live-in name time-limit size [extra #f]
                            #:prefix [prefix (vector)] #:postfix [postfix (vector)]

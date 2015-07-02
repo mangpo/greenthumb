@@ -50,7 +50,7 @@
                            #:assume [assumption (send machine no-assumption)]
                            #:input-file [input-file #f]
                            #:start-prog [start #f])
-      (send machine analyze-args (vector) spec (vector))
+      (send machine analyze-args (vector) spec (vector) constraint)
       (send machine analyze-opcode (vector) spec (vector))
       (define my-live-in
         (send validator get-live-in (vector-append spec postfix)

@@ -1,35 +1,56 @@
 #lang racket
 
 (require "../forwardbackward.rkt" "../ast.rkt" "../ops-racket.rkt"
-         "arm-ast.rkt" "arm-machine.rkt")
+         "arm-ast.rkt" "arm-machine.rkt"
+         "arm-simulator-racket.rkt" "arm-validator.rkt"
+         "arm-enumerative.rkt" "arm-inverse.rkt")
 
 (provide arm-forwardbackward%)
 
 (define arm-forwardbackward%
   (class forwardbackward%
     (super-new)
-    (inherit-field machine validator validator-precise)
-    (override vector->id mask-in inst->vector
+    (inherit-field machine printer simulator validator
+                   enum inverse simulator-abst validator-abst)
+    (override len-limit window-size
+              ;;vector->id
+              mask-in inst->vector
               reduce-precision increase-precision
-	      get-live-mask
-              try-cmp?)
+	      get-live-mask try-cmp?)
 
-    (define bit (get-field bit machine))
+    (define (len-limit) 4)
+    (define (window-size) 8)
+    
+    ;; Initialization
+    (set! simulator (new arm-simulator-racket% [machine machine]))
+    (set! validator (new arm-validator% [machine machine] [printer printer]))
+
+    (define bit-precise (get-field bit machine))
+    (define bit 4)
+    
+    (let ([machine-abst (new arm-machine% [bit bit])])
+      (send machine-abst set-config (send machine get-config))
+      (set! simulator-abst (new arm-simulator-racket% [machine machine-abst]))
+      (set! validator-abst (new arm-validator% [machine machine-abst] [printer printer]))
+      (set! inverse (new arm-inverse% [machine machine-abst] [simulator simulator-abst]))
+      (set! enum (new arm-enumerative% [machine machine-abst] [printer printer]))
+      (set! machine machine-abst))
+
     (define max-val (arithmetic-shift 1 bit))
     (define mask (sub1 (arithmetic-shift 1 bit)))
     (define inst-id (get-field inst-id machine))
     (define cmp-inst
       (map (lambda (x) (vector-member x inst-id))'(cmp tst cmp# tst#)))
 
-    (define (vector->id state)
-      ;; (define z (vector-ref state 2))
-      (define regs (vector-ref state 0))
-      (define id 0)
+    ;; (define (vector->id state)
+    ;;   ;; (define z (vector-ref state 2))
+    ;;   (define regs (vector-ref state 0))
+    ;;   (define id 0)
         
-      (for ([r regs]) (set! id (+ (* id max-val) (bitwise-and r mask))))
+    ;;   (for ([r regs]) (set! id (+ (* id max-val) (bitwise-and r mask))))
       
-      ;; (+ id (* (vector-member z z-range-db) (power max-val nregs))))
-      id)
+    ;;   ;; (+ id (* (vector-member z z-range-db) (power max-val nregs))))
+    ;;   id)
 
     (define (inst->vector x)
       (vector (inst-op x) (inst-args x) (inst-shfop x) (inst-shfarg x) (inst-cond x)))
@@ -48,8 +69,6 @@
        (for/vector ([m mems] [i (in-naturals)])
 		   (and (member i live-mem) m))
        (if keep z -1) fp))
-    
-    (define bit-precise (get-field bit (get-field machine validator-precise)))
     
     (define (reduce-inst x change)
       (define opcode-name (send machine get-inst-name (inst-op x)))
@@ -144,12 +163,17 @@
     
     (define (increase-precision prog mapping)
       (define (change arg type)
+        (define (finalize x)
+          (if (hash-has-key? mapping arg)
+              (let ([val (hash-ref mapping arg)])
+                (if (member x val) val (cons x val)))
+              (list x)))
+        
         (cond
-         [(hash-has-key? mapping arg) (hash-ref mapping arg)]
-         [(= arg bit) (list bit-precise)]
-         [(= arg (sub1 bit)) (list (sub1 bit-precise))]
-         [(= arg (/ bit 2)) (list (/ bit-precise 2))]
-         [else (list arg)]))
+         [(= arg bit) (finalize bit-precise)]
+         [(= arg (sub1 bit)) (finalize (sub1 bit-precise))]
+         [(= arg (/ bit 2)) (finalize (/ bit-precise 2))]
+         [else (finalize arg)]))
 
       (define ret (list))
       (define (recurse lst final)

@@ -602,7 +602,7 @@
             (for/vector ([c classes])
                         (map (lambda (x) (vector-member x inst-id))
                              (filter (lambda (x) (member x inst-choice)) c))))
-      (when #t
+      (when debug
 	    (pretty-display `(inst-choice ,inst-choice))
 	    (pretty-display `(classes-filtered ,classes-filtered)))
 
@@ -675,7 +675,8 @@
 	    [(member type '(mem-o mem-i)) (set! mem-set (set-add mem-set arg))]))
       (list op2-set const-set bit-set reg-set mem-set))
 
-    (define (analyze-args prefix code postfix #:only-const [only-const #f] #:vreg [vreg 0])
+    (define (analyze-args prefix code postfix constraint
+                          #:only-const [only-const #f] #:vreg [vreg 0])
       (define reg-set (set))
       (define mem-set (set))
       (define op2-set (set))
@@ -699,6 +700,14 @@
              (set! reg-set (set-union reg-set (fourth ans)))
              (set! mem-set (set-union mem-set (fifth ans)))
 	     ))
+
+      (when (<= (set-count reg-set) 1)
+            (define reg
+              (for/or ([live (progstate-regs constraint)]
+                       [r (in-naturals)])
+                      (and (not live) (not (set-member? reg-set r)) r)))
+            (set! reg-set (set-add reg-set reg)))
+                 
       (update-arg-ranges op2-set const-set bit-set reg-set mem-set only-const vreg))
 
     (define (relaxed-state-eq? state1 state2 pred [out-loc #f])

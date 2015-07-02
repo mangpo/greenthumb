@@ -1,61 +1,51 @@
 #lang s-exp rosette
 
 (require "arm-validator.rkt" "arm-machine.rkt" "arm-printer.rkt"
-         "arm-parser.rkt" "arm-ast.rkt"
-         "arm-simulator-rosette.rkt" "arm-simulator-racket.rkt" 
-         "arm-enumerative.rkt" "arm-symbolic.rkt" "arm-stochastic.rkt"
-         "arm-database.rkt" "arm-inverse.rkt" "arm-forwardbackward.rkt")
+         "arm-parser.rkt" "arm-ast.rkt" "../ast.rkt"
+         "arm-symbolic.rkt" "arm-stochastic.rkt" "arm-forwardbackward.rkt")
 
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine% [bit 4]))
-(send machine set-config (list 2 0 0))
-(define machine-precise (new arm-machine% [bit 32]))
-(send machine-precise set-config (list 2 0 0))
+(define machine (new arm-machine%))
+(send machine set-config (list 4 3 4))
 
 (define printer (new arm-printer% [machine machine]))
-(define simulator-racket (new arm-simulator-racket% [machine machine]))
-(define simulator-racket-precise (new arm-simulator-racket% [machine machine-precise]))
-(define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 (define validator (new arm-validator% [machine machine]))
-(define validator-precise (new arm-validator% [machine machine-precise]))
 
-(define enum (new arm-enumerative% [machine machine] [printer printer] [parser parser]))
 (define symbolic (new arm-symbolic% [machine machine] [printer printer] [parser parser]))
 (define stoch (new arm-stochastic% [machine machine] [printer printer] [parser parser] [syn-mode #t]))
-(define db (new arm-database% [machine machine] [enum enum] 
-                [simulator simulator-racket]
-                [simulator-precise simulator-racket-precise]
-                [printer printer] [parser parser] 
-                [validator validator] [validator-precise validator-precise]))
-
-(define inverse (new arm-inverse% [machine machine] [simulator simulator-racket]))
-(define backward (new arm-forwardbackward% [machine machine] [enum enum] 
-		      [simulator simulator-racket]
-		      [simulator-precise simulator-racket-precise]
-		      [printer printer] [parser parser] [inverse inverse]
-		      [validator validator] [validator-precise validator-precise]))
+(define backward (new arm-forwardbackward% [machine machine] [printer printer] [parser parser]))
 
 (define prefix
 (send parser ast-from-string "
+str r0, fp, -16
+ldr r2, fp, -16
 "))
 
 (define postfix
 (send parser ast-from-string "
+ldr r1, fp, -12
+ldr r2, fp, -8
+orr r2, r1, r2
+mov r0, r2
 "))
 
 (define code
 (send parser ast-from-string "
-bic	r0, r0, r1
-cmp	r0, r1
-movhi	r0, #0
-movls	r0, #1
+mov r2, r2, asr 3
+str r2, fp, -12
+ldr r2, fp, -16
+rsb r2, r2, 0
+str r2, fp, -8
+ldr r2, fp, -8
+mov r2, r2, asr 3
+str r2, fp, -8
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-? ? ? ?
+? ? ? ? ?
 "))
 
 (define encoded-prefix (send printer encode prefix))
@@ -64,20 +54,20 @@ movls	r0, #1
 (define encoded-sketch (send validator encode-sym sketch))
 
 
-(define (f)
-   (with-handlers*
-    ([vector? (lambda (e) #f)])
-    (send backward synthesize-window
-          encoded-code ;; spec
-          4 ;;encoded-sketch ;; sketch = spec in this case
-          encoded-prefix encoded-postfix
-          (constraint machine [reg 0] [mem]) #f #f 3600)
-    ))
+(define f
+  (send backward synthesize-window
+        encoded-code ;; spec
+        5 ;;encoded-sketch ;; sketch = spec in this case
+        encoded-prefix encoded-postfix
+        (constraint machine [reg 0] [mem]) #f #f 3600)
+  )
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem]) ;; constraint
       (constraint machine [reg 0] [mem]) ;; live-in
       "./driver-0" 3600 #f)|#
 
-(f)
+(with-handlers*
+ ([exn:break? (lambda (e) "timeout")])
+ (timeout 3600 (f)))
 ;(require profile)
 ;(profile-thunk f)
