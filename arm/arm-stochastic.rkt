@@ -131,12 +131,15 @@
     (define (random-instruction live-in [opcode-id (random-from-list (get-field inst-pool machine))])
       (define opcode-name (vector-ref inst-id opcode-id))
       (define args (random-args-from-op opcode-name live-in))
-      (define shf? (and (member opcode-name inst-with-shf) (< (random) 0.3)))
-      (define shfop (and shf? (random (vector-length shf-inst-id))))
-      (define shfarg-range (and shf? (get-shfarg-range shfop live-in)))
-      (define shfarg (and shf? (vector-ref shfarg-range (random (vector-length shfarg-range)))))
-      (define cond-type (random 7))
-      (arm-inst opcode-id args shfop shfarg cond-type)
+      (cond
+       [args
+        (define shf? (and (member opcode-name inst-with-shf) (< (random) 0.3)))
+        (define shfop (and shf? (random (vector-length shf-inst-id))))
+        (define shfarg-range (and shf? (get-shfarg-range shfop live-in)))
+        (define shfarg (and shf? (vector-ref shfarg-range (random (vector-length shfarg-range)))))
+        (define cond-type (random 7))
+        (arm-inst opcode-id args shfop shfarg cond-type)]
+       [else (random-instruction live-in)])
       )
 
     ;; state1: reference

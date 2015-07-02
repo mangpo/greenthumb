@@ -150,7 +150,7 @@
 		  '(bfi sbfx ubfx) ;; rrii
 		  '(tst cmp) ;; rr
 		  '(tst# cmp#) ;; ri
-                  '(ldr# str#) ;; rri
+                  ;'(ldr# str#) ;; rri
 		  ;'(bfc) ;; rii
                   ))
 
@@ -364,11 +364,13 @@
 		 (arm-inst op (inst-args x) (inst-shfop x) (inst-shfarg x) cond-type-nop)))))
 
 
-    (define (get-operand-live state)
+    (define (get-operand-live state [state2 #f])
       (and state
            (let ([regs (progstate-regs state)]
                  [live-reg (list)]
-                 [mem (progstate-memory state)]
+                 [mem (if state2
+                          (progstate-memory state2)
+                          (progstate-memory state))]
                  [live-mem (list)]
                  )
              (for ([i (vector-length regs)]
@@ -434,9 +436,9 @@
             ;; kill first
 	    [(equal? type `reg-o) (when (= cond-type 0) (set! live-reg (remove arg live-reg)))]
 	    [(equal? type `reg-i) (set! live-reg (add-live arg live-reg))]
-	    [(and (equal? type `mem) (member opcode-name '(str# str)))
+	    [(equal? type `mem-o)
              (when (= cond-type 0) (set! live-mem (remove (+ fp arg) live-mem)))]
-	    [(and (equal? type `mem) (member opcode-name '(ldr# ldr)))
+	    [(equal? type `mem-i)
              (set! live-mem (add-live (+ arg fp) live-mem))]
             ))
 
@@ -457,8 +459,8 @@
        [(equal? class-id 7) (vector `reg-o `reg-i `bit `bit-no-0)]
        [(equal? class-id 8) (vector `reg-i `reg-i)]
        [(equal? class-id 9) (vector `reg-i `const)]
-       [(equal? opcode-name `ldr#) (vector `reg-o `fp `mem)]
-       [(equal? opcode-name `str#) (vector `reg-i `fp `mem)]
+       [(equal? opcode-name `ldr#) (vector `reg-o `fp `mem-i)]
+       [(equal? opcode-name `str#) (vector `reg-i `fp `mem-o)]
        [(equal? opcode-name `bfc) (vector `reg-io `bit `bit-no-0)]
        [else (vector)]))
     
@@ -466,6 +468,7 @@
     ;; nargs, ranges
     (define (get-arg-ranges opcode-name entry live-in
                             #:live-out [live-out #f] #:mode [mode `basic])
+      ;; (pretty-display `(get-arg-ranges ,opcode-name))
       ;; (pretty-display `(get-arg-ranges-in ,live-in))
       ;; (pretty-display `(get-arg-ranges-out ,live-out))
       (define reg-i
@@ -504,8 +507,8 @@
 	    [(equal? type `const)  const-range]
 	    [(equal? type `bit)    bit-range]
 	    [(equal? type `bit-no-0) bit-range-no-0]
-	    [(and (equal? type `mem) (member opcode-name '(str# str))) mem-o]
-	    [(and (equal? type `mem) (member opcode-name '(ldr# ldr))) mem-i]
+	    [(equal? type `mem-o)  mem-o]
+	    [(equal? type `mem-i)  mem-i]
 	    [(equal? type `fp)     (vector "fp")])
 	   (cond
 	    [(equal? type `reg-o)  `reg-o]
@@ -515,7 +518,8 @@
 	    [(equal? type `const)  const-range]
 	    [(equal? type `bit)    bit-range]
 	    [(equal? type `bit-no-0) bit-range-no-0]
-	    [(equal? type `mem)    mem-range]
+	    [(equal? type `mem-o)    mem-range]
+	    [(equal? type `mem-i)    mem-range]
 	    [(equal? type `fp)     (vector "fp")]))
        ))
 
@@ -666,7 +670,7 @@
 	    [(member type '(bit bit-no-0))       (set! bit-set (set-add bit-set arg))]
 	    [(equal? type `op2)   (set! op2-set (set-add op2-set arg))]
 	    [(equal? type `const) (set! const-set (set-add const-set arg))]
-	    [(equal? type `mem)   (set! mem-set (set-add mem-set arg))]))
+	    [(member type '(mem-o mem-i)) (set! mem-set (set-add mem-set arg))]))
       (list op2-set const-set bit-set reg-set mem-set))
 
     (define (analyze-args prefix code postfix #:only-const [only-const #f] #:vreg [vreg 0])

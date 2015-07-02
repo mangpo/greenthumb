@@ -52,7 +52,11 @@
                            #:start-prog [start #f])
       (send machine analyze-args (vector) spec (vector))
       (send machine analyze-opcode (vector) spec (vector))
+      (define my-live-in
+        (send validator get-live-in (vector-append spec postfix)
+              constraint extra-info))
       (set! live-in (send machine get-operand-live this-live-in))
+      (pretty-display `(live-in ,live-in))
       (pretty-display (format "Base-cost: ~a" base-cost))
       ;; Generate testcases
       (when debug 
@@ -106,18 +110,41 @@
           (when debug (pretty-display (format "inst #~a: ~a" i (inst-op x))))
           (set! my-live-in (send machine update-live my-live-in x)) ;; TODO
           x)))
+      
 
     ;; Generic across architectures
     (define (mutate-swap index entry p)
       (define new-p (vector-copy p))
       (define index2 (random-from-list-ex (range (vector-length p)) index))
+      
+      (define index-small (min index index2))
+      (define index-large (max index index2))
+      (define entry-large (vector-ref p index-large))
+      (define my-live-in live-in)
+      (for ([i index-small])
+           (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
+      (define opcode-id (inst-op entry-large))
+      (define opcode-name (vector-ref inst-id opcode-id))
+      (define ranges (send machine get-arg-ranges opcode-name entry-large my-live-in))
+      (define pass
+        (for/and ([range ranges]
+                  [arg (inst-args entry-large)])
+                 (vector-member arg range)))
       (when debug
             (pretty-display " >> mutate swap")
             (pretty-display (format " --> swap = ~a" index2)))
-      (vector-set! new-p index (vector-ref new-p index2))
-      (vector-set! new-p index2 entry)
-      (send stat inc-propose `swap)
-      new-p)
+
+      (cond
+       [pass
+        (when debug (pretty-display " --> pass"))
+        (vector-set! new-p index (vector-ref new-p index2))
+        (vector-set! new-p index2 entry)
+        (send stat inc-propose `swap)
+        new-p]
+      
+       [else
+        (when debug (pretty-display " --> fail"))
+        (mutate p)]))
 
     ;; Generic across architectures
     (define (mutate-opcode index entry p)
@@ -201,16 +228,20 @@
       new-p)
     
     (define (random-instruction live-in [opcode-id (random-from-list (get-field inst-pool machine))])
-      (pretty-display `(random-instruction ,opcode-id))
+      (when debug (pretty-display `(random-instruction ,opcode-id)))
       (define opcode-name (vector-ref inst-id opcode-id))
       (define args (random-args-from-op opcode-name live-in))
-      (inst opcode-id args))
+      (if args
+          (inst opcode-id args)
+          (random-instruction live-in)))
     
     (define (random-args-from-op opcode-name live-in)
       (define ranges (send machine get-arg-ranges opcode-name #f live-in))
       (when debug (pretty-display (format " --> ranges ~a" ranges)))
-      (for/vector ([i (vector-length ranges)])
-                (random-from-vec (vector-ref ranges i))))
+      (define pass (for/and ([range ranges]) (> (vector-length range) 0)))
+      (and pass
+           (for/vector ([i (vector-length ranges)])
+                       (random-from-vec (vector-ref ranges i)))))
     
     (define (mutate-operand-specific opcode-name args index)
       (raise "mutate-operand-specific: unimplemented"))
@@ -273,6 +304,26 @@
       ;; (send machine display-state constraint)
       (define syn-mode #t)
 
+    ;; (define (fix-program p)
+    ;;   (define my-live-in live-in)
+    ;;   (define (keep-or-new entry)
+    ;;     (define opcode-id (inst-op entry))
+    ;;     (define opcode-name (vector-ref inst-id opcode-id))
+    ;;     (define ranges (send machine get-arg-ranges opcode-name entry my-live-in))
+    ;;     (define pass
+    ;;       (for/and ([range ranges]
+    ;;                 [arg (inst-args entry)])
+    ;;                (vector-member arg range)))
+
+    ;;     (define new-entry
+    ;;       (if pass
+    ;;           entry
+    ;;           (random-instruction my-live-in)))
+    ;;     (set! my-live-in (send machine update-live my-live-in new-entry))
+    ;;     new-entry)
+      
+    ;;   (for/vector ([entry p]) (keep-or-new entry)))
+    
       (define (reduce-one p vec-len)
         (define index (random vec-len))
         (define new-p 
@@ -284,7 +335,11 @@
         (when debug (pretty-display `(reduce-size ,(vector-length p) ,size ,(length ps))))
         (define vec-len (vector-length p))
         (cond
-         [(= vec-len size) (values p cost)]
+         [(= vec-len size)
+          ;; (define new-p (fix-program p))
+          ;; (values new-p
+          ;;         (or (car (cost-all-inputs new-p w-error)) w-error))
+          (values p cost)]
          [(>= (length ps) 4)
           (define min-cost (first costs))
           (define min-p (first ps))
