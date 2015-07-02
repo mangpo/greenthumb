@@ -246,11 +246,14 @@
 			       #:assume [assumption (send machine no-assumption)])
       (set! start-time (current-seconds))
       (define init
-        (car (send validator generate-input-states 1 (vector-append prefix spec postfix)
+        (car (send validator-precise
+                   generate-input-states 1 (vector-append prefix spec postfix)
                    assumption extra #:db #t)))
       (define state2
-        (send simulator interpret (vector-append prefix spec) init #:dep #f))
-      (define live2 (send validator get-live-in postfix constraint extra))
+        (send simulator-precise interpret
+              (vector-append prefix spec) init #:dep #f))
+      (define live2
+        (send validator-precise get-live-in postfix constraint extra))
       (define try-cmp-status (try-cmp? spec state2 live2))
       (pretty-display `(status ,try-cmp-status))
       ;;(raise "xxx")
@@ -279,11 +282,18 @@
       (define spec-precise spec)
       (define prefix-precise prefix)
       (define postfix-precise postfix)
-      (set! spec (reduce-precision spec))
-      (set! prefix (reduce-precision prefix))
-      (set! postfix (reduce-precision postfix))
-      (send printer print-syntax (send printer decode spec))
+      (define abst2precise #f)
+
+      (let ([tmp (reduce-precision spec)])
+        (set! spec (car tmp))
+        (set! abst2precise (cdr tmp)))
+      (pretty-display `(abst2precise ,abst2precise))
       
+      (set! prefix (car (reduce-precision prefix)))
+      (set! postfix (car (reduce-precision postfix)))
+      (send printer print-syntax
+            (send printer decode (vector prefix spec postfix)))
+     
       ;;(define size (if sketch sketch 4))
       (send machine analyze-opcode prefix spec postfix)
       (send machine analyze-args prefix spec postfix #:vreg 0)
@@ -298,14 +308,14 @@
       (define step-bw-max (if (> size-to 2) 1 0))
       
       (define ntests 2)
-      ;; (define inits
-      ;;   (send validator generate-input-states ntests (vector-append prefix spec postfix)
-      ;;         assumption extra #:db #t))
       (define inits
-        (list
-         (progstate (vector 3 4 5 7) (vector) -1 0)
-         (progstate (vector 7 -7 3 -4) (vector) -1 0)
-      	 ))
+        (send validator generate-input-states ntests (vector-append prefix spec postfix)
+              assumption extra #:db #t))
+      ;; (define inits
+      ;;   (list
+      ;;    (progstate (vector 3 4 5 7) (vector) -1 0)
+      ;;    (progstate (vector 7 -7 3 -4) (vector) -1 0)
+      ;; 	 ))
       ;; p10
       ;; (define inits
       ;;   (list
@@ -397,8 +407,9 @@
 				   #f `all #f #:no-args #t))
 
       (define (check-final p)
-        ;; (pretty-display (format "[5] check-final ~a" (length ce-in-final)))
-        ;; (send printer print-syntax (send printer decode p))
+        (when debug
+              (pretty-display (format "[5] check-final ~a" (length ce-in-final)))
+              (send printer print-syntax (send printer decode p)))
         (define
           pass
           (for/and ([input ce-in-final]
@@ -482,15 +493,19 @@
                   (set! ce-count-extra (add1 ce-count-extra))
                   )
                 (begin
-                  ;;(pretty-display "[4] found")
-                  ;;(send printer print-syntax (send printer decode p))
-                  (check-final (increase-precision p))
+                  (when debug
+                        (pretty-display "[4] found")
+                        (send printer print-syntax (send printer decode p)))
+                  (for ([x (increase-precision p abst2precise)])
+                       (check-final x))
                   ))]
 
            [else
-            ;;(pretty-display "[4] found")
-            ;;(send printer print-syntax (send printer decode p))
-            (check-final (increase-precision p))]))
+            (when debug
+                  (pretty-display "[4] found")
+                  (send printer print-syntax (send printer decode p)))
+            (for ([x (increase-precision p abst2precise)])
+                 (check-final x))]))
 
         (define (inner-behaviors p)
           (define t0 (current-milliseconds))
@@ -767,37 +782,48 @@
 
       (define (build-hash-bw-all test)
 	(newline)
-	(pretty-display `(build-hash-bw-all ,test))
+        (define my-ce-out-vec (vector-ref ce-out-vec test))
+        (define same #f)
+        (for ([i test] #:break same)
+             (when (equal? my-ce-out-vec (vector-ref ce-out-vec i))
+                   (set! same i)))
+	(pretty-display `(build-hash-bw-all ,test ,same))
         (when (= (vector-ref classes-bw-expand 0) test)
               (vector-set! classes-bw-expand 0 (add1 test))
-              (class-init-bw! (vector-ref classes-bw 0) live2-list test (vector-ref ce-out-vec test))
+              (class-init-bw! (vector-ref classes-bw 0)
+                              live2-list test my-ce-out-vec)
               )
 	(for ([step step-bw])
              (when
               (= (vector-ref classes-bw-expand (add1 step)) test)
               (vector-set! classes-bw-expand (add1 step) (add1 test))
-              (newline)
-              (pretty-display `(step-test ,step ,test))
-              (set! c-behaviors-bw 0)
-              (set! c-progs-bw 0)
-              (let ([prev (vector-ref classes-bw step)]
-                    [current (vector-ref classes-bw (add1 step))])
-                (for ([pair (hash->list prev)])
-                     (let* ([live-list (car pair)]
-                            [my-hash (cdr pair)]
-                            [flag (hash-keys (vector-ref my-hash 0))]
-                            [iterator (send enum reset-generate-inst 
-                                            #f live-list #f flag
-                                            #f `all #f #:try-cmp try-cmp)])
-                       ;; (pretty-display `(live ,live-list 
-                       ;;                        ,(hash-count (vector-ref my-hash test))
-                       ;;                        ,(hash-count (car (hash-values (vector-ref my-hash test))))))
-                       (build-hash-bw test current live-list my-hash iterator)
-                       )))
-              (pretty-display `(behavior-bw ,test ,step ,c-behaviors-bw ,c-progs-bw ,(- (current-seconds) start-time)))
-              )
-             )
-	)
+              (if same
+                  (let ([current (vector-ref classes-bw (add1 step))])
+                    (for ([pair (hash->list current)])
+                         (let ([live-list (car pair)]
+                               [my-hash (cdr pair)])
+                           (vector-set! my-hash test (vector-ref my-hash same)))))
+                
+                  (let ([prev (vector-ref classes-bw step)]
+                        [current (vector-ref classes-bw (add1 step))])
+                    ;; (newline)
+                    ;; (pretty-display `(step-test ,step ,test))
+                    (set! c-behaviors-bw 0)
+                    (set! c-progs-bw 0)
+                    (for ([pair (hash->list prev)])
+                         (let* ([live-list (car pair)]
+                                [my-hash (cdr pair)]
+                                [flag (hash-keys (vector-ref my-hash 0))]
+                                [iterator (send enum reset-generate-inst 
+                                                #f live-list #f flag
+                                                #f `all #f #:try-cmp try-cmp)])
+                           ;; (pretty-display `(live ,live-list 
+                           ;;                        ,(hash-count (vector-ref my-hash test))
+                           ;;                        ,(hash-count (car (hash-values (vector-ref my-hash test))))))
+                           (build-hash-bw test current live-list my-hash iterator)
+                           ))
+                    (pretty-display `(behavior-bw ,test ,step ,c-behaviors-bw ,c-progs-bw ,(- (current-seconds) start-time)))))))
+        )
 
       (define (build-hash-bw test current old-liveout my-hash iterator)
 	(define my-hash-test (vector-ref my-hash test))

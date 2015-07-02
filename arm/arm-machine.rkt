@@ -237,13 +237,15 @@
 
       (set! bit-range 
             (list->vector 
-	     (set->list (set-union (list->set (vector->list bit-range))
-				   bit))))
+	     (filter (lambda (x) (and (>= x 0) (<= x 32)))
+                     (set->list (set-union (list->set (vector->list bit-range))
+                                           op2 bit)))))
       (set! bit-range-no-0 
             (list->vector 
-	     (remove* (list 0)
-		      (set->list (set-union (list->set (vector->list bit-range-no-0))
-					    bit)))))
+	     (filter (lambda (x) (and (> x 0) (<= x 32)))
+                     (set->list (set-union (list->set
+                                            (vector->list bit-range-no-0))
+                                           op2 bit)))))
 
       (unless only-const
               (set! reg-range (list->vector (append (set->list reg) 
