@@ -276,6 +276,8 @@
 			       #:assume-interpret [assume-interpret #t]
 			       #:assume [assumption (send machine no-assumption)])
       (set! start-time (current-seconds))
+      (send machine reset-inst-pool)
+      (send machine analyze-opcode prefix spec postfix)
       (define init
         (car (send validator
                    generate-input-states 1 (vector-append prefix spec postfix)
@@ -319,6 +321,7 @@
         (exec #t)]
        [(= try-cmp-status 2) ;; should try cmp
         (exec #f)
+        (set! start-time (current-seconds))
         (exec #t)
         ])
 
@@ -328,7 +331,7 @@
     (define (synthesize spec sketch prefix postfix constraint extra cost
                         assumption
                         try-cmp time-limit)
-      
+      (collect-garbage)
       ;;(raise (exn:fail "synthesize: synthesis failed" (current-continuation-marks)))
       (define size-from sketch)
       (define size-to sketch)
@@ -338,6 +341,7 @@
               (set! size-to len)))
       
       (reset)
+      (send machine reset-arg-ranges)
       (define spec-precise spec)
       (define prefix-precise prefix)
       (define postfix-precise postfix)
@@ -361,22 +365,30 @@
      
       ;;(define size (if sketch sketch 4))
       (define live2 (send validator-abst get-live-in postfix constraint extra))
+      (define live2-vec (send machine progstate->vector live2))
       (define live1 (send validator-abst get-live-in spec live2 extra))
       (define live0 (send validator-abst get-live-in prefix live1 extra))
-      (send machine analyze-opcode prefix spec postfix)
-      (send machine analyze-args prefix spec postfix live2 #:vreg 0)
-
-      ;; Need to reset arg-ranges before calling get-operand-live
       (define live0-list (send machine get-operand-live live0))
-      (define live1-list (send machine get-operand-live live1))
-      (define live2-list (send machine get-operand-live live2))
 
       (define live1-list-alt live0-list)
       (for ([x prefix])
            (set! live1-list-alt (send machine update-live live1-list-alt x)))
       
+      (send machine display-state live0)
+      (send machine analyze-args prefix spec postfix
+            live1-list-alt live2 #:vreg 0)
+
+      ;; Convert live2 after analyze-args to filter some live-out regs
+      ;; that do not involve in here.
+      (define live1-list (send machine get-operand-live live1))
+      (define live2-list (send machine get-operand-live live2))
+
+      ;; (pretty-display `(live0-list ,live0-list))
+      ;; (pretty-display `(live1-list ,live1-list))
+      ;; (pretty-display `(live1-list-alt ,live1-list-alt))
+      ;; (raise "xxx")
+      
       (set! live1-list (combine-live live1-list-alt live1-list))
-      (define live2-vec (send machine progstate->vector live2))
 
       (define step-bw 0)
       (define step-fw 0)
@@ -441,6 +453,7 @@
       (pretty-display `(live2-vec ,live2-vec))
       (pretty-display `(live1-list ,live1-list))
       (pretty-display `(live2-list ,live2-list))
+      ;;(raise "xxx")
       
       (define ce-in (make-vector ce-limit))
       (define ce-in-vec (make-vector ce-limit))
@@ -534,7 +547,7 @@
                      final-program
                      (send simulator performance-cost final-program))
                (yield p)
-               ;; (raise "done")
+               (yield #f)
                (set! cost final-cost)
                (set! start-time (current-seconds))
 

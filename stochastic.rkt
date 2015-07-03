@@ -50,12 +50,10 @@
                            #:assume [assumption (send machine no-assumption)]
                            #:input-file [input-file #f]
                            #:start-prog [start #f])
-      (send machine analyze-args (vector) spec (vector) constraint)
-      (send machine analyze-opcode (vector) spec (vector))
-      (define my-live-in
-        (send validator get-live-in (vector-append spec postfix)
-              constraint extra-info))
+      (send machine reset-arg-ranges)
       (set! live-in (send machine get-operand-live this-live-in))
+      (send machine analyze-args (vector) spec (vector) live-in constraint)
+      (send machine analyze-opcode (vector) spec (vector))
       (pretty-display `(live-in ,live-in))
       (pretty-display (format "Base-cost: ~a" base-cost))
       ;; Generate testcases

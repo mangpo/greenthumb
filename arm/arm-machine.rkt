@@ -170,6 +170,7 @@
     (define fp 0)
  
     (define reg-range #f)
+    (define reg-range-o #f)
     (define operand2-range #f)
     (define const-range #f)
     (define shf-range #f)
@@ -202,8 +203,9 @@
       (reset-arg-ranges)
       )
 
-    (define (reset-arg-ranges)
+    (define/public (reset-arg-ranges)
       (set! reg-range (list->vector (range nregs)))
+      (set! reg-range-o (list->vector (range nregs)))
       (set! operand2-range (vector 0 1 (sub1 bit)))
       ;; (list->vector ;(range 17)))
       ;;  (append (range bit) (list #x3f #xff0000 #xff00 (- #xff000000) (- #x80000000)))))
@@ -220,8 +222,7 @@
       (set! bit-range-no-0 (vector 1))
       (set! mem-range (list->vector (for/list ([i nmems]) (- i fp)))))
 
-    (define (update-arg-ranges op2 const bit reg mem only-const [vreg 0])
-      (reset-arg-ranges)
+    (define (update-arg-ranges op2 const bit reg reg-o mem only-const [vreg 0])
       ;; Not include mem-range
       (set! operand2-range 
             (list->vector 
@@ -251,13 +252,18 @@
                                            op2 bit)))))
 
       (unless only-const
-              (set! reg-range (list->vector (append (set->list reg) 
-                                                    (range nregs (+ nregs vreg)))))
+              (set! reg-range
+                    (list->vector (append (set->list reg) 
+                                          (range nregs (+ nregs vreg)))))
+              (set! reg-range-o
+                    (list->vector (append (set->list reg-o) 
+                                          (range nregs (+ nregs vreg)))))
               (set! nregs (+ nregs vreg)) ;; Same if enum = 0
               
               (set! mem-range (list->vector (set->list mem))))
 
       (pretty-display `(reg-range ,reg-range))
+      (pretty-display `(reg-range-o ,reg-range-o))
       (pretty-display `(mem-range ,mem-range))
       (pretty-display `(operand2-range ,operand2-range))
       (pretty-display `(const-range ,const-range))
@@ -380,7 +386,7 @@
                  )
              (for ([i (vector-length regs)]
                    [r regs])
-                  (when (and r (vector-member i reg-range))
+                  (when (and r (vector-member i reg-range-o))
 			(set! live-reg (cons i live-reg))))
              (for ([i (vector-length mem)]
                    [m mem])
@@ -483,8 +489,8 @@
 
       (define reg-o
 	(if live-out
-	    (filter-live reg-range (car live-out))
-	    reg-range))
+	    (filter-live reg-range-o (car live-out))
+	    reg-range-o))
       
       (define mem-i
 	(if live-in
@@ -612,35 +618,35 @@
       (not (code-has code '(smull umull smmul smmla smmls)))
       )
 
-    (define/override (reset-inst-pool)
-      (define inst-choice '(
-                     add sub rsb
-                     add# sub# rsb#
-                     and orr eor bic orn
-                     and# orr# eor# bic# orn#
-                     mov mvn
-                     mov# mvn# movw# movt#
-                     rev rev16 revsh rbit
-                     asr lsl lsr
-                     lsl# 
-        	     ;; asr# lsr#
-                     ;; mul mla mls
+    ;; (define/override (reset-inst-pool)
+    ;;   (define inst-choice '(
+    ;;                  add sub rsb
+    ;;                  add# sub# rsb#
+    ;;                  and orr eor bic orn
+    ;;                  and# orr# eor# bic# orn#
+    ;;                  mov mvn
+    ;;                  mov# mvn# movw# movt#
+    ;;                  rev rev16 revsh rbit
+    ;;                  asr lsl lsr
+    ;;                  lsl# 
+    ;;     	     asr# lsr#
+    ;;                  mul mla mls
 
-                     ;; smull umull
-                     ;; smmul smmla smmls
+    ;;                  smull umull
+    ;;                  smmul smmla smmls
 
-                     ;; sdiv udiv
-        	     ;; uxtah uxth uxtb
-                     ;; bfc bfi
-                     ;; sbfx ubfx
-                     clz
-                     ;; ldr str
-                     ;; ldr# str#
-                     ;; tst cmp
-                     ;; tst# cmp#
-                     ))
+    ;;                  sdiv udiv
+    ;;     	     uxtah uxth uxtb
+    ;;                  bfc bfi
+    ;;                  sbfx ubfx
+    ;;                  clz
+    ;;                  ldr str
+    ;;                  ldr# str#
+    ;;                  tst cmp
+    ;;                  tst# cmp#
+    ;;                  ))
                                 
-      (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
+    ;;   (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
 
     (define (is-virtual-reg)
       (not
@@ -678,8 +684,9 @@
 	    [(member type '(mem-o mem-i)) (set! mem-set (set-add mem-set arg))]))
       (list op2-set const-set bit-set reg-set mem-set))
 
-    (define (analyze-args prefix code postfix constraint
+    (define (analyze-args prefix code postfix live-in-list live-out
                           #:only-const [only-const #f] #:vreg [vreg 0])
+      (pretty-display "Analyze-args-int")
       (define reg-set (set))
       (define mem-set (set))
       (define op2-set (set))
@@ -704,14 +711,18 @@
              (set! mem-set (set-union mem-set (fifth ans)))
 	     ))
 
+      (define regs-in (list->set (car live-in-list)))
+
       (when (<= (set-count reg-set) 1)
             (define reg
-              (for/or ([live (progstate-regs constraint)]
+              (for/or ([live (progstate-regs live-out)]
                        [r (in-naturals)])
                       (and (not live) (not (set-member? reg-set r)) r)))
             (set! reg-set (set-add reg-set reg)))
                  
-      (update-arg-ranges op2-set const-set bit-set reg-set mem-set only-const vreg))
+      (update-arg-ranges op2-set const-set bit-set
+                         (set-union reg-set regs-in) reg-set
+                         mem-set only-const vreg))
 
     (define (relaxed-state-eq? state1 state2 pred [out-loc #f])
       (define regs-pred (vector-ref pred 0))
