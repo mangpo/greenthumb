@@ -16,7 +16,7 @@
               ;;vector->id
               mask-in inst->vector
               reduce-precision increase-precision
-	      get-live-mask try-cmp?)
+	      get-live-mask try-cmp? combine-live)
 
     (define (len-limit) 4)
     (define (window-size) 8)
@@ -209,6 +209,7 @@
        [(and live-z (> z -1) use-cond1) 1]
        [(and (> z -1) (or use-cond1 use-cond2)) 2]
        [else 0]))
-      
+
+    (define (combine-live x y) (cons (car x) (cdr y)))
 
     ))

@@ -7,7 +7,7 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 2 0 0))
+(send machine set-config (list 4 1 4))
 
 (define printer (new arm-printer% [machine machine]))
 (define validator (new arm-validator% [machine machine]))
@@ -18,6 +18,7 @@
 
 (define prefix
 (send parser ast-from-string "
+	str	r0, [fp, #-16]
 "))
 
 (define postfix
@@ -26,19 +27,14 @@
 
 (define code
 (send parser ast-from-string "
-        sub     r0, r0, #1
-        orr     r0, r0, r0, asr #1
-        orr     r0, r0, r0, asr #2
-        orr     r0, r0, r0, asr #4
-        orr     r0, r0, r0, asr #8
-        orr     r0, r0, r0, asr #16
-        add     r0, r0, #1
+	ldr	r3, [fp, #-16]
+	mov	r3, r3, asr #31
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-? ? ? ?
+? ?
 "))
 
 (define encoded-prefix (send printer encode prefix))
@@ -52,7 +48,7 @@
         encoded-code ;; spec
         encoded-sketch ;; sketch = spec in this case
         encoded-prefix encoded-postfix
-        (constraint machine [reg 0] [mem]) #f #f 3600)
+        (constraint machine [reg 3] [mem]) #f #f 3600)
   )
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem]) ;; constraint

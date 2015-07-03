@@ -22,7 +22,7 @@
               reduce-precision increase-precision
 	      get-live-mask)
     (override synthesize-window superoptimize-linear superoptimize-binary)
-    (public try-cmp?)
+    (public try-cmp? combine-live)
     
     (define debug #f)
     (define verbo #f)
@@ -240,6 +240,7 @@
     (define start-time #f)
 
     (define (try-cmp? code state) 0)
+    (define (combine-live x y) x)
 
     (define (superoptimize-binary spec constraint time-limit size [extra #f]
 				  #:lower-bound [lower-bound 0]
@@ -361,13 +362,21 @@
       ;;(define size (if sketch sketch 4))
       (define live2 (send validator-abst get-live-in postfix constraint extra))
       (define live1 (send validator-abst get-live-in spec live2 extra))
+      (define live0 (send validator-abst get-live-in prefix live1 extra))
       (send machine analyze-opcode prefix spec postfix)
       (send machine analyze-args prefix spec postfix live2 #:vreg 0)
 
       ;; Need to reset arg-ranges before calling get-operand-live
-      (define live2-vec (send machine progstate->vector live2))
+      (define live0-list (send machine get-operand-live live0))
       (define live1-list (send machine get-operand-live live1))
       (define live2-list (send machine get-operand-live live2))
+
+      (define live1-list-alt live0-list)
+      (for ([x prefix])
+           (set! live1-list-alt (send machine update-live live1-list-alt x)))
+      
+      (set! live1-list (combine-live live1-list-alt live1-list))
+      (define live2-vec (send machine progstate->vector live2))
 
       (define step-bw 0)
       (define step-fw 0)
