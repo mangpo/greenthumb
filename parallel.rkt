@@ -47,11 +47,13 @@
 	(define path (format "~a/driver" dir))
 	(set! dir-id (add1 dir-id))
         
-        (define (create-file id stochastic? mode)
+        (define (create-file id search-type mode)
           (define (req file)
             (format "(file \"~a/~a\")" srcpath (send meta required-module file)))
           (define required-files
-            (string-join (map req '(parser machine printer stochastic symbolic))))
+            (string-join
+             (map req '(parser machine printer
+                               stochastic symbolic forwardbackward))))
           (with-output-to-file 
               #:exists 'truncate (format "~a-~a.rkt" path id)
               (thunk
@@ -64,15 +66,22 @@
                (pretty-display (format "(define printer (new ~a [machine machine]))" (send meta get-class-name "printer")))
                (pretty-display (format "(define parser (new ~a))" (send meta get-class-name "parser")))
 
-               (if stochastic?
-                   (pretty-display 
-                    (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode ~a] [base-cost ~a]))" 
-                            (send meta get-class-name "stochastic") 
-                            (equal? mode `syn) base-cost))
-                   (pretty-display 
-                    (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode `~a]))" 
-                            (send meta get-class-name "symbolic") 
-                            mode)))
+               (cond
+                [(equal? search-type `stoch)
+                 (pretty-display 
+                  (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode ~a] [base-cost ~a]))" 
+                          (send meta get-class-name "stochastic") 
+                          (equal? mode `syn) base-cost))]
+                [(equal? search-type `solver)
+                 (pretty-display 
+                  (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode `~a]))" 
+                          (send meta get-class-name "symbolic") 
+                          mode))]
+                [(equal? search-type `enum)
+                 (pretty-display 
+                  (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode `~a]))" 
+                          (send meta get-class-name "forwardbackward") 
+                          mode))])
 
                (pretty-display "(define prefix (send parser ast-from-string \"")
                (send printer print-syntax prefix)
@@ -105,16 +114,15 @@
                ;;(pretty-display "(dump-memory-stats)"
                )))
         
-        (define (run-file id stoch?)
+        (define (run-file id)
           (define out-port 
-            ;;(and (not stoch?) 
 	    (open-output-file (format "~a-~a.log" path id) #:exists 'truncate))
           (define-values (sp o i e) 
             (subprocess out-port #f out-port (find-executable-path "racket") (format "~a-~a.rkt" path id)))
           sp)
 
         (define (kill-all)
-          (for ([sp (append processes-stoch processes-solver)])
+          (for ([sp (append processes-stoch processes-solver processes-enum)])
                (when (equal? (subprocess-status sp) 'running)
                      (subprocess-kill sp #f))))
 	
@@ -138,50 +146,67 @@
                 (pretty-display (format "len:\t~a" len))
                 (pretty-display (format "time:\t~a" time))
                 (pretty-display id)))
-        
+
         (define cores-solver 
           (cond
            [(equal? search-type `stoch) 0]
+           [(equal? search-type `enum) 0]
            [(equal? search-type `solver) cores]
            [(equal? search-type `hybrid) 3]))
-        (define cores-stoch (- cores cores-solver))
+        (define cores-enum
+          (cond
+           [(equal? search-type `stoch) 0]
+           [(equal? search-type `solver) 0]
+           [(equal? search-type `enum) cores]
+           [(equal? search-type `hybrid) 0]))
+        (define cores-stoch (- cores cores-solver cores-enum))
 
         ;; STEP 1: create file & run
-        (define-syntax-rule (create-and-run id mode stoch?)
+        (define-syntax-rule (create-and-run id mode search-type)
           (begin
-            (create-file id stoch? mode)
-            (run-file id stoch?)))
+            (create-file id search-type mode)
+            (run-file id)))
 
         (define processes-stoch
           (if (equal? search-type `hybrid)
               (let ([n 3])
                 (append (for/list ([id n]) 
-                                  (create-and-run id `opt #t))
+                                  (create-and-run id `opt `stoch))
                         (for/list ([id (- cores-stoch n)]) 
-                                  (create-and-run (+ n id) `syn #t))))
-              (for/list ([id cores-stoch]) (create-and-run id mode #t))))
+                                  (create-and-run (+ n id) `syn `stoch))))
+              (for/list ([id cores-stoch]) (create-and-run id mode `stoch))))
 
         (define processes-solver
           (cond
            [(equal? search-type `hybrid)
-            (list (create-and-run (+ cores-stoch 0) `partial1 #f)
-                  (create-and-run (+ cores-stoch 1) `partial2 #f)
-                  (create-and-run (+ cores-stoch 2) `partial3 #f))]
+            (list (create-and-run (+ cores-stoch 0) `partial1 `solver)
+                  (create-and-run (+ cores-stoch 1) `partial2 `solver)
+                  (create-and-run (+ cores-stoch 2) `partial3 `solver))]
 
            [(and (equal? search-type `solver) (equal? mode `partial))
-            (define step (quotient cores-solver 3))
             (define n1 2)
             (define n2 2)
             (define n3 (- cores-solver (+ n1 n2)))
-            (append (for/list ([i n1]) (create-and-run i `partial1 #f))
-                    (for/list ([i n2]) (create-and-run (+ n1 i) `partial2 #f))
-                    (for/list ([i n3]) (create-and-run (+ n1 n2 i) `partial3 #f)))
+            (append (for/list ([i n1]) (create-and-run i `partial1 `solver))
+                    (for/list ([i n2]) (create-and-run (+ n1 i) `partial2 `solver))
+                    (for/list ([i n3]) (create-and-run (+ n1 n2 i) `partial3 `solver)))
             ]
 
            [else
             (for/list ([id cores-solver]) (create-and-run id mode #f))]))
 
-        (define (result)
+        (define processes-enum
+          (cond
+           [(equal? search-type `enum)
+            (define n1 1)
+            (define n2 0)
+            (define n3 (- cores-enum (+ n1 n2)))
+            (append (for/list ([i n1]) (create-and-run i `partial1 `enum))
+                    (for/list ([i n3]) (create-and-run (+ n1 n2 i) `partial3 `enum)))
+            ]
+
+           [else (list)]))
+                (define (result)
 	  (define limit (if (string? time-limit) 
 			    (string->number time-limit) 
 			    time-limit))
@@ -194,6 +219,10 @@
                                (pretty-display (format "driver-~a is dead." id))))
                   (for ([id (length processes-solver)]
                         [sp processes-solver])
+                       (unless (equal? (subprocess-status sp) 'running)
+                               (pretty-display (format "driver-~a is dead." (+ cores-stoch id)))))
+                  (for ([id (length processes-enum)]
+                        [sp processes-enum])
                        (unless (equal? (subprocess-status sp) 'running)
                                (pretty-display (format "driver-~a is dead." (+ cores-stoch id)))))
                   (get-stats)

@@ -7,7 +7,7 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 4 3 4))
+(send machine set-config (list 2 0 0))
 
 (define printer (new arm-printer% [machine machine]))
 (define validator (new arm-validator% [machine machine]))
@@ -18,9 +18,6 @@
 
 (define prefix
 (send parser ast-from-string "
-str r0, fp, -16
-ldr r2, fp, -16
-mov r2, r2, asr 3
 "))
 
 (define postfix
@@ -29,11 +26,13 @@ mov r2, r2, asr 3
 
 (define code
 (send parser ast-from-string "
-str r2, fp, -12
-ldr r2, fp, -16
-rsb r1, r2, r2, lsr 1
-mov r2, r1, asr 3
-mov r0, r2
+        sub     r0, r0, #1
+        orr     r0, r0, r0, asr #1
+        orr     r0, r0, r0, asr #2
+        orr     r0, r0, r0, asr #4
+        orr     r0, r0, r0, asr #8
+        orr     r0, r0, r0, asr #16
+        add     r0, r0, #1
 "))
 
 
@@ -60,8 +59,5 @@ mov r0, r2
       (constraint machine [reg 0] [mem]) ;; live-in
       "./driver-0" 3600 #f)|#
 
-(with-handlers*
- ([exn:break? (lambda (e) "timeout")])
- (timeout 3600 (f)))
 ;(require profile)
 ;(profile-thunk f)

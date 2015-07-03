@@ -35,7 +35,7 @@
 			       #:assume assumption)]
 
 	[(equal? syn-mode `partial1)
-	 (superoptimize-partial-pattern spec constraint 60 size extra ;; no div 60
+	 (superoptimize-partial-pattern spec constraint 90 size extra ;; no div 60
                                         #:hard-prefix prefix #:hard-postfix postfix
                                         #:assume assumption)]
 
@@ -45,7 +45,7 @@
                                              #:assume assumption)]
 
 	[(equal? syn-mode `partial3)
-	 (superoptimize-partial-random spec constraint 10 size extra
+	 (superoptimize-partial-random spec constraint 90 size extra
                                         #:hard-prefix prefix #:hard-postfix postfix
                                         #:assume assumption)]
 

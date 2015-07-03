@@ -405,7 +405,7 @@
       ;;   (list
       ;;    (progstate (vector 5 0) (vector) -1 4)
       ;;    (progstate (vector 3 0) (vector) -1 4)
-      ;;    (progstate (vector -1 0) (vector) -1 4)
+      ;;    ;; (progstate (vector -1 0) (vector) -1 4)
       ;;    ))
       ;; p19
       ;; (define inits
@@ -524,9 +524,8 @@
                (send stat update-best-correct
                      final-program
                      (send simulator performance-cost final-program))
-               (pretty-display "here1")
                (yield p)
-               (pretty-display "here2")
+               ;; (raise "done")
                (set! cost final-cost)
                (set! start-time (current-seconds))
 
@@ -976,7 +975,7 @@
          (define ttt (current-milliseconds))
          (refine hash1 hash2 my-inst live1 live2 flag1 flag2)
          (when 
-          (and verbo (> (- (current-milliseconds) ttt) 100))
+          (and verbo (> (- (current-milliseconds) ttt) 500))
           (pretty-display (format "search ~a ~a = ~a + ~a + ~a | ~a\t(~a + ~a/~a + ~a + ~a/~a)\t~a ~a ~a/~a\t[~a/~a]\t~a/~a\t~a/~a (~a) ~a" 
                                   (- (current-milliseconds) ttt) ce-count-extra
                                   t-refine t-collect t-check
