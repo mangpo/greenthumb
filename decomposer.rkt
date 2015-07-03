@@ -68,6 +68,11 @@
 	 (superoptimize-partial-random spec constraint 180 (/ 3 2) size extra
                                        #:hard-prefix prefix #:hard-postfix postfix
                                        #:assume assumption)]
+
+	[(equal? syn-mode `partial4)
+	 (superoptimize-partial-random spec constraint 180 2 size extra
+                                       #:hard-prefix prefix #:hard-postfix postfix
+                                       #:assume assumption)]
         )
        )
       )

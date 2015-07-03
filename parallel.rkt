@@ -198,14 +198,16 @@
         (define processes-enum
           (cond
            [(equal? search-type `enum)
-            (define n1 1)
-            (define n2 (floor (* (/ 2 5) cores-enum)))
-            (define n3 (floor (* (/ 2 5) cores-enum)))
+            (define n1 0)
+            (define n2 (floor (* (/ 2 6) cores-enum)))
+            (define n3 (floor (* (/ 2 6) cores-enum)))
+            (define n5 (floor (* (/ 1 6) cores-enum)))
             (define n4 (- cores-enum n1 n2 n3))
             (append (for/list ([i n1]) (create-and-run i `linear `enum))
                     (for/list ([i n2]) (create-and-run (+ n1 i) `partial1 `enum))
                     (for/list ([i n3]) (create-and-run (+ n1 n2 i) `partial2 `enum))
                     (for/list ([i n4]) (create-and-run (+ n1 n2 n3 i) `partial3 `enum))
+                    (for/list ([i n5]) (create-and-run (+ n1 n2 n3 n4 i) `partial4 `enum))
                     )
             ]
 
