@@ -264,28 +264,9 @@
       (define sketch
         (if size (make-vector size) (make-vector (vector-length spec))))
 
-      (define iterator
-       (synthesize-window spec sketch prefix postfix constraint extra
-                          (send simulator performance-cost spec) time-limit
-                          #:assume assumption))
-
-      (define (loop best-p)
-        (define p
-          (with-handlers*
-           ([exn:break? (lambda (e) "timeout")])
-           (timeout time-limit (iterator))))
-
-        (cond
-         [(equal? p "timeout") p]
-         [p (loop p)]
-         [else best-p]))
-      (loop #f))
-        
-      ;; (with-handlers*
-      ;;  ([exn:break? (lambda (e) "timeout")])
-      ;;  (synthesize-window spec sketch prefix postfix constraint extra
-      ;;                     (send simulator preformance-cost spec) time-limit
-      ;;                     #:assume assumption)))
+      (synthesize-window spec sketch prefix postfix constraint extra
+                         (send simulator performance-cost spec) time-limit
+                         #:assume assumption))
 
     (define (synthesize-window spec sketch prefix postfix constraint extra 
 			       [cost #f] [time-limit 3600]
@@ -305,41 +286,47 @@
         (send validator get-live-in postfix constraint extra))
       (define try-cmp-status (try-cmp? spec state2 live2))
       (pretty-display `(status ,try-cmp-status))
-      (define-syntax-rule (exec x)
-        (synthesize spec sketch prefix postfix constraint extra cost assumption x))
-      ;; (define out-program #f)
 
-      ;; (timeout
-      ;;  time-limit
-      ;;  (with-handlers*
-      ;;   ([vector? (lambda (e) (set! out-program e))])
-      ;;   (cond
-      ;;    [(= try-cmp-status 0) ;; don't try cmp
-      ;;     (exec #f)]
-      ;;    [(= try-cmp-status 1) ;; must try cmp
-      ;;     (exec #t)]
-      ;;    [(= try-cmp-status 2) ;; should try cmp
-      ;;     (exec #f)
-      ;;     (exec #t)])))
+      (define out-program #f)
+      (define (exec x)
+        (when (vector? out-program)
+              (set! cost (send simulator performance-cost out-program)))
+        
+        (define iterator
+          (generator
+           ()
+           (synthesize spec sketch prefix postfix constraint extra cost
+                       assumption x time-limit)))
+        
+        (define (loop best-p)
+          (define p (iterator))
+          (pretty-display `(loop-get ,p))
 
-      ;; out-program
+          (cond
+           [(equal? p "timeout") (or best-p p)]
+           [p (loop p)]
+           [else best-p]))
+        
+        (define tmp (loop #f))
+        (set! out-program
+              (if (vector? tmp) tmp (or out-program tmp))))
+      
+      (cond
+       [(= try-cmp-status 0) ;; don't try cmp
+        (exec #f)]
+       [(= try-cmp-status 1) ;; must try cmp
+        (exec #t)]
+       [(= try-cmp-status 2) ;; should try cmp
+        (exec #f)
+        (exec #t)
+        ])
 
-      (generator
-       ()
-       (cond
-        [(= try-cmp-status 0) ;; don't try cmp
-         (exec #f)]
-        [(= try-cmp-status 1) ;; must try cmp
-         (exec #t)]
-        [(= try-cmp-status 2) ;; should try cmp
-         (exec #f)
-         (exec #t)])
-       (yield #f))
+      out-program
       )
 
     (define (synthesize spec sketch prefix postfix constraint extra cost
                         assumption
-                        try-cmp)
+                        try-cmp time-limit)
       
       ;;(raise (exn:fail "synthesize: synthesis failed" (current-continuation-marks)))
       (define size-from sketch)
@@ -373,12 +360,14 @@
      
       ;;(define size (if sketch sketch 4))
       (define live2 (send validator-abst get-live-in postfix constraint extra))
-      (define live2-vec (send machine progstate->vector live2))
       (define live1 (send validator-abst get-live-in spec live2 extra))
-      (define live1-list (send machine get-operand-live live1))
-      (define live2-list (send machine get-operand-live live2))
       (send machine analyze-opcode prefix spec postfix)
       (send machine analyze-args prefix spec postfix live2 #:vreg 0)
+
+      ;; Need to reset arg-ranges before calling get-operand-live
+      (define live2-vec (send machine progstate->vector live2))
+      (define live1-list (send machine get-operand-live live1))
+      (define live2-list (send machine get-operand-live live2))
 
       (define step-bw 0)
       (define step-fw 0)
@@ -535,10 +524,14 @@
                (send stat update-best-correct
                      final-program
                      (send simulator performance-cost final-program))
+               (pretty-display "here1")
                (yield p)
+               (pretty-display "here2")
                (set! cost final-cost)
+               (set! start-time (current-seconds))
 
                (when (<= final-cost (vector-length p))
+                     (pretty-display "YIELD done early")
                      (yield #f))
                )))
         )
@@ -592,7 +585,7 @@
                   ))]
 
            [else
-            (when #t
+            (when debug
                   (pretty-display "[4] found")
                   (send printer print-syntax (send printer decode p)))
             (for ([x (increase-precision p abst2precise)])
@@ -931,8 +924,9 @@
 	  ;; (define my-liveout (cons (list 3) (list)))
 
 	  (when my-inst
-		(send printer print-syntax-inst (send printer decode-inst my-inst))
-                (pretty-display `(live ,my-liveout))
+                ;; (when debug
+                ;;       (send printer print-syntax-inst (send printer decode-inst my-inst))
+                ;;       (pretty-display `(live ,my-liveout)))
                 (define inst-id (inst->id my-inst))
                 ;; (define t-interpret 0)
                 ;; (define t-hash 0)
@@ -965,6 +959,8 @@
 
       (define middle 0)
       (define (refine-all hash1 live1 flag1 hash2 live2 flag2 iterator)
+        (when (> (- (current-seconds) start-time) time-limit)
+              (yield "timeout"))
 	(define inst-liveout-vreg (iterator))
         (define my-inst (first inst-liveout-vreg))
 	;; (define my-inst 
@@ -999,6 +995,9 @@
 
 
       (define (main-loop size)
+        (when (and cost (>= size cost))
+              (pretty-display "YIELD #f (>= size cost)")
+              (yield #f))
         (when
          (>= size size-from)
          (pretty-display (format "\nSIZE = ~a" size))
@@ -1027,7 +1026,7 @@
                           (send enum generate-inst 
                                 live1 live2 flag1 flag2
                                 #f `all #f #:try-cmp try-cmp)])
-                    (pretty-display `(refine ,order ,live1 ,flag1 ,live2))
+                    (pretty-display `(refine ,order ,live1 ,flag1 ,live2 ,(- (current-seconds) start-time)))
                     ;;(pretty-display `(hash ,(vector-ref my-hash2 0) ,(vector-ref my-hash2 1)))
                     ;; (when (and (equal? live1 '(0 1)) (equal? live2 '()))
                     ;;       (pretty-display "===================")
@@ -1069,10 +1068,12 @@
                 (pretty-display `(behavior ,c-behaviors ,c-progs ,(- (current-seconds) start-time)))
                 ])
               
-              (main-loop (add1 size)))
+              (main-loop (add1 size))
+              )
         )
       
       (main-loop 1)
       (pretty-display `(time ,(- (current-seconds) start-time)))
+      (yield #f)
       )
     ))

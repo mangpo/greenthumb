@@ -20,32 +20,26 @@
 (send parser ast-from-string "
 str r0, fp, -16
 ldr r2, fp, -16
+mov r2, r2, asr 3
 "))
 
 (define postfix
 (send parser ast-from-string "
-ldr r1, fp, -12
-ldr r2, fp, -8
-orr r2, r1, r2
-mov r0, r2
 "))
 
 (define code
 (send parser ast-from-string "
-mov r2, r2, asr 3
 str r2, fp, -12
 ldr r2, fp, -16
-rsb r2, r2, 0
-str r2, fp, -8
-ldr r2, fp, -8
-mov r2, r2, asr 3
-str r2, fp, -8
+rsb r1, r2, r2, lsr 1
+mov r2, r1, asr 3
+mov r0, r2
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-? ? ? ? ?
+? ? ? ?
 "))
 
 (define encoded-prefix (send printer encode prefix))
@@ -57,7 +51,7 @@ str r2, fp, -8
 (define f
   (send backward synthesize-window
         encoded-code ;; spec
-        5 ;;encoded-sketch ;; sketch = spec in this case
+        encoded-sketch ;; sketch = spec in this case
         encoded-prefix encoded-postfix
         (constraint machine [reg 0] [mem]) #f #f 3600)
   )

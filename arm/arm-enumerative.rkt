@@ -96,8 +96,14 @@
          ()
          
          (define arg-types #f)
-         (define global-out (if (and live-in live-out) (set-subtract (car live-out) (car live-in)) (list)))
-         (define global-in (if (and live-in live-out) (set-subtract (take (car live-in) 1) (car live-out)) (list)))
+         (define global-out
+           (if (and live-in live-out)
+               (set-subtract (car live-out) (car live-in))
+               (list)))
+         (define global-in
+           (if (and live-in live-out (not (empty? (car live-in)) ))
+               (set-subtract (take (car live-in) 1) (car live-out))
+               (list)))
          
          (define (recurse-args opcode opcode-id shfop shfarg cond-type args ranges v-reg)
            (define (check-yield)  

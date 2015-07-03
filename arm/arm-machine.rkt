@@ -199,26 +199,29 @@
       (set! nregs (first info))
       (set! nmems (second info))
       (set! fp (third info))
-      
+      (reset-arg-ranges)
+      )
+
+    (define (reset-arg-ranges)
       (set! reg-range (list->vector (range nregs)))
       (set! operand2-range (vector 0 1 (sub1 bit)))
-	    ;; (list->vector ;(range 17)))
-	    ;;  (append (range bit) (list #x3f #xff0000 #xff00 (- #xff000000) (- #x80000000)))))
+      ;; (list->vector ;(range 17)))
+      ;;  (append (range bit) (list #x3f #xff0000 #xff00 (- #xff000000) (- #x80000000)))))
 
       (set! const-range (vector 0 1)) ;; 0-7, 31
-	    ;; (list->vector ;(range 17)))
-	    ;;  (append (range 17) (list (sub1 bit) 
-	    ;;     		      #x1111 #x3333 #x5555 #xaaaa #xcccc
-	    ;;     		      #xf0f0 #x0f0f #x3f 
-	    ;;     		      #xffff #xaaab #x2aaa #xfff4))))
+      ;; (list->vector ;(range 17)))
+      ;;  (append (range 17) (list (sub1 bit) 
+      ;;     		      #x1111 #x3333 #x5555 #xaaaa #xcccc
+      ;;     		      #xf0f0 #x0f0f #x3f 
+      ;;     		      #xffff #xaaab #x2aaa #xfff4))))
       
       (set! shf-range (vector 1))
       (set! bit-range (vector 0 1))
       (set! bit-range-no-0 (vector 1))
-      (set! mem-range (list->vector (for/list ([i nmems]) (- i fp))))
-      )
+      (set! mem-range (list->vector (for/list ([i nmems]) (- i fp)))))
 
     (define (update-arg-ranges op2 const bit reg mem only-const [vreg 0])
+      (reset-arg-ranges)
       ;; Not include mem-range
       (set! operand2-range 
             (list->vector 

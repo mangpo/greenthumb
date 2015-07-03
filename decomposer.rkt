@@ -45,7 +45,7 @@
                                              #:assume assumption)]
 
 	[(equal? syn-mode `partial3)
-	 (superoptimize-partial-random spec constraint 60 size extra
+	 (superoptimize-partial-random spec constraint 10 size extra
                                         #:hard-prefix prefix #:hard-postfix postfix
                                         #:assume assumption)]
 
@@ -265,13 +265,12 @@
             #:assume assumption))])
        (loop time-limit (max (add1 (window-size)) (floor (* (/ 5 4) (window-size))))))
       )
-
+    
     (define (superoptimize-partial-random 
              spec constraint time-limit size [extra #f]
              #:hard-prefix [hard-prefix (vector)]
              #:hard-postfix [hard-postfix (vector)]
              #:assume [assumption (send machine no-assumption)])
-      
       (define (inner w timeout choices)
         (define from (list-ref choices (random (length choices))))
         (pretty-display (format ">> superoptimize-partial-random pos = ~a, timeout = ~a" from timeout))
