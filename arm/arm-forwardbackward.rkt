@@ -18,8 +18,8 @@
               reduce-precision increase-precision
 	      get-live-mask try-cmp? combine-live)
 
-    (define (len-limit) 4)
-    (define (window-size) 8)
+    (define (len-limit) 2)
+    (define (window-size) 4)
     
     ;; Initialization
     (set! simulator (new arm-simulator-racket% [machine machine]))

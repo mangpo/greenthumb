@@ -1,6 +1,6 @@
 #lang racket
 
-(require "ast.rkt" "decomposer.rkt" "arm/arm-machine.rkt")
+(require "ast.rkt" "decomposer.rkt" "arm/arm-machine.rkt" "arm/arm-parser.rkt")
 (require racket/generator)
 
 (provide forwardbackward%)
@@ -16,6 +16,7 @@
   (class decomposer%
     (super-new)
     (inherit-field machine printer simulator validator stat)
+    (inherit window-size)
     (init-field [enum #f] [simulator-abst #f] [validator-abst #f] [inverse #f])
     
     (abstract mask-in inst->vector
@@ -27,6 +28,7 @@
     (define debug #f)
     (define verbo #f)
     (define ce-limit 100)
+    (define parser (new arm-parser%))
 
     (define c-behaviors 0)
     (define c-progs 0)
@@ -338,7 +340,7 @@
       (when (vector? sketch)
             (let ([len (vector-length sketch)])
               (set! size-from 1)
-              (set! size-to len)))
+              (set! size-to (min len (window-size)))))
       
       (reset)
       (send machine reset-arg-ranges)
@@ -541,6 +543,7 @@
                (pretty-display `(ce-count ,ce-count-extra))
                (pretty-display `(ce-count-precise ,(length ce-in-final)))
 	       (pretty-display `(time ,(- (current-seconds) start-time)))
+               (newline)
 
                ;; Print to file
                (send stat update-best-correct
@@ -588,7 +591,7 @@
                         (send simulator-abst interpret spec ce-input #:dep #f)]
                        [ce-output-vec
                         (send machine progstate->vector ce-output)])
-                  (when debug
+                  (when verbo
                         (newline)
                         (pretty-display "[3] counterexample")
                         (pretty-display `(ce ,ce-count-extra ,ce-input-vec ,ce-output-vec)))
@@ -796,7 +799,7 @@
 					    (set->list progs-set)
 					    (intersect candidates progs-set)))]
 				  [t3 (current-milliseconds)])
-			     ;; (pretty-display `(inner ,level ,inter ,out-vec-masked ,new-candidates))
+			     ;;(pretty-display `(inner ,level ,inter ,out-vec-masked ,new-candidates))
 			     ;; (when (>= level 2)
 			     ;;       (pretty-display `(result ,classes ,progs-set)))
 			     ;; (set! t-mask (+ t-mask (- t1 t0)))
@@ -849,9 +852,9 @@
 
 	;; (define my-inst 
 	;;   (vector-ref (send printer encode 
-	;; 		    (send parser ast-from-string "cmp r0, r1"))
+	;; 		    (send parser ast-from-string "cmp r4, r3"))
 	;; 	      0))
-	;; (define my-liveout '(0 1))
+	;; (define my-liveout (cons '(0 1 2 3 4) '()))
 
         (define cache (make-hash))
         (when 
@@ -912,8 +915,8 @@
                 
                   (let ([prev (vector-ref classes-bw step)]
                         [current (vector-ref classes-bw (add1 step))])
-                    (newline)
-                    (pretty-display `(step-test ,step ,test))
+                    ;; (newline)
+                    ;; (pretty-display `(step-test ,step ,test))
                     (set! c-behaviors-bw 0)
                     (set! c-progs-bw 0)
                     (for ([pair (hash->list prev)])
@@ -986,7 +989,7 @@
         (define my-inst (first inst-liveout-vreg))
 	;; (define my-inst 
 	;;   (vector-ref (send printer encode 
-	;; 		    (send parser ast-from-string "cmp r2, r3"))
+	;; 		    (send parser ast-from-string "strhi r3, fp, -12"))
 	;; 	      0))
         (when 
          my-inst
@@ -1016,9 +1019,6 @@
 
 
       (define (main-loop size)
-        (when (and cost (>= size cost))
-              (pretty-display "YIELD #f (>= size cost)")
-              (yield #f))
         (when
          (>= size size-from)
          (pretty-display (format "\nSIZE = ~a" size))
@@ -1057,7 +1057,7 @@
                     (set! order (add1 order))
                     )))))
         
-        (when (< size size-to)
+        (when (and (< size size-to) (> cost (add1 size)))
               (cond
                [(and (= step-bw 0) (> step-fw 0))
                 (set! step-bw (add1 step-bw))

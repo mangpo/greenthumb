@@ -34,25 +34,40 @@
                                #:hard-prefix prefix #:hard-postfix postfix
 			       #:assume assumption)]
 
+	;; [(equal? syn-mode `partial1)
+	;;  (superoptimize-partial-pattern spec constraint 90 size extra ;; no div 60
+        ;;                                 #:hard-prefix prefix #:hard-postfix postfix
+        ;;                                 #:assume assumption)]
+
+	;; [(equal? syn-mode `partial2)
+	;;  (superoptimize-partial-pattern-slow spec constraint 800 size extra
+        ;;                                      #:hard-prefix prefix #:hard-postfix postfix
+        ;;                                      #:assume assumption)]
+
+	;; [(equal? syn-mode `partial3)
+	;;  (superoptimize-partial-random spec constraint 90 1 size extra
+        ;;                                 #:hard-prefix prefix #:hard-postfix postfix
+        ;;                                 #:assume assumption)]
+
+	;; [(equal? syn-mode `partial4)
+	;;  (superoptimize-partial-random spec constraint 240 1 size extra ;; no div 100
+        ;;                                 #:hard-prefix prefix #:hard-postfix postfix
+        ;;                                 #:assume assumption)]
+
 	[(equal? syn-mode `partial1)
-	 (superoptimize-partial-pattern spec constraint 90 size extra ;; no div 60
-                                        #:hard-prefix prefix #:hard-postfix postfix
-                                        #:assume assumption)]
+	 (superoptimize-partial-random spec constraint 60 (/ 1 2) size extra
+                                       #:hard-prefix prefix #:hard-postfix postfix
+                                       #:assume assumption)]
 
 	[(equal? syn-mode `partial2)
-	 (superoptimize-partial-pattern-slow spec constraint 800 size extra
-                                             #:hard-prefix prefix #:hard-postfix postfix
-                                             #:assume assumption)]
+	 (superoptimize-partial-random spec constraint 60 1 size extra
+                                       #:hard-prefix prefix #:hard-postfix postfix
+                                       #:assume assumption)]
 
 	[(equal? syn-mode `partial3)
-	 (superoptimize-partial-random spec constraint 90 size extra
-                                        #:hard-prefix prefix #:hard-postfix postfix
-                                        #:assume assumption)]
-
-	[(equal? syn-mode `partial4)
-	 (superoptimize-partial-random spec constraint 240 size extra ;; no div 100
-                                        #:hard-prefix prefix #:hard-postfix postfix
-                                        #:assume assumption)]
+	 (superoptimize-partial-random spec constraint 180 (/ 3 2) size extra
+                                       #:hard-prefix prefix #:hard-postfix postfix
+                                       #:assume assumption)]
         )
        )
       )
@@ -267,7 +282,7 @@
       )
     
     (define (superoptimize-partial-random 
-             spec constraint time-limit size [extra #f]
+             spec constraint time-limit scale size [extra #f]
              #:hard-prefix [hard-prefix (vector)]
              #:hard-postfix [hard-postfix (vector)]
              #:assume [assumption (send machine no-assumption)])
@@ -300,10 +315,11 @@
          (lambda (e)
            (superoptimize-partial-random 
             (exn:restart-program e)
-            constraint time-limit size extra 
+            constraint time-limit scale size extra 
             #:hard-prefix hard-prefix #:hard-postfix hard-postfix
             #:assume assumption))])
-       (inner (window-size) time-limit (range (sub1 (vector-length spec))))))
+       (inner (floor (* scale (window-size))) time-limit
+              (range (sub1 (vector-length spec))))))
 
     (define (check-global input-prog quick-restart)
       (define-values (cost len time id) (send stat get-best-info-stat))

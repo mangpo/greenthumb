@@ -181,12 +181,12 @@
            [(equal? search-type `hybrid)
             (list (create-and-run (+ cores-stoch 0) `partial1 `solver)
                   (create-and-run (+ cores-stoch 1) `partial2 `solver)
-                  (create-and-run (+ cores-stoch 2) `partial3 `solver))]
+                  (create-and-run (+ cores-stoch 2) `partial2 `solver))]
 
            [(and (equal? search-type `solver) (equal? mode `partial))
-            (define n1 2)
-            (define n2 2)
-            (define n3 (- cores-solver (+ n1 n2)))
+            (define n1 (quotient cores-solver 2))
+            (define n2 (- cores-solver n1))
+            (define n3 0)
             (append (for/list ([i n1]) (create-and-run i `partial1 `solver))
                     (for/list ([i n2]) (create-and-run (+ n1 i) `partial2 `solver))
                     (for/list ([i n3]) (create-and-run (+ n1 n2 i) `partial3 `solver)))
@@ -199,14 +199,19 @@
           (cond
            [(equal? search-type `enum)
             (define n1 1)
-            (define n2 0)
-            (define n3 (- cores-enum (+ n1 n2)))
-            (append (for/list ([i n1]) (create-and-run i `partial1 `enum))
-                    (for/list ([i n3]) (create-and-run (+ n1 n2 i) `partial3 `enum)))
+            (define n2 (floor (* (/ 2 5) cores-enum)))
+            (define n3 (floor (* (/ 2 5) cores-enum)))
+            (define n4 (- cores-enum n1 n2 n3))
+            (append (for/list ([i n1]) (create-and-run i `linear `enum))
+                    (for/list ([i n2]) (create-and-run (+ n1 i) `partial1 `enum))
+                    (for/list ([i n3]) (create-and-run (+ n1 n2 i) `partial2 `enum))
+                    (for/list ([i n4]) (create-and-run (+ n1 n2 n3 i) `partial3 `enum))
+                    )
             ]
 
            [else (list)]))
-                (define (result)
+        
+        (define (result)
 	  (define limit (if (string? time-limit) 
 			    (string->number time-limit) 
 			    time-limit))
