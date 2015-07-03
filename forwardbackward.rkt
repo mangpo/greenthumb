@@ -1063,6 +1063,8 @@
                 (set! c-progs 0)
                 (set! classes (make-hash))
                 (for ([pair (hash->list prev-classes)])
+                     (when (> (- (current-seconds) start-time) time-limit)
+                           (yield "timeout"))
                      (let* ([key (car pair)]
                             [live-list (entry-live key)]
                             [flag (entry-flag key)]
@@ -1070,7 +1072,7 @@
                             [iterator (send enum generate-inst 
                                             live-list #f flag #f
                                             #f `all #f #:try-cmp try-cmp)])
-                       (pretty-display `(live ,live-list ,flag))
+                       (pretty-display `(live ,live-list ,flag ,(- (current-seconds) start-time)))
                        (build-hash my-hash iterator)))
                 (set! prev-classes (copy classes))
                 (pretty-display `(behavior ,c-behaviors ,c-progs ,(- (current-seconds) start-time)))
