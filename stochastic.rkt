@@ -50,6 +50,7 @@
                            #:assume [assumption (send machine no-assumption)]
                            #:input-file [input-file #f]
                            #:start-prog [start #f])
+      (send machine rest-inst-pool)
       (send machine reset-arg-ranges)
       (set! live-in (send machine get-operand-live this-live-in))
       (send machine analyze-args (vector) spec (vector) live-in constraint)

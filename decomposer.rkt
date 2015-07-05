@@ -105,6 +105,9 @@
       (define final-len (if size size (vector-length spec)))
       (define final-cost #f)
       (define (inner begin end cost [middle (quotient (+ begin end) 2)])
+        (when (> middle (len-limit))
+              (set! middle (len-limit))
+              (set! end (len-limit)))
 	(newline)
         (pretty-display `(binary-search ,begin ,end ,middle ,cost))
         (define sketch (send validator sym-insts middle))
@@ -141,7 +144,8 @@
 
         (if out-program
             (inner begin middle out-cost)
-            (when (< middle end) (inner (add1 middle) end cost))))
+            (when (< middle end)
+                  (inner (add1 middle) (min end (len-limit)) cost))))
       
       (with-handlers 
        ([exn:break? (lambda (e) (unless final-program (set! final-program "timeout")))])
@@ -178,8 +182,10 @@
       (newline)
       (define prefix-len (vector-length prefix))
       (define postfix-len (vector-length postfix))
-      (define sketch (send validator sym-insts (if size (min size (vector-length spec)) 
-				    (vector-length spec))))
+      (define sketch (send validator sym-insts
+                           (if size
+                               (min size (vector-length spec) (len-limit))
+                               (min (vector-length spec) (len-limit)))))
       (define final-program #f) ;; not including prefix & poster
       (define t #f)
       (define (inner cost)

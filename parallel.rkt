@@ -66,6 +66,7 @@
                (pretty-display (format "(define printer (new ~a [machine machine]))" (send meta get-class-name "printer")))
                (pretty-display (format "(define parser (new ~a))" (send meta get-class-name "parser")))
 
+
                (cond
                 [(equal? search-type `stoch)
                  (pretty-display 
@@ -184,16 +185,21 @@
                   (create-and-run (+ cores-stoch 2) `partial2 `solver))]
 
            [(and (equal? search-type `solver) (equal? mode `partial))
-            (define n1 (quotient cores-solver 2))
-            (define n2 (- cores-solver n1))
-            (define n3 0)
-            (append (for/list ([i n1]) (create-and-run i `partial1 `solver))
-                    (for/list ([i n2]) (create-and-run (+ n1 i) `partial2 `solver))
-                    (for/list ([i n3]) (create-and-run (+ n1 n2 i) `partial3 `solver)))
+            (define n1 1)
+            (define n2 (floor (* (/ 17 32) cores-solver)))
+            (define n3 (floor (* (/ 7 32) cores-solver)))
+            (define n4 (floor (* (/ 5 32) cores-solver)))
+            (define n5 (- cores-solver n1 n2 n3 n4))
+            (append (for/list ([i n1]) (create-and-run i `linear `solver))
+                    (for/list ([i n2]) (create-and-run (+ n1 i) `partial1 `solver))
+                    (for/list ([i n3]) (create-and-run (+ n1 n2 i) `partial2 `solver))
+                    (for/list ([i n4]) (create-and-run (+ n1 n2 n3 i) `partial3 `solver))
+                    (for/list ([i n5]) (create-and-run (+ n1 n2 n3 n4 i) `partial4 `solver))
+                    )
             ]
 
            [else
-            (for/list ([id cores-solver]) (create-and-run id mode #f))]))
+            (for/list ([id cores-solver]) (create-and-run id mode `solver))]))
 
         (define processes-enum
           (cond
@@ -211,7 +217,8 @@
                     )
             ]
 
-           [else (list)]))
+           [else
+            (for/list ([id cores-enum]) (create-and-run id mode `enum))]))
         
         (define (result)
 	  (define limit (if (string? time-limit) 

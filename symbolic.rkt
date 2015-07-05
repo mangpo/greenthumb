@@ -43,7 +43,7 @@
 			       #:hard-postfix [hard-postfix (vector)]
 			       #:assume-interpret [assume-interpret #t]
 			       #:assume [assumption (send machine no-assumption)])
-      
+      (send machine reset-inst-pool)
       (when (send machine analyze-opcode prefix spec postfix)
             (current-solver (new kodkod%)))
       (if pure-symbolic 

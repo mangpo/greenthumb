@@ -15,7 +15,7 @@
 (define forwardbackward%
   (class decomposer%
     (super-new)
-    (inherit-field machine printer simulator validator stat)
+    (inherit-field machine printer simulator validator stat syn-mode)
     (inherit window-size)
     (init-field [enum #f] [simulator-abst #f] [validator-abst #f] [inverse #f])
     
@@ -550,7 +550,8 @@
                      final-program
                      (send simulator performance-cost final-program))
                (yield p)
-               (yield #f)
+               (unless (member syn-mode '(linear binary))
+                       (yield #f))
                (set! cost final-cost)
                (set! start-time (current-seconds))
 
@@ -1057,7 +1058,7 @@
                     (set! order (add1 order))
                     )))))
         
-        (when (and (< size size-to) (> cost (add1 size)))
+        (when (and (< size size-to) (or (not cost) (> cost (add1 size))))
               (cond
                [(and (= step-bw 0) (> step-fw 0))
                 (set! step-bw (add1 step-bw))
