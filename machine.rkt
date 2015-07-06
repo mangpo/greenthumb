@@ -14,7 +14,7 @@
     (abstract set-config get-config set-config-string
               get-state display-state
               adjust-config finalize-config config-exceed-limit?
-              output-constraint-string constraint-all
+              output-constraint-string 
               progstate->vector vector->progstate
 	      get-arg-ranges window-size)
     (public get-class-id print-line no-assumption
@@ -103,7 +103,6 @@
 
     (define (relaxed-state-eq? state1 state2 pred [out-loc #f])
       (state-eq? state1 state2 pred))
-
 
     (define (update-live live x) live)
     (define (update-live-backward live x) live)

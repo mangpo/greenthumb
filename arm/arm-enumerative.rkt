@@ -17,9 +17,9 @@
     (define shf-inst-id (get-field shf-inst-id machine))
     (define shf-inst-len (vector-length shf-inst-id))
     (define cmp-inst
-      (map (lambda (x) (vector-member x inst-id))'(cmp tst cmp# tst#)))
+      (map (lambda (x) (vector-member x inst-id)) '(cmp tst cmp# tst#)))
     (define ldst-inst
-      (map (lambda (x) (vector-member x inst-id))'(ldr# str#)))
+      (map (lambda (x) (vector-member x inst-id)) '(ldr# str#)))
 
     (define inst-mod '(add sub rsb
 			and orr eor bic orn

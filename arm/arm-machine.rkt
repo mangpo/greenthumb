@@ -89,7 +89,7 @@
     (override set-config get-config set-config-string
               adjust-config finalize-config config-exceed-limit?
               get-state get-state-liveness display-state 
-              output-constraint-string constraint-all
+              output-constraint-string
               display-state-text parse-state-text
               progstate->vector vector->progstate
 	      get-arg-ranges get-operand-live
@@ -298,8 +298,6 @@
             (format "(constraint ~a [reg ~a] [mem-all])" machine-var live-regs-str)
             (format "(constraint ~a [reg ~a] [mem])" machine-var live-regs-str))]
        [else #f]))
-
-    (define (constraint-all) (constraint this all))
 
     ;; live-out: a list of live registers' ids
     ;; output: a progstate object. #t elements indicate live.

@@ -127,14 +127,15 @@
     (override set-config get-config set-config-string
               adjust-config finalize-config config-exceed-limit?
               get-state display-state 
-              output-constraint-string output-assume-string constriant-all
+              output-constraint-string output-assume-string
 	      no-assumption
               display-state-text parse-state-text
               progstate->vector vector->progstate
 	      get-arg-ranges window-size analyze-args)
     (init-field [const-range (vector 0 1)])
+    (public stack->vector)
 
-    (set! bit 18)
+    (unless bit (set! bit 18))
     (set! random-input-bit 16)
     (set! inst-id '#(nop @p @+ @b @ !+ !b ! +* 2* 
 			 2/ - + and or drop dup pop over a 
