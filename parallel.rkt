@@ -148,19 +148,26 @@
                 (pretty-display (format "time:\t~a" time))
                 (pretty-display id)))
 
-        (define cores-solver 
+        
+        (define cores-stoch
           (cond
-           [(equal? search-type `stoch) 0]
-           [(equal? search-type `enum) 0]
-           [(equal? search-type `solver) cores]
-           [(equal? search-type `hybrid) 3]))
+           [(equal? search-type `stoch) cores]
+           [(equal? search-type `hybrid) (floor (* (/ 2 6) cores))]
+           [else 0]))
         (define cores-enum
           (cond
-           [(equal? search-type `stoch) 0]
-           [(equal? search-type `solver) 0]
            [(equal? search-type `enum) cores]
-           [(equal? search-type `hybrid) 0]))
-        (define cores-stoch (- cores cores-solver cores-enum))
+           [(equal? search-type `hybrid) (floor (* (/ 3 6) cores))]
+           [else 0]
+           ))
+        (define cores-solver 
+          (cond
+           [(equal? search-type `solver) cores]
+           [(equal? search-type `hybrid) (- cores cores-stoch cores-enum)]
+           [else 0]
+           ))
+
+        (pretty-display `(stoch-enum-sym ,cores-stoch ,cores-enum ,cores-solver))
 
         ;; STEP 1: create file & run
         (define-syntax-rule (create-and-run id mode search-type)
@@ -170,31 +177,29 @@
 
         (define processes-stoch
           (if (equal? search-type `hybrid)
-              (let ([n 3])
-                (append (for/list ([id n]) 
-                                  (create-and-run id `opt `stoch))
-                        (for/list ([id (- cores-stoch n)]) 
-                                  (create-and-run (+ n id) `syn `stoch))))
+              ;; (let ([n 3])
+              ;;   (append (for/list ([id n]) 
+              ;;                     (create-and-run id `opt `stoch))
+              ;;           (for/list ([id (- cores-stoch n)]) 
+              ;;                     (create-and-run (+ n id) `syn `stoch))))
+              (for/list ([id cores-stoch]) (create-and-run id `opt `stoch))
               (for/list ([id cores-stoch]) (create-and-run id mode `stoch))))
 
         (define processes-solver
           (cond
-           [(equal? search-type `hybrid)
-            (list (create-and-run (+ cores-stoch 0) `partial1 `solver)
-                  (create-and-run (+ cores-stoch 1) `partial2 `solver)
-                  (create-and-run (+ cores-stoch 2) `partial2 `solver))]
-
-           [(and (equal? search-type `solver) (equal? mode `partial))
-            (define n1 1)
+           [(or (equal? search-type `hybrid)
+                (and (equal? search-type `solver) (equal? mode `partial)))
+            (define n1 (if (equal? search-type `solver) 1 0))
             (define n2 (floor (* (/ 17 32) cores-solver)))
             (define n3 (floor (* (/ 7 32) cores-solver)))
             (define n4 (floor (* (/ 5 32) cores-solver)))
             (define n5 (- cores-solver n1 n2 n3 n4))
-            (append (for/list ([i n1]) (create-and-run i `linear `solver))
-                    (for/list ([i n2]) (create-and-run (+ n1 i) `partial1 `solver))
-                    (for/list ([i n3]) (create-and-run (+ n1 n2 i) `partial2 `solver))
-                    (for/list ([i n4]) (create-and-run (+ n1 n2 n3 i) `partial3 `solver))
-                    (for/list ([i n5]) (create-and-run (+ n1 n2 n3 n4 i) `partial4 `solver))
+            (pretty-display `(sym ,n1 ,n2 ,n3 ,n4 ,n5))
+            (append (for/list ([i n1]) (create-and-run (+ cores-stoch i) `linear `solver))
+                    (for/list ([i n2]) (create-and-run (+ cores-stoch n1 i) `partial1 `solver))
+                    (for/list ([i n3]) (create-and-run (+ cores-stoch n1 n2 i) `partial2 `solver))
+                    (for/list ([i n4]) (create-and-run (+ cores-stoch n1 n2 n3 i) `partial3 `solver))
+                    (for/list ([i n5]) (create-and-run (+ cores-stoch n1 n2 n3 n4 i) `partial4 `solver))
                     )
             ]
 
@@ -203,20 +208,22 @@
 
         (define processes-enum
           (cond
-           [(equal? search-type `enum)
+           [(or (equal? search-type `hybrid)
+                (and (equal? search-type `enum) (equal? mode `partial)))
             (define n1 1)
             (define n2 (floor (* (/ 17 32) cores-enum)))
             (define n3 (floor (* (/ 7 32) cores-enum)))
             (define n4 (floor (* (/ 5 32) cores-enum)))
             (define n5 (- cores-enum n1 n2 n3 n4))
-            (append (for/list ([i n1]) (create-and-run i `linear `enum))
-                    (for/list ([i n2]) (create-and-run (+ n1 i) `partial1 `enum))
-                    (for/list ([i n3]) (create-and-run (+ n1 n2 i) `partial2 `enum))
-                    (for/list ([i n4]) (create-and-run (+ n1 n2 n3 i) `partial3 `enum))
-                    (for/list ([i n5]) (create-and-run (+ n1 n2 n3 n4 i) `partial4 `enum))
+            (pretty-display `(enum ,n1 ,n2 ,n3 ,n4 ,n5))
+            (append (for/list ([i n1]) (create-and-run (+ cores-stoch cores-solver i) `linear `enum))
+                    (for/list ([i n2]) (create-and-run (+ cores-stoch cores-solver n1 i) `partial1 `enum))
+                    (for/list ([i n3]) (create-and-run (+ cores-stoch cores-solver n1 n2 i) `partial2 `enum))
+                    (for/list ([i n4]) (create-and-run (+ cores-stoch cores-solver n1 n2 n3 i) `partial3 `enum))
+                    (for/list ([i n5]) (create-and-run (+ cores-stoch cores-solver n1 n2 n3 n4 i) `partial4 `enum))
                     )
             ]
-
+           
            [else
             (for/list ([id cores-enum]) (create-and-run id mode `enum))]))
         
@@ -338,10 +345,6 @@
                       #:size [size #f]
                       #:input-file [input-file #f]
                       #:start-prog [start-prog #f])
-      (when (and (equal? search-type `hybrid) (< cores 8))
-	    (raise "Cannot run hybrid search when # of cores < 12"))
-      (when (and (equal? search-type `solver) (equal? mode `partial) (< cores 4))
-	    (raise "Cannot run solver partial search when # of cores < 4"))
 
       (if (> (vector-length code-org) 0)
           (if need-filter
