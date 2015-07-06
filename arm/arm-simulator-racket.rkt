@@ -234,9 +234,7 @@
 
         (define-syntax inst-eq
           (syntax-rules ()
-            ((inst-eq x) 
-	     (let ([my-id (vector-member x inst-id)])
-	       (and (equal? op my-id) (or (equal? inst-pool #f) (member my-id inst-pool)))))
+            ((inst-eq x) (equal? x (vector-ref inst-id op)))
             ((inst-eq a b ...) (or (inst-eq a) (inst-eq b) ...))))
 
         (define-syntax-rule (args-ref args i) (vector-ref args i))

@@ -264,8 +264,7 @@
 
     (define (superoptimizer-common spec prefix postfix constraint time-limit size
                                    extra assumption)
-      (define sketch
-        (if size (make-vector size) (make-vector (vector-length spec))))
+      (define sketch (make-vector (vector-length spec)))
 
       (synthesize-window spec sketch prefix postfix constraint extra
                          (send simulator performance-cost spec) time-limit

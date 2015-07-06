@@ -9,7 +9,7 @@ function e {
 }
 
 cost=inter
-type=solver
+type=hybrid
 mode=p
 
 for t in 1 2 3
