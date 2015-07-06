@@ -30,7 +30,9 @@
 			       #:assume assumption)]
 
 	[(equal? syn-mode `linear) 
-	 (superoptimize-linear spec constraint time-limit size extra
+	 (superoptimize-linear spec constraint time-limit
+                               (if size size (min (vector-length spec) (len-limit)))
+                               extra
                                #:hard-prefix prefix #:hard-postfix postfix
 			       #:assume assumption)]
 
@@ -105,9 +107,6 @@
       (define final-len (if size size (vector-length spec)))
       (define final-cost #f)
       (define (inner begin end cost [middle (quotient (+ begin end) 2)])
-        (when (> middle (len-limit))
-              (set! middle (len-limit))
-              (set! end (len-limit)))
 	(newline)
         (pretty-display `(binary-search ,begin ,end ,middle ,cost))
         (define sketch (send validator sym-insts middle))
@@ -149,7 +148,7 @@
       
       (with-handlers 
        ([exn:break? (lambda (e) (unless final-program (set! final-program "timeout")))])
-       (inner (max 1 lower-bound) final-len 
+       (inner (max 1 lower-bound) (min final-len (window-size))
               (send simulator performance-cost (vector-append prefix spec postfix))
               (max lower-bound (quotient (+ 1 final-len) 2))))
 
@@ -182,11 +181,8 @@
       (newline)
       (define prefix-len (vector-length prefix))
       (define postfix-len (vector-length postfix))
-      (define sketch (send validator sym-insts
-                           (if size
-                               (min size (vector-length spec) (len-limit))
-                               (min (vector-length spec) (len-limit)))))
-      (define final-program #f) ;; not including prefix & poster
+      (define sketch (send validator sym-insts size))
+      (define final-program #f) ;; not including prefix & postfix
       (define t #f)
       (define (inner cost)
 	(newline)
@@ -215,7 +211,14 @@
 	   (if (or (regexp-match #rx"synthesize: synthesis failed" (exn-message e))
                    (regexp-match #rx"assert: cost" (exn-message e))
 		   (regexp-match #rx"assert: progstate-cost" (exn-message e)))
-	       final-program
+	       (or final-program
+                   (superoptimize-linear spec constraint time-limit
+                                         (add1 size)
+                                         extra
+                                         #:prefix prefix #:postfix postfix
+                                         #:hard-prefix hard-prefix
+                                         #:hard-postfix hard-postfix
+                                         #:assume assumption))
 	       (raise e)))]
 	[exn:break? (lambda (e) 
 		      (clean-up)
