@@ -9,10 +9,10 @@ function e {
 }
 
 cost=inter
-type=enum
+type=hybrid
 mode=p
 
-for t in 3
+for t in 1 2 3
 do
     e racket optimize.rkt --$type -$mode --$cost -c 32 -t $timeout -d results/$name-$type-$cost-$mode-$t programs/$name.s > results/$name-$type-$cost-$mode-$t.log
 done

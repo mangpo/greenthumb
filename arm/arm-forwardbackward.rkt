@@ -38,6 +38,7 @@
 
     (define max-val (arithmetic-shift 1 bit))
     (define mask (sub1 (arithmetic-shift 1 bit)))
+    (define mask-1 (sub1 (arithmetic-shift 1 (sub1 bit))))
     (define inst-id (get-field inst-id machine))
     (define cmp-inst
       (map (lambda (x) (vector-member x inst-id))'(cmp tst cmp# tst#)))
@@ -148,8 +149,10 @@
              [(and (>= arg (* 3 (/ bit-precise 4))) (< arg bit-precise))
               (* 3 (/ bit 4))]
              [(= arg bit-precise) bit]
+             [(> arg 0) (bitwise-and arg mask-1)]
              [else (finitize (bitwise-and arg mask) bit)])]
 
+           [(> arg 0) (bitwise-and arg mask-1)]
            [else (finitize (bitwise-and arg mask) bit)]))
         (define ret (inner))
         (if (hash-has-key? mapping ret)

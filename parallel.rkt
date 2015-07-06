@@ -245,7 +245,7 @@
                   (for ([id (length processes-enum)]
                         [sp processes-enum])
                        (unless (equal? (subprocess-status sp) 'running)
-                               (pretty-display (format "driver-~a is dead." (+ cores-stoch id)))))
+                               (pretty-display (format "driver-~a is dead." (+ cores-stoch cores-solver id)))))
                   (get-stats)
                   (update-stats)))
 

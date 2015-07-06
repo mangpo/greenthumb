@@ -234,9 +234,7 @@
 
         (define-syntax inst-eq
           (syntax-rules ()
-            ((inst-eq x) 
-	     (let ([my-id (vector-member x inst-id)])
-	       (and (equal? op my-id) (or (equal? inst-pool #f) (member my-id inst-pool)))))
+            ((inst-eq x) (equal? x (vector-ref inst-id op)))
             ((inst-eq a b ...) (or (inst-eq a) (inst-eq b) ...))))
 
         (define-syntax-rule (args-ref args i) (vector-ref args i))
@@ -246,7 +244,7 @@
             (define op (arm-inst-shfop step))
             (define k (arm-inst-shfarg step))
             (define-syntax-rule (shf-inst-eq xx) 
-              (equal? op (vector-member xx shf-inst-id)))
+	      (equal? xx (vector-ref shf-inst-id op)))
 
             (define val #f)
             (define val-dep #f)
@@ -634,9 +632,12 @@
            (let ([op (inst-op x)]
                  [shfop (inst-shfop x)])
              (define-syntax-rule (inst-eq a ...) 
-               (or (equal? op (vector-member a inst-id)) ...))
-             (define-syntax-rule (shf-inst-eq a ...) 
-               (or (equal? shfop (vector-member a shf-inst-id)) ...))
+	       (let ([opcode-name (vector-ref inst-id op)])
+		 (or (equal? a opcode-name) ...)))
+             (define-syntax-rule (shf-inst-eq a ...)
+	       (and shfop
+		    (let ([opcode-name (vector-ref shf-inst-id shfop)])
+		      (or (equal? a opcode-name) ...))))
 
              (cond
               [(inst-eq `nop) (void)]
