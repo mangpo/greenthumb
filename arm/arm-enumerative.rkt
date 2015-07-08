@@ -129,9 +129,13 @@
                  pass
                (let* ([i (arm-inst opcode-id (list->vector new-args) 
                                    shfop shfarg cond-type)]
+		      [new-live-in (and live-in (send machine update-live live-in i))]
+		      [new-live-out (and live-out (send machine update-live-backward live-out i))]
                       [ret (list i 
-                                 (and live-in (sort (send machine update-live live-in i) <))
-                                 (and live-out (sort (send machine update-live-backward live-out i) <))
+                                 (and live-in (cons (sort (car new-live-in) <)
+						    (sort (cdr new-live-in) <)))
+                                 (and live-out (cons (sort (car new-live-out) <)
+						     (sort (cdr new-live-out) <)))
                                  v-reg)])
                  (yield ret))))
            ;; (if lex
