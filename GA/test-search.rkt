@@ -28,7 +28,7 @@
 
 (define code
 (send parser ast-from-string "
-a! over or dup a and or or
+65535 or push over - pop and or or
 "))
 
 
@@ -45,9 +45,9 @@ a! over or dup a and or or
 (define f
   (send backward synthesize-window
         encoded-code ;; spec
-        8 ;encoded-sketch ;; sketch = spec in this case
+        9 ;encoded-sketch ;; sketch = spec in this case
         encoded-prefix encoded-postfix
-        (constraint s t) 0 #f 3600
+        (constraint t s) 0 #f 3600
         ;#:assume (constrain-stack 
         ;          machine '((<= . 65535) (<= . 65535) (<= . 65535)))
         ))

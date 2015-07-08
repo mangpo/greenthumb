@@ -127,7 +127,6 @@
               (let ([val (hash-ref mapping arg)])
                 (if (member x val) val (cons x val)))
               (list x)))
-        
         (finalize arg))
 
       (define ret (list))
@@ -150,15 +149,27 @@
       (for/vector ([x state-vec]) (inner x)))
     
     (define (mask-in state-vec live-list #:keep-flag [keep #t])
-      (for/vector ([x state-vec]
-                   [v live-list])
-        (cond
-          [(number? x) (and v x)]
-          [(and (vector? x) (or (number? v) (vector? v)))
-           (for/vector ([i x] [live v]) (and live i))]
-          [(and (vector? x) (equal? v #f))
-           (make-vector (vector-length x) #f)]
-          [else x])))
+      (if live-list
+          (let* ([pass #t]
+                 [ret
+                  (for/vector ([x state-vec]
+                               [v live-list] #:break (not pass))
+                              (cond
+                               [(number? x)
+                                (and v x)]
+                               [(and (vector? x) (or (number? v) (vector? v)))
+                                (for/vector
+                                 ([i x] [live v] #:break (not pass))
+                                 (when (and live (not i)) (set! pass #f))
+                                 (and live i))]
+                               [(and (vector? x) (equal? v #f))
+                                (make-vector (vector-length x) #f)]
+                               [(equal? v #t)
+                                (unless x (set! pass #f)) x]
+                               [else x]))])
+            (and pass ret))
+          state-vec))
+      
 
     (define (combine-live a b)
       (define ret (vector-copy a))

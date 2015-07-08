@@ -7,7 +7,7 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 4 0 0))
+(send machine set-config (list 2 0 0))
 
 (define printer (new arm-printer% [machine machine]))
 (define validator (new arm-validator% [machine machine]))
@@ -28,10 +28,10 @@
 
 (define code
 (send parser ast-from-string "
-	eor	r3, r0, r0, asr r2
-	and	r1, r3, r1
-	eor	r0, r1, r0
-	eor	r0, r0, r1, asl r2
+bic	r0, r0, r1
+cmp	r0, r1
+movhi	r0, #0
+movls	r0, #1
 "))
 
 

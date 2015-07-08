@@ -125,7 +125,7 @@
               display-state-text parse-state-text
               progstate->vector vector->progstate
 	      get-arg-ranges window-size analyze-args reset-arg-ranges)
-    (init-field [const-range (vector 0 1)]
+    (init-field [const-range #f]
                 [UP #x145] ;325
                 [DOWN #x115] ;277
                 [LEFT #x175] ;373
@@ -164,7 +164,7 @@
 
     (define (window-size) 100)
     (define (get-config) nmems)
-    (define (set-config info) (set! nmems info))
+    (define (set-config info) (set! nmems info) (reset-arg-ranges))
     (define (set-config-string info) info)
     (define (adjust-config info) (* 2 info))
     (define (finalize-config info) (add1 info))

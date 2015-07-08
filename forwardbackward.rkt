@@ -395,7 +395,7 @@
 
       (define step-bw 0)
       (define step-fw 0)
-      (define step-bw-max (if (> size-to 2) 1 0))
+      (define step-bw-max 3)
       
       (define ntests 2)
       (define inits
@@ -803,30 +803,36 @@
                       ;;       (pretty-display `(debug ,level ,pairs))
 		      ;;       (raise
 		      ;;        (format "(length pairs) = ~a" (length pairs))))
-		      (set! t-hash (+ t-hash (- s1 s0)))
+		      ;;(set! t-hash (+ t-hash (- s1 s0)))
 		      (for ([pair pairs])
 			   (let* ([t0 (current-milliseconds)]
 				  [live-mask (car pair)]
 				  [classes (cdr pair)]
 				  [out-vec-masked 
-				   (if (and try-cmp (not (equal? live-mask my-live2)))
+				   (if (or (and try-cmp (not (equal? live-mask my-live2)))
+                                           (not my-live2))
 				       (mask-in out-vec live-mask)
 				       out-vec)]
 				  [t1 (current-milliseconds)]
-				  [has-key (hash-has-key? classes out-vec-masked)]
-				  [progs-set (and has-key (hash-ref classes out-vec-masked))]
+				  ;; [has-key (and out-vec-masked
+                                  ;;               (hash-has-key? classes out-vec-masked))]
+				  ;; [progs-set (and has-key (hash-ref classes out-vec-masked))]
+                                  [progs-set (and out-vec-masked
+                                                  (hash-ref classes out-vec-masked (thunk #f)))]
 				  [t2 (current-milliseconds)]
 				  [new-candidates
-				   (and has-key
+				   (and progs-set
 					(if (= level 0)
 					    (set->list progs-set)
 					    (intersect candidates progs-set)))]
 				  [t3 (current-milliseconds)])
+                             ;; (unless out-vec-masked
+                             ;;         (pretty-display `(live-mask ,live-mask))
+                             ;;         (pretty-display `(out-vec ,out-vec)))
 			     ;;(pretty-display `(inner ,level ,inter ,out-vec-masked ,new-candidates))
-			     ;; (when (>= level 2)
-			     ;;       (pretty-display `(result ,classes ,progs-set)))
-			     ;; (set! t-mask (+ t-mask (- t1 t0)))
-			     (set! t-intersect (+ t-intersect (- t3 t0)))
+			     (set! t-mask (+ t-mask (- t1 t0)))
+			     (set! t-hash (+ t-hash (- t2 t1)))
+			     (set! t-intersect (+ t-intersect (- t3 t2)))
 			     
 			     (when
 			      (and new-candidates (not (empty? new-candidates)))
@@ -1088,8 +1094,9 @@
         
         (when (and (< size size-to) (or (not cost) (> cost (add1 size))))
               (cond
-               [#f ;;(and (= step-bw 0) (> step-fw 0))
+               [(and (< step-bw step-bw-max) (> step-fw (* 2 step-bw)))
                 (set! step-bw (add1 step-bw))
+                (newline)
                 (pretty-display (format "GROW-BW: ~a" step-bw))
                 ;; Grow backward
                 (for ([test ntests]) (build-hash-bw-all test))

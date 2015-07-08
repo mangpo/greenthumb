@@ -10,40 +10,20 @@
 (define simulator-racket (new GA-simulator-racket% [machine machine]))
 
 (define code (send parser ast-from-string 
-                   "2 b! @b"))
+                   "dup push or and pop or"))
 (define encoded-code (send printer encode code))
 (send printer print-struct encoded-code)
 
 
-(define input
-   (cdar (send machine get-states-from-file "data-fff/inputs")))
+;(define input
+;   (cdar (send machine get-states-from-file "data-fff/inputs")))
 ;(define output
 ;  (send simulator-racket interpret encoded-code input #:dep #f))
 ;(send machine display-state output)
 
-(define (my-get-stack stack i)
-  (define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
-  (vector-ref (stack-body stack) (modulo- (- (stack-sp stack) i) 8)))
-
-(define (stack->vector x)
-  (if (stack? x)
-      (for/vector ([i 8]) (my-get-stack x i))
-      x))
-
-(define (stack->vector2 x)
-  (if (stack? x)
-      (let* ([lst (vector->list (stack-body x))]
-             [p (add1 (stack-sp x))]
-             [a (reverse (take lst p))]
-             [b (reverse (drop lst p))])
-        (list->vector (append a b)))
-      x))
-
-(define t (current-milliseconds))
-;(send simulator-racket interpret encoded-code input #:dep #f)
-(for ([i 100000])
-  (stack->vector2 (stack 0 (vector 0 1 2 3 4 5 6 7))))
-(pretty-display `(time ,(- (current-milliseconds) t))) ;203 vs 80
+(define input (default-state machine 0 (thunk 0) [s 0] [t 0]))
+(send machine display-state 
+      (send simulator-racket interpret encoded-code input #:dep #f))
 
 ;(define live-in
 ;  (send solver get-live-in encoded-code (constraint (data 0) s t memory) 0))

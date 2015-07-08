@@ -25,6 +25,8 @@
              live-in live-out flag-in flag-out
              regs type lex #:no-args [no-args #f] #:try-cmp [try-cmp #f])
       (define const-range (get-field const-range machine))
+      ;; (define inst-choice '(+ and))
+      ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
       (define inst-pool (get-field inst-pool machine))
       (when no-args
             (set! inst-pool

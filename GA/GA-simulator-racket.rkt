@@ -9,7 +9,7 @@
 (define-syntax-rule (modulo+ x y) (if (>= x 8) (- x y) x))
 
 ;; Get item i from the stack
-(define (get-stack stack i get-stack)
+(define (get-stack stack i)
   (vector-ref (stack-body stack) (modulo- (- (stack-sp stack) i) 8)))
 
 (define GA-simulator-racket%
