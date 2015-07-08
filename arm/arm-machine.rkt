@@ -92,10 +92,11 @@
               output-constraint-string
               display-state-text parse-state-text
               progstate->vector vector->progstate
-	      get-arg-ranges get-operand-live
+	      get-arg-ranges get-live-list
 	      window-size clean-code 
 	      analyze-opcode analyze-args relaxed-state-eq? get-nregs
-	      is-virtual-reg update-live update-live-backward)
+	      is-virtual-reg update-live update-live-backward
+              reset-arg-ranges)
     (public get-shfarg-range get-arg-types)
 
     (unless bit (set! bit 32))
@@ -203,7 +204,7 @@
       (reset-arg-ranges)
       )
 
-    (define/public (reset-arg-ranges)
+    (define (reset-arg-ranges)
       (set! reg-range (list->vector (range nregs)))
       (set! reg-range-o (list->vector (range nregs)))
       (set! operand2-range (vector 0 1 (sub1 bit)))
@@ -373,7 +374,7 @@
 		 (arm-inst op (inst-args x) (inst-shfop x) (inst-shfarg x) cond-type-nop)))))
 
 
-    (define (get-operand-live state [state2 #f])
+    (define (get-live-list state [state2 #f])
       (and state
            (let ([regs (progstate-regs state)]
                  [live-reg (list)]

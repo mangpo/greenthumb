@@ -1,20 +1,24 @@
 #lang s-exp rosette
 
 (require "GA-validator.rkt" "GA-machine.rkt" "GA-printer.rkt"
-         "GA-parser.rkt" "GA-simulator-rosette.rkt" 
-         "GA-enumerative.rkt" "GA-symbolic.rkt" "GA-stochastic.rkt")
+         "GA-parser.rkt" "../ast.rkt"
+         "GA-symbolic.rkt" "GA-stochastic.rkt" "GA-forwardbackward.rkt")
+
 
 (define parser (new GA-parser%))
 (define machine (new GA-machine%))
-(send machine set-config 4)
+(send machine set-config 0)
+
 (define printer (new GA-printer% [machine machine]))
-(define simulator-rosette (new GA-simulator-rosette% [machine machine]))
-(define validator (new GA-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
-(define enum (new GA-enumerative% [machine machine] [printer printer] [parser parser]))
+(define validator (new GA-validator% [machine machine]))
+
 (define symbolic (new GA-symbolic% [machine machine] [printer printer] [parser parser]))
 (define stoch (new GA-stochastic% [machine machine] [printer printer] [parser parser] [syn-mode #t]))
+(define backward (new GA-forwardbackward% [machine machine] 
+                      [printer printer] [parser parser] 
+                      [syn-mode `partial1]))
 
-(define prefix
+(define prefix 
 (send parser ast-from-string "
 "))
 
@@ -24,8 +28,9 @@
 
 (define code
 (send parser ast-from-string "
-1 2 3
+a! over or dup a and or or
 "))
+
 
 (define sketch
 (send parser ast-from-string "
@@ -37,14 +42,19 @@
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send validator encode-sym sketch))
 
-(define t (current-seconds))
-(send enum synthesize-window
-      encoded-code ;; spec
-      encoded-sketch ;; sketch = spec in this case
-      encoded-prefix encoded-postfix
-      (constraint r s t) 0 #f 3600)
+(define f
+  (send backward synthesize-window
+        encoded-code ;; spec
+        8 ;encoded-sketch ;; sketch = spec in this case
+        encoded-prefix encoded-postfix
+        (constraint s t) 0 #f 3600
+        ;#:assume (constrain-stack 
+        ;          machine '((<= . 65535) (<= . 65535) (<= . 65535)))
+        ))
 #|(send stoch superoptimize encoded-code 
-      (constraint r s t) ;; constraint
-      #f ;; live-in
-      "./driver-0" 3600 #f 0)|#
-(pretty-display `(time ,(- (current-seconds) t)))
+      (constraint machine [reg 0] [mem]) ;; constraint
+      (constraint machine [reg 0] [mem]) ;; live-in
+      "./driver-0" 3600 #f)|#
+
+;(require profile)
+;(profile-thunk f)

@@ -22,6 +22,12 @@
     (define inst-id (get-field inst-id machine))
 
     (define debug #f)
+    
+    (define UP (get-field UP machine))
+    (define DOWN (get-field DOWN machine))
+    (define LEFT (get-field LEFT machine))
+    (define RIGHT (get-field RIGHT machine))
+    (define IO (get-field IO machine))
 
     ;; Creates a policy that determines what kind of communication is allowed 
     ;; during interpretation.  The policy is a procedure that takes as input a 
@@ -189,11 +195,7 @@
 	  (vector-set! memory addr val)
 	  (when dep (vector-set! memory-dep addr node))]))
 
-      (define (clip x)
-	(let ([res (bitwise-and x #x3ffff)])
-	  (if (= (bitwise-and #x20000 res) 0)
-	      res
-	      (- (add1 (bitwise-xor res #x3ffff))))))
+      (define (clip x) (finitize x bit))
 
       (define (push-right-one x carry)
 	(clip (bitwise-ior (<< (bitwise-and #x1 carry) (sub1 bit) bit) (>>> x 1 bit))))

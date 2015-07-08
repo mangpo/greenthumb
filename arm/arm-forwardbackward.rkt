@@ -13,10 +13,9 @@
     (inherit-field machine printer simulator validator
                    enum inverse simulator-abst validator-abst)
     (override len-limit window-size
-              ;;vector->id
               mask-in inst->vector
               reduce-precision increase-precision
-	      get-live-mask try-cmp? combine-live)
+	      get-live-mask try-cmp? combine-live sort-live)
 
     (define (len-limit) 2)
     (define (window-size) 4)
@@ -214,5 +213,8 @@
        [else 0]))
 
     (define (combine-live x y) (cons (car x) (cdr y)))
+
+    (define (sort-live keys)
+      (sort keys (lambda (x y) (> (length (car (entry-live x))) (length (car (entry-live y)))))))
 
     ))

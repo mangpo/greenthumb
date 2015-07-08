@@ -52,7 +52,7 @@
                            #:start-prog [start #f])
       (send machine reset-inst-pool)
       (send machine reset-arg-ranges)
-      (set! live-in (send machine get-operand-live this-live-in))
+      (set! live-in (send machine get-live-list this-live-in))
       (send machine analyze-args (vector) spec (vector) live-in constraint)
       (send machine analyze-opcode (vector) spec (vector))
       (pretty-display `(live-in ,live-in))

@@ -21,6 +21,12 @@
       (for/list ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
     
     (define behaviors-bw (make-hash))
+    
+    (define UP (get-field UP machine))
+    (define DOWN (get-field DOWN machine))
+    (define LEFT (get-field LEFT machine))
+    (define RIGHT (get-field RIGHT machine))
+    (define IO (get-field IO machine))
 
     ;; Generate inverse function for the following instructions:
     ;;   +* 2* 2/ - + and or drop
@@ -126,6 +132,7 @@
       ;; Pops from the given stack's body.
       (define-syntax-rule (pop-stack! x-sp x-body)
 	(let ([ret-val (vector-ref x-body x-sp)])
+          (vector-set! x-body x-sp #f)
 	  (set! x-sp (modulo- (sub1 x-sp) 8))
 	  ret-val))
 
@@ -142,18 +149,20 @@
       
             ;; Pops from the data stack.
       (define (pop!)
-	  (set! t s)
-	  (set! s (pop-stack! data-sp data-body)))
+        (set! t s)
+        (set! s (pop-stack! data-sp data-body))
+        )
       
       ;; Pops from the return stack.
       (define (r-pop!)
-        (set! r (pop-stack! return-sp return-body)))
+        (set! r (pop-stack! return-sp return-body))
+        )
       
       (define (eq-pop! value)
-        (when (equal? t value)
-              (set! t s)
-              (set! s (pop-stack! data-sp data-body))
-              (snapshot)))
+        (when (= t value)
+          (set! t s)
+          (set! s (pop-stack! data-sp data-body))
+          (snapshot)))
              
       ;; Mutate comm and rev
       (define (memeq? addr val)
@@ -258,7 +267,8 @@
                         memory recv comm))))
       
       (define-syntax-rule (inst-eq x) (equal? x opcode-name))
-               
+
+      ;; TODO: !!!!
       (cond
        [(inst-eq `@p)   (eq-pop! const)]
        [(inst-eq `@+)   (set! a (sub1 a)) (memeq-pop! a)]
@@ -273,7 +283,9 @@
        [(member opcode-name '(2* 2/ -)) (t-t)]
        [(member opcode-name '(+ and or)) (ts-t)]
         
-       [(inst-eq `drop) (drop!)]
+       [(inst-eq `drop) 
+        (push! #f) (snapshot) ;(drop!)
+        ]
        [(inst-eq `dup)  (eq-pop! s)]
        [(inst-eq `over) (eq-pop! (get-stack data 0))]
        [(inst-eq `pop)  (r-push! t) (pop!) (snapshot)]
@@ -305,8 +317,8 @@
                     (send parser ast-from-string "drop"))
               0))
 
-(define input-state (vector 2 #x145 4 0 3
-                            (vector 0 #f #f #f #f #f #f #f)
+(define input-state (vector 2 #x145 4 4 4
+                            (vector 2 1 #f #f #f #f #f #f)
                             (make-vector 8 #f)
                             (vector 99 9) (list) (list (list))))
                             

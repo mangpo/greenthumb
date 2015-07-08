@@ -203,7 +203,7 @@
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
     ;; policy: a procedure that enforces a policy to speed up synthesis. Default to nothing.
-    (define (interpret program state [is-candidate #f] #:dep [dep #f])
+    (define (interpret program state [policy #f] #:dep [dep #f])
       (define inst-pool (get-field inst-pool machine))
       ;;(pretty-display `(interpret))
       (define regs (vector-copy (progstate-regs state)))

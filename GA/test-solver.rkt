@@ -4,7 +4,7 @@
          "GA-parser.rkt")
 
 (define parser (new GA-parser%))
-(define machine (new GA-machine%))
+(define machine (new GA-machine% [bit 4]))
 (send machine set-config 4)
 (define printer (new GA-printer% [machine machine]))
 (define simulator-rosette (new GA-simulator-rosette% [machine machine]))
@@ -12,28 +12,27 @@
 
 (define code
 (send parser ast-from-string 
-      "0 a! !+ !+ push pop dup 1 b! @b and over 0 b! @b and or 1 b! @b 0 b! @b and or push drop pop"))
+      "0 a! !+ !+ push pop dup 1 b! @b and over 7 or 0 b! @b and over - and + push drop pop"))
 
 (define sketch (send parser ast-from-string 
-      "over over and push or and pop or "))
-;2/ dup a! over dup over dup drop a 2/ 325 a! @+ + 65535 and
-;size = 16, 
-;opt = 10
-; 6 ?, no sol = 13
-; 8 ? => 16 s, no sol > 5 min
-; 9 ? => 72 s
-; 10 ? => > 2s, 
+      "dup push or and pop or"))
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send validator encode-sym sketch))
 
 (define ce
   (send validator counterexample encoded-code encoded-sketch 
-        (constraint r s t)
-        0))
-(send machine display-state ce)
-(send machine display-state (send simulator-rosette interpret encoded-code ce #:dep #f))
-(send machine display-state (send simulator-rosette interpret encoded-sketch ce #:dep #f))
+        (constraint s t)
+        0
+        #:assume (constrain-stack 
+                  machine '((<= . 7) (<= . 7) (<= . 7)))
+        ))
+
+(if ce
+    (send machine display-state ce)
+    (pretty-display "No counterexample."))
+;(send machine display-state (send simulator-rosette interpret encoded-code ce #:dep #f))
+;(send machine display-state (send simulator-rosette interpret encoded-sketch ce #:dep #f))
 
 #|
 (define t (current-seconds))

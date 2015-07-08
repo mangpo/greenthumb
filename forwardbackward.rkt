@@ -3,7 +3,7 @@
 (require "ast.rkt" "decomposer.rkt" "arm/arm-machine.rkt" "arm/arm-parser.rkt")
 (require racket/generator)
 
-(provide forwardbackward%)
+(provide forwardbackward% entry-live entry-flag)
 
 (struct concat (collection inst))
 (struct box (val))
@@ -19,16 +19,22 @@
     (inherit window-size)
     (init-field [enum #f] [simulator-abst #f] [validator-abst #f] [inverse #f])
     
-    (abstract mask-in inst->vector
+    (abstract mask-in 
               reduce-precision increase-precision
 	      get-live-mask)
     (override synthesize-window superoptimize-linear superoptimize-binary)
-    (public try-cmp? combine-live)
+    (public try-cmp? combine-live inst->vector prescreen sort-live
+            reduce-precision-assume)
     
     (define debug #f)
-    (define verbo #f)
+    (define verbo #t)
     (define ce-limit 100)
-    (define parser (new arm-parser%))
+    ;; (define parser (new arm-parser%))
+    
+    (define (inst->vector x) (vector (inst-op x) (inst-args x)))
+    (define (prescreen my-inst state-vec) #t)
+    (define (sort-live x) x)
+    (define (reduce-precision-assume x) x)
 
     (define c-behaviors 0)
     (define c-progs 0)
@@ -47,10 +53,7 @@
 	      (unless has-key (hash-set! x key (make-hash)))
 	      (insert-inner (hash-ref x key) (cdr states-vec) prog))))
 
-      ;(set! states-vec (map (lambda (x) (abstract x live-list identity)) states-vec))
-      (define key (entry (cons (sort (car live) <) (sort (cdr live) <))
-			 ;;(cons (car live) (sort (drop live 1) <))
-			 (send enum get-flag (car states-vec))))
+      (define key (entry live (send enum get-flag (car states-vec))))
       (unless (hash-has-key? class key) (hash-set! class key (make-hash)))
       (insert-inner (hash-ref class key) states-vec prog))
 
@@ -125,7 +128,7 @@
     (define (class-insert-bw! class live test key-list new-progs)
       ;; (pretty-display `(class-insert-bw! ,live ,test ,key-list ,new-progs))
       ;; (pretty-display `(before ,class))
-      (define key (cons (sort (car live) <) (sort (cdr live) <)))
+      (define key live)
       
       ;(set! states-vec (map (lambda (x) (abstract x live-list identity)) states-vec))
       (unless (hash-has-key? class key) 
@@ -138,7 +141,7 @@
       )
 
     (define (class-init-bw! class live test state-vec)
-      (define key (cons (sort (car live) <) (sort (cdr live) <)))
+      (define key live)
 
       (unless (hash-has-key? class key)
 	      (hash-set! class key (make-vector ce-limit #f)))
@@ -241,8 +244,8 @@
 
     (define start-time #f)
 
-    (define (try-cmp? code state) 0)
-    (define (combine-live x y) x)
+    (define (try-cmp? code state live) 0)
+    (define (combine-live x y) y)
 
     (define (superoptimize-binary spec constraint time-limit size [extra #f]
 				  #:lower-bound [lower-bound 0]
@@ -333,7 +336,6 @@
                         assumption
                         try-cmp time-limit)
       (collect-garbage)
-      ;;(raise (exn:fail "synthesize: synthesis failed" (current-continuation-marks)))
       (define size-from sketch)
       (define size-to sketch)
       (when (vector? sketch)
@@ -346,6 +348,7 @@
       (define spec-precise spec)
       (define prefix-precise prefix)
       (define postfix-precise postfix)
+      (define assumption-precise assumption)
       (define abst2precise #f)
 
       (let ([tmp (reduce-precision spec)])
@@ -355,6 +358,11 @@
       
       (set! prefix (car (reduce-precision prefix)))
       (set! postfix (car (reduce-precision postfix)))
+      (set! assumption (reduce-precision-assume assumption))
+
+      ;; (send machine display-state assumption-precise)
+      ;; (newline)
+      ;; (send machine display-state assumption)
 
       (display "[")
       (send printer print-syntax (send printer decode prefix))
@@ -369,25 +377,19 @@
       (define live2-vec (send machine progstate->vector live2))
       (define live1 (send validator-abst get-live-in spec live2 extra))
       (define live0 (send validator-abst get-live-in prefix live1 extra))
-      (define live0-list (send machine get-operand-live live0))
+      (define live0-list (send machine get-live-list live0))
 
       (define live1-list-alt live0-list)
       (for ([x prefix])
            (set! live1-list-alt (send machine update-live live1-list-alt x)))
       
-      (send machine display-state live0)
       (send machine analyze-args prefix spec postfix
             live1-list-alt live2 #:vreg 0)
 
       ;; Convert live2 after analyze-args to filter some live-out regs
       ;; that do not involve in here.
-      (define live1-list (send machine get-operand-live live1))
-      (define live2-list (send machine get-operand-live live2))
-
-      ;; (pretty-display `(live0-list ,live0-list))
-      ;; (pretty-display `(live1-list ,live1-list))
-      ;; (pretty-display `(live1-list-alt ,live1-list-alt))
-      ;; (raise "xxx")
+      (define live1-list (send machine get-live-list live1))
+      (define live2-list (send machine get-live-list live2))
       
       (set! live1-list (combine-live live1-list-alt live1-list))
 
@@ -445,7 +447,8 @@
       (define states2
 	(map (lambda (x) (send simulator-abst interpret spec x #:dep #f)) states1))
       (define states1-vec 
-	(map (lambda (x) (send machine progstate->vector x)) states1))
+	(map (lambda (x) (mask-in (send machine progstate->vector x) live1-list))
+             states1))
       (define states2-vec 
 	(map (lambda (x) (mask-in (send machine progstate->vector x) live2-list #:keep-flag try-cmp)) states2))
 
@@ -536,8 +539,10 @@
                )
              (let ([final-cost
                     (send simulator performance-cost p)])
+               (newline)
                (pretty-display "[7] FOUND!!!")
                (send printer print-syntax (send printer decode p))
+               (newline)
                (pretty-display `(cost ,final-cost))
                (pretty-display `(ce-count ,ce-count-extra))
                (pretty-display `(ce-count-precise ,(length ce-in-final)))
@@ -591,7 +596,7 @@
                         (send simulator-abst interpret spec ce-input #:dep #f)]
                        [ce-output-vec
                         (send machine progstate->vector ce-output)])
-                  (when verbo
+                  (when debug
                         (newline)
                         (pretty-display "[3] counterexample")
                         (pretty-display `(ce ,ce-count-extra ,ce-input-vec ,ce-output-vec)))
@@ -715,13 +720,18 @@
                   (when 
                    prog
                    (let* ([s0 (current-milliseconds)]
-                          [state (send simulator-abst interpret prog input #:dep #f)]
+                          [state
+			   (with-handlers*
+			    ([exn? (lambda (e) #f)])
+                            (send simulator-abst interpret prog input #:dep #f))]
                           [state-vec (and state (send machine progstate->vector state))]
                           [s1 (current-milliseconds)])
-                     (if (hash-has-key? real-hash state-vec)
-                         (hash-set! real-hash state-vec
-                                    (cons prog (hash-ref real-hash state-vec)))
-                         (hash-set! real-hash state-vec (list prog)))
+                     (when
+                      state-vec
+                      (if (hash-has-key? real-hash state-vec)
+                          (hash-set! real-hash state-vec
+                                     (cons prog (hash-ref real-hash state-vec)))
+                          (hash-set! real-hash state-vec (list prog))))
                      (let ([s2 (current-milliseconds)])
                        (set! t-build-inter (+ t-build-inter (- s1 s0)))
                        (set! t-build-hash (+ t-build-hash (- s2 s1)))
@@ -753,28 +763,35 @@
 
 		(if (and (> level 0) (hash-has-key? cache-level inter))
 		    (set! out-vec (hash-ref cache-level inter))
-		    (let ([out 
-			   (with-handlers*
-			    ([exn? (lambda (e) #f)])
-			    (send simulator-abst interpret (vector my-inst)
-                                  (send machine vector->progstate inter) #:dep #f))])
+		    (let* ([s1 (current-milliseconds)]
+                           [pass (prescreen my-inst inter)]
+                           [out
+                            (and pass
+                                 (with-handlers*
+                                  ([exn? (lambda (e) #f)])
+                                  (send simulator-abst interpret (vector my-inst)
+                                        (send machine vector->progstate inter) #:dep #f)))]
+                           [s2 (current-milliseconds)]
+                           )
 		      (set! out-vec (and out (mask-in (send machine progstate->vector out) my-live2)))
+                      (set! t-interpret-0 (+ t-interpret-0 (- s2 s1)))
 		      (hash-set! cache-level inter out-vec)))
 
 		(let ([t1 (current-milliseconds)])
 		  (set! t-interpret (+ t-interpret (- t1 t0)))
 		  (set! c-interpret (add1 c-interpret))
-		  (when (= level 0)
-			(set! t-interpret-0 (+ t-interpret-0 (- t1 t0)))
-			(set! c-interpret-0 (add1 c-interpret-0))))
+		  ;; (when (= level 0)
+		  ;;       (set! t-interpret-0 (+ t-interpret-0 (- t1 t0)))
+		  ;;       (set! c-interpret-0 (add1 c-interpret-0)))
+                  )
 
 		(when 
 		 out-vec
-		 (let ([flag (send enum get-flag out-vec)])
+		 (let ([flag (send enum get-flag out-vec)]
+                       [s0 (current-milliseconds)])
 		   (when
 		    (hash-has-key? my-classes-bw-level flag)
-		    (let* ([s0 (current-milliseconds)]
-			   [pairs (hash->list (hash-ref my-classes-bw-level flag))]
+		    (let* ([pairs (hash->list (hash-ref my-classes-bw-level flag))]
 			   [s1 (current-milliseconds)])
 		      ;; (when (> (length pairs) 1)
                       ;;       (pretty-display `(debug ,level ,pairs))
@@ -867,19 +884,20 @@
                (class-insert! classes my-liveout (reverse states2-vec) (concat x my-inst))
                (for ([pair (hash->list x)])
                     (let* ([state-vec (car pair)]
-                           [state (send machine vector->progstate state-vec)]
                            [val (cdr pair)]
                            [out 
                             (if (and (list? val) (hash-has-key? cache state-vec))
                                 (hash-ref cache state-vec)
                                 (let ([tmp
-                                       (with-handlers*
-                                        ([exn? (lambda (e) #f)])
-                                        (send machine progstate->vector 
-                                              (send simulator-abst interpret 
-                                                    (vector my-inst)
-                                                    state
-                                                    #:dep #f)))])
+                                       (and
+                                        (prescreen my-inst state-vec)
+                                        (with-handlers*
+                                         ([exn? (lambda (e) #f)])
+                                         (send machine progstate->vector 
+                                               (send simulator-abst interpret 
+                                                     (vector my-inst)
+                                                     (send machine vector->progstate state-vec)
+                                                     #:dep #f))))])
                                   (when (list? val) (hash-set! cache state-vec tmp))
                                   tmp))
                             ])
@@ -1025,8 +1043,10 @@
          
          (define keys (hash-keys classes))
          ;; (for ([key keys])
-         ;;      (pretty-display `(key ,(car key) ,(cdr key))))
-         (set! keys (sort keys (lambda (x y) (> (length (car (entry-live x))) (length (car (entry-live y)))))))
+         ;;      (pretty-display `(key ,(entry-live key) ,(entry-flag key))))
+         (set! keys (sort-live keys))
+
+         ;; (pretty-display `(bw ,(vector-ref classes-bw 0)))
          
          (define order 0)
          ;; Search
@@ -1059,7 +1079,7 @@
         
         (when (and (< size size-to) (or (not cost) (> cost (add1 size))))
               (cond
-               [(and (= step-bw 0) (> step-fw 0))
+               [#f ;;(and (= step-bw 0) (> step-fw 0))
                 (set! step-bw (add1 step-bw))
                 (pretty-display (format "GROW-BW: ~a" step-bw))
                 ;; Grow backward

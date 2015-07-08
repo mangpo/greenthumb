@@ -333,29 +333,35 @@
          [else
           (for ([p pred] [i x]) (collect-sym p i))]))
 
-      ;; (pretty-display `(vec-live-out ,vec-live-out))
-      ;; (pretty-display `(vec-output ,vec-output))
       (collect-sym vec-live-out vec-output)
       (define live-terms (list->set (symbolics live-list)))
+      ;; (pretty-display `(vec-input ,vec-input))
+      ;; (pretty-display `(vec-output ,vec-output))
+      ;; (pretty-display `(vec-live-out ,vec-live-out))
       ;; (pretty-display `(live-terms ,live-terms))
       
       (define (extract-live pred x)
+        ;;(pretty-display `(extract-live ,pred ,x))
         (cond
-         [(boolean? pred) 
-          (if (term? x)
-              (set-member? live-terms x)
-              pred)]
          [(number? pred)
           (define index 0)
           (for ([ele x]
                 [i (vector-length x)])
                (when (set-member? live-terms ele) (set! index (add1 i))))
           index]
+         [(number? x) 
+          (if (term? x)
+              (set-member? live-terms x)
+              pred)]
+         [(vector? x) (for/vector ([i x]) (extract-live #t i))]
+         [(boolean? pred) pred]
          [(pair? x) 
           (cons (extract-live (car pred) (car x)) 
                 (extract-live (cdr pred) (cdr x)))]
-         [(list? x) (for/list ([i x] [p pred]) (extract-live p i))]
-         [(vector? x) (for/vector ([i x] [p pred]) (extract-live p i))]))
+         [(list? x)
+          (for/list ([i x] [p pred]) (extract-live p i))]
+         [else pred]
+         ))
 
       (send machine vector->progstate (extract-live vec-live-out vec-input)))
       

@@ -16,13 +16,13 @@
               adjust-config finalize-config config-exceed-limit?
               output-constraint-string 
               progstate->vector vector->progstate
-	      get-arg-ranges window-size)
+	      get-arg-ranges reset-arg-ranges window-size)
     (public get-class-id print-line no-assumption
             get-inst-id get-inst-name
             output-assume-string get-state-liveness
             display-state-text parse-state-text get-states-from-file syntax-equal?
 	    clean-code state-eq? relaxed-state-eq?
-	    update-live update-live-backward filter-live get-operand-live
+	    update-live update-live-backward filter-live get-live-list
 	    analyze-opcode analyze-args get-nregs
             reset-inst-pool is-virtual-reg)
 
@@ -112,7 +112,7 @@
           (vector-filter (lambda (x) (member x live)) range)
           range))
 
-    (define (get-operand-live constraint) #f)
+    (define (get-live-list constraint) (progstate->vector constraint))
     
     (define (analyze-opcode prefix code postfix)
       (set! inst-pool (range (vector-length inst-id)))

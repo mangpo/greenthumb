@@ -13,6 +13,11 @@
     (override encode-inst decode-inst print-syntax-inst)
     (set! report-mutations (vector-append report-mutations '#(rotate)))
 
+    (define UP (get-field UP machine))
+    (define DOWN (get-field DOWN machine))
+    (define LEFT (get-field LEFT machine))
+    (define RIGHT (get-field RIGHT machine))
+    (define IO (get-field IO machine))
     (define encode-port-dict (hash "up" UP "down" DOWN "left" LEFT "right" RIGHT "io" IO))
 
     (define (encode-inst x)
