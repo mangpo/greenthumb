@@ -17,7 +17,7 @@
               reduce-precision increase-precision reduce-precision-assume
 	      get-live-mask combine-live prescreen)
 
-    (define (len-limit) 8)
+    (define (len-limit) 7)
     (define (window-size) 14)
     
     ;; Initialization
@@ -167,7 +167,7 @@
                                [(equal? v #t)
                                 (unless x (set! pass #f)) x]
                                [else x]))])
-            (and pass ret))
+	    (and pass ret))
           state-vec))
       
 
