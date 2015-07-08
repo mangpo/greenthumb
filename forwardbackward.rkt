@@ -398,9 +398,9 @@
       (define step-bw-max 3)
       
       (define ntests 2)
-      ;; (define inits
-      ;;   (send validator-abst generate-input-states ntests (vector-append prefix spec postfix)
-      ;;         assumption extra #:db #t))
+      (define inits
+        (send validator-abst generate-input-states ntests (vector-append prefix spec postfix)
+              assumption extra #:db #t))
       ;; (define inits
       ;;   (list
       ;;    (progstate (vector 3 4 5 7) (vector) -1 0)
@@ -418,12 +418,12 @@
       ;;    (progstate (vector 2 3 0) (vector) -1 4)
       ;; 	 ))
       ;; p11
-      (define inits
-        (list
-         (progstate (vector 4 0) (vector) -1 0)
-         (progstate (vector -8 -4) (vector) -1 0)
-         ;; (progstate (vector -6 4) (vector) -1 4)
-      	 ))
+      ;; (define inits
+      ;;   (list
+      ;;    (progstate (vector 4 0) (vector) -1 0)
+      ;;    (progstate (vector -8 -4) (vector) -1 0)
+      ;;    ;; (progstate (vector -6 4) (vector) -1 4)
+      ;; 	 ))
       ;; p24
       ;; (define inits
       ;;   (list
