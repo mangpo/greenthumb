@@ -460,6 +460,7 @@
       ;;(raise "xxx")
       
       (define ce-in (make-vector ce-limit))
+      (define ce-out (make-vector ce-limit))
       (define ce-in-vec (make-vector ce-limit))
       (define ce-out-vec (make-vector ce-limit))
       (define ce-count ntests)
@@ -469,7 +470,9 @@
       (define ce-out-vec-final (list))
 
       (for ([test ntests]
+            [state2 states2]
 	    [state2-vec states2-vec])
+           (vector-set! ce-out test state2)
 	   (vector-set! ce-out-vec test state2-vec))
 
       ;; Initialize forward and backward classes
@@ -601,6 +604,7 @@
                         (pretty-display "[3] counterexample")
                         (pretty-display `(ce ,ce-count-extra ,ce-input-vec ,ce-output-vec)))
                   (vector-set! ce-in ce-count-extra ce-input)
+                  (vector-set! ce-out ce-count-extra ce-output)
                   (vector-set! ce-in-vec ce-count-extra ce-input-vec)
                   (vector-set! ce-out-vec ce-count-extra (mask-in ce-output-vec live2-list #:keep-flag try-cmp))
                   (set! ce-count-extra (add1 ce-count-extra))
@@ -707,6 +711,7 @@
 	   (set! t-build (+ t-build (- t1 t0)))
 	   )
                          
+          (define ce-out-level (vector-ref ce-out level))
           (when (and (list? real-hash) (hash? my-classes-bw-level))
 	   ;;(and (list? real-hash) (> (count-collection real-hash) 1))
 		;;(pretty-display `(build-fw ,level ,(count-collection real-hash) ,(hash? real-hash-bw)))
@@ -723,7 +728,7 @@
                           [state
 			   (with-handlers*
 			    ([exn? (lambda (e) #f)])
-                            (send simulator-abst interpret prog input #:dep #f))]
+                            (send simulator-abst interpret prog input ce-out-level #:dep #f))]
                           [state-vec (and state (send machine progstate->vector state))]
                           [s1 (current-milliseconds)])
                      (when
@@ -770,7 +775,8 @@
                                  (with-handlers*
                                   ([exn? (lambda (e) #f)])
                                   (send simulator-abst interpret (vector my-inst)
-                                        (send machine vector->progstate inter) #:dep #f)))]
+                                        (send machine vector->progstate inter)
+                                        ce-out-level #:dep #f)))]
                            [s2 (current-milliseconds)]
                            )
 		      (set! out-vec (and out (mask-in (send machine progstate->vector out) my-live2)))
@@ -879,7 +885,8 @@
          ;; (send printer print-syntax-inst (send printer decode-inst my-inst))
 	 ;; (pretty-display my-liveout)
 
-         (define (recurse x states2-vec)
+         (define (recurse x states2-vec level)
+           (define ce-out-level (vector-ref ce-out level))
            (if (list? x)
                (class-insert! classes my-liveout (reverse states2-vec) (concat x my-inst))
                (for ([pair (hash->list x)])
@@ -897,13 +904,15 @@
                                                (send simulator-abst interpret 
                                                      (vector my-inst)
                                                      (send machine vector->progstate state-vec)
-                                                     #:dep #f))))])
+                                                     ce-out-level #:dep #f)))
+                                        )
+                                       ])
                                   (when (list? val) (hash-set! cache state-vec tmp))
                                   tmp))
                             ])
-                      (when out (recurse val (cons out states2-vec)))))))
+                      (when out (recurse val (cons out states2-vec) (add1 level)))))))
          
-         (recurse my-hash (list))
+         (recurse my-hash (list) 0)
          (build-hash my-hash iterator)
 	 ))
 
