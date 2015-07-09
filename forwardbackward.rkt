@@ -27,9 +27,9 @@
             reduce-precision-assume)
     
     (define debug #f)
-    (define verbo #t)
+    (define verbo #f)
     (define ce-limit 100)
-    ;; (define parser (new arm-parser%))
+    ;;(define parser (new GA-parser%))
     
     (define (inst->vector x) (vector (inst-op x) (inst-args x)))
     (define (prescreen my-inst state-vec) #t)
@@ -358,6 +358,7 @@
       
       (set! prefix (car (reduce-precision prefix)))
       (set! postfix (car (reduce-precision postfix)))
+      (pretty-display `(assump ,assumption))
       (set! assumption (reduce-precision-assume assumption))
 
       ;; (send machine display-state assumption-precise)
@@ -375,9 +376,10 @@
       ;;(define size (if sketch sketch 4))
       (define live2 (send validator-abst get-live-in postfix constraint extra))
       (define live2-vec (send machine progstate->vector live2))
-      (define live1 (send validator-abst get-live-in spec live2 extra))
-      (define live0 (send validator-abst get-live-in prefix live1 extra))
+      (define live1 (send validator-abst get-live-in (vector-append spec postfix) constraint extra))
+      (define live0 (send validator-abst get-live-in (vector-append prefix spec postfix) constraint extra))
       (define live0-list (send machine get-live-list live0))
+      ;; (raise "xxx")
 
       (define live1-list-alt live0-list)
       (for ([x prefix])
@@ -457,7 +459,7 @@
       (pretty-display `(live2-vec ,live2-vec))
       (pretty-display `(live1-list ,live1-list))
       (pretty-display `(live2-list ,live2-list))
-      ;;(raise "xxx")
+      ;; (raise "xxx")
       
       (define ce-in (make-vector ce-limit))
       (define ce-out (make-vector ce-limit))
@@ -695,7 +697,6 @@
 	     (vector-set! cache i (make-hash)))
 
         (define (outer my-classes candidates level)
-	  ;; (pretty-display `(outer ,level ,candidates))
 	  (define my-classes-bw-level (vector-ref my-classes-bw level))
 	  (define cache-level (vector-ref cache level))
           (define real-hash my-classes)
@@ -766,6 +767,7 @@
               (let ([t0 (current-milliseconds)]
 		    [out-vec #f])
 
+
 		(if (and (> level 0) (hash-has-key? cache-level inter))
 		    (set! out-vec (hash-ref cache-level inter))
 		    (let* ([s1 (current-milliseconds)]
@@ -827,7 +829,7 @@
                              ;; (unless out-vec-masked
                              ;;         (pretty-display `(live-mask ,live-mask))
                              ;;         (pretty-display `(out-vec ,out-vec)))
-			     ;;(pretty-display `(inner ,level ,inter ,out-vec-masked ,new-candidates))
+			     ;; (pretty-display `(inner ,level ,inter ,out-vec-masked ,new-candidates))
 			     (set! t-mask (+ t-mask (- t1 t0)))
 			     (set! t-hash (+ t-hash (- t2 t1)))
 			     (set! t-intersect (+ t-intersect (- t3 t2)))
@@ -979,7 +981,7 @@
 	  ;; (define my-liveout (cons (list 3) (list)))
 
 	  (when my-inst
-                ;; (when debug
+                ;; (when verbo
                 ;;       (send printer print-syntax-inst (send printer decode-inst my-inst))
                 ;;       (pretty-display `(live ,my-liveout)))
                 (define inst-id (inst->id my-inst))
@@ -1020,7 +1022,7 @@
         (define my-inst (first inst-liveout-vreg))
 	;; (define my-inst 
 	;;   (vector-ref (send printer encode 
-	;; 		    (send parser ast-from-string "strhi r3, fp, -12"))
+	;; 		    (send parser ast-from-string "!b"))
 	;; 	      0))
         (when 
          my-inst

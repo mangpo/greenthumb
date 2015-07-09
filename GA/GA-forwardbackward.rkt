@@ -17,7 +17,7 @@
               reduce-precision increase-precision reduce-precision-assume
 	      get-live-mask combine-live prescreen)
 
-    (define (len-limit) 7)
+    (define (len-limit) 8)
     (define (window-size) 14)
     
     ;; Initialization
@@ -106,19 +106,20 @@
          [(pair? x) (cons (inner (car x)) (inner (cdr x)))]
          [else x]
          ))
-      (define data (progstate-data x))
-      (progstate (inner (progstate-a x))
-                 (inner (progstate-b x))
-                 (inner (progstate-r x))
-                 (inner (progstate-s x))
-                 (inner (progstate-t x))
-                 (stack (stack-sp data)
-                        (for/vector ([i (stack-body data)])
-                                    (inner i)))
-                 (progstate-return x)
-                 (progstate-memory x)
-                 (progstate-recv x)
-                 (progstate-comm x)))
+      (and x
+	   (let ([data (progstate-data x)])
+	     (progstate (inner (progstate-a x))
+			(inner (progstate-b x))
+			(inner (progstate-r x))
+			(inner (progstate-s x))
+			(inner (progstate-t x))
+			(stack (stack-sp data)
+			       (for/vector ([i (stack-body data)])
+					   (inner i)))
+			(progstate-return x)
+			(progstate-memory x)
+			(progstate-recv x)
+			(progstate-comm x)))))
 
     (define (increase-precision prog mapping)
       (define (change arg)
@@ -171,10 +172,7 @@
           state-vec))
       
 
-    (define (combine-live a b)
-      (define ret (vector-copy a))
-      (vector-set! a 7 (vector-ref b 7)) ;; set memory
-      ret)
+    (define (combine-live a b) b)
 
     (define (prescreen my-inst state)
       (define opcode-id (inst-op my-inst))
@@ -188,12 +186,20 @@
       (define opcode-name (vector-ref inst-id opcode-id))
       (define-syntax-rule (inst-eq x) (equal? x opcode-name))
       (cond
-       [(member opcode-name '(@b !b))
+       [(member opcode-name '(@b))
         (and b
              (or (and (>= b 0) (< b mem-len))
                  (member b (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
-       [(member opcode-name '(@ @+ ! !+))
+       [(member opcode-name '(!b))
+        (and b t
+             (or (and (>= b 0) (< b mem-len))
+                 (member b (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+       [(member opcode-name '(@ @+))
         (and a
+             (or (and (>= a 0) (< a mem-len))
+                 (member a (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+       [(member opcode-name '(@ @+ ! !+))
+        (and a t
              (or (and (>= a 0) (< a mem-len))
                  (member a (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
        ;; TODO: up down left right for bit = 4

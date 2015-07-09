@@ -12,7 +12,7 @@
     (inherit-field machine printer simulator validator)
     (override len-limit window-size)
 
-    (define (len-limit) 7)
+    (define (len-limit) 8)
     (define (window-size) 14)
     (set! simulator (new GA-simulator-rosette% [machine machine]))
     (set! validator (new GA-validator% [machine machine] [printer printer] [simulator simulator]))

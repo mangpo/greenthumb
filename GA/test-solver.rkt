@@ -4,7 +4,7 @@
          "GA-parser.rkt")
 
 (define parser (new GA-parser%))
-(define machine (new GA-machine% [bit 4]))
+(define machine (new GA-machine% [bit 18]))
 (send machine set-config 4)
 (define printer (new GA-printer% [machine machine]))
 (define simulator-rosette (new GA-simulator-rosette% [machine machine]))
@@ -12,10 +12,10 @@
 
 (define code
 (send parser ast-from-string 
-      "0 a! !+ !+ push pop dup 1 b! @b and over 7 or 0 b! @b and over - and + push drop pop"))
+      "drop pop a 3 b! !b 0 b! !b 3 b! @b 325 b! !b 0 b! @b 2* 2* 325 b! @b 3 and + "))
 
 (define sketch (send parser ast-from-string 
-      "dup push or and pop or"))
+      "drop pop a 3 b! !b 0 b! !b 3 b! @b 325 b! !b 0 b! @b 2* 2* 325 b! @b 3 and + "))
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send validator encode-sym sketch))
@@ -23,9 +23,9 @@
 (define ce
   (send validator counterexample encoded-code encoded-sketch 
         (constraint s t)
-        0
-        #:assume (constrain-stack 
-                  machine '((<= . 7) (<= . 7) (<= . 7)))
+        1
+        ;#:assume (constrain-stack 
+        ;          machine '((<= . 7) (<= . 7) (<= . 7)))
         ))
 
 (if ce

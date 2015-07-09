@@ -25,7 +25,7 @@
              live-in live-out flag-in flag-out
              regs type lex #:no-args [no-args #f] #:try-cmp [try-cmp #f])
       (define const-range (get-field const-range machine))
-      ;; (define inst-choice '(+ and))
+      ;; (define inst-choice '(drop @p b! !b))
       ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
       (define inst-pool (get-field inst-pool machine))
       (when no-args
@@ -33,7 +33,8 @@
                   (filter (lambda (x) (member x arith-inst)) inst-pool)))
       (when (and flag-in flag-out)
             (cond
-             [(= (add1 flag-in) (min-list flag-out)) (set! inst-pool mem-inst)]
+             [(= (add1 flag-in) (min-list flag-out)) 
+	      (set! inst-pool (filter (lambda (x) (member x mem-inst)) inst-pool))]
              [(< flag-in (min-list flag-out)) (set! inst-pool (list))]
              [(> flag-in (max-list flag-out)) (set! inst-pool (list))]
              ))

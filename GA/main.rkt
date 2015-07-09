@@ -11,7 +11,7 @@
 (define parser (new GA-parser%))
 (define meta (new GA-meta%))
 (define machine (new GA-machine%))
-(send machine set-config 4)
+(send machine set-config 1)
 (define printer (new GA-printer% [machine machine]))
 (define compress (new compress% [machine machine]))
 (define validator (new GA-validator% [machine machine] [printer printer]))

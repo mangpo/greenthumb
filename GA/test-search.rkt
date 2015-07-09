@@ -7,7 +7,7 @@
 
 (define parser (new GA-parser%))
 (define machine (new GA-machine%))
-(send machine set-config 2)
+(send machine set-config 5)
 
 (define printer (new GA-printer% [machine machine]))
 (define validator (new GA-validator% [machine machine]))
@@ -20,6 +20,7 @@
 
 (define prefix 
 (send parser ast-from-string "
+drop pop a 325 a! !
 "))
 
 (define postfix
@@ -28,14 +29,18 @@
 
 (define code
 (send parser ast-from-string "
-0 a! push !+ !+ pop dup 1 b! @b and over 65535 or 0 b! @b and over - and + push drop pop
+2* 2* @+ 3 and +
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-? ? ? ? ? ? ? ?
-"))
+? ? ? ? ? ?
+")) 
+;[drop pop a ] 325 9 2/ b! a! ! !b @b 2* 2* 325 b! @b 3  [and + ]
+; drop pop a ] 3 325 b! a! !b 2* 2* 325 b! @b 3 [and +
+; drop pop a 325 a! ! ] 2* 2* @+ 3 and +
+; opt: drop pop a 325 a! ! 2* 2* @ 3 and or 
 
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))
@@ -47,9 +52,9 @@
         encoded-code ;; spec
         encoded-sketch ;; sketch = spec in this case
         encoded-prefix encoded-postfix
-        (constraint t s) 0 #f 3600
-        #:assume (constrain-stack 
-                  machine '((<= . 65535) (<= . 65535) (<= . 65535)))
+        (constraint s t) 1 11 3600
+        ;#:assume (constrain-stack 
+        ;          machine '((<= . 65535) (<= . 65535) (<= . 65535)))
         ))
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem]) ;; constraint

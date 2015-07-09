@@ -100,7 +100,7 @@
         (clear-asserts)
 	(current-bitwidth bit)
         (define state (send machine get-state sym-input extra))
-	(send simulator interpret encoded-code state)
+	;;(send simulator interpret encoded-code state)
 
         (with-handlers* 
          ([exn:fail? 
@@ -333,15 +333,15 @@
          [else
           (for ([p pred] [i x]) (collect-sym p i))]))
 
+      ;; (pretty-display `(vec-live-out ,vec-live-out))
+      ;; (pretty-display `(vec-output ,vec-output))
       (collect-sym vec-live-out vec-output)
       (define live-terms (list->set (symbolics live-list)))
       ;; (pretty-display `(vec-input ,vec-input))
-      ;; (pretty-display `(vec-output ,vec-output))
-      ;; (pretty-display `(vec-live-out ,vec-live-out))
       ;; (pretty-display `(live-terms ,live-terms))
       
       (define (extract-live pred x)
-        ;;(pretty-display `(extract-live ,pred ,x))
+	;;(pretty-display `(extract-live ,pred ,x))
         (cond
          [(number? pred)
           (define index 0)
@@ -353,8 +353,12 @@
           (if (term? x)
               (set-member? live-terms x)
               pred)]
-         [(vector? x) (for/vector ([i x]) (extract-live #t i))]
-         [(boolean? pred) pred]
+	 [(and (vector? x) (vector? pred)) 
+	  (for/vector ([i x] [p pred]) (extract-live p i))]
+         [(vector? x) 
+	  (for/vector ([i x]) (extract-live pred i))]
+         [(boolean? pred) ;;(pretty-display `(return ,pred)) 
+	  pred]
          [(pair? x) 
           (cons (extract-live (car pred) (car x)) 
                 (extract-live (cdr pred) (cdr x)))]
