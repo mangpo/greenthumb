@@ -194,8 +194,10 @@
 	    [(and (pair? i) (equal? (car i) 'return)) (set! return (+ return (cdr i)))]
 	    [else (raise (format "create-constraint: unimplemented for ~a" i))]))
       (struct-copy progstate constraint-none [a a] [b b] [memory memory]
-		   [t (>= data 1)] [s (>= data 2)] [data (and (> (- data 2) 0) (- data 2))]
-		   [r (>= return 1)] [return (and (> (- return 1) 0) (- return 1))]))
+		   [t (>= data 1)] [s (>= data 2)]
+                   [data (if (> (- data 2) 0) (- data 2) 0)]
+		   [r (>= return 1)]
+                   [return (if (> (- return 1) 0) (- return 1) 0)]))
 
     (define (constraint-all)
       (progstate #t #t #t #t #t 8 8 (make-vector nmems #t) #f #t))

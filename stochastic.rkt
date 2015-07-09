@@ -9,7 +9,7 @@
     (super-new)
     (public superoptimize inst-copy-with-op inst-copy-with-args
             get-mutations mutate 
-            mutate-opcode mutate-operand
+            mutate-opcode mutate-operand mutate-swap
             mutate-operand-specific mutate-other
             random-instruction print-mutation-info
 	    random-args-from-op adjust)
@@ -116,34 +116,14 @@
       (define new-p (vector-copy p))
       (define index2 (random-from-list-ex (range (vector-length p)) index))
       
-      (define index-small (min index index2))
-      (define index-large (max index index2))
-      (define entry-large (vector-ref p index-large))
-      (define my-live-in live-in)
-      (for ([i index-small])
-           (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
-      (define opcode-id (inst-op entry-large))
-      (define opcode-name (vector-ref inst-id opcode-id))
-      (define ranges (send machine get-arg-ranges opcode-name entry-large my-live-in))
-      (define pass
-        (for/and ([range ranges]
-                  [arg (inst-args entry-large)])
-                 (vector-member arg range)))
       (when debug
             (pretty-display " >> mutate swap")
             (pretty-display (format " --> swap = ~a" index2)))
 
-      (cond
-       [pass
-        (when debug (pretty-display " --> pass"))
-        (vector-set! new-p index (vector-ref new-p index2))
-        (vector-set! new-p index2 entry)
-        (send stat inc-propose `swap)
-        new-p]
-      
-       [else
-        (when debug (pretty-display " --> fail"))
-        (mutate p)]))
+      (vector-set! new-p index (vector-ref new-p index2))
+      (vector-set! new-p index2 entry)
+      (send stat inc-propose `swap)
+      new-p)
 
     ;; Generic across architectures
     (define (mutate-opcode index entry p)
@@ -465,32 +445,32 @@
       (define (iter current current-cost)
         (when debug (pretty-display ">>> iter >>>"))
         (define update-size (send stat inc-iter current-cost))
-        (when (and update-size (<= (+ update-size 5) (vector-length current)))
-              (pretty-display (format ">>> reduce size from ~a to ~a" 
-                                      (vector-length current) update-size))
-              (cond
-               [syn-mode
-                (define-values (new-p new-cost) 
-                  (reduce-size current current-cost update-size))
-                (set! current new-p)
-                (set! current-cost new-cost)
-                ;; (define tmp (send printer encode
-                ;;                   (send parser ast-from-file
-                ;;                         (format "~a/best.s" (get-field dir stat)))))
-                ;; (send machine analyze-args (vector) tmp (vector))
-                ]
+        ;; (when (and update-size (<= (+ update-size 5) (vector-length current)))
+        ;;       (pretty-display (format ">>> reduce size from ~a to ~a" 
+        ;;                               (vector-length current) update-size))
+        ;;       (cond
+        ;;        [syn-mode
+        ;;         (define-values (new-p new-cost) 
+        ;;           (reduce-size current current-cost update-size))
+        ;;         (set! current new-p)
+        ;;         (set! current-cost new-cost)
+        ;;         ;; (define tmp (send printer encode
+        ;;         ;;                   (send parser ast-from-file
+        ;;         ;;                         (format "~a/best.s" (get-field dir stat)))))
+        ;;         ;; (send machine analyze-args (vector) tmp (vector))
+        ;;         ]
 
-               [else
-                (pretty-display ">>> steal best program")
-                (define-values (best-cost len time id) (send stat get-best-info-stat))
-                (set! current
-                      (send printer encode
-                            (send parser ast-from-file 
-                                  (format "~a/best.s" (get-field dir stat)))))
-		;; (send machine analyze-args (vector) current (vector) #:only-const #t)
-                (set! current-cost best-cost)
-                ]
-              ))
+        ;;        [else
+        ;;         (pretty-display ">>> steal best program")
+        ;;         (define-values (best-cost len time id) (send stat get-best-info-stat))
+        ;;         (set! current
+        ;;               (send printer encode
+        ;;                     (send parser ast-from-file 
+        ;;                           (format "~a/best.s" (get-field dir stat)))))
+	;; 	;; (send machine analyze-args (vector) current (vector) #:only-const #t)
+        ;;         (set! current-cost best-cost)
+        ;;         ]
+        ;;       ))
         (define t1 (current-milliseconds))
         (define proposal (mutate current))
         (define t2 (current-milliseconds))
@@ -548,9 +528,6 @@
               (iter current current-cost))
             ))
 
-
-      ;; (pretty-display `(cost-target ,(cost-all-inputs target 100)))
-      ;; (raise "done")
       (with-handlers 
        ([exn:break? (lambda (e) (send stat print-stat-to-file))])
        

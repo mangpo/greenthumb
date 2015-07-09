@@ -171,8 +171,12 @@
 	    (and pass ret))
           state-vec))
       
-
-    (define (combine-live a b) b)
+    ;; Ignore a completely.
+    (define (combine-live a b)
+      (define s (vector-ref b 3))
+      (define t (vector-ref b 4))
+      (when (and s (not t)) (vector-set! b 4 #t))
+      b)
 
     (define (prescreen my-inst state)
       (define opcode-id (inst-op my-inst))
