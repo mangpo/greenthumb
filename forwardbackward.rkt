@@ -23,17 +23,18 @@
               reduce-precision increase-precision
 	      get-live-mask)
     (override synthesize-window superoptimize-linear superoptimize-binary)
-    (public try-cmp? combine-live inst->vector prescreen sort-live
+    (public try-cmp? combine-live inst->vector prescreen sort-live sort-live-bw
             reduce-precision-assume)
     
     (define debug #f)
     (define verbo #f)
     (define ce-limit 100)
-    ;;(define parser (new GA-parser%))
+    (define parser (new arm-parser%))
     
     (define (inst->vector x) (vector (inst-op x) (inst-args x)))
     (define (prescreen my-inst state-vec) #t)
     (define (sort-live x) x)
+    (define (sort-live-bw x) x)
     (define (reduce-precision-assume x) x)
 
     (define c-behaviors 0)
@@ -881,15 +882,16 @@
 
 	;; (define my-inst 
 	;;   (vector-ref (send printer encode 
-	;; 		    (send parser ast-from-string "cmp r4, r3"))
+	;; 		    (send parser ast-from-string "and r0, r1, r2"))
 	;; 	      0))
-	;; (define my-liveout (cons '(0 1 2 3 4) '()))
+	;; (define my-liveout (cons '(0 1 2) '(0)))
 
         (define cache (make-hash))
         (when 
          my-inst
-         ;; (send printer print-syntax-inst (send printer decode-inst my-inst))
-	 ;; (pretty-display my-liveout)
+         (when verbo
+               (send printer print-syntax-inst (send printer decode-inst my-inst))
+               (pretty-display my-liveout))
 
          (define (recurse x states2-vec level)
            (define ce-out-level (vector-ref ce-out level))
@@ -976,14 +978,14 @@
 
 	  ;; (define my-inst 
 	  ;;   (vector-ref (send printer encode 
-	  ;; 		    (send parser ast-from-string "movne r3, 0"))
+	  ;; 		    (send parser ast-from-string "add r1, r0, r2"))
 	  ;; 	      0))
-	  ;; (define my-liveout (cons (list 3) (list)))
+	  ;; (define my-liveout (cons (list 0 2) (list)))
 
 	  (when my-inst
-                ;; (when verbo
-                ;;       (send printer print-syntax-inst (send printer decode-inst my-inst))
-                ;;       (pretty-display `(live ,my-liveout)))
+                (when verbo
+                      (send printer print-syntax-inst (send printer decode-inst my-inst))
+                      (pretty-display `(live ,my-liveout)))
                 (define inst-id (inst->id my-inst))
                 ;; (define t-interpret 0)
                 ;; (define t-hash 0)
@@ -1022,7 +1024,7 @@
         (define my-inst (first inst-liveout-vreg))
 	;; (define my-inst 
 	;;   (vector-ref (send printer encode 
-	;; 		    (send parser ast-from-string "!b"))
+	;; 		    (send parser ast-from-string "and r2, r1, r2, lsr 1"))
 	;; 	      0))
         (when 
          my-inst
@@ -1057,9 +1059,11 @@
          (pretty-display (format "\nSIZE = ~a" size))
          
          (define keys (hash-keys classes))
+         (define keys-bw (hash-keys (vector-ref classes-bw step-bw)))
          ;; (for ([key keys])
          ;;      (pretty-display `(key ,(entry-live key) ,(entry-flag key))))
          (set! keys (sort-live keys))
+         (set! keys-bw (sort-live-bw keys-bw))
 
          ;; (pretty-display `(bw ,(vector-ref classes-bw 0)))
          
@@ -1067,10 +1071,9 @@
          ;; Search
          (define ttt (current-milliseconds))
          (for* ([key1 keys]
-                [pair2 (hash->list (vector-ref classes-bw step-bw))])
+                [live2 keys-bw])
                ;; (pretty-display `(search ,key1 ,pair2))
-               (let* ([live2 (car pair2)]
-                      [my-hash2 (cdr pair2)]
+               (let* ([my-hash2 (hash-ref (vector-ref classes-bw step-bw) live2)]
                       [pass (for/and ([i ntests]) (vector-ref my-hash2 i))])
                  (when
                   pass

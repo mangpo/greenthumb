@@ -51,7 +51,7 @@
              regs type lex #:no-args [no-args #f] #:try-cmp [try-cmp #f])
 
       (define mode (cond [regs `vir] [no-args `no-args] [else `basic]))
-      ;; (define inst-choice '(mov#))
+      ;; (define inst-choice '(add and))
       ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
       (define inst-pool (get-field inst-pool machine))
       (define z
@@ -220,13 +220,13 @@
                 ]
                
                [else
-                (for ([arg (car ranges)])
+                (for ([arg (shuffle (vector->list (car ranges)))])
                   (recurse-args opcode opcode-id shfop shfarg cond-type 
                                 (cons arg args)
                                 (cdr ranges) v-reg))
                 ])))
          
-         (for ([opcode-id inst-pool])
+         (for ([opcode-id (shuffle inst-pool)])
            (let ([opcode-name (vector-ref inst-id opcode-id)])
              (set! arg-types (send machine get-arg-types opcode-name))
              (unless 
@@ -259,7 +259,7 @@
                              (if (equal? shfarg-range `reg-i)
                                  (recurse-args opcode-name opcode-id shfop 0 cond-type 
                                                (list) arg-ranges (cons 1 3))
-                                 (for ([shfarg shfarg-range])
+                                 (for ([shfarg (shuffle (vector->list shfarg-range))])
                                    (recurse-args opcode-name opcode-id 
                                                  shfop shfarg cond-type 
                                                  (list) arg-ranges v-reg)))))

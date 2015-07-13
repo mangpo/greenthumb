@@ -4,98 +4,62 @@
          "arm-parser.rkt" "arm-ast.rkt")
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine% [bit 32]))
-(send machine set-config (list 5 9 9))
+(define machine (new arm-machine% [bit 4]))
+(send machine set-config (list 4 3 4))
 (define printer (new arm-printer% [machine machine]))
 (define validator (new arm-validator% [machine machine]))
 
 (define code
 (send parser ast-from-string "
-	str	r0, [fp, #-24]
-	str	r1, [fp, #-28]
-	str	r2, [fp, #-32]
-	str	r3, [fp, #-36]
-	ldr	r2, [fp, #-24]
-	ldr	r3, [fp, #-36]
-	cmp	r2, r3
-	movne	r3, #0
-	moveq	r3, #1
-	rsb	r3, r3, #0
-	str	r3, [fp, #-20]
-	ldr	r2, [fp, #-28]
-	ldr	r3, [fp, #-36]
-	eor	r3, r2, r3
-	str	r3, [fp, #-16]
-	ldr	r2, [fp, #-24]
-	ldr	r3, [fp, #-28]
-	cmp	r2, r3
-	movne	r3, #0
-	moveq	r3, #1
-	rsb	r3, r3, #0
-	str	r3, [fp, #-12]
-	ldr	r2, [fp, #-32]
-	ldr	r3, [fp, #-36]
-	eor	r3, r2, r3
-	str	r3, [fp, #-8]
-	ldr	r2, [fp, #-20]
-	ldr	r3, [fp, #-16]
-	and	r3, r2, r3
-	str	r3, [fp, #-20]
-	ldr	r2, [fp, #-12]
-	ldr	r3, [fp, #-8]
-	and	r3, r2, r3
-	str	r3, [fp, #-12]
-	ldr	r2, [fp, #-20]
-	ldr	r3, [fp, #-12]
-	eor	r3, r2, r3
-	str	r3, [fp, #-20]
-	ldr	r2, [fp, #-20]
-	ldr	r3, [fp, #-36]
-	eor	r3, r2, r3
-	mov	r0, r3
+mov r2, 5
+movt r2, 5
+and r2, r2, r0, lsr 1
+rsb r2, r2, r0
+str r2, fp, -16
+movw r1, 3
+movt r1, 3
+
+and r2, r1, r2
+str r2, fp, -12
+ldr r2, fp, -16
+and r2, r1, r2, lsr 1
+ldr r1, fp, -12
+add r1, r1, r2
+
+add r2, r1, r1, asr 1
+movw r1, 7
+movt r1, 7
+and r2, r1, r2
+add r2, r2, r2, lsr 2
+add r2, r2, r2, asr 1
+and r0, r2, 7
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-str r0, fp, -24
-str r1, fp, -28
-str r2, fp, -32
-str r3, fp, -36
-ldr r2, fp, -24
-ldr r3, fp, -36
-cmp r2, r3
-movne r3, 0
-moveq r3, 1
-rsb r3, r3, 0
-str r3, fp, -20
-eor r4, r1, r2, asr 0
-streq r4, fp, -16
-ldr r2, fp, -24
-ldr r3, fp, -28
-cmp r2, r3
-movne r3, 0
-moveq r3, 1
-rsb r3, r3, 0
-str r3, fp, -12
-ldr r2, fp, -32
-ldr r3, fp, -36
-eor r3, r2, r3
-str r3, fp, -8
-ldr r2, fp, -20
-ldr r3, fp, -16
-and r3, r2, r3
-str r3, fp, -20
-ldr r2, fp, -8
-streq r2, fp, -12
-ldr r2, fp, -20
-ldr r3, fp, -12
-eor r3, r2, r3
-str r3, fp, -20
-ldr r2, fp, -20
-ldr r3, fp, -36
-eor r3, r2, r3
-mov r0, r3
+mov r2, 5
+movt r2, 5
+and r2, r2, r0, lsr 1
+rsb r2, r2, r0
+str r2, fp, -16
+movw r1, 3
+movt r1, 3
+
+and r2, r1, r2
+str r2, fp, -12
+ldr r2, fp, -16
+and r2, r1, r2, lsr 1
+ldr r1, fp, -12
+add r1, r1, r2
+
+add r2, r1, r1, asr 1
+movw r1, 7
+movt r1, 7
+and r2, r1, r2
+add r2, r2, r2, lsr 2
+add r2, r2, r2, asr 1
+and r0, r2, 7
 "))
 
 (define encoded-code (send printer encode code))

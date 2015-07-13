@@ -712,12 +712,12 @@
 
       (define regs-in (list->set (car live-in-list)))
 
-      (when (<= (set-count reg-set) 1)
+      (when (<= (set-count reg-set) 2)
             (define reg
               (for/or ([live (progstate-regs live-out)]
                        [r (in-naturals)])
                       (and (not live) (not (set-member? reg-set r)) r)))
-            (set! reg-set (set-add reg-set reg)))
+            (when reg (set! reg-set (set-add reg-set reg))))
                  
       (update-arg-ranges op2-set const-set bit-set
                          (set-union reg-set regs-in) reg-set

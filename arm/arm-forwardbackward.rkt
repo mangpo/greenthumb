@@ -15,7 +15,7 @@
     (override len-limit window-size
               mask-in inst->vector
               reduce-precision increase-precision
-	      get-live-mask try-cmp? combine-live sort-live)
+	      get-live-mask try-cmp? combine-live sort-live sort-live-bw)
 
     (define (len-limit) 2)
     (define (window-size) 4)
@@ -216,5 +216,8 @@
 
     (define (sort-live keys)
       (sort keys (lambda (x y) (> (length (car (entry-live x))) (length (car (entry-live y)))))))
+
+    (define (sort-live-bw keys)
+      (sort keys (lambda (x y) (< (length (cdr x)) (length (cdr y))))))
 
     ))
