@@ -152,7 +152,7 @@
         (define cores-stoch
           (cond
            [(equal? search-type `stoch) cores]
-           [(equal? search-type `hybrid) (floor (* (/ 2 6) cores))]
+           [(equal? search-type `hybrid) 3] ;;(floor (* (/ 2 6) cores))]
            [else 0]))
         (define cores-enum
           (cond

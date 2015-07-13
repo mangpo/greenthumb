@@ -8,11 +8,11 @@ function e {
     $@
 }
 
-cost=inter
-type=hybrid
-mode=p
+cost=base
+type=$3
+mode=$4
 
-for t in 1 2 3
+for t in 5
 do
     e racket optimize.rkt --$type -$mode --$cost -c 32 -t $timeout -d results/$name-$type-$cost-$mode-$t programs/$name.s > results/$name-$type-$cost-$mode-$t.log
 done
