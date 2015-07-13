@@ -447,7 +447,7 @@
         (define update-size (send stat inc-iter current-cost))
         (when (and update-size (or (<= (+ update-size 5) (vector-length current))
 				   (and (< update-size (vector-length current))
-					(< (random) 0.02))))
+					(< (random) 0.05))))
               (pretty-display (format ">>> reduce size from ~a to ~a" 
                                       (vector-length current) update-size))
               (cond
