@@ -12,7 +12,7 @@ cost=base
 type=$3
 mode=$4
 
-for t in 5
+for t in 3
 do
     e racket optimize.rkt --$type -$mode --$cost -c 32 -t $timeout -d results/$name-$type-$cost-$mode-$t programs/$name.s > results/$name-$type-$cost-$mode-$t.log
 done

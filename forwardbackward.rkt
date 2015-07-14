@@ -375,6 +375,7 @@
       (pretty-display "]")
      
       ;;(define size (if sketch sketch 4))
+      (define live3-vec (send machine progstate->vector constraint))
       (define live2 (send validator-abst get-live-in postfix constraint extra))
       (define live2-vec (send machine progstate->vector live2))
       (define live1 (send validator-abst get-live-in (vector-append spec postfix) constraint extra))
@@ -515,10 +516,10 @@
                    (let* ([my-output 
 			   (with-handlers*
 			    ([exn? (lambda (e) #f)])
-			    (send simulator interpret p input #:dep #f))]
+			    (send simulator interpret (vector-append p postfix-precise) input #:dep #f))]
 			  [my-output-vec
 			   (and my-output (send machine progstate->vector my-output))])
-                     (and my-output (send machine state-eq? output-vec my-output-vec live2-vec)))))
+                     (and my-output (send machine state-eq? output-vec my-output-vec live3-vec)))))
 
         (define final-program (vector-append prefix-precise p postfix-precise))
 
@@ -533,7 +534,7 @@
              (let* ([ce-input
                      (send simulator interpret prefix-precise ce #:dep #f)]
                     [ce-output
-                     (send simulator interpret spec-precise ce-input #:dep #f)]
+                     (send simulator interpret (vector-append spec-precise postfix-precise) ce-input #:dep #f)]
                     [ce-output-vec
                      (send machine progstate->vector ce-output)])
                (when debug
@@ -889,7 +890,7 @@
         (define cache (make-hash))
         (when 
          my-inst
-         (when verbo
+         (when debug
                (send printer print-syntax-inst (send printer decode-inst my-inst))
                (pretty-display my-liveout))
 
@@ -983,7 +984,7 @@
 	  ;; (define my-liveout (cons (list 0 2) (list)))
 
 	  (when my-inst
-                (when verbo
+                (when debug
                       (send printer print-syntax-inst (send printer decode-inst my-inst))
                       (pretty-display `(live ,my-liveout)))
                 (define inst-id (inst->id my-inst))

@@ -218,6 +218,9 @@
       (sort keys (lambda (x y) (> (length (car (entry-live x))) (length (car (entry-live y)))))))
 
     (define (sort-live-bw keys)
-      (sort keys (lambda (x y) (< (length (cdr x)) (length (cdr y))))))
+      (sort keys (lambda (x y)
+		   (if (= (length (cdr x)) (length (cdr y)))
+		       (> (length (car x)) 0)
+		       (<= (length (cdr x)) (length (cdr y)))))))
 
     ))
