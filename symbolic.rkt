@@ -44,8 +44,6 @@
 			       #:assume-interpret [assume-interpret #t]
 			       #:assume [assumption (send machine no-assumption)])
       (send machine reset-inst-pool)
-      (when (send machine analyze-opcode prefix spec postfix)
-            (current-solver (new kodkod%)))
       (if pure-symbolic 
           (synthesize-from-sketch 
            (vector-append prefix spec postfix) 
@@ -117,8 +115,9 @@
             (send printer print-struct hard-postfix)
 	    (newline)
 	    )
+      (send (current-solver) shutdown)
+      (current-solver (new kodkod%))
 
-      (clear-asserts)
       (current-bitwidth bit)
       
 
@@ -184,7 +183,7 @@
       (pretty-display (format "new cost = ~a" final-cost))
       (pretty-display "=====================================")
       (clear-asserts)
-      ;(clear-terms!)
+      (clear-terms!)
 
       ;; Print to file
       (send stat update-best-correct final-program final-cost)

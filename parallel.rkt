@@ -123,8 +123,10 @@
           sp)
 
         (define (kill-all)
-          (for ([sp (append processes-stoch processes-solver processes-enum)])
+          (for ([sp (append processes-stoch processes-solver processes-enum)]
+		[id cores])
                (when (equal? (subprocess-status sp) 'running)
+		     (pretty-display `(kill ,id))
                      (subprocess-kill sp #f))))
 	
         (define t (current-seconds))
@@ -314,6 +316,7 @@
 	    )
 
       (system "pkill -u mangpo java")
+      (system "pkill -u mangpo z3")
       (let ([decompressed-code (send compress decompress-reg-space output-code map-back)])
         (send printer print-syntax decompressed-code)
         decompressed-code)
