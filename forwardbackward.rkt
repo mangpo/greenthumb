@@ -27,7 +27,7 @@
             reduce-precision-assume)
     
     (define debug #f)
-    (define verbo #f)
+    (define verbo #t)
     (define ce-limit 100)
     (define parser (new arm-parser%))
     
@@ -516,25 +516,24 @@
                    (let* ([my-output 
 			   (with-handlers*
 			    ([exn? (lambda (e) #f)])
-			    (send simulator interpret (vector-append p postfix-precise) input #:dep #f))]
+			    (send simulator interpret p input #:dep #f))]
 			  [my-output-vec
 			   (and my-output (send machine progstate->vector my-output))])
-                     (and my-output (send machine state-eq? output-vec my-output-vec live3-vec)))))
+                     (and my-output (send machine state-eq? output-vec my-output-vec live2-vec)))))
 
         (define final-program (vector-append prefix-precise p postfix-precise))
 
         (when
          pass
          (define ce (send validator counterexample 
-                          (vector-append prefix-precise spec-precise postfix-precise)
-                          final-program
-                          constraint extra #:assume assumption))
+                          spec-precise
+                          p
+                          live2 extra #:assume assumption))
 
          (if ce
-             (let* ([ce-input
-                     (send simulator interpret prefix-precise ce #:dep #f)]
+             (let* ([ce-input ce]
                     [ce-output
-                     (send simulator interpret (vector-append spec-precise postfix-precise) ce-input #:dep #f)]
+                     (send simulator interpret spec-precise ce-input #:dep #f)]
                     [ce-output-vec
                      (send machine progstate->vector ce-output)])
                (when debug
@@ -561,6 +560,7 @@
                      final-program
                      (send simulator performance-cost final-program))
                (yield p)
+               (raise "xxx")
                (unless (member syn-mode '(linear binary))
                        (yield #f))
                (set! cost final-cost)
@@ -591,12 +591,12 @@
            [(empty? ce-in-final)
           
             (define ce (send validator-abst counterexample 
-                             (vector-append prefix spec postfix)
-                             (vector-append prefix p postfix)
-                             constraint extra #:assume assumption))
+                             spec
+                             p
+                             live2 extra #:assume assumption))
 
             (if ce
-                (let* ([ce-input (send simulator-abst interpret prefix ce #:dep #f)]
+                (let* ([ce-input ce]
                        [ce-input-vec
                         (send machine progstate->vector ce-input)]
                        [ce-output
@@ -831,7 +831,7 @@
                              ;; (unless out-vec-masked
                              ;;         (pretty-display `(live-mask ,live-mask))
                              ;;         (pretty-display `(out-vec ,out-vec)))
-			     ;; (pretty-display `(inner ,level ,inter ,out-vec-masked ,new-candidates))
+			     ;;(pretty-display `(inner ,level ,inter ,out-vec-masked ,new-candidates))
 			     (set! t-mask (+ t-mask (- t1 t0)))
 			     (set! t-hash (+ t-hash (- t2 t1)))
 			     (set! t-intersect (+ t-intersect (- t3 t2)))
@@ -852,7 +852,6 @@
 				    (hash-set! real-hash inter a)))))))
 		    )))
 		)))
-            
           (cond
 	   [(equal? my-classes-bw-level #f) real-hash]
 
@@ -861,7 +860,6 @@
             real-hash]
 
            [else
-	    (pretty-display `(check-eqv-inter ,level ,real-hash ,candidates))
             (check-eqv (collect-behaviors real-hash)
 		       (map id->real-progs candidates)
                        my-inst level)
@@ -883,14 +881,14 @@
 
 	;; (define my-inst 
 	;;   (vector-ref (send printer encode 
-	;; 		    (send parser ast-from-string "and r0, r1, r2"))
+	;; 		    (send parser ast-from-string "ldr r2, fp, -12"))
 	;; 	      0))
-	;; (define my-liveout (cons '(0 1 2) '(0)))
+	;; (define my-liveout (cons '(0 1 2 3) '(3)))
 
         (define cache (make-hash))
         (when 
          my-inst
-         (when debug
+         (when #t
                (send printer print-syntax-inst (send printer decode-inst my-inst))
                (pretty-display my-liveout))
 
@@ -1025,12 +1023,12 @@
         (define my-inst (first inst-liveout-vreg))
 	;; (define my-inst 
 	;;   (vector-ref (send printer encode 
-	;; 		    (send parser ast-from-string "and r2, r1, r2, lsr 1"))
+	;; 		    (send parser ast-from-string "eor r2, r2, r3"))
 	;; 	      0))
         (when 
          my-inst
          (when
-          verbo
+          #t
           (send printer print-syntax-inst (send printer decode-inst my-inst)))
          (set! middle (add1 middle))
          (define ttt (current-milliseconds))
@@ -1088,10 +1086,11 @@
                                 #f `all #f #:try-cmp try-cmp)])
                     (pretty-display `(refine ,order ,live1 ,flag1 ,live2 ,(- (current-seconds) start-time)))
                     ;;(pretty-display `(hash ,(vector-ref my-hash2 0) ,(vector-ref my-hash2 1)))
-                    ;; (when (and (equal? live1 '(0 1)) (equal? live2 '()))
-                    ;;       (pretty-display "===================")
+                    (when (and (equal? live1 (cons '(0 1 2) '()))
+                               (equal? live2 (cons '(1 2) '())))
+                          (pretty-display "===================")
                     (refine-all my-hash1 live1 flag1 my-hash2 live2 #f iterator)
-                    ;; )
+                    )
                     (pretty-display `(middle-count ,middle))
                     (set! order (add1 order))
                     )))))

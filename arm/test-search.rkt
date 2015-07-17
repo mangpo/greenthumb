@@ -7,7 +7,7 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 4 3 4))
+(send machine set-config (list 4 6 6))
 
 (define printer (new arm-printer% [machine machine]))
 (define validator (new arm-validator% [machine machine]))
@@ -20,55 +20,61 @@
 
 (define prefix 
 (send parser ast-from-string "
-mov r2, 21845
-movt r2, 21845
-and r2, r2, r0, lsr 1
-rsb r2, r2, r0
-str r2, fp, -16
-movw r1, 13107
-movt r1, 13107
+str r0, fp, -16
+str r1, fp, -20
+str r2, fp, -24
+ldr r2, fp, -16
+ldr r3, fp, -24
+asr r2, r2, r3
+ldr r3, fp, -16
+eor r3, r2, r3
+rsb r2, r3, r3, lsl 1
+ldr r3, fp, -20
+and r3, r2, r3
+sub r2, r3, 0
+str r3, fp, -12
+ldr r3, fp, -24
+lsl r3, r2, r3
 "))
 
 (define postfix
 (send parser ast-from-string "
-add r2, r1, r1, asr 4
-movw r1, 3855
-movt r1, 3855
-and r2, r1, r2
-add r2, r2, r2, lsr 16
-add r2, r2, r2, asr 8
-and r0, r2, 63
+ldr r3, fp, -16
+eor r3, r2, r3
+mov r0, r3
 "))
 
 (define code
 (send parser ast-from-string "
-and r2, r1, r2
-str r2, fp, -12
-ldr r2, fp, -16
-and r2, r1, r2, lsr 2
-ldr r1, fp, -12
-add r1, r1, r2
+str r3, fp, -8
+ldr r2, fp, -8
+ldr r3, fp, -12
+eor r2, r2, r3
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-? ? ?
+? ?
 "))
+;; kodkod: 117, 123
+;; z3: > 8 min
+;; cvc4: 133, 122
 
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send validator encode-sym sketch))
 
-
-(define f
+(define t (current-seconds))
+;(define-values (a b)
   (send backward synthesize-window
         encoded-code ;; spec
-         3;;encoded-sketch ;; sketch = spec in this case
+        2 ;;encoded-sketch ;; sketch = spec in this case
         encoded-prefix encoded-postfix
         (constraint machine [reg 0] [mem]) #f #f 3600)
-  )
+ ; )
+(pretty-display `(time ,(- (current-seconds) t)))
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem]) ;; constraint
       (constraint machine [reg 0] [mem]) ;; live-in

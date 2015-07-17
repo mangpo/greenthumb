@@ -51,9 +51,9 @@
              regs type lex #:no-args [no-args #f] #:try-cmp [try-cmp #f])
 
       (define mode (cond [regs `vir] [no-args `no-args] [else `basic]))
-      ;; (define inst-choice '(add and))
-      ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
-      (define inst-pool (get-field inst-pool machine))
+      (define inst-choice '(sub# clz mvn# rsb))
+      (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
+      ;; (define inst-pool (get-field inst-pool machine))
       (define z
         (cond
          [try-cmp
