@@ -4,62 +4,26 @@
          "arm-parser.rkt" "arm-ast.rkt")
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine% [bit 4]))
+(define machine (new arm-machine% [bit 32]))
 (send machine set-config (list 4 3 4))
 (define printer (new arm-printer% [machine machine]))
 (define validator (new arm-validator% [machine machine]))
 
 (define code
 (send parser ast-from-string "
-mov r2, 5
-movt r2, 5
-and r2, r2, r0, lsr 1
-rsb r2, r2, r0
-str r2, fp, -16
-movw r1, 3
-movt r1, 3
-
-and r2, r1, r2
-str r2, fp, -12
-ldr r2, fp, -16
-and r2, r1, r2, lsr 1
-ldr r1, fp, -12
-add r1, r1, r2
-
-add r2, r1, r1, asr 1
-movw r1, 7
-movt r1, 7
-and r2, r1, r2
-add r2, r2, r2, lsr 2
-add r2, r2, r2, asr 1
-and r0, r2, 7
+        eor     r3, r1, r0
+        and     r0, r1, r0
+        cmp     r3, r0
+        movhi   r0, #0
+        movls   r0, #1
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-mov r2, 5
-movt r2, 5
-and r2, r2, r0, lsr 1
-rsb r2, r2, r0
-str r2, fp, -16
-movw r1, 3
-movt r1, 3
-
-and r2, r1, r2
-str r2, fp, -12
-ldr r2, fp, -16
-and r2, r1, r2, lsr 1
-ldr r1, fp, -12
-add r1, r1, r2
-
-add r2, r1, r1, asr 1
-movw r1, 7
-movt r1, 7
-and r2, r1, r2
-add r2, r2, r2, lsr 2
-add r2, r2, r2, asr 1
-and r0, r2, 7
+orr r3, r1, r0, asr 1
+cmp r3, 0
+orrls r0, r0, 1
 "))
 
 (define encoded-code (send printer encode code))

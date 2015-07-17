@@ -451,8 +451,7 @@
       (define states2
 	(map (lambda (x) (send simulator-abst interpret spec x #:dep #f)) states1))
       (define states1-vec 
-	(map (lambda (x) (mask-in (send machine progstate->vector x) live1-list))
-             states1))
+	(map (lambda (x) (mask-in (send machine progstate->vector x) live1-list #:keep-flag try-cmp)) states1))
       (define states2-vec 
 	(map (lambda (x) (mask-in (send machine progstate->vector x) live2-list #:keep-flag try-cmp)) states2))
 
@@ -597,19 +596,19 @@
             (if ce
                 (let* ([ce-input ce]
                        [ce-input-vec
-                        (send machine progstate->vector ce-input)]
+                        (mask-in (send machine progstate->vector ce-input) live1-list #:keep-flag try-cmp)]
                        [ce-output
                         (send simulator-abst interpret spec ce-input #:dep #f)]
                        [ce-output-vec
-                        (send machine progstate->vector ce-output)])
+                        (mask-in (send machine progstate->vector ce-output) live2-list #:keep-flag try-cmp)])
                   (when debug
                         (newline)
                         (pretty-display "[3] counterexample")
                         (pretty-display `(ce ,ce-count-extra ,ce-input-vec ,ce-output-vec)))
-                  (vector-set! ce-in ce-count-extra ce-input)
-                  (vector-set! ce-out ce-count-extra ce-output)
+                  (vector-set! ce-in ce-count-extra (send machine vector->progstate ce-input-vec))
+                  (vector-set! ce-out ce-count-extra (send machine vector->progstate ce-output-vec))
                   (vector-set! ce-in-vec ce-count-extra ce-input-vec)
-                  (vector-set! ce-out-vec ce-count-extra (mask-in ce-output-vec live2-list #:keep-flag try-cmp))
+                  (vector-set! ce-out-vec ce-count-extra ce-output-vec)
                   (set! ce-count-extra (add1 ce-count-extra))
                   )
                 (begin
