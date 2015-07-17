@@ -254,7 +254,10 @@
       (clear-asserts)
       (current-bitwidth bit)
       (when time (send time start `sym))
-      (define start-state (send machine get-state sym-input extra))
+      (define start-state
+        (let ([z (sym-input)])
+          (assert (and (>= z -1) (<= z 3)))
+          (send machine get-state-liveness sym-input extra z)))
       (when time (send time end `sym))
       (define spec-state #f)
       (define program-state #f)

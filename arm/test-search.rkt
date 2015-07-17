@@ -7,7 +7,7 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 4 6 6))
+(send machine set-config (list 4 0 0))
 
 (define printer (new arm-printer% [machine machine]))
 (define validator (new arm-validator% [machine machine]))
@@ -20,36 +20,18 @@
 
 (define prefix 
 (send parser ast-from-string "
-str r0, fp, -16
-str r1, fp, -20
-str r2, fp, -24
-ldr r2, fp, -16
-ldr r3, fp, -24
-asr r2, r2, r3
-ldr r3, fp, -16
-eor r3, r2, r3
-rsb r2, r3, r3, lsl 1
-ldr r3, fp, -20
-and r3, r2, r3
-sub r2, r3, 0
-str r3, fp, -12
-ldr r3, fp, -24
-lsl r3, r2, r3
+cmp r2, r3
 "))
 
 (define postfix
 (send parser ast-from-string "
-ldr r3, fp, -16
-eor r3, r2, r3
 mov r0, r3
 "))
 
 (define code
 (send parser ast-from-string "
-str r3, fp, -8
-ldr r2, fp, -8
-ldr r3, fp, -12
-eor r2, r2, r3
+movhi r3, 0
+movls r3, 1
 "))
 
 
@@ -70,7 +52,7 @@ eor r2, r2, r3
 ;(define-values (a b)
   (send backward synthesize-window
         encoded-code ;; spec
-        2 ;;encoded-sketch ;; sketch = spec in this case
+        encoded-sketch ;; sketch = spec in this case
         encoded-prefix encoded-postfix
         (constraint machine [reg 0] [mem]) #f #f 3600)
  ; )
