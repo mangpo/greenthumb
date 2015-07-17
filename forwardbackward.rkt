@@ -27,7 +27,7 @@
             reduce-precision-assume)
     
     (define debug #f)
-    (define verbo #t)
+    (define verbo #f)
     (define ce-limit 100)
     (define parser (new arm-parser%))
     
@@ -560,7 +560,6 @@
                      final-program
                      (send simulator performance-cost final-program))
                (yield p)
-               (raise "xxx")
                (unless (member syn-mode '(linear binary))
                        (yield #f))
                (set! cost final-cost)
@@ -888,7 +887,7 @@
         (define cache (make-hash))
         (when 
          my-inst
-         (when #t
+         (when debug
                (send printer print-syntax-inst (send printer decode-inst my-inst))
                (pretty-display my-liveout))
 
@@ -1027,8 +1026,7 @@
 	;; 	      0))
         (when 
          my-inst
-         (when
-          #t
+         (when verbo
           (send printer print-syntax-inst (send printer decode-inst my-inst)))
          (set! middle (add1 middle))
          (define ttt (current-milliseconds))
@@ -1086,11 +1084,11 @@
                                 #f `all #f #:try-cmp try-cmp)])
                     (pretty-display `(refine ,order ,live1 ,flag1 ,live2 ,(- (current-seconds) start-time)))
                     ;;(pretty-display `(hash ,(vector-ref my-hash2 0) ,(vector-ref my-hash2 1)))
-                    (when (and (equal? live1 (cons '(0 1 2) '()))
-                               (equal? live2 (cons '(1 2) '())))
-                          (pretty-display "===================")
+                    ;; (when (and (equal? live1 (cons '(0 1 2) '()))
+                    ;;            (equal? live2 (cons '(1 2) '())))
+                    ;;       (pretty-display "===================")
                     (refine-all my-hash1 live1 flag1 my-hash2 live2 #f iterator)
-                    )
+                    ;; )
                     (pretty-display `(middle-count ,middle))
                     (set! order (add1 order))
                     )))))

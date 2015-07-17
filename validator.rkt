@@ -239,7 +239,7 @@
     ;; Otherwise, returns false.
     (define (counterexample spec program constraint [extra #f]
                             #:assume [assumption (send machine no-assumption)])
-      (pretty-display (format "solver = ~a" (current-solver)))
+      ;;(pretty-display (format "solver = ~a" (current-solver)))
       (when debug
             (pretty-display (format "program-eq? START bit = ~a" bit))
             (pretty-display "spec:")
