@@ -4,6 +4,14 @@
 
 (provide parallel%)
 
+(define (get-free-mem)
+  (string->number
+   (list-ref
+    (string-split
+     (with-output-to-string (thunk (system "free | head -2 | tail -1"))))
+    3)))
+
+
 (define parallel%
   (class object%
     (super-new)
@@ -238,7 +246,7 @@
 			    time-limit))
           (define (update-stats)
             (sleep 10)
-            (when (< (- (current-seconds) t) limit)
+            (when (and (< (- (current-seconds) t) limit) (> (get-free-mem) 1000000))
                   (for ([id (length processes-stoch)]
                         [sp processes-stoch])
                        (unless (equal? (subprocess-status sp) 'running)

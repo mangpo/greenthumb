@@ -105,6 +105,8 @@
                                     #:hard-postfix [hard-postfix (vector)]
 				    #:assume-interpret [assume-interpret #t]
 				    #:assume [assumption (send machine no-assumption)])
+      (send (current-solver) shutdown)
+      (current-solver (new kodkod%))
       (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
       (pretty-display (format "solver = ~a" (current-solver)))
       (when debug
@@ -115,8 +117,6 @@
             (send printer print-struct hard-postfix)
 	    (newline)
 	    )
-      (send (current-solver) shutdown)
-      (current-solver (new kodkod%))
 
       (current-bitwidth bit)
       
