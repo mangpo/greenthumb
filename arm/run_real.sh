@@ -10,9 +10,9 @@ function e {
 
 type=hybrid
 mode=s
-cost=inter
+cost=base
 
-for t in 1 2
+for t in 1
 do
     e racket optimize.rkt --$type -$mode --$cost -c 32 -t $timeout -d results/$name-$type-$cost-$mode-$t programs/$name.s > results/$name-$type-$cost-$mode-$t.log
 done
