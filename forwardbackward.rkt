@@ -475,8 +475,10 @@
       (define ce-out-vec-final (list))
 
       (for ([test ntests]
+            [state1 states1]
             [state2 states2]
 	    [state2-vec states2-vec])
+           (vector-set! ce-in test state1)
            (vector-set! ce-out test state2)
 	   (vector-set! ce-out-vec test state2-vec))
 
@@ -718,8 +720,6 @@
                          
           (define ce-out-level (vector-ref ce-out level))
           (when (and (list? real-hash) (hash? my-classes-bw-level))
-	   ;;(and (list? real-hash) (> (count-collection real-hash) 1))
-		;;(pretty-display `(build-fw ,level ,(count-collection real-hash) ,(hash? real-hash-bw)))
                 ;; list of programs
                 (define t0 (current-milliseconds))
                 (set! real-hash (make-hash))
@@ -730,6 +730,13 @@
                   (when 
                    prog
                    (let* ([s0 (current-milliseconds)]
+                          [dummy
+			   (with-handlers*
+			    ([exn? (lambda (e) #f)])
+                            (for/list ([i level])
+                                      (send simulator-abst interpret prog
+                                            (vector-ref ce-in i)
+                                            #:dep #f)))]
                           [state
 			   (with-handlers*
 			    ([exn? (lambda (e) #f)])
@@ -906,18 +913,31 @@
                            [out 
                             (if (and (list? val) (hash-has-key? cache state-vec))
                                 (hash-ref cache state-vec)
-                                (let ([tmp
-                                       (and
-                                        (prescreen my-inst state-vec)
-                                        (with-handlers*
-                                         ([exn? (lambda (e) #f)])
-                                         (send machine progstate->vector 
-                                               (send simulator-abst interpret 
-                                                     (vector my-inst)
-                                                     (send machine vector->progstate state-vec)
-                                                     ce-out-level #:dep #f)))
-                                        )
-                                       ])
+                                (let* ([tmp
+                                        (and
+                                         (prescreen my-inst state-vec)
+                                         (with-handlers*
+                                          ([exn? (lambda (e) #f)])
+                                          (send machine progstate->vector 
+                                                (send simulator-abst interpret 
+                                                      (vector my-inst)
+                                                      (send machine vector->progstate state-vec)
+                                                      ce-out-level #:dep #f)))
+                                         )
+                                        ]
+                                       [dummy
+                                        (and
+                                         tmp
+                                         (with-handlers*
+                                          ([exn? (lambda (e) #f)])
+                                          (for/list
+                                           ([i level])
+                                           (send machine progstate->vector 
+                                                 (send simulator-abst interpret 
+                                                       (vector my-inst)
+                                                       (vector-ref ce-in i)
+                                                       ce-out-level #:dep #f)))))
+                                        ])
                                   (when (list? val) (hash-set! cache state-vec tmp))
                                   tmp))
                             ])

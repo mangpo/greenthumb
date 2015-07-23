@@ -85,7 +85,7 @@
                  (send machine display-state i))
             )
       (set-field! best-correct-program stat spec)
-      (set-field! best-correct-cost stat (add1 (send simulator performance-cost spec)))
+      (set-field! best-correct-cost stat (send simulator performance-cost spec))
       (send stat set-name name)
 
       ;; MCMC sampling
@@ -445,34 +445,34 @@
       (define (iter current current-cost)
         (when debug (pretty-display ">>> iter >>>"))
         (define update-size (send stat inc-iter current-cost))
-        ;; (when (and update-size (or (<= (+ update-size 5) (vector-length current))
-	;; 			   (and (< update-size (vector-length current))
-	;; 				(< (random) 0.05))))
-        ;;       (pretty-display (format ">>> reduce size from ~a to ~a" 
-        ;;                               (vector-length current) update-size))
-        ;;       (cond
-        ;;        [syn-mode
-        ;;         (define-values (new-p new-cost) 
-        ;;           (reduce-size current current-cost update-size))
-        ;;         (set! current new-p)
-        ;;         (set! current-cost new-cost)
-        ;;         ;; (define tmp (send printer encode
-        ;;         ;;                   (send parser ast-from-file
-        ;;         ;;                         (format "~a/best.s" (get-field dir stat)))))
-        ;;         ;; (send machine analyze-args (vector) tmp (vector))
-        ;;         ]
+        (when (and update-size (or (<= (+ update-size 5) (vector-length current))
+				   (and (< update-size (vector-length current))
+					(< (random) 0.05))))
+              (pretty-display (format ">>> reduce size from ~a to ~a" 
+                                      (vector-length current) update-size))
+              (cond
+               [syn-mode
+                (define-values (new-p new-cost) 
+                  (reduce-size current current-cost update-size))
+                (set! current new-p)
+                (set! current-cost new-cost)
+                ;; (define tmp (send printer encode
+                ;;                   (send parser ast-from-file
+                ;;                         (format "~a/best.s" (get-field dir stat)))))
+                ;; (send machine analyze-args (vector) tmp (vector))
+                ]
 
-        ;;        [else
-        ;;         (pretty-display ">>> steal best program")
-        ;;         (define-values (best-cost len time id) (send stat get-best-info-stat))
-        ;;         (set! current
-        ;;               (send printer encode
-        ;;                     (send parser ast-from-file 
-        ;;                           (format "~a/best.s" (get-field dir stat)))))
-	;; 	;; (send machine analyze-args (vector) current (vector) #:only-const #t)
-        ;;         (set! current-cost best-cost)
-        ;;         ]
-        ;;       ))
+               [else
+                (pretty-display ">>> steal best program")
+                (define-values (best-cost len time id) (send stat get-best-info-stat))
+                (set! current
+                      (send printer encode
+                            (send parser ast-from-file 
+                                  (format "~a/best.s" (get-field dir stat)))))
+		;; (send machine analyze-args (vector) current (vector) #:only-const #t)
+                (set! current-cost best-cost)
+                ]
+              ))
         (define t1 (current-milliseconds))
         (define proposal (mutate current))
         (define t2 (current-milliseconds))
