@@ -25,7 +25,7 @@
     (set! validator (new GA-validator% [machine machine] [printer printer]))
 
     (define bit-precise (get-field bit machine))
-    (define bit 4)
+    (define bit 18)
     
     (define UP (get-field UP machine))
     (define DOWN (get-field DOWN machine))
@@ -67,79 +67,83 @@
       (if (equal? opcode-name `@p)
           (for/list ([new-arg (change arg)]) (inst opcode-id new-arg))
           (list x)))
+
+    (define (reduce-precision prog) (cons prog #f))
+    (define (reduce-precision-assume prog) prog)
+    (define (increase-precision prog mapping) (list prog))
     
-    (define (reduce-precision prog)
-      (define mapping (make-hash))
-      (define (change arg)
-        (define ret
-          (cond
-           [(= arg UP) UP-abst]
-           [(= arg DOWN) DOWN-abst]
-           [(= arg LEFT) LEFT-abst]
-           [(= arg RIGHT) RIGHT-abst]
-           [(= arg IO) IO-abst]
-           [(> arg 0) (bitwise-and arg mask-1)]
-           [else (finitize (bitwise-and arg mask) bit)]))
-        (if (hash-has-key? mapping ret)
-            (let ([val (hash-ref mapping ret)])
-              (unless (member arg val)
-                      (hash-set! mapping ret (cons arg val))))
-            (hash-set! mapping ret (list arg)))
-        ret)
+    ;; (define (reduce-precision prog)
+    ;;   (define mapping (make-hash))
+    ;;   (define (change arg)
+    ;;     (define ret
+    ;;       (cond
+    ;;        [(= arg UP) UP-abst]
+    ;;        [(= arg DOWN) DOWN-abst]
+    ;;        [(= arg LEFT) LEFT-abst]
+    ;;        [(= arg RIGHT) RIGHT-abst]
+    ;;        [(= arg IO) IO-abst]
+    ;;        [(> arg 0) (bitwise-and arg mask-1)]
+    ;;        [else (finitize (bitwise-and arg mask) bit)]))
+    ;;     (if (hash-has-key? mapping ret)
+    ;;         (let ([val (hash-ref mapping ret)])
+    ;;           (unless (member arg val)
+    ;;                   (hash-set! mapping ret (cons arg val))))
+    ;;         (hash-set! mapping ret (list arg)))
+    ;;     ret)
         
-      (cons (for/vector ([x prog]) (reduce-inst x change)) mapping))
+    ;;   (cons (for/vector ([x prog]) (reduce-inst x change)) mapping))
 
-    (define (reduce-precision-assume x)
-      (define (inner x)
-        (cond
-         [(boolean? x) x]
-         [(number? x)
-          (cond
-           [(= x 0) 0]
-           [(> x 0)
-            (define ret (bitwise-and x mask-1))
-            (if (= ret 0) (arithmetic-shift 1 (quotient bit 2)) ret)]
-           [(< x 0)
-            (define ret (finitize (bitwise-and x mask) bit))
-            (if (= ret 0) (arithmetic-shift -1 (quotient bit 2)) ret)])]
+    ;; (define (reduce-precision-assume x)
+    ;;   (define (inner x)
+    ;;     (cond
+    ;;      [(boolean? x) x]
+    ;;      [(number? x)
+    ;;       (cond
+    ;;        [(= x 0) 0]
+    ;;        [(> x 0)
+    ;;         (define ret (bitwise-and x mask-1))
+    ;;         (if (= ret 0) (arithmetic-shift 1 (quotient bit 2)) ret)]
+    ;;        [(< x 0)
+    ;;         (define ret (finitize (bitwise-and x mask) bit))
+    ;;         (if (= ret 0) (arithmetic-shift -1 (quotient bit 2)) ret)])]
 
-         [(pair? x) (cons (inner (car x)) (inner (cdr x)))]
-         [else x]
-         ))
-      (and x
-	   (let ([data (progstate-data x)])
-	     (progstate (inner (progstate-a x))
-			(inner (progstate-b x))
-			(inner (progstate-r x))
-			(inner (progstate-s x))
-			(inner (progstate-t x))
-			(stack (stack-sp data)
-			       (for/vector ([i (stack-body data)])
-					   (inner i)))
-			(progstate-return x)
-			(progstate-memory x)
-			(progstate-recv x)
-			(progstate-comm x)))))
+    ;;      [(pair? x) (cons (inner (car x)) (inner (cdr x)))]
+    ;;      [else x]
+    ;;      ))
+    ;;   (and x
+    ;; 	   (let ([data (progstate-data x)])
+    ;; 	     (progstate (inner (progstate-a x))
+    ;; 			(inner (progstate-b x))
+    ;; 			(inner (progstate-r x))
+    ;; 			(inner (progstate-s x))
+    ;; 			(inner (progstate-t x))
+    ;; 			(stack (stack-sp data)
+    ;; 			       (for/vector ([i (stack-body data)])
+    ;; 					   (inner i)))
+    ;; 			(progstate-return x)
+    ;; 			(progstate-memory x)
+    ;; 			(progstate-recv x)
+    ;; 			(progstate-comm x)))))
 
-    (define (increase-precision prog mapping)
-      (define (change arg)
-        (define (finalize x)
-          (if (hash-has-key? mapping arg)
-              (let ([val (hash-ref mapping arg)])
-                (if (member x val) val (cons x val)))
-              (list x)))
-        (finalize arg))
+    ;; (define (increase-precision prog mapping)
+    ;;   (define (change arg)
+    ;;     (define (finalize x)
+    ;;       (if (hash-has-key? mapping arg)
+    ;;           (let ([val (hash-ref mapping arg)])
+    ;;             (if (member x val) val (cons x val)))
+    ;;           (list x)))
+    ;;     (finalize arg))
 
-      (define ret (list))
-      (define (recurse lst final)
-        (if (empty? lst)
-            (set! ret (cons (list->vector final) ret))
-            (for ([x (car lst)])
-                 (recurse (cdr lst) (cons x final)))))
+    ;;   (define ret (list))
+    ;;   (define (recurse lst final)
+    ;;     (if (empty? lst)
+    ;;         (set! ret (cons (list->vector final) ret))
+    ;;         (for ([x (car lst)])
+    ;;              (recurse (cdr lst) (cons x final)))))
       
-      (recurse (reverse (for/list ([x prog]) (reduce-inst-list x change)))
-               (list))
-      ret)
+    ;;   (recurse (reverse (for/list ([x prog]) (reduce-inst-list x change)))
+    ;;            (list))
+    ;;   ret)
 
     (define (get-live-mask state-vec)
       (define (inner x)

@@ -41,7 +41,7 @@
               
       (generator 
        ()
-       (for ([opcode-id inst-pool])
+       (for ([opcode-id (shuffle inst-pool)])
             (let ([opcode-name (vector-ref inst-id opcode-id)])
               (cond
                [(equal? opcode-name `nop) (void)]

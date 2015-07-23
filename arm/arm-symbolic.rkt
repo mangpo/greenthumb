@@ -12,7 +12,7 @@
     (inherit-field machine printer simulator validator)
     (override len-limit window-size evaluate-inst)
 
-    (define (len-limit) 2)
+    (define (len-limit) 3)
     (define (window-size) 4)
     (set! simulator (new arm-simulator-rosette% [machine machine]))
     (set! validator (new arm-validator% [machine machine] [printer printer]))

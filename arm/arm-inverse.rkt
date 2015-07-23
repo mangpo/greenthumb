@@ -16,7 +16,8 @@
     (define inst-id (get-field inst-id machine))
     (define shf-inst-id (get-field shf-inst-id machine))
     (define reg-range-db
-      (for/vector ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
+      (and (<= bit 4)
+	   (for/vector ([v (arithmetic-shift 1 bit)]) (finitize v bit))))
     (define fp (send machine get-fp))
     
     (define (get-inst-in-out x)

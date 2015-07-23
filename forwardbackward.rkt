@@ -336,6 +336,7 @@
     (define (synthesize spec sketch prefix postfix constraint extra cost
                         assumption
                         try-cmp time-limit)
+      (when cost (set! cost (add1 cost)))
       (collect-garbage)
       (define size-from sketch)
       (define size-to sketch)
@@ -399,7 +400,7 @@
 
       (define step-bw 0)
       (define step-fw 0)
-      (define step-bw-max 3)
+      (define step-bw-max 0)
       
       (define ntests 2)
       (define inits
@@ -502,8 +503,9 @@
           (gen-inverse-behaviors iterator)
           ))
       
-      (gen-inverse-behaviors (send enum generate-inst #f #f #f #f 
-				   #f `all #f #:no-args #t))
+      (when (> step-bw-max 0)
+	    (gen-inverse-behaviors (send enum generate-inst #f #f #f #f 
+					 #f `all #f #:no-args #t)))
 
       (define (check-final p)
         (when debug

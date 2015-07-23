@@ -11,7 +11,6 @@
      (with-output-to-string (thunk (system "free | head -2 | tail -1"))))
     3)))
 
-
 (define parallel%
   (class object%
     (super-new)

@@ -18,7 +18,8 @@
     (define bit (get-field bit machine))
     (define inst-id (get-field inst-id machine))
     (define val-range
-      (for/list ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
+      (and (<= bit 4)
+	   (for/list ([v (arithmetic-shift 1 bit)]) (finitize v bit))))
     (define nmems (send machine get-nmems))
     
     (define behaviors-bw (make-hash))

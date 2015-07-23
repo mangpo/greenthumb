@@ -25,7 +25,7 @@
     (set! validator (new arm-validator% [machine machine] [printer printer]))
 
     (define bit-precise (get-field bit machine))
-    (define bit 4)
+    (define bit 32)
     
     (let ([machine-abst (new arm-machine% [bit bit])])
       (send machine-abst set-config (send machine get-config))
@@ -134,59 +134,62 @@
       (recurse (reverse new-args) new-shfarg (list) #f)
       ret)
     
-    (define (reduce-precision prog)
-      (define mapping (make-hash))
-      (define (change arg type)
-        (define (inner)
-          (cond
-           [(member type '(op2 bit bit-no-0))
-            (cond
-             [(and (> arg 0) (<= arg (/ bit-precise 4)))
-              (/ bit 4)]
-             [(and (> arg (/ bit-precise 4)) (< arg (* 3 (/ bit-precise 4))))
-              (/ bit 2)]
-             [(and (>= arg (* 3 (/ bit-precise 4))) (< arg bit-precise))
-              (* 3 (/ bit 4))]
-             [(= arg bit-precise) bit]
-             [(> arg 0) (bitwise-and arg mask-1)]
-             [else (finitize (bitwise-and arg mask) bit)])]
-
-           [(> arg 0) (bitwise-and arg mask-1)]
-           [else (finitize (bitwise-and arg mask) bit)]))
-        (define ret (inner))
-        (if (hash-has-key? mapping ret)
-            (let ([val (hash-ref mapping ret)])
-              (unless (member arg val)
-                      (hash-set! mapping ret (cons arg val))))
-            (hash-set! mapping ret (list arg)))
-        ret)
-        
-      (cons (for/vector ([x prog]) (reduce-inst x change)) mapping))
+    (define (reduce-precision prog) (cons prog #f))
+    (define (increase-precision prog mapping) (list prog))
     
-    (define (increase-precision prog mapping)
-      (define (change arg type)
-        (define (finalize x)
-          (if (hash-has-key? mapping arg)
-              (let ([val (hash-ref mapping arg)])
-                (if (member x val) val (cons x val)))
-              (list x)))
-        
-        (cond
-         [(= arg bit) (finalize bit-precise)]
-         [(= arg (sub1 bit)) (finalize (sub1 bit-precise))]
-         [(= arg (/ bit 2)) (finalize (/ bit-precise 2))]
-         [else (finalize arg)]))
+    ;; (define (reduce-precision prog)
+    ;;   (define mapping (make-hash))
+    ;;   (define (change arg type)
+    ;;     (define (inner)
+    ;;       (cond
+    ;;        [(member type '(op2 bit bit-no-0))
+    ;;         (cond
+    ;;          [(and (> arg 0) (<= arg (/ bit-precise 4)))
+    ;;           (/ bit 4)]
+    ;;          [(and (> arg (/ bit-precise 4)) (< arg (* 3 (/ bit-precise 4))))
+    ;;           (/ bit 2)]
+    ;;          [(and (>= arg (* 3 (/ bit-precise 4))) (< arg bit-precise))
+    ;;           (* 3 (/ bit 4))]
+    ;;          [(= arg bit-precise) bit]
+    ;;          [(> arg 0) (bitwise-and arg mask-1)]
+    ;;          [else (finitize (bitwise-and arg mask) bit)])]
 
-      (define ret (list))
-      (define (recurse lst final)
-        (if (empty? lst)
-            (set! ret (cons (list->vector final) ret))
-            (for ([x (car lst)])
-                 (recurse (cdr lst) (cons x final)))))
+    ;;        [(> arg 0) (bitwise-and arg mask-1)]
+    ;;        [else (finitize (bitwise-and arg mask) bit)]))
+    ;;     (define ret (inner))
+    ;;     (if (hash-has-key? mapping ret)
+    ;;         (let ([val (hash-ref mapping ret)])
+    ;;           (unless (member arg val)
+    ;;                   (hash-set! mapping ret (cons arg val))))
+    ;;         (hash-set! mapping ret (list arg)))
+    ;;     ret)
+        
+    ;;   (cons (for/vector ([x prog]) (reduce-inst x change)) mapping))
+    
+    ;; (define (increase-precision prog mapping)
+    ;;   (define (change arg type)
+    ;;     (define (finalize x)
+    ;;       (if (hash-has-key? mapping arg)
+    ;;           (let ([val (hash-ref mapping arg)])
+    ;;             (if (member x val) val (cons x val)))
+    ;;           (list x)))
+        
+    ;;     (cond
+    ;;      [(= arg bit) (finalize bit-precise)]
+    ;;      [(= arg (sub1 bit)) (finalize (sub1 bit-precise))]
+    ;;      [(= arg (/ bit 2)) (finalize (/ bit-precise 2))]
+    ;;      [else (finalize arg)]))
+
+    ;;   (define ret (list))
+    ;;   (define (recurse lst final)
+    ;;     (if (empty? lst)
+    ;;         (set! ret (cons (list->vector final) ret))
+    ;;         (for ([x (car lst)])
+    ;;              (recurse (cdr lst) (cons x final)))))
       
-      (recurse (reverse (for/list ([x prog]) (reduce-inst-list x change)))
-               (list))
-      ret)
+    ;;   (recurse (reverse (for/list ([x prog]) (reduce-inst-list x change)))
+    ;;            (list))
+    ;;   ret)
 
     (define (get-live-mask state-vec)
       (cons

@@ -226,7 +226,7 @@
 		      (if final-program
 			   final-program
 			  "timeout"))])
-       (inner (send simulator performance-cost (vector-append prefix spec postfix)))))
+       (inner (add1 (send simulator performance-cost (vector-append prefix spec postfix))))))
 
     ;; TODO: timeout = 60 => 150
     (define (superoptimize-partial-pattern 
