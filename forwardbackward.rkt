@@ -402,7 +402,7 @@
       (define step-fw 0)
       (define step-bw-max 0)
       
-      (define ntests 2)
+      (define ntests 5)
       (define inits
         (send validator-abst generate-input-states ntests (vector-append prefix spec postfix)
               assumption extra #:db #t))
