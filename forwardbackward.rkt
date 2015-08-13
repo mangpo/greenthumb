@@ -62,7 +62,7 @@
     (define c-progs-bw 0)
 
     (define instvec2id (make-hash))
-    (define id2inst (make-vector 100000 #f))
+    (define id2inst (make-vector 1000000 #f))
     (define last-id 0)
 
     (define prog2id (make-hash))
@@ -71,7 +71,7 @@
 
     (define (reset)
       (set! instvec2id (make-hash))
-      (set! id2inst (make-vector 100000 #f))
+      (set! id2inst (make-vector 1000000 #f))
       (set! last-id 0)
       (set! prog2id (make-hash))
       (set! last-prog-id 1))
