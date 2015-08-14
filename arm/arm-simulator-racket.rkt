@@ -52,7 +52,7 @@
 
     (define-syntax-rule (bvshift op)
       (lambda (x y)
-        (finitize-bit (op x (bitwise-and byte-mask y)))))
+        (finitize-bit (op x (bitwise-and #xff y)))))
 
     (define-syntax-rule (bvshift# op)
       (lambda (x y)
@@ -102,6 +102,7 @@
 
     (define (bvsmmul x y) (smmul x y bit))
     (define (bvummul x y) (ummul x y bit))
+    (define bvsdiv (bvop quotient))
     (define (bvudiv n d)
       (if (< d 0)
           (if (< n d) 1 0)
@@ -139,11 +140,11 @@
       (assert (and (>= shift 0) (< shift bit)))
       (assert (and (> width 0) (<= (+ width shift) bit)))
       (let ([keep (bitwise-and (>> a shift) (sub1 (shl 1 width)))])
-	(bitwise-ior
-	 (if (= (bitwise-bit-field keep (sub1 width) width) 1)
-	     (shl -1 width)
-	     0)
-	 (finitize-bit keep))))
+        (bitwise-ior
+         (if (= (bitwise-bit-field keep (sub1 width) width) 1)
+             (shl -1 width)
+             0)
+         (finitize-bit keep))))
 
     (define (clz x)
       (let ([mask (shl 1 (sub1 bit))]
@@ -202,7 +203,7 @@
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
     ;; policy: a procedure that enforces a policy to speed up synthesis. Default to nothing.
-    (define (interpret program state [is-candidate #f] #:dep [dep #f])
+    (define (interpret program state [policy #f] #:dep [dep #f])
       (define inst-pool (get-field inst-pool machine))
       ;;(pretty-display `(interpret))
       (define regs (vector-copy (progstate-regs state)))
@@ -233,9 +234,7 @@
 
         (define-syntax inst-eq
           (syntax-rules ()
-            ((inst-eq x) 
-	     (let ([my-id (vector-member x inst-id)])
-	       (and (equal? op my-id) (or (equal? inst-pool #f) (member my-id inst-pool)))))
+            ((inst-eq x) (equal? x (vector-ref inst-id op)))
             ((inst-eq a b ...) (or (inst-eq a) (inst-eq b) ...))))
 
         (define-syntax-rule (args-ref args i) (vector-ref args i))
@@ -245,7 +244,7 @@
             (define op (arm-inst-shfop step))
             (define k (arm-inst-shfarg step))
             (define-syntax-rule (shf-inst-eq xx) 
-              (equal? op (vector-member xx shf-inst-id)))
+	      (equal? xx (vector-ref shf-inst-id op)))
 
             (define val #f)
             (define val-dep #f)
@@ -531,7 +530,7 @@
            [(inst-eq `smull) (ddrr bvmul bvsmmul)]
            [(inst-eq `umull) (ddrr bvmul bvummul)]
 
-           [(inst-eq `sdiv) (rrr quotient)]
+           [(inst-eq `sdiv) (rrr bvsdiv)]
            [(inst-eq `udiv) (rrr bvudiv)]
 
            [(inst-eq `uxtah) (rrr uxtah)]
@@ -633,9 +632,12 @@
            (let ([op (inst-op x)]
                  [shfop (inst-shfop x)])
              (define-syntax-rule (inst-eq a ...) 
-               (or (equal? op (vector-member a inst-id)) ...))
-             (define-syntax-rule (shf-inst-eq a ...) 
-               (or (equal? shfop (vector-member a shf-inst-id)) ...))
+	       (let ([opcode-name (vector-ref inst-id op)])
+		 (or (equal? a opcode-name) ...)))
+             (define-syntax-rule (shf-inst-eq a ...)
+	       (and shfop
+		    (let ([opcode-name (vector-ref shf-inst-id shfop)])
+		      (or (equal? a opcode-name) ...))))
 
              (cond
               [(inst-eq `nop) (void)]

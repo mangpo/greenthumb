@@ -5,15 +5,21 @@
 (require rosette/solver/smt/z3)
 ;(require rosette/solver/kodkod/kodkod)
 
-(provide validator%)
+(provide validator% sym-input)
+
+(define (sym-input)
+  (define-symbolic* input number?)
+  input
+  )
 
 (define validator%
   (class object%
     (super-new)
-    (init-field machine printer 
+    (init-field machine [printer #f]
                 [simulator #f] 
                 [bit (get-field bit machine)]
-                [random-input-bit (get-field random-input-bit machine)])
+                [random-input-bit (get-field random-input-bit machine)]
+                [time #f])
     ;; (abstract get-sym-vars evaluate-state
     ;;           assume assert-state-eq)
     (public proper-machine-config generate-input-states generate-inputs-inner
@@ -35,10 +41,7 @@
     (define ninsts (vector-length (get-field inst-id machine)))
     (define start-time #f)
 
-    (define (sym-input)
-      (define-symbolic* input number?)
-      input
-      )
+    (define/public (reset) (current-solver (new z3%)))
 
 
     (define (sym-op)
@@ -97,7 +100,7 @@
         (clear-asserts)
 	(current-bitwidth bit)
         (define state (send machine get-state sym-input extra))
-	(send simulator interpret encoded-code state)
+	;;(send simulator interpret encoded-code state)
 
         (with-handlers* 
          ([exn:fail? 
@@ -115,7 +118,11 @@
       
       (solve-until-valid config))
     
-    (define (generate-inputs-inner n spec start-state assumption)
+    (define (generate-inputs-inner 
+             n spec start-state assumption
+             #:rand-func
+             [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))]
+             #:db [db #f])
       (when debug
             (pretty-display `(generate-inputs-inner ,n ,assumption ,random-input-bit)))
       (clear-asserts)
@@ -136,13 +143,12 @@
       ;; All 0s
       (define input-zero (list (generate-one-input (lambda () 0))))
       
-      (define m (quotient n 2))
+      (define m (if db n (quotient (add1 n) 2)))
       ;; Random
       (define input-random
         (for/list ([i m])
                   (generate-one-input 
-                   (lambda () (let ([rand (random (min 4294967087 
-                                                       (<< 1 random-input-bit)))])
+                   (lambda () (let ([rand (rand-func)])
                                 (if (>= rand (<< 1 (sub1 bit)))
                                     (- rand (<< 1 bit))
                                     rand))))))
@@ -157,6 +163,12 @@
       
       ;;(define inputs (append input-zero input-random input-random-const))
       (define inputs (append input-random input-random-const))
+      ;; (define inputs 
+      ;;   (list
+      ;;    (generate-one-input (lambda () (bitwise-ior (random (<< 1 (- bit 1))) 
+      ;;                                                (<< 1 (- bit 2)))))
+      ;;    (generate-one-input (lambda () 3))))
+
       ;; (when debug
       ;;       (pretty-display "Test simulate with symbolic inputs...")
       ;;       (assume-relax start-state assumption)
@@ -211,31 +223,39 @@
       (values sym-vars 
               (map (lambda (x) (sat (make-immutable-hash (hash->list x)))) inputs)))
 
-    (define (generate-input-states n spec assumption [extra #f])
+    (define (generate-input-states 
+             n spec assumption [extra #f]
+             #:rand-func 
+             [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))]
+             #:db [db #f])
       (define start-state (send machine get-state sym-input extra))
       (define-values (sym-vars sltns)
-        (generate-inputs-inner n spec start-state assumption))
+        (generate-inputs-inner n spec start-state assumption 
+                               #:rand-func rand-func
+                               #:db db))
       (map (lambda (x) (evaluate-state start-state x)) sltns))
 
     ;; Returns a counterexample if spec and program are different.
     ;; Otherwise, returns false.
     (define (counterexample spec program constraint [extra #f]
                             #:assume [assumption (send machine no-assumption)])
-      (pretty-display (format "solver = ~a" (current-solver)))
-      (when debug 
+      ;;(pretty-display (format "solver = ~a" (current-solver)))
+      (when debug
             (pretty-display (format "program-eq? START bit = ~a" bit))
             (pretty-display "spec:")
-            (print-struct spec)
+            (print-syntax (decode spec))
             (pretty-display "program:")
-            (print-struct program)
-            ;; (pretty-display "constraint:")
-            ;; (display-state constraint)
+            (print-syntax (decode program))
+            (pretty-display "constraint:")
+            (display-state constraint)
             ;; (pretty-display (format "assumption: ~a" assumption))
             )
       
       (clear-asserts)
       (current-bitwidth bit)
+      (when time (send time start `sym))
       (define start-state (send machine get-state sym-input extra))
+      (when time (send time end `sym))
       (define spec-state #f)
       (define program-state #f)
       
@@ -261,21 +281,30 @@
         ;;(pretty-display "done check output")
         )
 
+      (when time (send time start `z3))
       (with-handlers* 
        ([exn:fail? 
          (lambda (e)
+           (when time (send time end `z3))
            (when debug (pretty-display "program-eq? SAME"))
-           (clear-terms!)
+           (when time (send time start `term))
+           (unsafe-clear-terms!)
+           (when time (send time end `term))
            (if (equal? (exn-message e) "verify: no counterexample found")
                #f
                (raise e)))])
        (let ([model (verify #:assume (interpret-spec!) #:guarantee (compare))])
+         (when time (send time end `z3))
          (when debug (pretty-display "program-eq? DIFF"))
+         (when time (send time start `eval))
          (let ([state (evaluate-state start-state model)])
+           (when time (send time end `eval))
            ;; (pretty-display model)
            ;; (display-state state)
            ;; (raise "done")
-           (clear-terms!)
+           (when time (send time start `term))
+           (unsafe-clear-terms!)
+           (when time (send time end `term))
            state)
          )))
     
@@ -308,25 +337,35 @@
       ;; (pretty-display `(vec-output ,vec-output))
       (collect-sym vec-live-out vec-output)
       (define live-terms (list->set (symbolics live-list)))
+      ;; (pretty-display `(vec-input ,vec-input))
       ;; (pretty-display `(live-terms ,live-terms))
       
       (define (extract-live pred x)
+	;;(pretty-display `(extract-live ,pred ,x))
         (cond
-         [(boolean? pred) 
-          (if (term? x)
-              (set-member? live-terms x)
-              pred)]
          [(number? pred)
           (define index 0)
           (for ([ele x]
                 [i (vector-length x)])
                (when (set-member? live-terms ele) (set! index (add1 i))))
           index]
+         [(number? x) 
+          (if (term? x)
+              (set-member? live-terms x)
+              pred)]
+	 [(and (vector? x) (vector? pred)) 
+	  (for/vector ([i x] [p pred]) (extract-live p i))]
+         [(vector? x) 
+	  (for/vector ([i x]) (extract-live pred i))]
+         [(boolean? pred) ;;(pretty-display `(return ,pred)) 
+	  pred]
          [(pair? x) 
           (cons (extract-live (car pred) (car x)) 
                 (extract-live (cdr pred) (cdr x)))]
-         [(list? x) (for/list ([i x] [p pred]) (extract-live p i))]
-         [(vector? x) (for/vector ([i x] [p pred]) (extract-live p i))]))
+         [(list? x)
+          (for/list ([i x] [p pred]) (extract-live p i))]
+         [else pred]
+         ))
 
       (send machine vector->progstate (extract-live vec-live-out vec-input)))
       

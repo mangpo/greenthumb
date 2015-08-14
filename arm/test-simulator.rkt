@@ -5,24 +5,36 @@
          "arm-simulator-racket.rkt"
          )
 
-(current-bitwidth 32)
+(current-bitwidth 4)
 (define parser (new arm-parser%))
-(define machine (new arm-machine%))
-(send machine set-config (list  6 6 6)) ;; argument = (list num-regs memory)
+(define machine (new arm-machine% [bit 32]))
+(send machine set-config (list 3 1 2)) ;; argument = (list num-regs memory)
 (define printer (new arm-printer% [machine machine]))
-
 (define simulator-racket (new arm-simulator-racket% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 
 ;; Input machine state
-(define input-state (progstate (vector 0 0 0 0 0 0 )
-                               (vector 0 0 0 0 0 0 0) -1 6))
+(define input-state (progstate (vector 1 0 0)
+                               (vector 0) -1 2))
 
 ;; Section 1: Concrete program
 
 (define code
 (send parser ast-from-string "
-	mov	r5, r1, asr# 100
+rbit r1, r0
+eor r2, r1, r0
+eor r2, r0, r2, asr 1
+eor r2, r1, r2
+str r2, fp, -8
+ldr r1, fp, -8
+mov r2, 4369
+movt r2, 4369
+and r2, r1, r2
+mov r1, r2, lsl 4
+add r2, r2, r1
+mov r1, r2, lsl 8
+add r2, r2, r1
+mov r1, r2, lsl 16
 "))
 
 (send printer print-struct code)
@@ -31,10 +43,13 @@
 (send printer print-syntax (send printer decode encoded-code))
 
 (define output-state
-  (send simulator-racket interpret encoded-code input-state #:dep #t))
+  (send simulator-racket interpret encoded-code input-state #:dep #f))
 (pretty-display "Output from simulator in rosette.")
 (send machine display-state output-state)
-(newline)
+;; (pretty-display
+;;  (send enum abstract 
+;;        (send machine progstate->vector output-state) (list 0 2 3 4) 8))
+;; (newline)
 
 (send simulator-racket performance-cost encoded-code)
 

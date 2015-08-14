@@ -14,25 +14,22 @@
     (abstract set-config get-config set-config-string
               get-state display-state
               adjust-config finalize-config config-exceed-limit?
-              output-constraint-string
+              output-constraint-string 
               progstate->vector vector->progstate
-	      get-arg-ranges 
-	      window-size)
+	      get-arg-ranges reset-arg-ranges window-size)
     (public get-class-id print-line no-assumption
             get-inst-id get-inst-name
             output-assume-string get-state-liveness
             display-state-text parse-state-text get-states-from-file syntax-equal?
-	    clean-code state-eq? update-live filter-live get-operand-live
-	    analyze-opcode analyze-args)
+	    clean-code state-eq? relaxed-state-eq?
+	    update-live update-live-backward filter-live get-live-list
+	    analyze-opcode analyze-args get-nregs
+            reset-inst-pool is-virtual-reg)
 
-    (define (get-inst-id opcode)
-      (vector-member opcode inst-id))
-
-    (define (get-inst-name id)
-      (vector-ref inst-id id))
-
+    (define (get-inst-id opcode) (vector-member opcode inst-id))
+    (define (get-inst-name id) (vector-ref inst-id id))
+    (define (get-nregs) 0)
     (define (no-assumption) #f)
-
     (define (get-state-liveness f extra) (get-state f extra))
 
     ;; x: name in form of symbol
@@ -104,24 +101,18 @@
 		  [s2 state2])
 		 (state-eq? s1 s2 i))]))
 
-    (define (update-live live x)
-      (define (add-live ele lst)
-        (if (member ele lst) lst (cons ele lst)))
-      (and live
-           (cond
-            [(= (vector-length (inst-args x)) 0) live]
-            [else
-             (let ([def (vector-ref (inst-args x) 0)])
-               (if (number? def)
-                   (add-live def live)
-                   (foldl add-live live def)))])))
+    (define (relaxed-state-eq? state1 state2 pred [out-loc #f])
+      (state-eq? state1 state2 pred))
+
+    (define (update-live live x) live)
+    (define (update-live-backward live x) live)
 
     (define (filter-live range live)
       (if live
           (vector-filter (lambda (x) (member x live)) range)
           range))
 
-    (define (get-operand-live constraint) #f)
+    (define (get-live-list constraint) (progstate->vector constraint))
     
     (define (analyze-opcode prefix code postfix)
       (set! inst-pool (range (vector-length inst-id)))
@@ -131,7 +122,12 @@
       #t
       )
 
+    (define (reset-inst-pool)
+      (set! inst-pool (range (vector-length inst-id))))
+
     (define (analyze-args prefix code postfix #:only-const [x #f])
       (void))
+
+    (define (is-virtual-reg) #f)
 
     ))

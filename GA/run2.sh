@@ -1,7 +1,7 @@
-for name in interp fff ggg hhh iii
+for name in p13_sign p14_floor p15_ceil p17_off_right
 do
-    bash run_extra.sh $name 1200
+    bash run.sh $name 1200
 done
-# 3 hours each = 30 hours
+# 5 hours each = 20 hours
 
 bash dummy.sh

@@ -11,7 +11,8 @@
     (init-field machine printer parser [simulator #f] [validator #f] [syn-mode `linear]
 		[stat (new stat% [printer printer])])
     (abstract len-limit window-size synthesize-window)
-    (public superoptimize)
+    (public superoptimize
+            superoptimize-linear superoptimize-binary)
 
     (define (superoptimize spec constraint live-in name time-limit size [extra #f]
                            #:prefix [prefix (vector)] #:postfix [postfix (vector)]
@@ -29,29 +30,51 @@
 			       #:assume assumption)]
 
 	[(equal? syn-mode `linear) 
-	 (superoptimize-linear spec constraint time-limit size extra
+	 (superoptimize-linear spec constraint time-limit
+                               (if size size (min (vector-length spec) (len-limit)))
+                               extra
                                #:hard-prefix prefix #:hard-postfix postfix
 			       #:assume assumption)]
 
+	;; [(equal? syn-mode `partial1)
+	;;  (superoptimize-partial-pattern spec constraint 90 size extra ;; no div 60
+        ;;                                 #:hard-prefix prefix #:hard-postfix postfix
+        ;;                                 #:assume assumption)]
+
+	;; [(equal? syn-mode `partial2)
+	;;  (superoptimize-partial-pattern-slow spec constraint 800 size extra
+        ;;                                      #:hard-prefix prefix #:hard-postfix postfix
+        ;;                                      #:assume assumption)]
+
+	;; [(equal? syn-mode `partial3)
+	;;  (superoptimize-partial-random spec constraint 90 1 size extra
+        ;;                                 #:hard-prefix prefix #:hard-postfix postfix
+        ;;                                 #:assume assumption)]
+
+	;; [(equal? syn-mode `partial4)
+	;;  (superoptimize-partial-random spec constraint 240 1 size extra ;; no div 100
+        ;;                                 #:hard-prefix prefix #:hard-postfix postfix
+        ;;                                 #:assume assumption)]
+
 	[(equal? syn-mode `partial1)
-	 (superoptimize-partial-pattern spec constraint 60 size extra ;; no div 60
-                                        #:hard-prefix prefix #:hard-postfix postfix
-                                        #:assume assumption)]
+	 (superoptimize-partial-random spec constraint 60 (/ 1 2) size extra
+                                       #:hard-prefix prefix #:hard-postfix postfix
+                                       #:assume assumption)]
 
 	[(equal? syn-mode `partial2)
-	 (superoptimize-partial-pattern-slow spec constraint 800 size extra
-                                             #:hard-prefix prefix #:hard-postfix postfix
-                                             #:assume assumption)]
+	 (superoptimize-partial-random spec constraint 60 1 size extra
+                                       #:hard-prefix prefix #:hard-postfix postfix
+                                       #:assume assumption)]
 
 	[(equal? syn-mode `partial3)
-	 (superoptimize-partial-random spec constraint 60 size extra
-                                        #:hard-prefix prefix #:hard-postfix postfix
-                                        #:assume assumption)]
+	 (superoptimize-partial-random spec constraint 90 (/ 3 2) size extra
+                                       #:hard-prefix prefix #:hard-postfix postfix
+                                       #:assume assumption)]
 
 	[(equal? syn-mode `partial4)
-	 (superoptimize-partial-random spec constraint 240 size extra ;; no div 100
-                                        #:hard-prefix prefix #:hard-postfix postfix
-                                        #:assume assumption)]
+	 (superoptimize-partial-random spec constraint 90 2 size extra
+                                       #:hard-prefix prefix #:hard-postfix postfix
+                                       #:assume assumption)]
         )
        )
       )
@@ -120,11 +143,12 @@
 
         (if out-program
             (inner begin middle out-cost)
-            (when (< middle end) (inner (add1 middle) end cost))))
+            (when (< middle end)
+                  (inner (add1 middle) (min end (len-limit)) cost))))
       
       (with-handlers 
        ([exn:break? (lambda (e) (unless final-program (set! final-program "timeout")))])
-       (inner (max 1 lower-bound) final-len 
+       (inner (max 1 lower-bound) (min final-len (window-size))
               (send simulator performance-cost (vector-append prefix spec postfix))
               (max lower-bound (quotient (+ 1 final-len) 2))))
 
@@ -157,9 +181,8 @@
       (newline)
       (define prefix-len (vector-length prefix))
       (define postfix-len (vector-length postfix))
-      (define sketch (send validator sym-insts (if size (min size (vector-length spec)) 
-				    (vector-length spec))))
-      (define final-program #f) ;; not including prefix & poster
+      (define sketch (send validator sym-insts size))
+      (define final-program #f) ;; not including prefix & postfix
       (define t #f)
       (define (inner cost)
 	(newline)
@@ -188,7 +211,14 @@
 	   (if (or (regexp-match #rx"synthesize: synthesis failed" (exn-message e))
                    (regexp-match #rx"assert: cost" (exn-message e))
 		   (regexp-match #rx"assert: progstate-cost" (exn-message e)))
-	       final-program
+	       (or final-program
+                   (superoptimize-linear spec constraint time-limit
+                                         (add1 size)
+                                         extra
+                                         #:prefix prefix #:postfix postfix
+                                         #:hard-prefix hard-prefix
+                                         #:hard-postfix hard-postfix
+                                         #:assume assumption))
 	       (raise e)))]
 	[exn:break? (lambda (e) 
 		      (clean-up)
@@ -264,13 +294,12 @@
             #:assume assumption))])
        (loop time-limit (max (add1 (window-size)) (floor (* (/ 5 4) (window-size))))))
       )
-
+    
     (define (superoptimize-partial-random 
-             spec constraint time-limit size [extra #f]
+             spec constraint time-limit scale size [extra #f]
              #:hard-prefix [hard-prefix (vector)]
              #:hard-postfix [hard-postfix (vector)]
              #:assume [assumption (send machine no-assumption)])
-      
       (define (inner w timeout choices)
         (define from (list-ref choices (random (length choices))))
         (pretty-display (format ">> superoptimize-partial-random pos = ~a, timeout = ~a" from timeout))
@@ -300,10 +329,11 @@
          (lambda (e)
            (superoptimize-partial-random 
             (exn:restart-program e)
-            constraint time-limit size extra 
+            constraint time-limit scale size extra 
             #:hard-prefix hard-prefix #:hard-postfix hard-postfix
             #:assume assumption))])
-       (inner (window-size) time-limit (range (sub1 (vector-length spec))))))
+       (inner (floor (* scale (window-size))) time-limit
+              (range (sub1 (vector-length spec))))))
 
     (define (check-global input-prog quick-restart)
       (define-values (cost len time id) (send stat get-best-info-stat))

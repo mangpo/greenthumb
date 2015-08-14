@@ -11,7 +11,15 @@ function e {
 
 type=hybrid
 mode=s
-for cost in inter base
+cost=base
+for t in 1 2 3
+do
+    e racket optimize.rkt --$type -$mode --$cost -c 16 -t $timeout -d results/$name-$type-$cost-$mode-$t programs/$name.s > results/$name-$type-$cost-$mode-$t.log
+done
+
+type=stoch
+cost=base
+for mode in s o
 do
     for t in 1 2 3
     do
@@ -19,23 +27,12 @@ do
     done
 done
 
-
-type=stoch
-for cost in inter base
-do
-    for mode in s o
-    do
-        for t in 1 2 3
-        do
-	    e racket optimize.rkt --$type -$mode --$cost -c 16 -t $timeout -d results/$name-$type-$cost-$mode-$t programs/$name.s > results/$name-$type-$cost-$mode-$t.log
-        done
-    done
-done
-
-type=solver
 mode=p
-for t in 1 2 3
+for type in solver enum
 do
-    e racket optimize.rkt --$type -$mode -c 16 -t $timeout -d results/$name-$type-$mode-$t programs/$name.s > results/$name-$type-$mode-$t.log
+    for t in 1 2 3
+    do
+        e racket optimize.rkt --$type -$mode -c 16 -t $timeout -d results/$name-$type-$mode-$t programs/$name.s > results/$name-$type-$mode-$t.log
+    done
 done
 

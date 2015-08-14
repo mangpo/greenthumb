@@ -39,6 +39,8 @@
                         (search-type `solver)]
    [("--stoch") "Use stochastic search."
                         (search-type `stoch)]
+   [("--enum") "Use enumerative search."
+                        (search-type `enum)]
    [("--hybrid") "Use stochastic search."
                         (search-type `hybrid)]
 

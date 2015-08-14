@@ -158,8 +158,9 @@
 	      [mem-dep (progstate-memory state-dep)]
 	      [mem-const (progstate-memory constraint)])
           (unless (vector? mem-const)
-                  (set! mem-const (make-vector (vector-length mem1) mem-const)))
-          (for ([i (in-range 0 (vector-length mem1))])
+                  (set! mem-const
+                        (make-vector (send machine get-nmems) mem-const)))
+          (for ([i (send machine get-nmems)])
                (when (vector-ref mem-const i)
                      (accum
                       (adjust

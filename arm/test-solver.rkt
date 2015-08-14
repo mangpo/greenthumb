@@ -1,26 +1,65 @@
 #lang s-exp rosette
 
 (require "arm-validator.rkt" "arm-machine.rkt" "arm-printer.rkt"
-         "arm-parser.rkt" "arm-ast.rkt" "arm-simulator-rosette.rkt")
+         "arm-parser.rkt" "arm-ast.rkt")
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine%))
-(send machine set-config (list 4 4 5))
+(define machine (new arm-machine% [bit 4]))
+(send machine set-config (list 4 3 4))
 (define printer (new arm-printer% [machine machine]))
-(define simulator-rosette (new arm-simulator-rosette% [machine machine]))
-(define validator (new arm-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
+(define validator (new arm-validator% [machine machine]))
 
 (define code
 (send parser ast-from-string "
-mul r1, r0, r0
-smull r0, r1, r1, r0
+mov r2, 5
+movt r2, 5
+and r2, r2, r0, lsr 1
+rsb r2, r2, r0
+str r2, fp, -16
+movw r1, 3
+movt r1, 3
+
+and r2, r1, r2
+str r2, fp, -12
+ldr r2, fp, -16
+and r2, r1, r2, lsr 1
+ldr r1, fp, -12
+add r1, r1, r2
+
+add r2, r1, r1, asr 1
+movw r1, 7
+movt r1, 7
+and r2, r1, r2
+add r2, r2, r2, lsr 2
+add r2, r2, r2, asr 1
+and r0, r2, 7
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-mul r1, r0, r0
-smull r0, r1, r0, r1
+mov r2, 5
+movt r2, 5
+and r2, r2, r0, lsr 1
+rsb r2, r2, r0
+str r2, fp, -16
+movw r1, 3
+movt r1, 3
+
+and r2, r1, r2
+str r2, fp, -12
+ldr r2, fp, -16
+and r2, r1, r2, lsr 1
+ldr r1, fp, -12
+add r1, r1, r2
+
+add r2, r1, r1, asr 1
+movw r1, 7
+movt r1, 7
+and r2, r1, r2
+add r2, r2, r2, lsr 2
+add r2, r2, r2, asr 1
+and r0, r2, 7
 "))
 
 (define encoded-code (send printer encode code))
@@ -28,13 +67,13 @@ smull r0, r1, r0, r1
 
 (define ex 
   (send validator counterexample encoded-code encoded-sketch 
-        (constraint machine [reg 0 1] [mem 0])))
+        (constraint machine [reg 0] [mem])))
 
 (pretty-display "Counterexample:")
 (if ex 
   (send machine display-state ex)
   (pretty-display "No"))
-(newline) 
+(newline)
 #|
 ;; Counterexample:
 (define input-state (progstate (vector 242087795 -1555402324 0 0 0 0)
@@ -57,3 +96,12 @@ smull r0, r1, r0, r1
       (constraint machine [reg 1] [mem]) #f #f 36000)
   )
 (pretty-display `(time ,(- (current-seconds) t)))|#
+
+#|
+(define states
+(send validator generate-input-states 8 (vector) (send machine no-assumption) #f
+             #:rand-func (lambda () 
+                           (if (= (random 2) 0) (random 32) (- (random 32))))))
+
+(for ([state states])
+  (send machine display-state state))|#

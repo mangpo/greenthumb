@@ -2,7 +2,8 @@
 
 (require "../validator.rkt"
          "../ast.rkt" "arm-ast.rkt"
-         "../machine.rkt" "arm-machine.rkt" "arm-simulator-rosette.rkt")
+         "../machine.rkt"
+         "arm-machine.rkt" "arm-printer.rkt" "arm-simulator-rosette.rkt")
 (provide arm-validator%)
 
 (define arm-validator%
@@ -11,9 +12,10 @@
     (inherit-field printer machine simulator)
     (inherit sym-op sym-arg encode-sym)
     (override encode-sym-inst) 
-              ;; get-sym-vars evaluate-state
-              ;; assume assert-state-eq)
+    ;; get-sym-vars evaluate-state
+    ;; assume assert-state-eq)
 
+    (set! printer (new arm-printer% [machine machine]))
     (set! simulator (new arm-simulator-rosette% [machine machine]))
 
     ;; (define (get-sym-vars state)

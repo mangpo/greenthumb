@@ -49,7 +49,7 @@
       ;;   (thunk
       ;;    (pretty-display (format "~a,~a" iter-count current-cost))))
       (set! iter-count (add1 iter-count))
-      (and (= (modulo iter-count 1000) 0)
+      (and (= (modulo iter-count 30000) 0) ;;46 s
 	   (let-values ([(cost len time id) (get-best-info dir)])
              (print-stat-to-file)
              (and cost len))))
@@ -106,6 +106,10 @@
 	    (define-values (cost-r len-r time-r id-r) (get-best-info dir))
 	    (when (or (not cost-r) (< cost cost-r))
 		(pretty-display "I AM THE BEST. Count me.")
+		(with-output-to-file #:exists 'truncate (format "~a/best.s" dir)
+		  (thunk
+		   (send printer print-syntax (send printer decode best-correct-program))))
+
 		(with-output-to-file #:exists 'truncate info-file
 		  (thunk
 		   (pretty-display best-correct-cost)
@@ -113,10 +117,6 @@
 		   (pretty-display best-correct-time)
 		   (pretty-display name)
 		   ))
-		(with-output-to-file #:exists 'truncate (format "~a/best.s" dir)
-		  (thunk
-		   (send printer print-syntax (send printer decode best-correct-program))))
-
 		(with-output-to-file #:exists 'append (format "~a/summary" dir)
 		  (thunk
 		   (pretty-display 

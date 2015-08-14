@@ -13,13 +13,6 @@
 
 (struct progstate+ progstate (extra))
 
-(define UP #x145) ;325
-(define DOWN #x115) ;277
-(define LEFT #x175) ;373
-(define RIGHT #x1d5) ;469
-(define IO #x15d)
-
-
 ;;;;;;;;;;;;;; STACK ;;;;;;;;;;;;;;;;;;
 (struct stack (sp body))
 
@@ -67,7 +60,7 @@
     ))
 
 ;;; The empty constraint. Pretty useless.
-(define constraint-none (progstate #f #f #f #f #f #f #f #f #f #t))
+(define constraint-none (progstate #f #f #f #f #f 0 0 #f #f #t))
 
 ;;; Constrain everything. We must have perfection!
 (define constraint-all (progstate #t #t #t #t #t 8 8 #t #f #t))
@@ -131,11 +124,18 @@
 	      no-assumption
               display-state-text parse-state-text
               progstate->vector vector->progstate
-	      get-arg-ranges window-size analyze-args)
-    (init-field [const-range (vector 0 1)])
+	      get-arg-ranges window-size analyze-args reset-arg-ranges)
+    (init-field [const-range #f]
+                [UP #x145] ;325
+                [DOWN #x115] ;277
+                [LEFT #x175] ;373
+                [RIGHT #x1d5] ;469
+                [IO #x15d])
 
-    (set! bit 18)
-    (set! random-input-bit 16)
+    (public stack->vector)
+
+    (unless bit (set! bit 18))
+    (unless random-input-bit (set! random-input-bit 16))
     (set! inst-id '#(nop @p @+ @b @ !+ !b ! +* 2* 
 			 2/ - + and or drop dup pop over a 
 			 push b! a!))
@@ -152,12 +152,19 @@
     (set! classes-len (vector-length classes))
     (set! perline 8)
 
+    (when (= bit 4)
+          (set! UP -3)
+          (set! DOWN -4)
+          (set! LEFT -5)
+          (set! RIGHT -6)
+          (set! IO -7))
+
     (define nmems 1)
     (define/public (get-nmems) nmems)
 
-    (define (window-size) 100)
+    (define (window-size) 1000)
     (define (get-config) nmems)
-    (define (set-config info) (set! nmems info))
+    (define (set-config info) (set! nmems info) (reset-arg-ranges))
     (define (set-config-string info) info)
     (define (adjust-config info) (* 2 info))
     (define (finalize-config info) (add1 info))
@@ -187,8 +194,13 @@
 	    [(and (pair? i) (equal? (car i) 'return)) (set! return (+ return (cdr i)))]
 	    [else (raise (format "create-constraint: unimplemented for ~a" i))]))
       (struct-copy progstate constraint-none [a a] [b b] [memory memory]
-		   [t (>= data 1)] [s (>= data 2)] [data (and (> (- data 2) 0) (- data 2))]
-		   [r (>= return 1)] [return (and (> (- return 1) 0) (- return 1))]))
+		   [t (>= data 1)] [s (>= data 2)]
+                   [data (if (> (- data 2) 0) (- data 2) 0)]
+		   [r (>= return 1)]
+                   [return (if (> (- return 1) 0) (- return 1) 0)]))
+
+    (define (constraint-all)
+      (progstate #t #t #t #t #t 8 8 (make-vector nmems #t) #f #t))
 
     (define (get-state init recv-n) ;; TODO: track all get-state
       (default-state this recv-n init))
@@ -200,6 +212,7 @@
       (display-return state)
       (display-memory state)
       (display-comm state)
+      (newline)
       )
 
     ;; Print the data stack:
@@ -218,8 +231,9 @@
     (define (display-memory state)
       (define memory (progstate-memory state))
       (display "mem: ")
-      (for ([i (in-range 0 (vector-length memory))])
-	   (display (format "~a " (vector-ref memory i))))
+      (when memory
+            (for ([i (in-range 0 (vector-length memory))])
+                 (display (format "~a " (vector-ref memory i)))))
       (newline))
 
     ;; Print comm info.
@@ -233,39 +247,53 @@
       (define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
       (vector-ref (stack-body stack) (modulo- (- (stack-sp stack) i) 8)))
 
+    ;; (define (stack->vector x)
+    ;;   (if (stack? x)
+    ;;       (for/vector ([i 8]) (get-stack x i))
+    ;;       x))
+
     (define (stack->vector x)
       (if (stack? x)
-          (for/vector ([i 8]) (get-stack x i))
+          (let* ([lst (vector->list (stack-body x))]
+                 [p (add1 (stack-sp x))]
+                 [a (reverse (take lst p))]
+                 [b (reverse (drop lst p))])
+            (list->vector (append a b)))
           x))
     
     (define (vector->stack x)
       (if (vector? x)
-          (stack 7 (list->vector (reverse (vector->list x))))
+          (let ([len (vector-length x)])
+            (stack 7 (list->vector
+                      (reverse (vector->list
+                                (vector-append x (make-vector (- 8 len) #f)))))))
           x))
     
     (define (progstate->vector x)
-      (vector (progstate-a x)
-              (progstate-b x)
-              (progstate-r x)
-              (progstate-s x)
-              (progstate-t x)
-              (stack->vector (progstate-data x))
-              (stack->vector (progstate-return x))
-              (progstate-memory x)
-              (progstate-recv x)
-              (progstate-comm x)))
+      (and x
+           (vector (progstate-a x)
+                   (progstate-b x)
+                   (progstate-r x)
+                   (progstate-s x)
+                   (progstate-t x)
+                   (stack->vector (progstate-data x))
+                   (stack->vector (progstate-return x))
+                   (progstate-memory x)
+                   (progstate-recv x)
+                   (progstate-comm x))))
 
     (define (vector->progstate x)
-      (progstate (vector-ref x 0)
-                 (vector-ref x 1)
-                 (vector-ref x 2)
-                 (vector-ref x 3)
-                 (vector-ref x 4)
-                 (vector->stack (vector-ref x 5))
-                 (vector->stack (vector-ref x 6))
-                 (vector-ref x 7)
-                 (vector-ref x 8)
-                 (vector-ref x 9)))
+      (and x
+           (progstate (vector-ref x 0)
+                      (vector-ref x 1)
+                      (vector-ref x 2)
+                      (vector-ref x 3)
+                      (vector-ref x 4)
+                      (vector->stack (vector-ref x 5))
+                      (vector->stack (vector-ref x 6))
+                      (vector-ref x 7)
+                      (vector-ref x 8)
+                      (vector-ref x 9))))
 
     (define (display-state-text pair)
       (display (format "~a," (car pair)))
@@ -334,12 +362,18 @@
     (define (get-arg-ranges opcode-name entry live-in)
       (raise "GA: get-arg-ranges should not be called."))
     
-    (define (analyze-args prefix code postfix)
+    (define (analyze-args prefix code postfix live1 live2 #:vreg [vreg 0])
       (define constants (list))
       (for ([x (vector-append prefix code postfix)])
            (when (equal? (vector-ref inst-id (inst-op x)) `@p)
                  (set! constants (cons (inst-args x) constants))))
-      (list->set constants))
+      (set! const-range
+            (list->vector
+             (set->list (set-union (list->set (vector->list const-range)) 
+                                   (list->set constants)))))
+      (pretty-display `(const-range ,const-range)))
+
+    (define (reset-arg-ranges) (set! const-range (vector 0 1)))
 	    
 
     ))

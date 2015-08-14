@@ -43,10 +43,7 @@
 			       #:hard-postfix [hard-postfix (vector)]
 			       #:assume-interpret [assume-interpret #t]
 			       #:assume [assumption (send machine no-assumption)])
-      
-      (when (send machine analyze-opcode prefix spec postfix)
-            (pretty-display "set kodkod%")
-            (current-solver (new kodkod%)))
+      (send machine analyze-opcode prefix spec postfix)
       (pretty-display `(solver ,(current-solver)))
       (if pure-symbolic 
           (synthesize-from-sketch 
@@ -109,6 +106,8 @@
                                     #:hard-postfix [hard-postfix (vector)]
 				    #:assume-interpret [assume-interpret #t]
 				    #:assume [assumption (send machine no-assumption)])
+      (send (current-solver) shutdown)
+      (current-solver (new kodkod%))
       (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
       (pretty-display (format "solver = ~a" (current-solver)))
       (when debug
@@ -120,7 +119,6 @@
 	    (newline)
 	    )
 
-      (clear-asserts)
       (current-bitwidth bit)
       
 
@@ -186,7 +184,7 @@
       (pretty-display (format "new cost = ~a" final-cost))
       (pretty-display "=====================================")
       (clear-asserts)
-      ;(clear-terms!)
+      (clear-terms!)
 
       ;; Print to file
       (send stat update-best-correct final-program final-cost)

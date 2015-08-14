@@ -10,7 +10,7 @@ function e {
 
 type=hybrid
 mode=s
-cost=inter
+cost=base
 
 for t in 1 2
 do

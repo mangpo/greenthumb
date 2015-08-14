@@ -52,7 +52,7 @@
 
     (define-syntax-rule (bvshift op)
       (lambda (x y)
-        (finitize-bit (op x (bitwise-and byte-mask y)))))
+        (finitize-bit (op x (bitwise-and #xff y)))))
 
     (define-syntax-rule (bvshift# op)
       (lambda (x y)
@@ -102,6 +102,7 @@
 
     (define (bvsmmul x y) (smmul x y bit))
     (define (bvummul x y) (ummul x y bit))
+    (define bvsdiv (bvop quotient))
     (define (bvudiv n d)
       (if (< d 0)
           (if (< n d) 1 0)
@@ -139,11 +140,11 @@
       (assert (and (>= shift 0) (< shift bit)))
       (assert (and (> width 0) (<= (+ width shift) bit)))
       (let ([keep (bitwise-and (>> a shift) (sub1 (shl 1 width)))])
-	(bitwise-ior
-	 (if (= (bitwise-bit-field keep (sub1 width) width) 1)
-	     (shl -1 width)
-	     0)
-	 (finitize-bit keep))))
+        (bitwise-ior
+         (if (= (bitwise-bit-field keep (sub1 width) width) 1)
+             (shl -1 width)
+             0)
+         (finitize-bit keep))))
 
     (define (clz x)
       (let ([mask (shl 1 (sub1 bit))]
@@ -201,8 +202,7 @@
     
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
-    ;; policy: a procedure that enforces a policy to speed up synthesis. Default to nothing.
-    (define (interpret program state [is-candidate #f] #:dep [dep #f])
+    (define (interpret program state [policy #f] #:dep [dep #f])
       (define inst-pool (get-field inst-pool machine))
       ;;(pretty-display `(interpret))
       (define regs (vector-copy (progstate-regs state)))
@@ -531,7 +531,7 @@
            [(inst-eq `smull) (ddrr bvmul bvsmmul)]
            [(inst-eq `umull) (ddrr bvmul bvummul)]
 
-           [(inst-eq `sdiv) (rrr quotient)]
+           [(inst-eq `sdiv) (rrr bvsdiv)]
            [(inst-eq `udiv) (rrr bvudiv)]
 
            [(inst-eq `uxtah) (rrr uxtah)]

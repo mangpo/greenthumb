@@ -2,7 +2,10 @@
 
 (require "../parallel.rkt" "../ast.rkt" "../fitness-learner.rkt"
          "arm-parser.rkt" "arm-meta.rkt" "arm-machine.rkt" 
-         "arm-printer.rkt" "arm-compress.rkt" "arm-validator.rkt")
+         "arm-printer.rkt" "arm-compress.rkt" "arm-validator.rkt"
+	 ;; for enumerative search
+	 "arm-simulator-racket.rkt"
+	 "arm-enumerative.rkt" "arm-inverse.rkt" "arm-forwardbackward.rkt")
 
 (provide optimize arm-generate-inputs)
 
