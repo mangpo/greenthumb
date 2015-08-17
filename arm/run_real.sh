@@ -1,18 +1,6 @@
-name=$1
-timeout=$2
-
-echo "RUN $name ----------------------------------"
-
-function e {
-    echo "$@" >&2
-    $@
-}
-
-type=hybrid
-mode=s
-cost=base
-
-for t in 1 2
-do
-    e racket optimize.rkt --$type -$mode --$cost -c 32 -t $timeout -d results/$name-$type-$cost-$mode-$t programs/$name.s > results/$name-$type-$cost-$mode-$t.log
+for name in rm_TxRateMatch_5a rm_TxRateMatch_5b rs_TxRateMatch_98a rm_bitarray_1 rl_bitarray_2 rm_bitarray_3 rm_bitcnts_2 rl_bitcnt_2_0 
+do 
+    bash run.sh $name 3600 hybrid p
 done
+
+bash dummy.sh

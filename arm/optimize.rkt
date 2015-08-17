@@ -3,10 +3,6 @@
 (require "arm-parser.rkt"
          "main.rkt")
 
-;; (define live-out (make-parameter (list)))
-;; (define live-in (make-parameter #f))
-;; (define live-mem (make-parameter #t))
-
 (define size (make-parameter #f))
 (define cores (make-parameter 12))
 (define search-type (make-parameter `hybrid))

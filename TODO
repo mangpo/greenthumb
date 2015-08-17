@@ -1,3 +1,5 @@
+interface: inverse, enumerative
+
 remove redundant
 - diff-cost
 
