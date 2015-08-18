@@ -8,8 +8,7 @@
   (class object%
     (super-new)
     (init-field machine)
-    (public compress-reg-space decompress-reg-space pre-constraint-rename
-            select-code combine-code combine-live-out)
+    (public compress-reg-space decompress-reg-space)
 
     ;; Default: no compression
     (define (compress-reg-space program live-out live-in)
@@ -20,29 +19,6 @@
               (send machine get-config)))
 
     (define (decompress-reg-space program reg-map) program)
-
-    (define (pre-constraint-rename live-output reg-map) live-output)
-
-    ;; Select an interesting portion of code to superoptimize.
-    ;; Exclude COPY, branching instructions.
-    ;; Outputs
-    ;; 1. selected-code to be optimized, #f if no code to be optimized
-    ;; 2. starting position
-    ;; 3. stopping position
-    ;; 4. additional live-out in the same format as one used by optimize.rkt--- a list of live registers
-    (define (select-code code)
-      (values code 0 (vector-length code) (list)))
-
-    (define (combine-code original select start stop)
-      (vector-append (vector-take original start)
-                     select
-                     (vector-drop original (add1 stop))))
-
-
-    ;; Combine 2 live-out info into one.
-    ;; Inputs are in the same format as live-out used by optimize.rkt and returned by (select-code)--- a list of live registers.
-    ;; Default - return org
-    (define (combine-live-out org extra) org)
     
 
     ))

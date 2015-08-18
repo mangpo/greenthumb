@@ -3,7 +3,6 @@
 (require  "ast.rkt" "machine.rkt" "printer.rkt")
 
 (require rosette/solver/smt/z3)
-;(require rosette/solver/kodkod/kodkod)
 
 (provide validator% sym-input)
 
@@ -20,18 +19,14 @@
                 [bit (get-field bit machine)]
                 [random-input-bit (get-field random-input-bit machine)]
                 [time #f])
-    ;; (abstract get-sym-vars evaluate-state
-    ;;           assume assert-state-eq)
     (public proper-machine-config generate-input-states generate-inputs-inner
             counterexample
-            sym-op sym-arg sym-insts ;; do really need sym-insts
-            evaluate-inst encode-sym-inst encode-sym
-            assume-relax get-live-in
+            sym-op sym-arg sym-insts
+            encode-sym-inst encode-sym
+            get-live-in
             get-sym-vars evaluate-state
             assume assert-state-eq
             )
-    
-    ;(current-solver (new z3%))
 
     (define-syntax-rule (print-struct x) (send printer print-struct x))
     (define-syntax-rule (print-syntax x) (send printer print-syntax x))
@@ -41,43 +36,39 @@
     (define ninsts (vector-length (get-field inst-id machine)))
     (define start-time #f)
 
-    (define/public (reset) (current-solver (new z3%)))
+    ;(current-solver (new z3%))
 
-
+    ;; Create symbolic opcode using Rosette symbolic variable.
     (define (sym-op)
       (define-symbolic* op number?)
       (assert (and (>= op 0) (< op ninsts)))
       op)
     
+    ;; Create symbolic operand using Rosette symbolic variable.
     (define (sym-arg)
       (define-symbolic* arg number?)
       arg)
 
+    ;; Encode instruction x.
+    ;; If x is a concrete instruction, then encode textual representation using number.
+    ;; If (inst-op x) = #f, create symbolic instruction.
     (define (encode-sym-inst x)
       (if (inst-op x)
           (send printer encode-inst x)
           (inst (sym-op) (sym-arg))))
 
+    ;; Encode program. Convert textual representation to numbers.
     (define (encode-sym code)
       (traverse code inst? encode-sym-inst))
 
-    (define (sym-insts size)
-      (encode-sym (for/vector ([i size]) (inst #f #f))))
-
-    (define (assume-relax state assumption)
-      (assume state assumption))
+    ;; Create n symbolic instructions
+    (define (sym-insts n)
+      (encode-sym (for/vector ([i n]) (inst #f #f))))
 
     ;; Default: no assumption
     (define (assume state assumption)
       (when assumption
             (raise "No support for assumption")))
-
-    (define (evaluate-inst x model)
-      (inst (evaluate (inst-op x) model)
-            (evaluate (inst-args x) model)))
-
-    (define (evaluate-program code model)
-      (traverse code inst? (lambda (x) (evaluate-inst x model))))
 
     (define (interpret-spec spec start-state assumption)
       (assume start-state assumption)
@@ -90,6 +81,7 @@
     (define (interpret spec start-state)
       (send simulator interpret spec start-state))
     
+    ;; Adjust machine config. Specifially, increase memory size if necessary.
     ;; code: non-encoded concrete code
     ;; config: machine config
     (define (proper-machine-config code config [extra #f])
@@ -163,15 +155,10 @@
       
       ;;(define inputs (append input-zero input-random input-random-const))
       (define inputs (append input-random input-random-const))
-      ;; (define inputs 
-      ;;   (list
-      ;;    (generate-one-input (lambda () (bitwise-ior (random (<< 1 (- bit 1))) 
-      ;;                                                (<< 1 (- bit 2)))))
-      ;;    (generate-one-input (lambda () 3))))
 
       ;; (when debug
       ;;       (pretty-display "Test simulate with symbolic inputs...")
-      ;;       (assume-relax start-state assumption)
+      ;;       (assume start-state assumption)
       ;;       (interpret spec start-state)
       ;;       (pretty-display "Passed!"))
       ;; Construct cnstr-inputs.
@@ -181,7 +168,7 @@
         (define (assert-extra-and-interpret)
           ;; Assert that the solution has to be different.
           (assert extra)
-          (assume-relax start-state assumption)
+          (assume start-state assumption)
           (interpret spec start-state)
           )
         (define sol (solve (assert-extra-and-interpret)))
@@ -223,6 +210,7 @@
       (values sym-vars 
               (map (lambda (x) (sat (make-immutable-hash (hash->list x)))) inputs)))
 
+    ;; Generate input states.
     (define (generate-input-states 
              n spec assumption [extra #f]
              #:rand-func 
@@ -239,7 +227,7 @@
     ;; Otherwise, returns false.
     (define (counterexample spec program constraint [extra #f]
                             #:assume [assumption (send machine no-assumption)])
-      ;;(pretty-display (format "solver = ~a" (current-solver)))
+      (pretty-display (format "solver = ~a" (current-solver)))
       (when debug
             (pretty-display (format "program-eq? START bit = ~a" bit))
             (pretty-display "spec:")
@@ -309,6 +297,8 @@
          )))
     
     ;; Return live-in in progstate format.
+    ;; live-out: progstate format
+    ;; extra: extra information
     (define (get-live-in code live-out extra)
       (define in-state (send machine get-state-liveness sym-input extra))
       (define out-state (interpret code in-state))
@@ -369,7 +359,8 @@
 
       (send machine vector->progstate (extract-live vec-live-out vec-input)))
       
-  
+    ;; Assert that state1 and state2 are equal where pred is #t.
+    ;; state1, state2, & pred: progstate format
     (define (assert-state-eq state1 state2 pred)
       (define (inner state1 state2 pred)
 	(cond
@@ -393,6 +384,7 @@
 	     (send machine progstate->vector pred))
       )
 
+    ;; Evaluate symbolic progstate to concrete progstate based on solution 'sol'.
     (define (evaluate-state state sol)
       (define-syntax-rule (eval x model)
         (let ([ans (evaluate x model)])
@@ -407,6 +399,8 @@
       (send machine vector->progstate
 	    (inner (send machine progstate->vector state))))
 
+    ;; Get all symbolic variables in state.
+    ;; state: progstate format
     (define (get-sym-vars state)
       (define lst (list))
       (define (add x)

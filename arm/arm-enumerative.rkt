@@ -1,15 +1,15 @@
 #lang racket
 
-(require "../machine.rkt" "arm-ast.rkt")
+(require "../machine.rkt" "../enumerative.rkt" "arm-ast.rkt")
 (require racket/generator)
 
 (provide arm-enumerative%)
 
 (define arm-enumerative%
-  (class object%
+  (class enumerative%
     (super-new)
     (init-field machine printer)
-    (public get-flag generate-inst)
+    (override get-flag generate-inst)
     
     (define inst-id (get-field inst-id machine))
     (define inst-with-shf (get-field inst-with-shf machine))
@@ -21,36 +21,38 @@
     (define ldst-inst
       (map (lambda (x) (vector-member x inst-id)) '(ldr# str#)))
 
-    (define inst-mod '(add sub rsb
-			and orr eor bic orn
-                        mul uxtah
-			add# sub# rsb#
-			and# orr# eor# bic# orn#
-			lsl#
-			mov mvn
-			uxth uxtb
-			mov# mvn# movw# movt#
-			mla mls
-			bfc bfi))
-
-    (define inst-high '(and orr eor bic orn
-                         and# orr# eor# bic# orn#
-                         lsr# asr#
-                         mov mvn
-                         mov# mvn# movw# movt#
-                         bfc))
-
     (define commutative-0-1 '(tst))
     (define commutative-1-2 '(add and orr eor mul smmul))
     (define commutative-2-3 '(mla smull umull smmla))
 
-    ;; If regs is not #f, use virtual registers
-    ;; If lex is not #f, impose lexical order. This is only valid with virtual registers.
+    ;; Return generator that enumerates all instructions given live-in, live-out, flag-in, and flag-out information
+    ;; 
+    ;; >>> INPUTS
+    ;; live-in & live-out: compact format
+    ;; flag-in: conditional flag
+    ;; flag-out: a list of conditional flags
+    ;; Different usages:
+    ;;   1. When building forward search graph, only live-in and flag-in are given.
+    ;;   2. When buliding backward search graph, only live-out and flag-out are given.
+    ;;   3. When searching for the briding instruction, all live-in, live-out, flag-in, flag-out are given.
+    ;; no-args: no-args = #t indicates enumerating instructions for creating inverse table.
+    ;;          Thus, no need to enumerate all possible combination of operands.
+    ;;          Only inverse%:gen-inverse-behaviors use generator created with no-args = #t.
+    ;;          Developer needs to implement gen-inverse-behaviors.
+    ;; try-cmp: include comparing instructions in the instruction pool.
+    ;;
+    ;; >>> OUTPUT
+    ;; A generator that yield a list of 
+    ;;  (a. inst, 
+    ;;   b. liveness after executing inst given live-in,
+    ;;   c. liveness before executing inst given live-out)
+    ;; If live-in = #f, b is #f.
+    ;; If live-out = #f, c is #f.
     (define (generate-inst 
              live-in live-out flag-in flag-out
-             regs type lex #:no-args [no-args #f] #:try-cmp [try-cmp #f])
+             #:no-args [no-args #f] #:try-cmp [try-cmp #f])
 
-      (define mode (cond [regs `vir] [no-args `no-args] [else `basic]))
+      (define mode (cond [no-args `no-args] [else `basic]))
       ;; (define inst-choice '(add and))
       ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
       (define inst-pool (get-field inst-pool machine))
@@ -74,22 +76,6 @@
         (set! inst-pool (remove* (append ldst-inst cmp-inst) inst-pool))]
        [else
         (set! inst-pool (remove* cmp-inst inst-pool))])
-      
-      (cond
-       [(equal? type `mod+high) 
-	(set! inst-pool 
-              (filter (lambda (x) (and (member (vector-ref inst-id x) inst-mod)
-                                       (member (vector-ref inst-id x) inst-high)))
-                      inst-pool))]
-       [(equal? type `mod-high) 
-	(set! inst-pool 
-              (filter (lambda (x) (member (vector-ref inst-id x) inst-mod))
-                      inst-pool))]
-       [(equal? type `high-mod)
-	(set! inst-pool 
-              (filter (lambda (x) (member (vector-ref inst-id x) inst-high))
-                      inst-pool))]
-       )
 	
       (define iterator
         (generator 
@@ -136,16 +122,8 @@
 						    (sort (cdr new-live-in) <)))
                                  (and live-out (cons (sort (car new-live-out) <)
 						     (sort (cdr new-live-out) <)))
-                                 v-reg)])
+                                 )])
                  (yield ret))))
-           ;; (if lex
-           ;;     (let ([my-lex (lexical-skeleton i)])
-           ;;       (if my-lex
-           ;;           (when (>= (lexical-cmp my-lex lex) 0)
-           ;;                 (yield ret))
-           ;;           (yield ret)))
-           ;;     (yield ret))))
-           
            
            (when debug (pretty-display `(recurse-args ,args ,ranges ,shfop ,v-reg)))
            ;; Symmetry reduction for commutative operations
@@ -161,55 +139,13 @@
            (when
                pass
              (cond
-               [(empty? ranges)
-                
-                (cond
-                  [(equal? type `all) (check-yield)]
-                  
-                  [(equal? (vector-ref shf-inst-id shfop) `nop)
-                   (cond
-                     [(equal? type `mod+high) (check-yield)]
-                     [(equal? type `mod-high)
-                      (when (not (member (vector-ref inst-id opcode-id) inst-high)) 
-                        (check-yield))]
-                     [(equal? type `high-mod)
-                      (when (not (member (vector-ref inst-id opcode-id) inst-mod)) 
-                        (check-yield))]
-                     [(equal? type `rest)
-                      (when (and (not (member (vector-ref inst-id opcode-id) inst-mod))
-                                 (not (member (vector-ref inst-id opcode-id) inst-high)))
-                        (check-yield))]
-                     )]
-                  
-                  [(equal? (vector-ref shf-inst-id shfop) `lsl#)
-                   (cond
-                     [(equal? type `mod-high) (check-yield)]
-                     [(equal? type `rest)
-                      (when (not (member (vector-ref inst-id opcode-id) inst-mod))
-                        (check-yield))]
-                     )]
-                  
-                  [(member (vector-ref shf-inst-id shfop) '(lsr# asr#))
-                   (cond
-                     [(equal? type `high-mod) (check-yield)]
-                     [(equal? type `rest)
-                      (when (not (member (vector-ref inst-id opcode-id) inst-high))
-                        (check-yield))]
-                     )]
-                  
-                  [(equal? type `rest) (check-yield)]
-                  )] ;; end cond (empty? ranges)
+               [(empty? ranges) (check-yield)]
                
                [(equal? (car ranges) `reg-o)
-                (if (pair? v-reg)
-                    ;; enumerate no-arg
-                    (recurse-args opcode opcode-id shfop shfarg cond-type 
-                                  (cons (cdr v-reg) args)
-                                  (cdr ranges) (cons (car v-reg) (add1 (cdr v-reg))))
-                    ;; enumerate virtual
-                    (recurse-args opcode opcode-id shfop shfarg cond-type 
-                                  (cons v-reg args)
-                                  (cdr ranges) (add1 v-reg)))
+                ;; enumerate no-arg
+                (recurse-args opcode opcode-id shfop shfarg cond-type 
+                              (cons (cdr v-reg) args)
+                              (cdr ranges) (cons (car v-reg) (add1 (cdr v-reg))))
                 ]
                
                [(equal? (car ranges) `reg-i)
@@ -237,9 +173,9 @@
                         (send machine get-arg-ranges opcode-name #f live-in 
                               #:live-out live-out
                               #:mode mode))]
-                      [v-reg (cond [regs regs] [no-args (cons 0 3)] [else #f])]
+                      [v-reg (cond [no-args (cons 0 3)] [else #f])]
                       [cond-bound 
-                       (if (or (= z -1) regs (member opcode-id cmp-inst))
+                       (if (or (= z -1) (member opcode-id cmp-inst))
                            1 
                            ;;(list 0 3 4) 
                            cond-type-len
@@ -272,6 +208,7 @@
       iterator 
       )
 
+    ;; Return flag given progstate in vector/list/pair format.
     (define (get-flag state-vec) (vector-ref state-vec 2))
     
     ))

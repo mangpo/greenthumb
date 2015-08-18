@@ -21,6 +21,7 @@
     ;; mode = `linear, `binary, `syn, `opt
     (public optimize)
     
+    ;; Optimize code
     (define (optimize-inner code-org live-out-org live-in-org rootdir cores time-limit prog-size 
                             assume extra-info input-file start-prog)
       (pretty-display (format "SEACH TYPE: ~a size=~a" search-type prog-size))
@@ -245,7 +246,7 @@
 			    time-limit))
           (define (update-stats)
             (sleep 10)
-            (when (and (< (- (current-seconds) t) limit) (> (get-free-mem) 1000000))
+            (when (and (< (- (current-seconds) t) limit) (> (get-free-mem) 500000))
                   (for ([id (length processes-stoch)]
                         [sp processes-stoch])
                        (unless (equal? (subprocess-status sp) 'running)
@@ -329,29 +330,9 @@
         decompressed-code)
       )
 
-    (define (optimize-filter code-org live-out live-in dir cores time-limit size 
-                             assume extra-info input-file start-prog)
-      (define-values (pass start stop extra-live-out) (send compress select-code code-org))
-      (pretty-display `(select-code ,pass ,start ,stop ,extra-live-out))
-      (if pass
-          (let ([middle-output
-                 (optimize-inner 
-                  pass
-                  (send compress combine-live-out live-out extra-live-out)
-                  live-in dir cores time-limit size extra-info input-file start-prog)])
-            (send compress combine-code code-org middle-output start stop))
-          code-org)
-      )
-
-    ;; Inputs
-    ;; input: can be in 3 different types.
-    ;;   1) parsed AST, 2) .s file, 3) LLVM IR file
-    ;; live-out: live-out info in custom format--- for vpe, a list of live registers
-    ;;   synthesize: #t = synthesize mode, #f = optimize mode
     (define (optimize code-org live-out live-in
                       #:assume [assume #f]
                       #:extra-info [extra-info #f]
-                      #:need-filter [need-filter #f]
                       #:dir [dir "output"] 
                       #:cores [cores 8]
                       #:time-limit [time-limit 3600]
@@ -360,9 +341,7 @@
                       #:start-prog [start-prog #f])
 
       (if (> (vector-length code-org) 0)
-          (if need-filter
-              (optimize-filter code-org live-out live-in dir cores time-limit size assume extra-info input-file start-prog)
-              (optimize-inner code-org live-out live-in dir cores time-limit size assume extra-info input-file start-prog))
+          (optimize-inner code-org live-out live-in dir cores time-limit size assume extra-info input-file start-prog)
           code-org))
 
     ))

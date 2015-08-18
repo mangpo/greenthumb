@@ -1,16 +1,16 @@
 #lang racket
 
-(require "../ops-racket.rkt" "../ast.rkt"
+(require "../ops-racket.rkt" "../ast.rkt" "../inverse.rkt"
          "arm-ast.rkt" "arm-machine.rkt" "arm-simulator-racket.rkt"
          "arm-printer.rkt" "arm-parser.rkt")
 
 (provide arm-inverse%)
 
 (define arm-inverse%
-  (class object%
+  (class inverse%
     (super-new)
     (init-field machine simulator)
-    (public gen-inverse-behavior interpret-inst)
+    (override gen-inverse-behavior interpret-inst)
 
     (define bit (get-field bit machine))
     (define inst-id (get-field inst-id machine))
@@ -44,11 +44,16 @@
 
       (values (reverse inst-type) (reverse in) (reverse out)))
     
+    ;; Inverse tables for all instructions.
     (define behaviors-bw (make-hash))
+
+    ;; Generate inverse table behavior for my-inst.
     (define (gen-inverse-behavior my-inst)
       (define opcode-name (vector-ref inst-id (inst-op my-inst)))
+      ;; For collecting which registers in my-inst are input and output.
       (define in (make-vector 5 #f))
       (define out (make-vector 5 #f))
+      ;; Inverse table behavior
       (define behavior-bw (make-hash))
       
       (define (recurse-regs in-list in-res)
@@ -70,7 +75,9 @@
 		(when m (set! out-list (cons r out-list))))
 	   
 	   (define key (reverse out-list))
-	   ;;(pretty-display `(inout ,in-res ,(progstate-regs out-state) ,in-list-filtered ,key))
+
+           ;; Insert into the inverse table. 
+           ;; Key is outputs. Value is a set of possible inputs.
 	   (if (hash-has-key? behavior-bw key)
 	       (hash-set! behavior-bw key
 			  (cons in-list-filtered (hash-ref behavior-bw key)))
@@ -79,10 +86,12 @@
 
          [else
           (if (car in-list)
+              ;; Enumerate all possible values for a register if the register is input.
 	      (for ([i reg-range-db])
 		   (recurse-regs (cdr in-list) (cons i in-res)))
 	      (recurse-regs (cdr in-list) (cons #f in-res)))]))
           
+      ;; Collect information on which registers are input and output.
       (define arg-types (send machine get-arg-types opcode-name))
       (define shfop (inst-shfop my-inst))
       (define shfarg (inst-shfarg my-inst))
@@ -103,6 +112,11 @@
       ;;(pretty-display `(behavior-bw ,behavior-bw))
       (hash-set! behaviors-bw x behavior-bw))
 
+    ;; Inverse interpret my-inst using the pre-computed 'behaviors-bw'.
+    ;; my-inst: instruction
+    ;; state-vec: progstate in vector/list/pair format
+    ;; old-liveout: compact format
+    ;; output: a list of progstates in vector/list/pair format
     (define (interpret-inst my-inst state-vec old-liveout)
       ;;(pretty-display `(interpret ,state-vec ,old-liveout))
       (define opcode-name (vector-ref inst-id (inst-op my-inst)))

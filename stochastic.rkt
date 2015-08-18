@@ -110,8 +110,10 @@
           (set! my-live-in (send machine update-live my-live-in x)) ;; TODO
           x)))
       
-
-    ;; Generic across architectures
+    ;; Mutate by swapping instructions at 'index' with another instruction
+    ;; index: index to be swapped
+    ;; entry: instruction at index in p
+    ;; p: entire program
     (define (mutate-swap index entry p)
       (define new-p (vector-copy p))
       (define index2 (random-from-list-ex (range (vector-length p)) index))
@@ -125,7 +127,10 @@
       (send stat inc-propose `swap)
       new-p)
 
-    ;; Generic across architectures
+    ;; Mutate opcode.
+    ;; index: index to be mutated
+    ;; entry: instruction at index in p
+    ;; p: entire program
     (define (mutate-opcode index entry p)
       (define opcode-id (inst-op entry))
       (define opcode-name (vector-ref inst-id opcode-id))
@@ -147,6 +152,7 @@
 
        [else (mutate p)]))
 
+    ;; Mutate operand.
     (define (mutate-operand index entry p)
       (define opcode-id (inst-op entry))
       (define opcode-name (vector-ref inst-id opcode-id))
@@ -187,6 +193,7 @@
 
        [else (mutate p)]))
 
+    ;; Mutate an entire instruction.
     (define (mutate-instruction index entry p)
       (define new-p (vector-copy p))
       (define opcode-id (inst-op entry))
@@ -206,6 +213,8 @@
       (vector-set! new-p index new-entry)
       new-p)
     
+    ;; Create a new instruction with operands that are live (in live-in) and with opcode-id if specified.
+    ;; live-in: compact format
     (define (random-instruction live-in [opcode-id (random-from-list (get-field inst-pool machine))])
       (when debug (pretty-display `(random-instruction ,opcode-id)))
       (define opcode-name (vector-ref inst-id opcode-id))
@@ -214,6 +223,7 @@
           (inst opcode-id args)
           (random-instruction live-in)))
     
+    ;; Create random operands from opcode.
     (define (random-args-from-op opcode-name live-in)
       (define ranges (send machine get-arg-ranges opcode-name #f live-in))
       (when debug (pretty-display (format " --> ranges ~a" ranges)))
@@ -235,10 +245,10 @@
               (set! mutations (cons `operand mutations)))
       mutations)
 
+    ;; Get a list of valid mutations given an opcode.
     (define (get-mutate-type opcode-name)
       (define mutations (get-mutations opcode-name))
       
-      ;; TODO: redundant
       (when debug (pretty-display `(mutations ,mutations)))
       (define sum 0)
       (define prop (map (lambda (x) 
@@ -254,6 +264,7 @@
             (loop (cdr name-list) (cdr prop-list))))
       (loop mutations prop))
 
+    ;; Mutate program p.
     (define (mutate p)
       (define vec-len (vector-length p))
       (define index (random vec-len))
@@ -272,8 +283,7 @@
        [(equal? type `swap)        (mutate-swap index entry p)]
        [else                       (mutate-other index entry p type)]))
       
-    
-
+    ;; MCMC sampling process.
     (define (mcmc-main prefix postfix target init inputs outputs constraint assumption time-limit extra-info)
       (pretty-display ">>> start MCMC sampling")
       (pretty-display ">>> Phase 3: stochastic search")
@@ -282,26 +292,6 @@
       ;; (pretty-display "constraint:")
       ;; (send machine display-state constraint)
       (define syn-mode #t)
-
-    ;; (define (fix-program p)
-    ;;   (define my-live-in live-in)
-    ;;   (define (keep-or-new entry)
-    ;;     (define opcode-id (inst-op entry))
-    ;;     (define opcode-name (vector-ref inst-id opcode-id))
-    ;;     (define ranges (send machine get-arg-ranges opcode-name entry my-live-in))
-    ;;     (define pass
-    ;;       (for/and ([range ranges]
-    ;;                 [arg (inst-args entry)])
-    ;;                (vector-member arg range)))
-
-    ;;     (define new-entry
-    ;;       (if pass
-    ;;           entry
-    ;;           (random-instruction my-live-in)))
-    ;;     (set! my-live-in (send machine update-live my-live-in new-entry))
-    ;;     new-entry)
-      
-    ;;   (for/vector ([entry p]) (keep-or-new entry)))
     
       (define (reduce-one p vec-len)
         (define index (random vec-len))
@@ -315,9 +305,6 @@
         (define vec-len (vector-length p))
         (cond
          [(= vec-len size)
-          ;; (define new-p (fix-program p))
-          ;; (values new-p
-          ;;         (or (car (cost-all-inputs new-p w-error)) w-error))
           (values p cost)]
          [(>= (length ps) 4)
           (define min-cost (first costs))
@@ -356,14 +343,7 @@
 	       ret)))
       
       (define (cost-all-inputs program okay-cost)
-        ;; (define correct 0)
         (define change-mode #f)
-        ;; (for ([input inputs]
-        ;;       [output outputs])
-        ;;      (when correct
-        ;;            (set! correct (+ correct (cost-one-input program input output)))
-        ;;            (when (> correct okay-cost)
-        ;;                  (set! correct #f))))
 
         (define (loop correct inputs outputs)
           (when debug (pretty-display `(correct ,correct)))

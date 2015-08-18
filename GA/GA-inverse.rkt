@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../ops-racket.rkt" "../ast.rkt"
+(require "../ops-racket.rkt" "../ast.rkt" "../inverse.rkt"
          "GA-machine.rkt" "GA-simulator-racket.rkt"
          "GA-printer.rkt" "GA-parser.rkt")
 
@@ -10,10 +10,10 @@
 (define-syntax-rule (modulo+ x y) (if (>= x 8) (- x y) x))
 
 (define GA-inverse%
-  (class object%
+  (class inverse%
     (super-new)
     (init-field machine simulator)
-    (public gen-inverse-behavior interpret-inst)
+    (override gen-inverse-behavior interpret-inst)
     
     (define bit (get-field bit machine))
     (define inst-id (get-field inst-id machine))

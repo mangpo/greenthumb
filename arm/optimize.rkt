@@ -75,7 +75,7 @@
 (define-values (live-mem live-out live-in) (send parser info-from-file (string-append file-to-optimize ".info")))
 
 (optimize code (list live-out live-mem) (list live-in live-mem) (search-type) (mode) (base-cost)
-          #:need-filter #f #:dir (dir) #:cores (cores) 
+          #:dir (dir) #:cores (cores) 
           #:time-limit (time-limit) #:size (size) #:window (window)
           #:input-file (input-file)
 	  )

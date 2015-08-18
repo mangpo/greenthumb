@@ -43,6 +43,7 @@
     (define (inst-copy-with-args x args) 
       (arm-inst (inst-op x) args (inst-shfop x) (inst-shfarg x) (inst-cond x)))
 
+    ;; (overriden) Get a list of valid mutations given an opcode.
     (define (get-mutations opcode-name)
       ;;(pretty-display `(get-mutations ,opcode-name ,(vector-member opcode-name shf-inst-id) ,shf-inst-id))
       (define mutations '(instruction swap))
@@ -55,7 +56,7 @@
               (set! mutations (cons `cond-type mutations)))
       mutations)
     
-    ;; Generic across architectures
+    ;; (overriden) Mutate by swapping 2 instructions.
     (define (mutate-swap index entry p)
       (define new-p (vector-copy p))
       (define index2 (random-from-list-ex (range (vector-length p)) index))
@@ -69,6 +70,8 @@
       (define opcode-id (inst-op entry-large))
       (define opcode-name (vector-ref inst-id opcode-id))
       (define ranges (send machine get-arg-ranges opcode-name entry-large my-live-in))
+
+      ;; Only swap if operands of instruction at index-large are live at index-small.
       (define pass
         (for/and ([range ranges]
                   [arg (inst-args entry-large)])
@@ -95,7 +98,7 @@
        [(equal? type `cond-type) (mutate-cond index entry p)]
        [else (raise (format "No support for mutation ~a" type))]))
 
-
+    ;; Mutate optinal shift.
     (define (mutate-shf index entry p)
       (define opcode-id (inst-op entry))
       (define args (vector-copy (inst-args entry)))
@@ -139,6 +142,7 @@
       (send stat inc-propose `shf)
       new-p)
 
+    ;; Mutate conditional-code suffix.
     (define (mutate-cond index entry p)
       (define cmp 
 	(for/or ([i (reverse (range index))])
@@ -161,7 +165,8 @@
 	new-p]
        [else (mutate p)]))
 
-
+    ;; (overriden) Create a new instruction with operands that are live (in live-in) and with opcode-id if specified.
+    ;; live-in: compact format
     (define (random-instruction live-in [opcode-id (random-from-list (get-field inst-pool machine))])
       (define opcode-name (vector-ref inst-id opcode-id))
       (define args (random-args-from-op opcode-name live-in))
@@ -175,9 +180,10 @@
         (arm-inst opcode-id args shfop shfarg cond-type)]
        [else (random-instruction live-in)])
       )
-
-    ;; state1: reference
-    ;; state2: proposal
+    
+    ;; Compute correctness cost sum of all bit difference in live registers and memory.
+    ;; state1: expected in progstate format
+    ;; state2: actual in progstate format
     (define (correctness-cost state1 state2 constraint)
       (define (diff-cost x y)
         (define (pop-count a)

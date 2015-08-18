@@ -1,4 +1,4 @@
-interface: inverse, enumerative
+delete support for cost with intermedate values
 
 remove redundant
 - diff-cost
@@ -6,7 +6,3 @@ remove redundant
 use progstate->vector, vector->progstate for
 - evaluate-state, get-sym-vars
 - maybe: assert-output, assume
-
-
-
-- progstate->vector for GA, neon, vpe

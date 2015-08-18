@@ -115,10 +115,9 @@
 (define GA-machine%
   (class machine%
     (super-new)
-    (inherit-field bit random-input-bit inst-id nop-id classes classes-len perline)
-    (inherit print-line)
+    (inherit-field bit random-input-bit inst-id nop-id classes classes-len)
     (override set-config get-config set-config-string
-              adjust-config finalize-config config-exceed-limit?
+              adjust-config finalize-config get-memory-size
               get-state display-state 
               output-constraint-string output-assume-string
 	      no-assumption
@@ -150,7 +149,6 @@
 		  '(dup pop over a)))
 
     (set! classes-len (vector-length classes))
-    (set! perline 8)
 
     (when (= bit 4)
           (set! UP -3)
@@ -168,7 +166,7 @@
     (define (set-config-string info) info)
     (define (adjust-config info) (* 2 info))
     (define (finalize-config info) (add1 info))
-    (define (config-exceed-limit? info) (> info 100))
+    (define (get-memory-size info) info)
     (define (output-assume-string machine-var x)
       (if x
           (format "(constrain-stack ~a '~a)" machine-var x)

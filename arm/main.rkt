@@ -14,12 +14,10 @@
 ;; code: program to superoptimized, parsed but not encoded.
 ;; live-out: a list of live register ids
 ;; synthesize: #t if synthesize mode, #f if optimize mode
-;; need-filter: if #t, filter out some instructions (branches) before superoptimize
 ;; size (optional)
 ;; >>> OUTPUT >>>
 ;; Optimized code, not encoded.
 (define (optimize code live-out live-in search-type mode base-cost
-                  #:need-filter [need-filter #f]
                   #:dir [dir "output"] 
                   #:cores [cores 12]
                   #:time-limit [time-limit 3600]
@@ -39,7 +37,7 @@
                         [window window]))
 
   (send parallel optimize code live-out live-in
-        #:need-filter need-filter #:dir dir #:cores cores 
+        #:dir dir #:cores cores 
         #:time-limit time-limit #:size size #:input-file input-file)
   )
   

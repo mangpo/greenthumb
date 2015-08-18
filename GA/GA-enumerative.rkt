@@ -1,15 +1,15 @@
 #lang racket
 
-(require "../ast.rkt")
+(require "../ast.rkt" "../enumerative.rkt")
 (require racket/generator)
 
 (provide GA-enumerative%)
 
 (define GA-enumerative%
-  (class object%
+  (class enumerative%
     (super-new)
     (init-field machine printer)
-    (public get-flag generate-inst)
+    (override get-flag generate-inst)
     
     (define inst-id (get-field inst-id machine))
     (define arith-inst
@@ -20,10 +20,10 @@
     (define-syntax-rule (min-list x) (foldl min (car x) (cdr x)))
     (define-syntax-rule (max-list x) (foldl max (car x) (cdr x)))
     
-    ;; Since we don't use live-in to prune the search space here, we just return #f.
+    ;; Since we don't use live-in and live-out to prune the search space here, we just return #f for both of them.
     (define (generate-inst 
              live-in live-out flag-in flag-out
-             regs type lex #:no-args [no-args #f] #:try-cmp [try-cmp #f])
+             #:no-args [no-args #f] #:try-cmp [try-cmp #f])
       (define const-range (get-field const-range machine))
       ;; (define inst-choice '(drop @p b! !b))
       ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
@@ -47,10 +47,10 @@
                [(equal? opcode-name `nop) (void)]
                [(equal? opcode-name `@p)
                 (for ([c const-range])
-                     (yield (list (inst opcode-id c) #f #f 0)))]
+                     (yield (list (inst opcode-id c) #f #f)))]
                [else
-                (yield (list (inst opcode-id #f) #f #f 0))])))
-       (yield (list #f #f #f #f))))
+                (yield (list (inst opcode-id #f) #f #f))])))
+       (yield (list #f #f #f))))
 
     (define (get-flag state-vec) (length (vector-ref state-vec 9)))
     

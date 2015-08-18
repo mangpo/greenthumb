@@ -3,7 +3,7 @@
 (require "../ast.rkt")
 (provide (all-defined-out))
 
-(struct arm-inst inst (shfop shfarg cond))
+(struct arm-inst inst (shfop shfarg cond)) ;; extend inst
 
 (define-syntax-rule (inst-cond x) (arm-inst-cond x))
 (define-syntax-rule (inst-shfop x) (arm-inst-shfop x))

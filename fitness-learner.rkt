@@ -55,9 +55,7 @@
     (define outputs (map (lambda (x) (interpret new-code (cdr x))) inputs))
     ;; (pretty-display `(get-new-code ,(andmap car outputs)))
     ;; (send printer print-syntax (send printer decode new-code)) (newline)
-    (if ;;(or (not (send machine syntax-equal? code new-code)) 
-        ;;    (> round 10))
-        (or (andmap car outputs) (> round 10))
+    (if (or (andmap car outputs) (> round 10))
         (values new-code outputs)
         (get-new-code code (add1 round))))
     
@@ -148,9 +146,7 @@
     (define outputs (map (lambda (x) (interpret new-code (cdr x))) inputs))
     ;; (pretty-display `(get-new-code ,(andmap car outputs)))
     ;; (send printer print-syntax (send printer decode new-code)) (newline)
-    (if ;;(or (not (send machine syntax-equal? code new-code)) 
-        ;;    (> round 10))
-        (or (andmap car outputs) (> round 10))
+    (if (or (andmap car outputs) (> round 10))
         (begin
           (print-state new-code outputs id)
           new-code)

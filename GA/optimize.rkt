@@ -76,7 +76,7 @@
 (pretty-display `(live-out ,live-out ,recv  ,assume ,input-file))
 (optimize code live-out (search-type) (mode) recv (base-cost)
 	  #:assume assume
-          #:need-filter #f #:dir (dir) #:cores (cores) 
+          #:dir (dir) #:cores (cores) 
           #:time-limit (time-limit) #:size (size) #:window (window)
           #:input-file input-file
 	  )

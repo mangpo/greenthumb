@@ -48,7 +48,7 @@
         (raise (format "encode: name->id: undefined for ~a" name))]))
 
     ;; Convert an instruction in string format into
-    ;; into an instructions encoded using numbers.
+    ;; an instruction encoded using numbers.
     (define (encode-inst x)
       (define op (inst-op x))
       (define args (inst-args x))
@@ -73,7 +73,7 @@
                 
 
     ;; Convert an instruction encoded using numbers
-    ;; into an instructions in string format.
+    ;; into an instruction in string format.
     (define (decode-inst x)
       (define opcode (send machine get-inst-name (inst-op x)))
       (define args (inst-args x))

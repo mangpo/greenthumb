@@ -11,6 +11,7 @@
     (public encode decode 
             print-struct print-struct-inst
             print-syntax print-syntax-inst)
+    ;; Required methods to be intialized when extended. See arm/arm-printer.rkt.
     (abstract encode-inst decode-inst)
 
     (define (encode code)

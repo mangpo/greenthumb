@@ -21,7 +21,6 @@
 
 (define (optimize code live-out search-type mode recv base-cost
                   #:assume [assume #f]
-                  #:need-filter [need-filter #f]
                   #:dir [dir "output"] 
                   #:cores [cores 12]
                   #:time-limit [time-limit 3600]
@@ -37,7 +36,7 @@
   (send parallel optimize code live-out #f
         #:assume assume
         #:extra-info recv
-        #:need-filter need-filter #:dir dir #:cores cores 
+        #:dir dir #:cores cores 
         #:time-limit time-limit #:size size 
         #:input-file input-file #:start-prog start-prog)
   )

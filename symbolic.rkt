@@ -8,7 +8,9 @@
 (define symbolic%
   (class decomposer%
     (super-new)
-    (inherit-field machine printer simulator validator stat)
+    (inherit-field machine printer 
+                   simulator validator ;; required field to be initialized when extended
+                   stat)
     (init-field [pure-symbolic #t]
                 [bit (get-field bit machine)])
     (override synthesize-window)
@@ -31,19 +33,18 @@
 
     ;; Superoptimize program
     ;; >>> INPUTS >>>
-    ;; spec: program specification (naive code)
+    ;; spec: input program specification
     ;; sketch: skeleton of the output program
     ;; constraint: constraint on the output state
     ;; cost: upperbound (exclusive) of the cost of the output program, #f is no upperbound
-    ;; assume-interpret: always true (for now)
     ;; assume: input assumption
     (define (synthesize-window spec sketch prefix postfix constraint extra 
 			       cost time-limit
 			       #:hard-prefix [hard-prefix (vector)] 
 			       #:hard-postfix [hard-postfix (vector)]
-			       #:assume-interpret [assume-interpret #t]
 			       #:assume [assumption (send machine no-assumption)])
-      (send machine analyze-opcode prefix spec postfix)
+      ;;(send machine analyze-opcode prefix spec postfix)
+      (send machine reset-inst-pool)
       (pretty-display `(solver ,(current-solver)))
       (if pure-symbolic 
           (synthesize-from-sketch 
@@ -51,30 +52,18 @@
 	   (vector-append prefix sketch postfix)
 	   constraint extra cost time-limit
             #:hard-prefix hard-prefix #:hard-postfix hard-postfix 
-            #:assume-interpret assume-interpret #:assume assumption)
+            #:assume assumption)
           (synthesize-window-mix 
            spec sketch prefix postfix constraint extra cost time-limit
             #:hard-prefix hard-prefix #:hard-postfix hard-postfix 
-            #:assume-interpret assume-interpret #:assume assumption)))
+            #:assume assumption)))
 
-    (define (reduce-inst-space sketch)
-      (define inst-pool (get-field inst-pool machine))
-      (when inst-pool
-	    (pretty-display `(reduce-inst-space 
-			      ,(map (lambda (x) (send machine get-inst-name x)) inst-pool)))
-	    (for ([i sketch])
-		 (assert (member (inst-op i) inst-pool)))))
-
-    (define (partial-random-sketch sketch)
-      (for ([i sketch])
-           (set-inst-op! i (random ninsts))))
-
-    ;; Caution: mutate sketch at symbolic instructions
+    ;; Randomly guess opcodes, then uses symbolic search to solve the rest.
+    ;; Caution: this function mutates sketch at symbolic instructions
     (define (synthesize-window-mix spec sketch prefix postfix constraint extra 
                                    [cost #f] [time-limit 3600]
                                    #:hard-prefix [hard-prefix (vector)] 
                                    #:hard-postfix [hard-postfix (vector)]
-                                   #:assume-interpret [assume-interpret #t]
                                    #:assume [assumption (send machine no-assumption)])
 
       ;; TODO: Break when best correct program is updated.
@@ -94,21 +83,26 @@
 	  (vector-append prefix sketch postfix)
 	  constraint extra cost time-limit
           #:hard-prefix hard-prefix #:hard-postfix hard-postfix 
-          #:assume-interpret assume-interpret #:assume assumption)
+          #:assume assumption)
          ))
 
       (loop))
 
+    (define (partial-random-sketch sketch)
+      (for ([i sketch])
+           (set-inst-op! i (random ninsts))))
+
+
+    ;; Query kodkod or SMT solver to find a candidate.
     (define (synthesize-from-sketch spec sketch constraint extra 
 				    [cost #f]
 				    [time-limit 3600]
                                     #:hard-prefix [hard-prefix (vector)] 
                                     #:hard-postfix [hard-postfix (vector)]
-				    #:assume-interpret [assume-interpret #t]
 				    #:assume [assumption (send machine no-assumption)])
       (send (current-solver) shutdown)
       (current-solver (new kodkod%))
-      (pretty-display (format "SUPERPOTIMIZE: assume-interpret = ~a" assume-interpret))
+      (pretty-display "SUPERPOTIMIZE:")
       (pretty-display (format "solver = ~a" (current-solver)))
       (when debug
             (send printer print-struct hard-prefix)
@@ -166,7 +160,7 @@
          (synthesize 
           #:forall sym-vars
           #:init (drop inputs 1)
-          #:assume (if assume-interpret (interpret-spec!) (send validator assume start-state assumption))
+          #:assume (interpret-spec!)
           #:guarantee (compare-spec-sketch))
          )
         )
@@ -192,7 +186,7 @@
       (values final-program final-cost)
       )
     
-
+    ;; Evaluate a symbolic instruction to a concrete instruction according to a given model.
     (define (evaluate-inst x model)
       (inst (evaluate (inst-op x) model)
             (evaluate (inst-args x) model)))

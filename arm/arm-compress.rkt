@@ -8,9 +8,7 @@
   (class compress%
     (super-new)
     (inherit-field machine)
-    (override compress-reg-space decompress-reg-space 
-              ;;pre-constraint-rename
-            select-code combine-code combine-live-out)
+    (override compress-reg-space decompress-reg-space)
     
     (define inst-id (get-field inst-id machine))
     (define branch-inst-id (get-field branch-inst-id machine))
@@ -112,73 +110,5 @@
 
     (define (decompress-reg-space program reg-map)
       (traverse program inst? (lambda (x) (inner-rename x reg-map))))
-
-    ;; Select an interesting portion of code to superoptimize.
-    ;; Exclude COPY, branching instructions.
-    ;; Outputs
-    ;; 1. selected-code to be optimized, #f if no code to be optimized
-    ;; 2. starting position
-    ;; 3. stopping position
-    ;; 4. additional live-out in the same format as one used by optimize.rkt--- a list of live registers
-    (define (select-code code)
-      (print-struct code)
-      (define len (vector-length code))
-      
-      (define (find-interest i succ check)
-        (define (f i)
-          (if (vector-member (string->symbol (inst-op (vector-ref code i))) inst-id)
-              i
-              (let ([new-i (succ i)])
-                (if (check new-i) (f new-i) new-i))))
-        (f i))
-
-      (define (add-live-out x extra-live-out)
-        (for ([arg (inst-args x)])
-             (when (regexp-match-positions #rx"r" arg)
-                   (set! extra-live-out 
-                         (cons (string->number (substring arg 2)) extra-live-out))))
-        extra-live-out)
-      
-      (define start (find-interest 0 add1 (lambda (x) (< x len))))
-      (define stop 
-        (if (>= start len) 
-            start
-            (find-interest (sub1 len) sub1 (lambda (x) (>= x start)))))
-      (pretty-display (format "start=~a, stop=~a" start stop))
-
-      (cond
-       [(<= (- stop start) 1) (values #f start stop (list))]
-
-       [else
-        (define select (vector-drop (vector-take code (add1 stop)) start))
-        (define new-len (vector-length select))
-        (define extra-live-out (list))
-
-        (cond
-         [(<= new-len 2) (values #f start stop (list))]
-         [else
-          (define pass
-            (for/and ([i select]) 
-                     (vector-member (string->symbol (inst-op i)) inst-id)))
-          
-          (when pass
-                (for ([i (range (add1 stop) len)])
-                     (set! extra-live-out (add-live-out (vector-ref code i) extra-live-out))))
-          
-          (values (and pass select) start stop extra-live-out)])
-        ]))
-
-    (define (combine-code original select start stop)
-      (set! select 
-            (vector-filter (lambda (x) (not (equal? (inst-op x) "nop"))) select))
-      (vector-append (vector-take original start)
-                     select
-                     (vector-drop original (add1 stop))))
-    
-    
-
-    ;; Combine 2 live-out info into one.
-    ;; Inputs are in the same format as live-out used by optimize.rkt and returned by (select-code)--- a list of live registers.
-    (define (combine-live-out org extra) (remove-duplicates (append org extra)))
 
     ))

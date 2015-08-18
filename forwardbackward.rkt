@@ -17,11 +17,17 @@
     (super-new)
     (inherit-field machine printer simulator validator stat syn-mode)
     (inherit window-size)
-    (init-field [enum #f] [simulator-abst #f] [validator-abst #f] [inverse #f])
+
+    ;; Required fields to be initialized when extended. See arm/arm-forwardbackward.rkt.
+    (init-field [enum #f] ;; instruction enumerator
+                [simulator-abst #f] ;; reduced-bitwidth simulator/emulator
+                [validator-abst #f] ;; reduced-bitwidth validator/verifier
+                [inverse #f] ;; inverse simulator/enumator
+                )
     
-    (abstract mask-in 
-              reduce-precision increase-precision
-	      get-live-mask)
+    ;; Required methods to be implemented when extended. See arm/arm-forwardbackward.rkt.
+    (abstract mask-in get-live-mask
+              reduce-precision increase-precision)
     (override synthesize-window superoptimize-linear superoptimize-binary)
     (public try-cmp? combine-live inst->vector prescreen sort-live sort-live-bw
             reduce-precision-assume)
@@ -278,7 +284,6 @@
 			       [cost #f] [time-limit 3600]
 			       #:hard-prefix [hard-prefix (vector)] 
 			       #:hard-postfix [hard-postfix (vector)]
-			       #:assume-interpret [assume-interpret #t]
 			       #:assume [assumption (send machine no-assumption)])
       (set! start-time (current-seconds))
       (send machine reset-inst-pool)
@@ -503,7 +508,7 @@
           ))
       
       (gen-inverse-behaviors (send enum generate-inst #f #f #f #f 
-				   #f `all #f #:no-args #t))
+				   #:no-args #t))
 
       (define (check-final p)
         (when debug
@@ -961,7 +966,7 @@
                                 [flag (hash-keys (vector-ref my-hash 0))]
                                 [iterator (send enum generate-inst 
                                                 #f live-list #f flag
-                                                #f `all #f #:try-cmp try-cmp)])
+                                               #:try-cmp try-cmp)])
                            ;; (pretty-display `(live ,live-list 
                            ;;                        ,(hash-count (vector-ref my-hash test))
                            ;;                        ,(hash-count (car (hash-values (vector-ref my-hash test))))))
@@ -1085,7 +1090,7 @@
                          [iterator
                           (send enum generate-inst 
                                 live1 live2 flag1 flag2
-                                #f `all #f #:try-cmp try-cmp)])
+                                #:try-cmp try-cmp)])
                     (pretty-display `(refine ,order ,live1 ,flag1 ,live2 ,(- (current-seconds) start-time)))
                     ;;(pretty-display `(hash ,(vector-ref my-hash2 0) ,(vector-ref my-hash2 1)))
                     ;; (when (and (equal? live1 '(0 1)) (equal? live2 '()))
@@ -1124,7 +1129,7 @@
                             [my-hash (cdr pair)]
                             [iterator (send enum generate-inst 
                                             live-list #f flag #f
-                                            #f `all #f #:try-cmp try-cmp)])
+                                            #:try-cmp try-cmp)])
                        (pretty-display `(live ,live-list ,flag ,(- (current-seconds) start-time)))
                        (build-hash my-hash iterator)))
                 (set! prev-classes (copy classes))

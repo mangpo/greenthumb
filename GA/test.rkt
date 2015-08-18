@@ -158,7 +158,6 @@
 ;;                ;;(encode "65535 or push over - pop and or or")
 ;;                (syninfo 2 0 #f)
 ;;                (constraint s t)
-;;                #:assume-interpret #t
 ;;                #:assume (constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
 
 ;;;;;;;;;;;;;;;; no comm ;;;;;;;;;;;;;;;;;;

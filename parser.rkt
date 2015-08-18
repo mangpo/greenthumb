@@ -9,6 +9,7 @@
 (define parser%
   (class object%
     (super-new)
+    ;; Required fields to be intialized when extended.
     (init-field [asm-parser #f] [asm-lexer #f])
     (public ast-from-string ast-from-file)
     

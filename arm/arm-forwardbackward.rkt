@@ -17,22 +17,30 @@
               reduce-precision increase-precision
 	      get-live-mask try-cmp? combine-live sort-live sort-live-bw)
 
+    ;; Num of instructions that can be synthesized within a minute.
     (define (len-limit) 2)
+
+    ;; Context-aware window decomposition size L.
+    ;; The cooperative search tries L/2, L, 2L, 4L.
     (define (window-size) 4)
     
     ;; Initialization
     (set! simulator (new arm-simulator-racket% [machine machine]))
     (set! validator (new arm-validator% [machine machine] [printer printer]))
 
+    ;; Actual bitwidth
     (define bit-precise (get-field bit machine))
+    ;; Reduce bitwidth
     (define bit 4)
     
+    ;; Initlized required fields.
     (let ([machine-abst (new arm-machine% [bit bit])])
       (send machine-abst set-config (send machine get-config))
       (set! simulator-abst (new arm-simulator-racket% [machine machine-abst]))
       (set! validator-abst (new arm-validator% [machine machine-abst] [printer printer]))
       (set! inverse (new arm-inverse% [machine machine-abst] [simulator simulator-abst]))
       (set! enum (new arm-enumerative% [machine machine-abst] [printer printer]))
+      ;; Set machine to reduced-bidwith machine.
       (set! machine machine-abst))
 
     (define max-val (arithmetic-shift 1 bit))
@@ -42,19 +50,15 @@
     (define cmp-inst
       (map (lambda (x) (vector-member x inst-id))'(cmp tst cmp# tst#)))
 
-    ;; (define (vector->id state)
-    ;;   ;; (define z (vector-ref state 2))
-    ;;   (define regs (vector-ref state 0))
-    ;;   (define id 0)
-        
-    ;;   (for ([r regs]) (set! id (+ (* id max-val) (bitwise-and r mask))))
-      
-    ;;   ;; (+ id (* (vector-member z z-range-db) (power max-val nregs))))
-    ;;   id)
-
+    ;; Convert instruction into vector/list/pair format.
     (define (inst->vector x)
       (vector (inst-op x) (inst-args x) (inst-shfop x) (inst-shfarg x) (inst-cond x)))
 
+    ;; Mask in only the live values. If an entry in progstate is not live, set it to #f.
+    ;; state-vec: progstate in vector/list/pair format
+    ;; live-list: liveness in compact format
+    ;; keep-flag: if #f, set flag to default value.
+    ;; output: masked progstate in vector/list/pair format
     (define (mask-in state-vec live-list #:keep-flag [keep #t])
       (define live-reg (car live-list))
       (define live-mem (cdr live-list))
@@ -69,6 +73,24 @@
        (for/vector ([m mems] [i (in-naturals)])
 		   (and (member i live-mem) m))
        (if keep z -1) fp))
+
+    ;; Extract liveness from programstate. If an entry is a number, then it is live.
+    ;; state-vec: progstate in vector/list/pair format
+    ;; output: liveness in compact format.
+    (define (get-live-mask state-vec)
+      (cons
+       ;; registers
+       (filter number?
+               (for/list ([i (in-naturals)]
+                          [r (vector-ref state-vec 0)])
+                         (and r i)))
+       ;; memory
+       (filter number?
+               (for/list ([i (in-naturals)]
+                          [r (vector-ref state-vec 1)])
+                         (and r i)))
+       )
+      )
     
     (define (reduce-inst x change)
       (define opcode-name (send machine get-inst-name (inst-op x)))
@@ -134,6 +156,9 @@
       (recurse (reverse new-args) new-shfarg (list) #f)
       ret)
     
+    ;; Convert input program into reduced-bitwidth program by replacing constants.
+    ;; output: a pair of (reduced-bitwidth program, replacement map*)
+    ;;   *replacement map maps reduced-bitwidth constants to sets of actual constants.
     (define (reduce-precision prog)
       (define mapping (make-hash))
       (define (change arg type)
@@ -163,6 +188,10 @@
         
       (cons (for/vector ([x prog]) (reduce-inst x change)) mapping))
     
+    ;; Convert reduced-bitwidth program into program in precise domain.
+    ;; prog: reduced bitwidth program
+    ;; mapping: replacement map returned from 'reduce-precision' function
+    ;; output: a list of potential programs in precise domain
     (define (increase-precision prog mapping)
       (define (change arg type)
         (define (finalize x)
@@ -188,19 +217,10 @@
                (list))
       ret)
 
-    (define (get-live-mask state-vec)
-      (cons
-       (filter number?
-               (for/list ([i (in-naturals)]
-                          [r (vector-ref state-vec 0)])
-                         (and r i)))
-       (filter number?
-               (for/list ([i (in-naturals)]
-                          [r (vector-ref state-vec 1)])
-                         (and r i)))
-       )
-      )
-
+    ;; Analyze if we should include comparing instructions into out instruction pool.
+    ;; code: input program
+    ;; state: program state in progstate format
+    ;; live: live-in information in progstate format
     (define (try-cmp? code state live)
       (define z (progstate-z state))
       (define live-z (progstate-z live))
@@ -212,11 +232,19 @@
        [(and (> z -1) (or use-cond1 use-cond2)) 2]
        [else 0]))
 
-    (define (combine-live x y) (cons (car x) (cdr y)))
+    ;; Combine livenss information at an abitrary point p in the program.
+    ;; x: liveness from executing the program from the beginning to point p.
+    ;; y: liveness from analyzing the program backward from the end to point p.
+    (define (combine-live x y) 
+      ;; Use register's liveness from x but memory's liveness from y.
+      (cons (car x) (cdr y)))
 
+    ;; Sort liveness. Say we have program prefixes that have different live-outs.
+    ;; If liveness A comes before B, program prefix with live-out A will be considered before program prefix with live-out B.
     (define (sort-live keys)
       (sort keys (lambda (x y) (> (length (car (entry-live x))) (length (car (entry-live y)))))))
 
+    ;; Similar to 'sort-live' but for backward direction (program postfixes).
     (define (sort-live-bw keys)
       (sort keys (lambda (x y)
 		   (if (= (length (cdr x)) (length (cdr y)))

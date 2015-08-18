@@ -8,7 +8,9 @@
 (define decomposer%
   (class object%
     (super-new)
-    (init-field machine printer parser [simulator #f] [validator #f] [syn-mode `linear]
+    (init-field machine printer parser 
+                [simulator #f] [validator #f] ;; required fields to be initialized
+                [syn-mode `linear]
 		[stat (new stat% [printer printer])])
     (abstract len-limit window-size synthesize-window)
     (public superoptimize
@@ -36,26 +38,6 @@
                                #:hard-prefix prefix #:hard-postfix postfix
 			       #:assume assumption)]
 
-	;; [(equal? syn-mode `partial1)
-	;;  (superoptimize-partial-pattern spec constraint 90 size extra ;; no div 60
-        ;;                                 #:hard-prefix prefix #:hard-postfix postfix
-        ;;                                 #:assume assumption)]
-
-	;; [(equal? syn-mode `partial2)
-	;;  (superoptimize-partial-pattern-slow spec constraint 800 size extra
-        ;;                                      #:hard-prefix prefix #:hard-postfix postfix
-        ;;                                      #:assume assumption)]
-
-	;; [(equal? syn-mode `partial3)
-	;;  (superoptimize-partial-random spec constraint 90 1 size extra
-        ;;                                 #:hard-prefix prefix #:hard-postfix postfix
-        ;;                                 #:assume assumption)]
-
-	;; [(equal? syn-mode `partial4)
-	;;  (superoptimize-partial-random spec constraint 240 1 size extra ;; no div 100
-        ;;                                 #:hard-prefix prefix #:hard-postfix postfix
-        ;;                                 #:assume assumption)]
-
 	[(equal? syn-mode `partial1)
 	 (superoptimize-partial-random spec constraint 60 (/ 1 2) size extra
                                        #:hard-prefix prefix #:hard-postfix postfix
@@ -81,7 +63,7 @@
 
 
     ;; Optimize the cost using binary search on the number of holes.
-    ;; spec: non-encoded block
+    ;; spec: non-encoded program
     (define (superoptimize-binary spec constraint time-limit size [extra #f]
 				  #:lower-bound [lower-bound 0]
                                   #:assume [assumption (send machine no-assumption)]
@@ -162,11 +144,12 @@
       (pretty-display "after inner")
       final-program)
 
+    ;; Optimize the cost by reducing upperbound cost until no solution is found.
+    ;; spec: non-encoded program
     (define (superoptimize-linear spec constraint time-limit size [extra #f]
 			   #:assume [assumption (send machine no-assumption)]
                            #:prefix [prefix (vector)] #:postfix [postfix (vector)]
-                           #:hard-prefix [hard-prefix (vector)] #:hard-postfix [hard-postfix (vector)]
-                           )
+                           #:hard-prefix [hard-prefix (vector)] #:hard-postfix [hard-postfix (vector)])
       (newline)
       (pretty-display (format ">> superoptimize-linear size = ~a" size))
       (when (> (vector-length prefix) 0)
@@ -204,7 +187,6 @@
       (with-handlers* 
        ([exn:fail? 
 	 (lambda (e) 
-	   (clean-up)
            (pretty-display "FAIL!")
            (pretty-display `(time ,(- (current-seconds) t)))
            (pretty-display (exn-message e))
@@ -221,14 +203,13 @@
                                          #:assume assumption))
 	       (raise e)))]
 	[exn:break? (lambda (e) 
-		      (clean-up)
                       (pretty-display "TIMEOUT!")
 		      (if final-program
 			   final-program
 			  "timeout"))])
        (inner (send simulator performance-cost (vector-append prefix spec postfix)))))
 
-    ;; TODO: timeout = 60 => 150
+    ;; Fixed then sliding window
     (define (superoptimize-partial-pattern 
              spec constraint time-limit size [extra #f]
              #:hard-prefix [hard-prefix (vector)]
@@ -267,6 +248,7 @@
        (inner))
       )
 
+    ;; Larger sliding window with more timeout.
     (define (superoptimize-partial-pattern-slow
              spec constraint time-limit size [extra #f]
              #:hard-prefix [hard-prefix (vector)]
@@ -295,6 +277,7 @@
        (loop time-limit (max (add1 (window-size)) (floor (* (/ 5 4) (window-size))))))
       )
     
+    ;; Random window
     (define (superoptimize-partial-random 
              spec constraint time-limit scale size [extra #f]
              #:hard-prefix [hard-prefix (vector)]
@@ -307,7 +290,7 @@
         (define prefix (vector-copy spec 0 from))
         (define after-prefix (vector-copy spec from))
         (define-values (new-seq pos)
-          (sliding-window-at hard-prefix hard-postfix 
+          (adjustable-window-at hard-prefix hard-postfix 
                              prefix after-prefix
                              constraint timeout extra assumption w))
         (define output 
@@ -354,6 +337,7 @@
           (pretty-display "restart!!!!!")
           (raise (exn:restart "restart" (current-continuation-marks) best-program)))))
     
+    ;; Fixed window
     (define (fixed-window hard-prefix hard-postfix spec constraint time-limit extra assume
                           window size-limit)
       (define len (vector-length spec))
@@ -388,7 +372,8 @@
       ;; (print-syntax (decode output))
       output)
 
-    (define (sliding-window-at hard-prefix hard-postfix prefix code 
+    ;; Adjustable-size window. Shrink when timeout.
+    (define (adjustable-window-at hard-prefix hard-postfix prefix code 
                                constraint time-limit extra assume window
 			       #:lower-bound [lower-bound 0]
                                #:restart [restart #f])
@@ -417,6 +402,7 @@
                   
       (inner (min len-code window)))
 
+    ;; Base sliding window
     (define (sliding-window hard-prefix hard-postfix spec 
 			    constraint time-limit extra assume window 
 			    #:restart [restart #f]
@@ -426,7 +412,7 @@
         (when (> (vector-length code) 0)
           (define-values 
             (out-program next-pos)
-            (sliding-window-at hard-prefix hard-postfix output code 
+            (adjustable-window-at hard-prefix hard-postfix output code 
 			       constraint time-limit extra assume window
                                #:restart restart #:lower-bound lower-bound
                                ))
@@ -443,8 +429,6 @@
 	   
       (loop spec)
       output)
-    
-    (define (clean-up) (void))
 
 
     ))
