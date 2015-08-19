@@ -11,8 +11,6 @@
 (struct progstate (a b r s t data return memory recv comm) 
         #:mutable #:transparent)
 
-(struct progstate+ progstate (extra))
-
 ;;;;;;;;;;;;;; STACK ;;;;;;;;;;;;;;;;;;
 (struct stack (sp body))
 

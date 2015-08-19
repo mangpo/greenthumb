@@ -20,32 +20,6 @@
 (struct item (x size))
 (struct	exn:state exn (state))
 
-(struct node (val size p))
-
-(define (display-node x [indent ""])
-  (when (node? x)
-	(pretty-display (format "~anode: ~a(~a;~a)" 
-                                indent (node-val x) (length (node-p x)) (node-size x)))
-	(for ([i (node-p x)])
-	     (display-node i (string-append indent "  ")))))
-
-
-(define (create-node-ex val p init-vals)
-  (define my-size (+ (if val 1 0) (for/sum ([i (filter node? p)]) (node-size i))))
-  (define my-val (if (member val init-vals) #f val))
-  (define my-p (list))
-  (for ([x p])
-       (when (node? x)
-	     (if (node-val x) 
-		 (set! my-p (cons x my-p))
-		 (set! my-p (append (node-p x) my-p)))))
-  ;; (cond
-  ;;  [(and (= (length my-p) 1) (equal? (node-val (car my-p)) my-val))
-  ;;   (car my-p)]
-  ;;  [else
-  ;;   (node my-val my-size my-p)]))
-  (node my-val my-size my-p))
-
 ;; Traverse a given program AST recursively until (base? program) is true.
 ;; Then apply base-apply to program.
 (define-syntax traverse

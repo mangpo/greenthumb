@@ -15,7 +15,7 @@
 (define parallel%
   (class object%
     (super-new)
-    (init-field meta parser machine printer compress validator search-type mode base-cost
+    (init-field meta parser machine printer compress validator search-type mode
                 [window #f])
     ;; search = `solver, `stoch, `hybrid
     ;; mode = `linear, `binary, `syn, `opt
@@ -79,9 +79,9 @@
                (cond
                 [(equal? search-type `stoch)
                  (pretty-display 
-                  (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode ~a] [base-cost ~a]))" 
+                  (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode ~a]))" 
                           (send meta get-class-name "stochastic") 
-                          (equal? mode `syn) base-cost))]
+                          (equal? mode `syn)))]
                 [(equal? search-type `solver)
                  (pretty-display 
                   (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode `~a]))" 

@@ -202,28 +202,13 @@
     
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
-    ;; policy: a procedure that enforces a policy to speed up synthesis. Default to nothing.
-    (define (interpret program state [policy #f] #:dep [dep #f])
+    (define (interpret program state [policy #f])
       (define inst-pool (get-field inst-pool machine))
       ;;(pretty-display `(interpret))
       (define regs (vector-copy (progstate-regs state)))
       (define memory (vector-copy (progstate-memory state)))
       (define z (progstate-z state))
       (define fp (progstate-fp state))
-
-      (define regs-dep (and dep (vector-copy (progstate-regs state))))
-      (define memory-dep (and dep (vector-copy (progstate-memory state))))
-      (define z-dep #f)
-      (define inter (list))
-      (define init-vals (append (list 0) (vector->list regs) (vector->list memory)))
-      
-      (define-syntax add-inter
-        (syntax-rules ()
-          ((add-inter x) (set! inter (cons x inter)))
-          ((add-inter x y ...) (set! inter (append (list x y ...) inter)))))
-
-      (define-syntax-rule (create-node val p)
-	(create-node-ex val p init-vals))
 
       (define (interpret-step step)
         (define op (inst-op step))
@@ -239,31 +224,23 @@
 
         (define-syntax-rule (args-ref args i) (vector-ref args i))
 
-        (define (exec cond-dep)
+        (define (exec)
           (define (opt-shift x)
             (define op (arm-inst-shfop step))
             (define k (arm-inst-shfarg step))
             (define-syntax-rule (shf-inst-eq xx) 
-	      (equal? xx (vector-ref shf-inst-id op)))
+              (equal? xx (vector-ref shf-inst-id op)))
 
             (define val #f)
-            (define val-dep #f)
             (define (rr f)
-              (set! val (f (vector-ref regs x) (vector-ref regs k)))
-              (if dep
-                  (set! val-dep (create-node val (list (vector-ref regs-dep x)
-                                                       (vector-ref regs-dep k))))
-                  (add-inter val)))
+              (set! val (f (vector-ref regs x) (vector-ref regs k))))
 
             (define (ri f)
-              (set! val (f (vector-ref regs x) k))
-              (if dep
-                  (set! val-dep (create-node val (list (vector-ref regs-dep x) k)))
-                  (add-inter val)))
+              (set! val (f (vector-ref regs x) k)))
+
             (cond
              [(or (equal? op #f) (shf-inst-eq `nop))
-              (set! val (vector-ref regs x))
-              (when dep (set! val-dep (vector-ref regs-dep x)))]
+              (set! val (vector-ref regs x))]
              [(shf-inst-eq `lsr) (rr bvushr)]
              [(shf-inst-eq `asr) (rr bvshr)]
              [(shf-inst-eq `lsl) (rr bvshl)]
@@ -275,7 +252,7 @@
              [else
               (assert #f (format "undefine optional shift: ~a" op))]
              )
-            (cons val val-dep)
+            val
             )
 
           ;; sub add
@@ -283,18 +260,13 @@
             (define d (args-ref args 0))
             (define a (args-ref args 1))
             (define b (args-ref args 2))
-            (define reg-b-val-dep 
+            (define reg-b-val 
 	      (if shf
 		  (opt-shift b)
-		  (cons (vector-ref regs b) (and dep (vector-ref regs-dep b)))))
+		  (vector-ref regs b)))
 
-            (define val (f (vector-ref regs a) (car reg-b-val-dep)))
-            (vector-set! regs d val)
-            (if dep
-                (vector-set! regs-dep d (create-node val (list (vector-ref regs-dep a)
-                                                               (cdr reg-b-val-dep)
-                                                               cond-dep)))
-                (add-inter val)))
+            (define val (f (vector-ref regs a) reg-b-val))
+            (vector-set! regs d val))
 
           (define (rrrr f)
             (define d (args-ref args 0))
@@ -302,14 +274,7 @@
             (define b (args-ref args 2))
             (define c (args-ref args 3))
             (define val (f (vector-ref regs a) (vector-ref regs b) (vector-ref regs c)))
-            (vector-set! regs d val)
-            (if dep
-                (vector-set! regs-dep d (create-node val 
-                                                     (list (vector-ref regs-dep a)
-                                                           (vector-ref regs-dep b)
-                                                           (vector-ref regs-dep c)
-                                                           cond-dep)))
-                (add-inter val)))
+            (vector-set! regs d val))
 
           (define (ddrr f-lo f-hi)
             (define d-lo (args-ref args 0))
@@ -320,54 +285,32 @@
             (define val-lo (f-lo (vector-ref regs a) (vector-ref regs b)))
             (define val-hi (f-hi (vector-ref regs a) (vector-ref regs b)))
             (vector-set! regs d-lo val-lo)
-            (vector-set! regs d-hi val-hi)
-            (if dep
-                (begin 
-                  (vector-set! regs-dep d-lo (create-node val-lo
-                                                          (list (vector-ref regs-dep a)
-                                                                (vector-ref regs-dep b)
-                                                                cond-dep)))
-                  (vector-set! regs-dep d-hi (create-node val-hi
-                                                          (list (vector-ref regs-dep a)
-                                                                (vector-ref regs-dep b)
-                                                                cond-dep))))
-                (add-inter val-lo val-hi)))
+            (vector-set! regs d-hi val-hi))
 
           ;; count leading zeros
           (define (rr f [shf #f])
             (define d (args-ref args 0))
             (define a (args-ref args 1))
-            (define reg-a-val-dep 
+            (define reg-a-val 
 	      (if shf
 		  (opt-shift a)
-		  (cons (vector-ref regs a) (and dep (vector-ref regs-dep a)))))
-            (define val (f (car reg-a-val-dep)))
-            (vector-set! regs d val)
-            (if dep
-                (vector-set! regs-dep d (create-node val (list (cdr reg-a-val-dep)
-                                                               cond-dep)))
-                (add-inter val)))
+		  (vector-ref regs a)))
+            (define val (f reg-a-val))
+            (vector-set! regs d val))
 
           ;; mov
           (define (ri f)
             (define d (args-ref args 0))
             (define a (check-imm-mov (args-ref args 1)))
             (define val (f a))
-            (vector-set! regs d val)
-            (if dep
-                (vector-set! regs-dep d (create-node val (list a cond-dep)))
-                (add-inter val)))
+            (vector-set! regs d val))
 
           ;; movhi movlo
           (define (r!i f)
             (define d (args-ref args 0))
             (define a (check-imm-mov (args-ref args 1)))
             (define val (f (vector-ref regs d) a))
-            (vector-set! regs d val)
-            (if dep
-                (vector-set! regs-dep d (create-node val (list a (vector-ref regs-dep d)
-                                                               cond-dep)))
-                (add-inter val)))
+            (vector-set! regs d val))
 
           ;; subi addi
           (define (rri f)
@@ -375,11 +318,7 @@
             (define a (args-ref args 1))
             (define b (check-imm (args-ref args 2)))
             (define val (f (vector-ref regs a) b))
-            (vector-set! regs d val)
-            (if dep
-                (vector-set! regs-dep d (create-node val (list b (vector-ref regs-dep a)
-                                                               cond-dep)))
-                (add-inter val)))
+            (vector-set! regs d val))
 
           ;; lsr
           (define (rrb f)
@@ -387,11 +326,7 @@
             (define a (args-ref args 1))
             (define b (args-ref args 2))
             (define val (f (vector-ref regs a) b))
-            (vector-set! regs d val)
-            (if dep
-                (vector-set! regs-dep d (create-node val (list b (vector-ref regs-dep a)
-                                                               cond-dep)))
-                (add-inter val)))
+            (vector-set! regs d val))
 
           ;; store
           (define (str reg-offset)
@@ -402,18 +337,7 @@
                   (+ fp (vector-ref regs b))
                   (+ fp b)))
             (define val (vector-ref regs d))
-            (vector-set! memory index val)
-            (if dep
-                (let* ([val-dep (list (vector-ref regs-dep d))]
-                       [index-dep 
-                        (if reg-offset
-                            (list (vector-ref regs-dep b))
-                            (list))]) ;; TODO: no b?
-                  (vector-set! memory-dep index 
-                               (create-node #f (list (create-node val val-dep)
-                                                     (create-node index index-dep)
-                                                     cond-dep))))
-                (add-inter index)))
+            (vector-set! memory index val))
 
           ;; load
           (define (ldr reg-offset)
@@ -424,18 +348,7 @@
                   (+ fp (vector-ref regs b))
                   (+ fp b)))
             (define val (vector-ref memory index))
-            (vector-set! regs d val)
-            (if dep
-                (let* ([val-dep (list (vector-ref memory-dep index))]
-                       [index-dep 
-                        (if reg-offset
-                            (list (vector-ref regs-dep b))
-                            (list))]) ;; TODO: no b?
-                  (vector-set! regs-dep d 
-                               (create-node #f (list (create-node val val-dep)
-                                                     (create-node index index-dep)
-                                                     cond-dep))))
-                (add-inter index)))
+            (vector-set! regs d val))
 
           ;; setbit
           (define (rrbb f)
@@ -444,12 +357,7 @@
             (define width (args-ref args 3))
             (define shift (args-ref args 2))
             (define val (f (vector-ref regs d) (vector-ref regs a) width shift))
-            (vector-set! regs d val)
-            (if dep
-                (vector-set! regs-dep d (create-node val (list (vector-ref regs-dep d)
-                                                               (vector-ref regs-dep a)
-                                                               cond-dep)))
-                (add-inter val)))
+            (vector-set! regs d val))
 
           ;; clrbit
           (define (r!bb f)
@@ -457,27 +365,18 @@
             (define width (args-ref args 2))
             (define shift (args-ref args 1))
             (define val (f (vector-ref regs d) width shift))
-            (vector-set! regs d val)
-            (if dep
-                (vector-set! regs-dep d (create-node val (list (vector-ref regs-dep d)
-                                                               cond-dep)))
-                (add-inter val)))
+            (vector-set! regs d val))
 
           (define (z=rr f)
             (define a (args-ref args 0))
             (define b (args-ref args 1))
-	    (set! z (f (vector-ref regs a) (vector-ref regs b)))
-            (when dep
-                  (set! z-dep (create-node #f (list (vector-ref regs-dep a) 
-                                                    (vector-ref regs-dep b))))))
+	    (set! z (f (vector-ref regs a) (vector-ref regs b))))
 
           (define (z=ri f)
             (define a (args-ref args 0))
             (define b (check-imm (args-ref args 1)))
-	    (set! z (f (vector-ref regs a) b))
-            (when dep
-                  (set! z-dep (create-node #f (list (vector-ref regs-dep a) 
-                                                    (create-node b (list)))))))
+	    (set! z (f (vector-ref regs a) b)))
+
           (cond
            ;; basic
            [(inst-eq `nop) (void)]
@@ -579,25 +478,25 @@
          [(or (equal? z -1) (equal? cond-type 0)
               (inst-eq `tst `cmp `tst# `cmp#))
 	  (assert (and (>= cond-type 0) (<= cond-type 6)))
-          (exec #f)]
+          (exec)]
 
 	 [(equal? cond-type 1) ;; eq
-	  (if (equal? z 0) (exec z-dep) (assert-op))]
+	  (if (equal? z 0) (exec) (assert-op))]
 
 	 [(equal? cond-type 2) ;; ne
-	  (if (member z (list 1 2 3)) (exec z-dep) (assert-op))]
+	  (if (member z (list 1 2 3)) (exec) (assert-op))]
 
 	 [(equal? cond-type 3) ;; ls
-	  (if (member z (list 0 2)) (exec z-dep) (assert-op))]
+	  (if (member z (list 0 2)) (exec) (assert-op))]
 
 	 [(equal? cond-type 4) ;; hi
-	  (if (equal? z 3) (exec z-dep) (assert-op))]
+	  (if (equal? z 3) (exec) (assert-op))]
 
 	 [(equal? cond-type 5) ;; cc
-	  (if (equal? z 2) (exec z-dep) (assert-op))]
+	  (if (equal? z 2) (exec) (assert-op))]
 
 	 [(equal? cond-type 6) ;; cs
-	  (if (member z (list 0 3)) (exec z-dep) (assert-op))]
+	  (if (member z (list 0 3)) (exec) (assert-op))]
 	 
          [else (assert #f (format "illegal cond-type ~a" cond-type))]
          )        
@@ -606,24 +505,8 @@
 
       (for ([x program])
            (interpret-step x))
-      ;; (cond
-      ;;  [dep
-      ;;   (pretty-display "regs-dep")
-      ;;   (for ([i (vector-length regs-dep)])
-      ;;        (pretty-display (format "----- reg[~a] -----" i))
-      ;;        (display-node (vector-ref regs-dep i)))
-      ;;   (pretty-display "memory-dep")
-      ;;   (for ([i (vector-length memory-dep)])
-      ;;        (pretty-display (format "----- mem[~a] -----" i))
-      ;;        (display-node (vector-ref memory-dep i)))
-      ;;   ]
-      ;;  [else
-      ;;   (pretty-display `(inter ,inter))])
       
-      (progstate+ regs memory z fp 
-		  (if dep 
-		      (progstate regs-dep memory-dep z-dep #f)
-		      inter)))
+      (progstate regs memory z fp))
 
     (define (performance-cost code)
       (define cost 0)
@@ -631,13 +514,13 @@
       (for ([x code])
            (let ([op (inst-op x)]
                  [shfop (inst-shfop x)])
-             (define-syntax-rule (inst-eq a ...) 
-	       (let ([opcode-name (vector-ref inst-id op)])
-		 (or (equal? a opcode-name) ...)))
+             (define-syntax-rule (inst-eq a ...)
+ 	       (let ([opcode-name (vector-ref inst-id op)])
+ 		 (or (equal? a opcode-name) ...)))
              (define-syntax-rule (shf-inst-eq a ...)
-	       (and shfop
-		    (let ([opcode-name (vector-ref shf-inst-id shfop)])
-		      (or (equal? a opcode-name) ...))))
+ 	       (and shfop
+ 		    (let ([opcode-name (vector-ref shf-inst-id shfop)])
+ 		      (or (equal? a opcode-name) ...))))
 
              (cond
               [(inst-eq `nop) (void)]

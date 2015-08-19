@@ -31,8 +31,8 @@
 (if ce
     (send machine display-state ce)
     (pretty-display "No counterexample."))
-;(send machine display-state (send simulator-rosette interpret encoded-code ce #:dep #f))
-;(send machine display-state (send simulator-rosette interpret encoded-sketch ce #:dep #f))
+;(send machine display-state (send simulator-rosette interpret encoded-code ce))
+;(send machine display-state (send simulator-rosette interpret encoded-sketch ce))
 
 #|
 (define t (current-seconds))

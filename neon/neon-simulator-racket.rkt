@@ -75,7 +75,7 @@
        (for ([x code]) (get-schedule-info x))
        #t))
     
-    (define (interpret code state [policy #f] #:dep [dep #f])
+    (define (interpret code state [policy #f])
       (define dregs (vector-copy (progstate-dregs state))) ;; 8-bit unit
       (define rregs (vector-copy (progstate-rregs state))) ;; 32-bit unit?
       (define memory (vector-copy (progstate-memory state))) ;; 8-bit unit

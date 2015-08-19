@@ -6,7 +6,6 @@
 
 ;; Program state representation.
 (struct progstate (regs memory z fp))
-(struct progstate+ progstate (extra))
 
 (define-syntax-rule (build-vector n init)
   (let ([vec (make-vector n)])

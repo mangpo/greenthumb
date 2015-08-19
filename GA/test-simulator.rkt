@@ -18,12 +18,12 @@
 ;(define input
 ;   (cdar (send machine get-states-from-file "data-fff/inputs")))
 ;(define output
-;  (send simulator-racket interpret encoded-code input #:dep #f))
+;  (send simulator-racket interpret encoded-code input))
 ;(send machine display-state output)
 
 (define input (default-state machine 0 (thunk 0) [s 0] [t 0]))
 (send machine display-state 
-      (send simulator-racket interpret encoded-code input #:dep #f))
+      (send simulator-racket interpret encoded-code input))
 
 ;(define live-in
 ;  (send solver get-live-in encoded-code (constraint (data 0) s t memory) 0))
@@ -34,7 +34,7 @@
   (define-symbolic* input number?)
    input)
 (define state (default-state machine 1 sym-input))
-(send machine display-state (send simulator-rosette interpret encoded-sketch state #:dep #f))
+(send machine display-state (send simulator-rosette interpret encoded-sketch state))
 |#
 
 #|
@@ -44,11 +44,11 @@
 
 (define states1 
   (for/list ([input inputs])
-    (send simulator interpret encoded-code input #:dep #t)))
+    (send simulator interpret encoded-code input)))
 
 (define states2 
   (for/list ([input inputs])
-    (send simulator interpret encoded-sketch input #:dep #f)))
+    (send simulator interpret encoded-sketch input)))
 
 
 ;(send stochastic correctness-cost final-state final-state2 (constraint t memory))

@@ -10,8 +10,8 @@
 (define arm-stochastic%
   (class stochastic%
     (super-new)
-    (inherit-field machine printer validator simulator stat mutate-dist live-in base-cost)
-    (inherit random-args-from-op mutate adjust)
+    (inherit-field machine printer validator simulator stat mutate-dist live-in)
+    (inherit random-args-from-op mutate)
     (override correctness-cost 
 	      get-mutations random-instruction mutate-other mutate-swap
 	      inst-copy-with-op inst-copy-with-args)
@@ -207,59 +207,39 @@
 
       (define regs1 (progstate-regs state1))
       (define memory1 (progstate-memory state1))
-      (define dep (progstate+-extra state1))
-      (define regs1-dep (progstate-regs dep))
-      (define memory1-dep (progstate-memory dep))
       (define z1 (progstate-z state1))
 
       (define regs2 (progstate-regs state2))
       (define memory2 (progstate-memory state2))
-      (define inter (progstate+-extra state2))
       (define z2 (progstate-z state2))
       
       (define correctness 0)
-      (define relax base-cost)
       (define misalign-penalty 1)
       (define misalign 0)
-      (if relax
-          (for ([r regs]
-                [i (vector-length regs)])
-               (when r
-                     (let* ([r1 (vector-ref regs1 i)]
-                            [cost-r (diff-cost r1 (vector-ref regs2 i))]
-                            [best-j i])
-                       (for ([j (vector-length regs)])
-                            (let* ([r2 (vector-ref regs2 j)]
-                                   [this-cost (diff-cost r1 r2)])
-                              (when (< this-cost cost-r)
-                                    (set! cost-r this-cost)
-                                    (set! best-j j)
-                                    )))
-                       (set! correctness (+ correctness cost-r))
-                       (unless (= best-j i) (set! misalign (+ misalign misalign-penalty)))
-                       )))
-          
-          (for ([r regs]
-                [r1 regs1]
-                [r2 regs2]
-                [r1-dep regs1-dep]
-                [i (vector-length regs)])
-               (when r 
-                     ;;(pretty-display `(correctness reg ,i))
-                     (let ([my-cost (diff-cost r1 r2)])
-                       (set! correctness (+ correctness (adjust my-cost r1 r1-dep inter)))
-                       ;; (set! correctness (+ correctness my-cost))
-                       ))))
+      (for ([r regs]
+            [i (vector-length regs)])
+           (when r
+                 (let* ([r1 (vector-ref regs1 i)]
+                        [cost-r (diff-cost r1 (vector-ref regs2 i))]
+                        [best-j i])
+                   (for ([j (vector-length regs)])
+                        (let* ([r2 (vector-ref regs2 j)]
+                               [this-cost (diff-cost r1 r2)])
+                          (when (< this-cost cost-r)
+                                (set! cost-r this-cost)
+                                (set! best-j j)
+                                )))
+                   (set! correctness (+ correctness cost-r))
+                   (unless (= best-j i) (set! misalign (+ misalign misalign-penalty)))
+                   )))
 
       (for ([m memory]
             [m1 memory1]
-            [m2 memory2]
-            [m1-dep memory1-dep])
+            [m2 memory2])
            (when m 
                  (let ([my-cost (diff-cost m1 m2)])
-                   (set! correctness (+ correctness (adjust my-cost m1 m1-dep inter))))
-                   ;;(set! correctness (+ correctness my-cost))
-                   ))
+                   (set! correctness (+ correctness my-cost))
+                   )))
 
       (when (and z (not (equal? z1 z2))) (set! correctness (add1 correctness)))
 
@@ -270,7 +250,6 @@
       ;;       (if (= misalign 0)
       ;;           (void)
       ;;           (send stat inc-misalign)))
-      ;; (+ correctness misalign)
       (+ correctness misalign)
       )
     ))

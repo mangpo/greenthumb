@@ -12,7 +12,7 @@
             mutate-opcode mutate-operand mutate-swap
             mutate-operand-specific mutate-other
             random-instruction print-mutation-info
-	    random-args-from-op adjust)
+	    random-args-from-op)
     (abstract correctness-cost)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
@@ -20,7 +20,6 @@
                 [parser #f]
                 [validator #f]
                 [simulator #f]
-                [base-cost #f]
                 [stat (new stat% [printer printer])]
                 [input-file #f]
                 [w-error 9999]
@@ -56,7 +55,6 @@
       (send machine analyze-args (vector) spec (vector) live-in constraint)
       (send machine analyze-opcode (vector) spec (vector))
       (pretty-display `(live-in ,live-in))
-      (pretty-display (format "Base-cost: ~a" base-cost))
       ;; Generate testcases
       (when debug 
             (pretty-display ">>> Phase 0: print mutation info")
@@ -73,13 +71,13 @@
             (send validator generate-input-states ntests (vector-append prefix spec postfix)
                   assumption extra-info)))
 
-      (define inputs (map (lambda (x) (send simulator interpret prefix x #:dep #f)) inits))
+      (define inputs (map (lambda (x) (send simulator interpret prefix x)) inits))
         
       (when debug
             (for ([i inputs])
                  (send machine display-state i))
             (pretty-display ">>> Phase 2: generate output states"))
-      (define outputs (map (lambda (x) (send simulator interpret spec x #:dep #t)) inputs))
+      (define outputs (map (lambda (x) (send simulator interpret spec x)) inputs))
       (when debug
             (for ([i outputs])
                  (send machine display-state i))
@@ -373,9 +371,9 @@
               (if ce 
                   (begin
                     (set! correct 1)
-                    (set! ce (send simulator interpret prefix ce #:dep #f))
+                    (set! ce (send simulator interpret prefix ce))
                     (set! inputs (cons ce inputs))
-                    (set! outputs (cons (send simulator interpret target ce #:dep #t) 
+                    (set! outputs (cons (send simulator interpret target ce) 
                                         outputs))
                     (pretty-display (format "Add counterexample. Total = ~a." (length inputs)))
                     (send machine display-state ce)
@@ -520,40 +518,6 @@
                           w-error)
                       ))
        )
-      )
-
-
-    (define (adjust cost val dep inter [min-val 1])
-      ;;(pretty-display `(adjust ,cost ,val))
-      (define (dfs x)
-        ;;(pretty-display `(dfs ,(node-val x)))
-        (if (member (node-val x) inter)
-            (node-size x)
-            (for/sum ([i (node-p x)])
-                     (if (node? i) (dfs i) 0))))
-      
-      
-      (define half (max (/ cost 2) min-val))
-      (cond
-       [base-cost cost]
-       [(<= cost min-val) 
-        ;;(pretty-display `(min-val))
-        cost]
-       ;; [(and (node? dep) (equal? (node-val dep) val) (member val inter))
-       ;;  (pretty-display `(cover-all))
-       ;;  min-val]
-       [(node? dep)
-        (define total (node-size dep))
-        (define uncover (- total (dfs dep)))
-        ;;(pretty-display `(uncover-total ,uncover ,total ,cost))
-        ;;(exact->inexact (add1 (* (/ uncover total) (sub1 cost))))
-        (exact->inexact (+ half (* (/ uncover total) (- cost half))))
-        ]
-
-       ;; No computation
-       [else 
-        ;;(pretty-display `(no-comp))
-        min-val])
       )
 
     ))

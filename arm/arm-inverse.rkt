@@ -64,7 +64,7 @@
 	     ([exn? (lambda (e) #f)])
 	     (send simulator interpret
 		   (vector my-inst)
-		   (progstate (list->vector in-res) (vector) -1 fp) #:dep #f)))
+		   (progstate (list->vector in-res) (vector) -1 fp))))
           
 	  (when 
 	   out-state

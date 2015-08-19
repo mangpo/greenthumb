@@ -43,7 +43,7 @@
                     [out-state 
                      (with-handlers*
                       ([exn? (lambda (e) #f)])
-                      (send simulator interpret (vector my-inst) state #:dep #f))]
+                      (send simulator interpret (vector my-inst) state))]
                     [out-v (and out-state (progstate-t out-state))])
                (when out-v
                      (if (hash-has-key? behavior-bw out-v)
@@ -58,7 +58,7 @@
                      [out-state 
                       (with-handlers*
                        ([exn? (lambda (e) #f)])
-                       (send simulator interpret (vector my-inst) state #:dep #f))]
+                       (send simulator interpret (vector my-inst) state))]
                      [out-v (and out-state (progstate-t out-state))])
                (when out-v
                      (if (hash-has-key? behavior-bw out-v)
@@ -75,7 +75,7 @@
                      [out-state 
                       (with-handlers*
                        ([exn? (lambda (e) #f)])
-                       (send simulator interpret (vector my-inst) state #:dep #f))]
+                       (send simulator interpret (vector my-inst) state))]
                      [key (and out-state
                                (list (progstate-t out-state)
                                      (progstate-s out-state)

@@ -17,7 +17,7 @@
 ;; size (optional)
 ;; >>> OUTPUT >>>
 ;; Optimized code, not encoded.
-(define (optimize code live-out live-in search-type mode base-cost
+(define (optimize code live-out live-in search-type mode
                   #:dir [dir "output"] 
                   #:cores [cores 12]
                   #:time-limit [time-limit 3600]
@@ -33,7 +33,7 @@
   (define validator (new arm-validator% [machine machine] [printer printer]))
   (define parallel (new parallel% [meta meta] [parser parser] [machine machine] 
                         [printer printer] [compress compress] [validator validator]
-                        [search-type search-type] [mode mode] [base-cost base-cost]
+                        [search-type search-type] [mode mode]
                         [window window]))
 
   (send parallel optimize code live-out live-in

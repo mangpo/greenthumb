@@ -294,7 +294,7 @@
                    assumption extra #:db #t)))
       (define state2
         (send simulator interpret
-              (vector-append prefix spec) init #:dep #f))
+              (vector-append prefix spec) init))
       (define live2
         (send validator get-live-in postfix constraint extra))
       (define try-cmp-status (try-cmp? spec state2 live2))
@@ -452,9 +452,9 @@
       ;;    (progstate (vector 1 -1 2 -4) (vector) -1 4)
       ;;    ))
       (define states1 
-	(map (lambda (x) (send simulator-abst interpret prefix x #:dep #f)) inits))
+	(map (lambda (x) (send simulator-abst interpret prefix x)) inits))
       (define states2
-	(map (lambda (x) (send simulator-abst interpret spec x #:dep #f)) states1))
+	(map (lambda (x) (send simulator-abst interpret spec x)) states1))
       (define states1-vec 
 	(map (lambda (x) (mask-in (send machine progstate->vector x) live1-list))
              states1))
@@ -521,7 +521,7 @@
                    (let* ([my-output 
 			   (with-handlers*
 			    ([exn? (lambda (e) #f)])
-			    (send simulator interpret (vector-append p postfix-precise) input #:dep #f))]
+			    (send simulator interpret (vector-append p postfix-precise) input))]
 			  [my-output-vec
 			   (and my-output (send machine progstate->vector my-output))])
                      (and my-output (send machine state-eq? output-vec my-output-vec live3-vec)))))
@@ -537,9 +537,9 @@
 
          (if ce
              (let* ([ce-input
-                     (send simulator interpret prefix-precise ce #:dep #f)]
+                     (send simulator interpret prefix-precise ce)]
                     [ce-output
-                     (send simulator interpret (vector-append spec-precise postfix-precise) ce-input #:dep #f)]
+                     (send simulator interpret (vector-append spec-precise postfix-precise) ce-input)]
                     [ce-output-vec
                      (send machine progstate->vector ce-output)])
                (when debug
@@ -601,11 +601,11 @@
                              constraint extra #:assume assumption))
 
             (if ce
-                (let* ([ce-input (send simulator-abst interpret prefix ce #:dep #f)]
+                (let* ([ce-input (send simulator-abst interpret prefix ce)]
                        [ce-input-vec
                         (send machine progstate->vector ce-input)]
                        [ce-output
-                        (send simulator-abst interpret spec ce-input #:dep #f)]
+                        (send simulator-abst interpret spec ce-input)]
                        [ce-output-vec
                         (send machine progstate->vector ce-output)])
                   (when debug
@@ -648,7 +648,7 @@
                              [my-output 
                               (with-handlers*
                                ([exn? (lambda (e) #f)])
-                               (send simulator-abst interpret p input #:dep #f))]
+                               (send simulator-abst interpret p input))]
                              [my-output-vec (and my-output (send machine progstate->vector my-output))])
                         (and my-output
                              (send machine state-eq? output-vec my-output-vec live2-vec))))))
@@ -736,7 +736,7 @@
                           [state
 			   (with-handlers*
 			    ([exn? (lambda (e) #f)])
-                            (send simulator-abst interpret prog input ce-out-level #:dep #f))]
+                            (send simulator-abst interpret prog input ce-out-level))]
                           [state-vec (and state (send machine progstate->vector state))]
                           [s1 (current-milliseconds)])
                      (when
@@ -785,7 +785,7 @@
                                   ([exn? (lambda (e) #f)])
                                   (send simulator-abst interpret (vector my-inst)
                                         (send machine vector->progstate inter)
-                                        ce-out-level #:dep #f)))]
+                                        ce-out-level)))]
                            [s2 (current-milliseconds)]
                            )
 		      (set! out-vec (and out (mask-in (send machine progstate->vector out) my-live2)))
@@ -918,7 +918,7 @@
                                                (send simulator-abst interpret 
                                                      (vector my-inst)
                                                      (send machine vector->progstate state-vec)
-                                                     ce-out-level #:dep #f)))
+                                                     ce-out-level)))
                                         )
                                        ])
                                   (when (list? val) (hash-set! cache state-vec tmp))

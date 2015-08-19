@@ -43,7 +43,7 @@ mov r1, r2, lsl 16
 (send printer print-syntax (send printer decode encoded-code))
 
 (define output-state
-  (send simulator-racket interpret encoded-code input-state #:dep #f))
+  (send simulator-racket interpret encoded-code input-state))
 (pretty-display "Output from simulator in rosette.")
 (send machine display-state output-state)
 ;; (pretty-display

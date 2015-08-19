@@ -10,7 +10,6 @@
 (define dir (make-parameter "output"))
 (define time-limit (make-parameter 3600))
 (define window (make-parameter #f))
-(define base-cost (make-parameter #f))
  
 (define file-to-optimize
   (command-line
@@ -58,13 +57,6 @@
    [("-s" "--synthesize") "Synthesize mode starts searching from random programs (default)"
                         (mode `syn)]
 
-   #:once-any
-   [("--inter")  "Cost function with intermediates."
-                 (base-cost #f)]
-   [("--base")   "Baseline cost function."
-                 (base-cost #t)]
-
-
    #:args (filename) ; expect one command-line argument: <filename>
    ; return the argument as a filename to compile
    filename))
@@ -74,7 +66,7 @@
 (define-values (live-out recv assume input-file) (send parser info-from-file (string-append file-to-optimize ".info")))
 
 (pretty-display `(live-out ,live-out ,recv  ,assume ,input-file))
-(optimize code live-out (search-type) (mode) recv (base-cost)
+(optimize code live-out (search-type) (mode) recv
 	  #:assume assume
           #:dir (dir) #:cores (cores) 
           #:time-limit (time-limit) #:size (size) #:window (window)

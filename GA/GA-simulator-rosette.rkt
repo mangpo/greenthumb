@@ -56,7 +56,7 @@
     ;; code
     ;; state: initial progstate
     ;; policy: a procedure that enforces a communication policy (see the definition of comm-policy above)
-    (define (interpret code state [policy #f] #:dep [dep #f])
+    (define (interpret code state [policy #f])
       (set! policy (if policy
 		       (comm-policy at-most policy)
 		       (comm-policy all)))
@@ -74,29 +74,6 @@
       
       (define recv (progstate-recv state))
       (define comm (progstate-comm state))
-      
-      (define a-dep (progstate-a state))
-      (define b-dep (progstate-b state))
-      (define r-dep (progstate-r state))
-      (define s-dep (progstate-s state))
-      (define t-dep (progstate-t state))
-      (define data-sp-dep (stack-sp (progstate-data state)))
-      (define data-body-dep (and dep (vector-copy (stack-body (progstate-data state)))))
-      (define return-sp-dep (stack-sp (progstate-return state)))
-      (define return-body-dep (and (vector-copy (stack-body (progstate-return state)))))
-      (define memory-dep (and dep (vector-copy (progstate-memory state))))
-      (define comm-dep (list))
-      (define inter (list))
-      (define init-vals (append (list 0 a r s t) 
-				(vector->list data-body) 
-				(vector->list return-body)))
-      
-      (define-syntax add-inter
-        (syntax-rules ()
-          ((add-inter x) (set! inter (cons x inter)))
-          ((add-inter x y ...) (set! inter (append (list x y ...) inter)))))
-
-      (define-syntax-rule (create-node val p) (create-node-ex val p init-vals))
 
       ;; Pushes a value to the given stack's body.
       (define-syntax-rule (push-stack! x-sp x-body value)
@@ -112,58 +89,37 @@
 	  ret-val))
 
       ;; Pushes to the data stack.
-      (define (push! value node [new #t])
+      (define (push! value)
 	(push-stack! data-sp data-body s)
 	(set! s t)
-	(set! t value)
-	(if dep
-	    (begin
-	      (push-stack! data-sp-dep data-body-dep s-dep)
-	      (set! s-dep t-dep)
-	      (set! t-dep node)
-	      )
-	    (when new (add-inter value)))
-	)
+	(set! t value))
       
       ;; Pushes to the return stack.
-      (define (r-push! value node)
+      (define (r-push! value)
 	(push-stack! return-sp return-body r)
-	(set! r value)
-	(when dep
-	      (push-stack! return-sp-dep return-body-dep r-dep)
-	      (set! r-dep node))
-	)
+	(set! r value))
       
       ;; Pops from the data stack.
       (define (pop!)
-	(let ([ret-val t]
-	      [ret-val-dep t-dep])
+	(let ([ret-val t])
 	  (set! t s)
 	  (set! s (pop-stack! data-sp data-body))
-	  (when dep
-		(set! t-dep s-dep)
-		(set! s-dep (pop-stack! data-sp-dep data-body-dep)))
-	  (values ret-val ret-val-dep)))
+	  ret-val))
       
       ;; Pops from the return stack.
       (define (r-pop!)
-	(let ([ret-val r]
-	      [ret-val-dep r-dep])
+	(let ([ret-val r])
 	  (set! r (pop-stack! return-sp return-body))
-	  (when dep 
-		(set! r-dep (pop-stack! return-sp-dep return-body-dep)))
-          (values ret-val ret-val-dep)))
+          ret-val))
       
       ;; Read from the given memory address or communication port. If it
       ;; gets a communication port, it just returns a random number (for
       ;; now).
       (define (read-memory addr)
         (define ret #f)
-        (define ret-dep #f)
 	(define (read port)
 	  (let ([val (car recv)])
 	    (set! comm (policy (list val port 0) comm))
-	    (when dep (set! comm-dep (cons (list val port 0) comm-dep)))
 	    (set! recv (cdr recv))
 	    val))
 	(cond
@@ -173,18 +129,16 @@
 	 [(equal? addr RIGHT) (set! ret (read RIGHT))]
 	 [(equal? addr IO)    (set! ret (read IO))]
 	 [else 
-          (set! ret (vector-ref memory addr))
-          (set! ret-dep (and dep (vector-ref memory-dep addr)))])
-        (values ret ret-dep))
+          (set! ret (vector-ref memory addr))])
+        ret)
       
       ;; Write to the given memeory address or communication
       ;; port. Everything written to any communication port is simply
       ;; aggregated into a list.
-      (define (set-memory! addr val node)
+      (define (set-memory! addr val)
 	(when debug (pretty-display `(set-memory! ,addr ,val)))
 	(define (write port)
-          (set! comm (policy (list val port 1) comm))
-	  (when dep (set! comm-dep (cons (list node port 1) comm-dep))))
+          (set! comm (policy (list val port 1) comm)))
 	(cond
 	 [(equal? addr UP)    (write UP)]
 	 [(equal? addr DOWN)  (write DOWN)]
@@ -192,8 +146,7 @@
 	 [(equal? addr RIGHT) (write RIGHT)]
 	 [(equal? addr IO)    (write IO)]
 	 [else 
-	  (vector-set! memory addr val)
-	  (when dep (vector-set! memory-dep addr node))]))
+	  (vector-set! memory addr val)]))
 
       (define (clip x) (finitize x bit))
 
@@ -206,12 +159,7 @@
 	(let ([a-val (push-right-one a t)]
 	      [t-val (>> t 1)])
 	  (set! a a-val)
-	  (set! t t-val)
-	  (if dep
-	      (begin
-		(set! a-dep (create-node a-val (list a-dep t-dep)))
-		(set! t-dep (create-node t-val (list t-dep))))
-	      (add-inter a-val t-val))))
+	  (set! t t-val)))
       
       ;; Sums T and S and concatenates the result with A, shifting
       ;; the concatenated 37-bit to the right by one bit.
@@ -220,58 +168,37 @@
 	       [a-val (push-right-one a sum)]
 	       [t-val (>> sum 1)])
 	  (set! a a-val)
-	  (set! t t-val)
-	  (if dep
-	      (begin
-		(set! a-dep (create-node a-val (list a-dep t-dep s-dep)))
-		(set! t-dep (create-node t-val (list t-dep s-dep))))
-	      (add-inter a-val t-val))))
+	  (set! t t-val)))
 
-      (define-syntax-rule (mem-to-stack addr addr-dep)
-	(let-values ([(val val-dep) (read-memory addr)])
-	  (let ([p (if (node? val-dep) (node-p val-dep) (list))])
-	    (push! val 
-                   (create-node #f (list (create-node val (list val-dep))
-                                         (create-node addr (list addr-dep)))))
-            )))
-                   ;(and dep (create-node val (cons addr-dep p)))))))
+      (define-syntax-rule (mem-to-stack addr)
+	(push! (read-memory addr)))
 
-      (define-syntax-rule (stack-to-mem addr addr-dep)
-	(let-values ([(val val-dep) (pop!)])
-	  (let ([p (if (node? val-dep) (node-p val-dep) (list))])
-	    (set-memory! addr val 
-                         (create-node #f (list (create-node val (list val-dep))
-                                               (create-node addr (list addr-dep))))))))
-                         ;(and dep (create-node val (cons addr-dep p)))))))
+      (define-syntax-rule (stack-to-mem addr)
+        (set-memory! addr (pop!)))
 
       (define-syntax-rule (stack-1 f)
-	(let ([val (f t)])
-	  (set! t val)
-	  (if dep
-	      (set! t-dep (create-node val (list t-dep)))
-	      (add-inter val))))
+        (set! t (f t)))
 
       (define-syntax-rule (stack-2 f)
-	(let-values ([(val1 val1-dep) (pop!)]
-		     [(val2 val2-dep) (pop!)])
-	  (let ([val (f val1 val2)])
-	    (push! val (and dep (create-node val (list val1-dep val2-dep)))))))
+	(let* ([val1 (pop!)]
+               [val2 (pop!)])
+          (push! (f val1 val2))))
 
       (define (interpret-step inst-const)
 	(define inst (inst-op inst-const))
 	(define const (inst-args inst-const))
 	(when debug (pretty-display `(interpret-step ,inst ,const)))
-	(define-syntax-rule (inst-eq x) (equal? inst (vector-member x inst-id)))
+	(define-syntax-rule (inst-eq x) (equal? x (vector-ref inst-id inst)))
 	(cond
-	 [(inst-eq `@p)   (push! const (and dep (create-node const (list))))]
-	 [(inst-eq `@+)   (mem-to-stack a a-dep)
-                          (set! a (add1 a))]
-	 [(inst-eq `@b)   (mem-to-stack b b-dep)]
-	 [(inst-eq `@)    (mem-to-stack a a-dep)]
-	 [(inst-eq `!+)   (stack-to-mem a a-dep)
+	 [(inst-eq `@p)   (push! const)]
+	 [(inst-eq `@+)   (mem-to-stack a)
 	                  (set! a (add1 a))]
-	 [(inst-eq `!b)   (stack-to-mem b b-dep)]
-	 [(inst-eq `!)    (stack-to-mem a a-dep)]
+	 [(inst-eq `@b)   (mem-to-stack b)]
+	 [(inst-eq `@)    (mem-to-stack a)]
+	 [(inst-eq `!+)   (stack-to-mem a)
+	                  (set! a (add1 a))]
+	 [(inst-eq `!b)   (stack-to-mem b)]
+	 [(inst-eq `!)    (stack-to-mem a)]
 	 [(inst-eq `+*)   (if (= (bitwise-and #x1 a) 0)
 	 		      (multiply-step-even!)
 	 		      (multiply-step-odd!))];
@@ -282,20 +209,14 @@
 	 [(inst-eq `and)  (stack-2 bitwise-and)]
 	 [(inst-eq `or)   (stack-2 bitwise-xor)]
 	 [(inst-eq `drop) (pop!)]
-	 [(inst-eq `dup)  (push! t t-dep #f)]
-	 [(inst-eq `pop)  (let-values ([(val val-dep) (r-pop!)])
-			    (push! val val-dep #f))]
-	 [(inst-eq `over) (push! s s-dep #f)]
-	 [(inst-eq `a)    (push! a a-dep #f)]
+	 [(inst-eq `dup)  (push! t)]
+	 [(inst-eq `pop)  (push! (r-pop!))]
+	 [(inst-eq `over) (push! s)]
+	 [(inst-eq `a)    (push! a)]
 	 [(inst-eq `nop)  (void)]
-	 [(inst-eq `push) (let-values ([(val val-dep) (pop!)])
-			    (r-push! val val-dep))]
-	 [(inst-eq `b!)   (let-values ([(val val-dep) (pop!)])
-			    (set! b val)
-			    (set! b-dep val-dep))]
-	 [(inst-eq `a!)   (let-values ([(val val-dep) (pop!)])
-			    (set! a val)
-			    (set! a-dep val-dep))]
+	 [(inst-eq `push) (r-push! (pop!))]
+	 [(inst-eq `b!)   (set! b (pop!))]
+	 [(inst-eq `a!)   (set! a (pop!))]
 	 [else (assert #f (format "invalid instruction ~a" inst))])
 	 )
 
@@ -313,8 +234,7 @@
 
 	 [(forloop? x)
 	  (interpret-struct (forloop-init x))
-	  (let-values ([(val val-dep) (pop!)])
-	    (r-push! val val-dep))
+	  (r-push! (pop!))
 	  (for ([i (in-range (add1 r))])
 	       (interpret-struct (forloop-body x))
 	       (set! r (sub1 r)))
@@ -344,57 +264,17 @@
       
       (interpret-struct code)
 
-      ;; (cond
-      ;;  [dep
-      ;; 	(pretty-display ">>> a")
-      ;; 	(display-node a-dep)
-      ;; 	(pretty-display ">>> b")
-      ;; 	(display-node b-dep)
-      ;; 	(pretty-display ">>> r")
-      ;; 	(display-node r-dep)
-      ;; 	(pretty-display ">>> t")
-      ;; 	(display-node t-dep)
-      ;; 	(pretty-display ">>> s")
-      ;; 	(display-node s-dep)
-      ;; 	(for ([x data-body-dep]
-      ;; 	      [i 8])
-      ;; 	     (pretty-display (format ">>> stack[~a]" i))
-      ;; 	     (display-node x))
-      ;; 	(for ([x return-body-dep]
-      ;; 	      [i 8])
-      ;; 	     (pretty-display (format ">>> rstack[~a]" i))
-      ;; 	     (display-node x))
-      ;; 	(for ([x memory-dep]
-      ;; 	      [i (vector-length memory)])
-      ;; 	     (pretty-display (format ">>> mem[~a]" i))
-      ;; 	     (display-node x))
-      ;; 	(for ([x comm-dep]
-      ;; 	      [i (vector-length memory)])
-      ;; 	     (pretty-display (format ">>> comm[~a]" i))
-      ;; 	     (display-node (car x)))
-
-      ;; 	]
-      ;;  [else (pretty-display `(inter ,inter))])
-
-      (define extra
-	(if dep
-	    (progstate a-dep b-dep r-dep s-dep t-dep
-		       (stack data-sp-dep data-body-dep)
-		       (stack return-sp-dep return-body-dep)
-		       memory-dep #f comm-dep)
-	    inter))
-      (progstate+ a b r s t 
+      (progstate a b r s t 
 		  (stack data-sp data-body)
 		  (stack return-sp return-body)
-		  memory recv comm
-		  extra)
+		  memory recv comm)
       )
 
     (define (performance-cost code)
 
       (define (cost-step inst-const)
 	(define inst (inst-op inst-const))
-	(define-syntax-rule (inst-eq x) (equal? inst (vector-member x inst-id)))
+	(define-syntax-rule (inst-eq x) (equal? x (vector-ref inst-id inst)))
 	(cond
 	 [(inst-eq `@p) 5]
 	 [(inst-eq `+) 2]
