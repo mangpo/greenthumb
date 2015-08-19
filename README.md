@@ -1,6 +1,6 @@
 # Greenthumb: Superoptimizer Construction Framework
 
-The framework consists of 2 parts: machine-independent and machine-dependent. The outermost directory contains machine-independent components. We have built superoptimizers for GreenArrays GA144, ARM, and very small subset of NEON as examples. 'arm' directory contains ARM's dependent files, and so on.
+The framework consists of two parts: machine-independent and machine-dependent. The outermost directory contains machine-independent components. We have built superoptimizers for ARM and GreenArrays GA144 ARM. 'arm' directory contains ARM's dependent files, and so on.
 
 ## Software Prerequisites
 ### Racket
@@ -50,11 +50,11 @@ racket optimize.rkt <search-type> <symbolic-mode> <mutate-mode> \
 -c <number-of-cores> -t <time-limit-in-sec> <file_to_optimize>
 ```
 
-- `<search-type>` can be `--stoch` (stochastic search), `--solver` (symbolic search), or `--hybrid` (both).
-- When using --solver, `<symbolic-mode>` should be specified to `-l` or `--linear` (optimizing by reducting cost decementally); `-b` or `--binary` (optimizing by binary searching on the cost); `-p` or `--partial` (optimizing by synthesizing small parts of the given code).
-- When using --stoch, `<mutate-mode` should be specified to `-s` or `--synthesize` (each synthesis thread starts the search from a random program); `-o` or `--optimize` (each synthesis thread starts the search from the original input program).
+- `<search-type>` can be `--stoch` (stochastic search), `--solver` (symbolic search), `--enum` (enumerative search) or `--hybrid` (hybrid cooperative search).
+- When using `--solver` or `--enum`, `<symbolic-mode>` should be specified to `-l` or `--linear` (optimizing by reducting cost decementally); `-b` or `--binary` (optimizing by binary searching on the cost); `-p` or `--partial` (optimizing by synthesizing small parts of the given code). Option `--partial` is recommended.
+- When using `--stoch`, `<mutate-mode>` should be specified to `-s` or `--synthesize` (each search instance starts the search from a random program); `-o` or `--optimize` (each search instance starts the search from the original input program).
 
-For example, to optimize `arm/programs/p14_floor_avg_o0.s` using stochastic search with random starting points and advanced cost function on eight theads for an hour, run
+For example, to optimize `arm/programs/p14_floor_avg_o0.s` using stochastic search with random starting points using eight search instances (threads) for an hour, run
 
 ```
 racket optimize.rkt --stoch -s -c 8 -t 3600 programs/p14_floor_avg_o0.s
@@ -64,29 +64,30 @@ Run `racket optimize.rkt --help` to see all supported arguments and what their d
 
 ### Output
 #### Output directory and files
-The program will create an output directory that contains `driver-<id>.rkt` files. The default output directory is named `output`. You can specify output directory name using `-d` flag. The number of driver-<id>.rkt files is equal to the number cores specified. Each driver-<id>.rkt file is used for executing an independent synthesis instance. 
+The program will create an output directory that contains `driver-<id>.rkt` files. The default output directory is named `output`. You can specify output directory name using `-d` flag. The number of `driver-<id>.rkt` files is equal to the number of cores specified. Each `driver-<id>.rkt` file is used for executing an independent synthesis instance. 
 
-Each driver-<id>.rkt 
-- updates the statistic information to `driver-<id>.stat` every 1000 iterations by overwriting the old content
-- write debug and error messages to `driver-<id>.log` 
-- updates the most optimal program found so far to `driver-<id>.best` and `best.s` (global optimal)
+Each `driver-<id>.rkt`
+- updates the statistic information in `driver-<id>.stat` every 1000 iterations by overwriting the old content
+- writes debug and error messages to `driver-<id>.log` 
+- updates the most optimal program found so far in `driver-<id>.best` and `best.s` (best of all search instances)
 - updates `summary` file, which contains statistic of best programs found at different points of time.
 
 Every 10 second, the main thread will print the aggregated statistic of the search from all synthesis instances. Here is an example of the statistic.
 ```
+// This first part is the statistics from all stochastic search instances.
 elapsed-time:   10883
 mutate-time:    0.011061	<< time spent on mutating/total
 simulate-time:  0.848529	<< time spent on interpreting/total
 check-time:     0.058881	<< time spent on checking the correctness against test cases/total
 validate-time:  0.035559	<< time spent on validating the correctness using solver/total
 
-validate-count: 0.000061	<< number of validation invocation/total count
-correct-count:  0.000057	<< number of validation invocation that returns correct/total count
+validate-count: 0.000061	<< number of validation invocations/total count
+correct-count:  0.000057	<< number of validation invocations that returns correct/total count
 
 iterations:         89777000
 iterations/s:       8249.287880180098
 best-cost:          6       << best cost despite the correctness
-best-correct-cost:  6       << best of the correct proposals
+best-correct-cost:  6       << best performance cost considering the correctness
 best-correct-time:  6328    << time in seconds to find the best correct proposal
 
 Mutate      Proposed            Accepted            Accepted/Proposed
@@ -100,7 +101,15 @@ cond-type   0.0                 0.0                 0
 
 accept-count:           0.879237    << rate of accepting mutated programs
 accept-higher-count:    0.000005    << rate of accepting mutated programs with higher cost
-output-id:              9           << best program is the output of driver-<id> (9 in this case)
-                                    which can be found at driver-9.best or best.s
+output-id:              9           << the best program found is found by stochastic search
+                                       driver-<id> (9 in this case)
+// This part summarizes the charateristics of the best program found so far.
+=============== SUMMARY ===============
+cost:	6              << cost of the best program found so far
+len:	6              << length of the best program found so far
+time:	6328           << time in seconds to find the best program
+output/0/driver-9      << the best program found is found by driver-<id> (9 in this case).
+                          The best program is stored in driver-9.best or best.s.
+
 ```
 
