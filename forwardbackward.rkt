@@ -35,7 +35,6 @@
     (define debug #f)
     (define verbo #f)
     (define ce-limit 100)
-    (define parser (new arm-parser%))
     
     (define (inst->vector x) (vector (inst-op x) (inst-args x)))
     (define (prescreen my-inst state-vec) #t)
@@ -45,6 +44,8 @@
 
     (define c-behaviors 0)
     (define c-progs 0)
+
+    ;; Insert state-vec into forward equivlance classes.
     (define (class-insert! class live states-vec prog)
       (set! c-progs (add1 c-progs))
 
@@ -67,6 +68,7 @@
     (define c-behaviors-bw 0)
     (define c-progs-bw 0)
 
+    ;; Use IDs to represent programs and instructions to use less memory.
     (define instvec2id (make-hash))
     (define id2inst (make-vector 1000000 #f))
     (define last-id 0)
@@ -108,6 +110,7 @@
       (for/set ([prog-id prog-set])
 	       (prog->id (cons inst-id (id->prog prog-id)))))
 
+    ;; Insert into backward equivlance classes.
     (define (class-insert-bw-inner! top-hash key-list progs)
       (let* ([first-key (car key-list)]
 	     [flag (send enum get-flag first-key)]
@@ -169,7 +172,7 @@
     (define (class-ref-bw class live flag test)
       (vector-ref (hash-ref class live) test))
       
-
+    ;; Count number of programs in x.
     (define (count-collection x)
       (cond
        [(concat? x) (count-collection (concat-collection x))]
@@ -224,12 +227,9 @@
     (define-syntax-rule (intersect l s)
       (filter (lambda (x) (set-member? s x)) l))
     
-    (define t-load 0)
     (define t-build 0)
     (define t-build-inter 0)
-    (define t-build-inter2 0)
     (define t-build-hash 0)
-    (define t-build-hash2 0)
     (define t-mask 0)
     (define t-hash 0)
     (define t-intersect 0)
@@ -238,7 +238,6 @@
     (define t-extra 0)
     (define t-verify 0)
     (define c-build-hash 0)
-    (define c-build-hash2 0)
     (define c-intersect 0)
     (define c-interpret-0 0)
     (define c-interpret 0)
@@ -790,14 +789,12 @@
                            )
 		      (set! out-vec (and out (mask-in (send machine progstate->vector out) my-live2)))
                       (set! t-interpret-0 (+ t-interpret-0 (- s2 s1)))
+                      (set! c-interpret-0 (add1 c-interpret-0))
 		      (hash-set! cache-level inter out-vec)))
 
 		(let ([t1 (current-milliseconds)])
 		  (set! t-interpret (+ t-interpret (- t1 t0)))
 		  (set! c-interpret (add1 c-interpret))
-		  ;; (when (= level 0)
-		  ;;       (set! t-interpret-0 (+ t-interpret-0 (- t1 t0)))
-		  ;;       (set! c-interpret-0 (add1 c-interpret-0)))
                   )
 
 		(when 
@@ -1042,18 +1039,18 @@
          (refine hash1 hash2 my-inst live1 live2 flag1 flag2)
          (when 
           (and verbo (> (- (current-milliseconds) ttt) 500))
-          (pretty-display (format "search ~a ~a = ~a + ~a + ~a | ~a\t(~a + ~a/~a + ~a + ~a/~a)\t~a ~a ~a/~a\t[~a/~a]\t~a/~a\t~a/~a (~a) ~a" 
+          (pretty-display (format "search ~a ~a = ~a + ~a + ~a | ~a\t(~a + ~a/~a)\t~a ~a ~a/~a\t[~a/~a]\t~a/~a\t~a/~a (~a) ~a" 
                                   (- (current-milliseconds) ttt) ce-count-extra
                                   t-refine t-collect t-check
-                                  t-build t-build-inter t-build-hash c-build-hash t-build-inter2 t-build-hash2 c-build-hash2
+                                  t-build t-build-inter t-build-hash c-build-hash
                                   t-mask t-hash t-intersect c-intersect
                                   t-interpret-0 c-interpret-0
                                   t-interpret c-interpret
                                   t-extra c-extra c-check
                                   t-verify
                                   )))
-         (set! t-build 0) (set! t-build-inter 0) (set! t-build-inter2 0) (set! t-build-hash 0) (set! t-build-hash2 0) (set! t-mask 0) (set! t-hash 0) (set! t-intersect 0) (set! t-interpret-0 0) (set! t-interpret 0) (set! t-extra 0) (set! t-verify 0)
-         (set! c-build-hash 0) (set! c-build-hash2 0) (set! c-intersect 0) (set! c-interpret-0 0) (set! c-interpret 0) (set! c-extra 0) (set! c-check 0)
+         (set! t-build 0) (set! t-build-inter 0) (set! t-build-hash 0) (set! t-mask 0) (set! t-hash 0) (set! t-intersect 0) (set! t-interpret-0 0) (set! t-interpret 0) (set! t-extra 0) (set! t-verify 0)
+         (set! c-build-hash 0) (set! c-intersect 0) (set! c-interpret-0 0) (set! c-interpret 0) (set! c-extra 0) (set! c-check 0)
          (set! t-refine 0) (set! t-collect 0) (set! t-check 0)
          (refine-all hash1 live1 flag1 hash2 live2 flag2 iterator)
          ))

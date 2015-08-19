@@ -17,8 +17,7 @@
     (init-field machine [printer #f]
                 [simulator #f] 
                 [bit (get-field bit machine)]
-                [random-input-bit (get-field random-input-bit machine)]
-                [time #f])
+                [random-input-bit (get-field random-input-bit machine)])
     (public proper-machine-config generate-input-states generate-inputs-inner
             counterexample
             sym-op sym-arg sym-insts
@@ -227,7 +226,7 @@
     ;; Otherwise, returns false.
     (define (counterexample spec program constraint [extra #f]
                             #:assume [assumption (send machine no-assumption)])
-      (pretty-display (format "solver = ~a" (current-solver)))
+      ;;(pretty-display (format "solver = ~a" (current-solver)))
       (when debug
             (pretty-display (format "program-eq? START bit = ~a" bit))
             (pretty-display "spec:")
@@ -241,9 +240,7 @@
       
       (clear-asserts)
       (current-bitwidth bit)
-      (when time (send time start `sym))
       (define start-state (send machine get-state sym-input extra))
-      (when time (send time end `sym))
       (define spec-state #f)
       (define program-state #f)
       
@@ -269,30 +266,21 @@
         ;;(pretty-display "done check output")
         )
 
-      (when time (send time start `z3))
       (with-handlers* 
        ([exn:fail? 
          (lambda (e)
-           (when time (send time end `z3))
            (when debug (pretty-display "program-eq? SAME"))
-           (when time (send time start `term))
            (unsafe-clear-terms!)
-           (when time (send time end `term))
            (if (equal? (exn-message e) "verify: no counterexample found")
                #f
                (raise e)))])
        (let ([model (verify #:assume (interpret-spec!) #:guarantee (compare))])
-         (when time (send time end `z3))
          (when debug (pretty-display "program-eq? DIFF"))
-         (when time (send time start `eval))
          (let ([state (evaluate-state start-state model)])
-           (when time (send time end `eval))
            ;; (pretty-display model)
            ;; (display-state state)
            ;; (raise "done")
-           (when time (send time start `term))
            (unsafe-clear-terms!)
-           (when time (send time end `term))
            state)
          )))
     

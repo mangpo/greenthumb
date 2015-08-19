@@ -1,10 +1,9 @@
 #lang racket
 
-(require "../parallel.rkt" "../fitness-learner.rkt" "../ast.rkt"
+(require "../parallel.rkt" "../fitness-learner.rkt"
          "GA-parser.rkt" "GA-meta.rkt" "GA-machine.rkt" 
          "GA-printer.rkt" "../compress.rkt" 
-         "GA-validator.rkt" "GA-stochastic.rkt"
-         "GA-simulator-racket.rkt")
+         "GA-validator.rkt")
 
 (provide optimize)
 
@@ -15,9 +14,6 @@
 (define printer (new GA-printer% [machine machine]))
 (define compress (new compress% [machine machine]))
 (define validator (new GA-validator% [machine machine] [printer printer]))
-(define backward-stochastic (new GA-stochastic% [machine machine] [printer printer] [syn-mode #t] [forward #f]))
-
-(define simulator (new GA-simulator-racket% [machine machine]))
 
 (define (optimize code live-out search-type mode recv
                   #:assume [assume #f]
@@ -44,40 +40,3 @@
 (define (GA-generate-inputs code extra-info dir #:assume [assume #f])
   (generate-inputs (send printer encode code) extra-info dir 
                    machine printer validator #:assume (constrain-stack machine assume)))
-
-(define (GA-generate-outputs-steps code dir subdir)
-  (generate-outputs-steps (send printer encode code) dir subdir
-                          machine printer simulator backward-stochastic))
-
-(define (GA-calculate-cost dir name live-out)
-  (calculate-cost dir name live-out machine backward-stochastic))
-
-(define (GA-calculate-cost2 dir name live-out n)
-  (calculate-cost2 dir name live-out n machine backward-stochastic))
-
-(define (GA-generate-tree code dir subdir degree n)
-  (generate-tree (send printer encode code) dir subdir degree n
-                 machine printer simulator backward-stochastic))
-
-
-;; (GA-generate-inputs 
-;;  (send (new GA-parser%) ast-from-string 
-;;        "2 b! !b 2 b! @b b! @b 2 b! @b 1 + b! @b 2 b! @b b! @b - 1 + +")
-;;  0
-;;  "data-interp")
-
-;; (GA-generate-outputs-steps 
-;;  (send (new GA-parser%) ast-from-string 
-;;        "2 b! @b 3 b! !b 1 b! @b 2 b! !b")
-;;  "data-ex" "n100-s3")
-
-
-;(GA-calculate-cost "data-ex/n100-s3" "v1" '((data . 2) memory))
-
-#|
-(GA-generate-tree 
- (send (new GA-parser%) ast-from-string 
-       "2 b! @b 3 b! !b 1 b! @b 2 b! !b")
- "data-ex" "tree-n5000" 4 5000)|#
-  
-;(GA-calculate-cost2 "data-ex/tree-n5000" "v3" '((data . 2) memory) 5005)

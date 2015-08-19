@@ -14,7 +14,6 @@
     (super-new)
     (inherit-field machine printer simulator validator 
 		   stat mutate-dist nop-mass)
-    (init-field [forward #t])
     (override correctness-cost 
 	      get-mutations mutate-operand mutate-other
               random-instruction)
@@ -43,15 +42,9 @@
 
     (define (mutate-rotate index entry p)
       (send stat inc-propose `rotate)
-      (if forward
-          (vector-append (vector-copy p 0 index) 
-                         (vector-copy p (add1 index))
-                         (vector entry))
-          (let ([last-index (sub1 (vector-length p))])
-            (vector-append (vector-copy p 0 index)
-                           (vector-copy p last-index)
-                           (vector-copy p index last-index)))))
-      
+      (vector-append (vector-copy p 0 index) 
+                     (vector-copy p (add1 index))
+                     (vector entry)))
 
     (define (mutate-operand index entry p)
       (send stat inc-propose `operand)

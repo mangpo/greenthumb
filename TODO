@@ -1,8 +1,0 @@
-`z3, GA-stochastic:forward
-
-remove redundant
-- diff-cost
-
-use progstate->vector, vector->progstate for
-- evaluate-state, get-sym-vars
-- maybe: assert-output, assume
