@@ -50,14 +50,14 @@ racket optimize.rkt <search-type> <symbolic-mode> <mutate-mode> \
 -c <number-of-cores> -t <time-limit-in-sec> <file_to_optimize>
 ```
 
-- `<search-type>` can be `--stoch` (mutation-based search), `--solver` (symbolic search), or `--hybrid` (both).
+- `<search-type>` can be `--stoch` (stochastic search), `--solver` (symbolic search), or `--hybrid` (both).
 - When using --solver, `<symbolic-mode>` should be specified to `-l` or `--linear` (optimizing by reducting cost decementally); `-b` or `--binary` (optimizing by binary searching on the cost); `-p` or `--partial` (optimizing by synthesizing small parts of the given code).
 - When using --stoch, `<mutate-mode` should be specified to `-s` or `--synthesize` (each synthesis thread starts the search from a random program); `-o` or `--optimize` (each synthesis thread starts the search from the original input program).
 
-For example, to optimize `arm/programs/p14_floor_avg_o0.s` using mutation-based search with random starting points and advanced cost function on eight theads for an hour, run
+For example, to optimize `arm/programs/p14_floor_avg_o0.s` using stochastic search with random starting points and advanced cost function on eight theads for an hour, run
 
 ```
-racket optimize.rkt --stoch -s --inter -c 8 -t 3600 programs/p14_floor_avg_o0.s
+racket optimize.rkt --stoch -s -c 8 -t 3600 programs/p14_floor_avg_o0.s
 ```
 
 Run `racket optimize.rkt --help` to see all supported arguments and what their default values are.
