@@ -46,14 +46,13 @@ The first line indicates live-out registers, and the second line indicates live-
 You can superoptimize one of the example programs or your own program by running
 ```
 cd arm
-racket optimize.rkt <search-type> <symbolic-mode> <mutate-mode> <cost-function> \
+racket optimize.rkt <search-type> <symbolic-mode> <mutate-mode> \
 -c <number-of-cores> -t <time-limit-in-sec> <file_to_optimize>
 ```
 
 - `<search-type>` can be `--stoch` (mutation-based search), `--solver` (symbolic search), or `--hybrid` (both).
 - When using --solver, `<symbolic-mode>` should be specified to `-l` or `--linear` (optimizing by reducting cost decementally); `-b` or `--binary` (optimizing by binary searching on the cost); `-p` or `--partial` (optimizing by synthesizing small parts of the given code).
 - When using --stoch, `<mutate-mode` should be specified to `-s` or `--synthesize` (each synthesis thread starts the search from a random program); `-o` or `--optimize` (each synthesis thread starts the search from the original input program).
-- `<cost-function>` can be `--base` (basic) or `--inter` (more advanced, using intermediate values).
 
 For example, to optimize `arm/programs/p14_floor_avg_o0.s` using mutation-based search with random starting points and advanced cost function on eight theads for an hour, run
 
