@@ -177,6 +177,8 @@
     (define bit-range-no-0 #f)
     (define mem-range #f)
 
+    (define stack 4)
+
     (define (get-nregs) nregs)
     (define/public (get-nmems) nmems)
     (define/public (get-fp) fp)
@@ -413,47 +415,94 @@
                    [m mem])
                   (when (and m (vector-member (- i fp) mem-range))
 			(set! live-mem (cons i live-mem))))
-             (cons live-reg live-mem))))
+             (list live-reg live-mem 0))))
     
     ;; Get live-out info.
     ;; live: live-in in compact format.
     ;; x: instruction.
     ;; output: live-out in compact format.
-    (define (update-live live x)
-      (define live-reg (car live))
-      (define live-mem (cdr live))
+    (define (update-live live x #:mode [mode `basic])
+      (define stack 4)
+      (define live-reg (first live))
+      (define live-mem (second live))
       
       (define args (inst-args x))
       (define opcode-name (vector-ref inst-id (inst-op x)))
       (define (add-live ele lst)
-	(if (member ele lst) 
-	    ;; remove and add because we want the latest reg at the beginning.
-	    (cons ele (remove ele lst))
-	    (cons ele lst)))
-      (and live
-	   (cond
-	    [(member opcode-name '(smull umull))
-             (cons 
-              (add-live (vector-ref args 0)
-                        (add-live (vector-ref args 1) live-reg))
-              live-mem)]
-	    [(member opcode-name '(nop)) live]
-            [(member opcode-name '(nop str str#))
-             (cons
-              live-reg
-              (add-live (+ fp (vector-ref args 2)) live-mem))]
-	    [else
-             (cons
-              (add-live (vector-ref args 0) live-reg)
-              live-mem)])))
+        (if (member ele lst) 
+            ;; remove and add because we want the latest reg at the beginning.
+            (cons ele (remove ele lst))
+            (cons ele lst)))
+      
+      (define (basic-mode)
+        (and live
+             (cond
+              [(member opcode-name '(smull umull))
+               (list 
+                (add-live (vector-ref args 0)
+                          (add-live (vector-ref args 1) live-reg))
+                live-mem
+                (third live) (fourth live))]
+              [(member opcode-name '(nop)) live]
+              [(member opcode-name '(str str#))
+               (list
+                live-reg
+                (add-live (+ fp (vector-ref args 2)) live-mem)
+                (third live))]
+              [else
+               (list
+                (add-live (vector-ref args 0) live-reg)
+                live-mem
+                (third live))])))
+      (define (stack-mode)
+        (define types (get-arg-types opcode-name))
+        (define inputs
+          (count (lambda (x) (or (equal? x `reg-i) (equal? x `reg-io)))
+                 (vector->list types)))
+        (define outputs
+          (count (lambda (x) (or (equal? x `reg-o) (equal? x `reg-io)))
+                 (vector->list types)))
+        (define shfop-id (inst-shfop x))
+        (define shfop-name (and shfop-id (vector-ref shf-inst-id shfop-id)))
+        (when (member shfop-name '(asr lsr lsl)) (add1 inputs))
+        (define stack-out (+ (- (third live) inputs) outputs))
+        (and live
+             (cond
+              [(member opcode-name '(nop)) live]
+              [(and (member opcode-name '(mov))
+                    (< (vector-ref args 0) (- nregs 4)))
+               (list
+                (add-live (vector-ref args 0) live-reg)
+                live-mem
+                (sub1 (third live)))]
+              [(and (member opcode-name '(mov))
+                    (< (vector-ref args 1) (- nregs 4)))
+               (list
+                live-reg
+                live-mem
+                (add1 (third live)))]
+              [(member opcode-name '(str str#))
+               (list
+                live-reg
+                (add-live (+ fp (vector-ref args 2)) live-mem)
+                stack-out)]
+              [else
+               (list
+                live-reg
+                live-mem
+                stack-out)])))
+      (if (equal? mode `basic)
+          (basic-mode)
+          (stack-mode)))
+        
 
     ;; Get live-in info.
     ;; live: live-out in compact format.
     ;; x: instruction.
     ;; output: live-in in compact format.
-    (define (update-live-backward live x)
-      (define live-reg (car live))
-      (define live-mem (cdr live))
+    (define (update-live-backward live x #:mode [mode `basic])
+      (define live-reg (first live))
+      (define live-mem (second live))
       
       (define opcode-name (vector-ref inst-id (inst-op x)))
       (define args (inst-args x))
@@ -463,26 +512,72 @@
       (define cond-type (inst-cond x))
 
       (define (add-live ele lst)
-	(if (member ele lst) 
-	    ;; remove and add because we want the latest reg at the beginning.
-	    (cons ele (remove ele lst))
-	    (cons ele lst)))
+        (if (member ele lst) 
+            ;; remove and add because we want the latest reg at the beginning.
+            (cons ele (remove ele lst))
+            (cons ele lst)))
+        
+      (define (basic-mode)
 
-      (for ([arg args]
-	    [type args-type])
-	   (cond
-            ;; kill first
-	    [(equal? type `reg-o) (when (= cond-type 0) (set! live-reg (remove arg live-reg)))]
-	    [(equal? type `reg-i) (set! live-reg (add-live arg live-reg))]
-	    [(equal? type `mem-o)
-             (when (= cond-type 0) (set! live-mem (remove (+ fp arg) live-mem)))]
-	    [(equal? type `mem-i)
-             (set! live-mem (add-live (+ arg fp) live-mem))]
-            ))
+        (for ([arg args]
+              [type args-type])
+             (cond
+              ;; kill first
+              [(equal? type `reg-o) (when (= cond-type 0) (set! live-reg (remove arg live-reg)))]
+              [(equal? type `reg-i) (set! live-reg (add-live arg live-reg))]
+              [(equal? type `mem-o)
+               (when (= cond-type 0) (set! live-mem (remove (+ fp arg) live-mem)))]
+              [(equal? type `mem-i)
+               (set! live-mem (add-live (+ arg fp) live-mem))]
+              ))
 
-      (when (member (vector-ref shf-inst-id shfop) '(asr lsl lsr))
-            (set! live-reg (add-live shfarg live-reg)))
-      (cons live-reg live-mem))
+        (when (member (vector-ref shf-inst-id shfop) '(asr lsl lsr))
+              (set! live-reg (add-live shfarg live-reg)))
+        (list live-reg live-mem (third live)))
+
+      (define (stack-mode)
+        (define types (get-arg-types opcode-name))
+        (define inputs
+          (count (lambda (x) (or (equal? x `reg-i) (equal? x `reg-io)))
+                 (vector->list types)))
+        (define outputs
+          (count (lambda (x) (or (equal? x `reg-o) (equal? x `reg-io)))
+                 (vector->list types)))
+        (define shfop-id (inst-shfop x))
+        (define shfop-name (and shfop-id (vector-ref shf-inst-id shfop-id)))
+        (when (member shfop-name '(asr lsr lsl)) (add1 inputs))
+        (define stack-out (- (+ (third live) inputs) outputs))
+        (and live
+             (cond
+              [(member opcode-name '(nop)) live]
+              [(and (member opcode-name '(mov))
+                    (< (vector-ref args 0) (- nregs 4)))
+               (set! live-reg (remove (vector-ref args 0) live-reg))
+               (list
+                live-reg
+                live-mem
+                (add1 (third live)))]
+              [(and (member opcode-name '(mov))
+                    (< (vector-ref args 1) (- nregs 4)))
+               (list
+                live-reg
+                live-mem
+                (sub1 (third live)))]
+              [(member opcode-name '(str str#))
+               (set! live-mem (remove (+ fp (vector-ref args 2)) live-mem))
+               (list
+                live-reg
+                live-mem
+                stack-out)]
+              [else
+               (list
+                live-reg
+                live-mem
+                stack-out)])))
+      
+      (if (equal? mode `basic)
+          (basic-mode)
+          (stack-mode)))
 
     (define (get-arg-types opcode-name)
       (define class-id (get-class-id opcode-name))
@@ -509,26 +604,26 @@
     ;; There are 3 modes.
     ;;  1) `basic (no restriction)
     ;;  2) `no-args = ignore reigster operands. Return `reg-o, `reg-i, and `reg-io for operand that is input register, output register, and input/output register respectively.
-    (define (get-arg-ranges opcode-name entry live-in
+    (define (get-arg-ranges opcode-name shfop-id live-in
                             #:live-out [live-out #f] #:mode [mode `basic])
       (define reg-i
 	(if live-in
-	    (filter-live reg-range (car live-in))
+	    (filter-live reg-range (first live-in))
 	    reg-range))
 
       (define reg-o
 	(if live-out
-	    (filter-live reg-range-o (car live-out))
+	    (filter-live reg-range-o (first live-out))
 	    reg-range-o))
       
       (define mem-i
 	(if live-in
-	    (filter-live mem-range (map (lambda (x) (- x fp)) (cdr live-in)))
+	    (filter-live mem-range (map (lambda (x) (- x fp)) (second live-in)))
 	    mem-range))
 
       (define mem-o
 	(if live-out
-	    (filter-live mem-range (map (lambda (x) (- x fp)) (cdr live-out)))
+	    (filter-live mem-range (map (lambda (x) (- x fp)) (second live-out)))
 	    mem-range))
 
       (define reg-io (list))
@@ -536,42 +631,121 @@
 	   (when (vector-member i reg-o) (set! reg-io (cons i reg-io))))
       (set! reg-io (list->vector (reverse reg-io)))
 
-      (for/vector 
-       ([type (get-arg-types opcode-name)])
-       (if (equal? mode `basic)
-	   (cond
-	    [(equal? type `reg-o)  reg-o]
-	    [(equal? type `reg-i)  reg-i]
-	    [(equal? type `reg-io) reg-io]
-	    [(equal? type `op2)    operand2-range]
-	    [(equal? type `const)  const-range]
-	    [(equal? type `bit)    bit-range]
-	    [(equal? type `bit-no-0) bit-range-no-0]
-	    [(equal? type `mem-o)  mem-o]
-	    [(equal? type `mem-i)  mem-i]
-	    [(equal? type `fp)     (vector "fp")])
-	   (cond
-	    [(equal? type `reg-o)  `reg-o]
-	    [(equal? type `reg-i)  `reg-i]
-	    [(equal? type `reg-io) `reg-i]
-	    [(equal? type `op2)    operand2-range]
-	    [(equal? type `const)  const-range]
-	    [(equal? type `bit)    bit-range]
-	    [(equal? type `bit-no-0) bit-range-no-0]
-	    [(equal? type `mem-o)    mem-range]
-	    [(equal? type `mem-i)    mem-range]
-	    [(equal? type `fp)     (vector "fp")]))
-       ))
+      (define types (get-arg-types opcode-name))
+           
+      (cond
+       [(equal? mode `basic)
+        (for/vector 
+         ([type types])
+         (cond
+          [(equal? type `reg-o)  reg-o]
+          [(equal? type `reg-i)  reg-i]
+          [(equal? type `reg-io) reg-io]
+          [(equal? type `op2)    operand2-range]
+          [(equal? type `const)  const-range]
+          [(equal? type `bit)    bit-range]
+          [(equal? type `bit-no-0) bit-range-no-0]
+          [(equal? type `mem-o)  mem-o]
+          [(equal? type `mem-i)  mem-i]
+          [(equal? type `fp)     (vector "fp")]))]
+       [(equal? mode `stack)
+        (define inputs
+          (count (lambda (x) (or (equal? x `reg-i) (equal? x `reg-io)))
+                 (vector->list types)))
+        (define outputs
+          (count (lambda (x) (or (equal? x `reg-o) (equal? x `reg-io)))
+                 (vector->list types)))
+        
+        (define shfop-name (and shfop-id (vector-ref shf-inst-id shfop-id)))
+        (when (member shfop-name '(asr lsr lsl)) (add1 inputs))
+        
+        (define in-pos
+          (+ nregs (- stack)
+             (if live-in
+                 (- (third live-in) inputs)
+                 (- (third live-out) outputs))))
+        (define out-pos
+          (+ nregs (- stack)
+             (if live-in
+                 (- (third live-in) inputs)
+                 (- (third live-out) outputs))))
+        (define start (- nregs stack))
+        (define (out)
+          (if (and (>= out-pos start) (< out-pos nregs))
+              (let ([tmp out-pos]) (set! out-pos (add1 out-pos)) (vector tmp))
+              (vector)))
+        (define (in)
+          (if (and (>= in-pos start) (< in-pos nregs))
+              (let ([tmp in-pos]) (set! in-pos (add1 in-pos)) (vector tmp))
+              (vector)))
+        (define (inout)
+          (if (and (>= out-pos start) (< out-pos nregs))
+              (let ([tmp out-pos]) (set! in-pos (add1 in-pos)) (set! out-pos (add1 out-pos)) (vector tmp))
+              (vector)))
+          
+        (for/vector 
+         ([type types])
+         (cond
+          [(equal? type `reg-o)  (out)]
+          [(equal? type `reg-i)  (in)]
+          [(equal? type `reg-io) (inout)]
+          [(equal? type `op2)    operand2-range]
+          [(equal? type `const)  const-range]
+          [(equal? type `bit)    bit-range]
+          [(equal? type `bit-no-0) bit-range-no-0]
+          [(equal? type `mem-o)  mem-o]
+          [(equal? type `mem-i)  mem-i]
+          [(equal? type `fp)     (vector "fp")])
+         )]
+       [else
+        (for/vector 
+         ([type types])
+         (cond
+          [(equal? type `reg-o)  `reg-o]
+          [(equal? type `reg-i)  `reg-i]
+          [(equal? type `reg-io) `reg-i]
+          [(equal? type `op2)    operand2-range]
+          [(equal? type `const)  const-range]
+          [(equal? type `bit)    bit-range]
+          [(equal? type `bit-no-0) bit-range-no-0]
+          [(equal? type `mem-o)    mem-range]
+          [(equal? type `mem-i)    mem-range]
+          [(equal? type `fp)     (vector "fp")]))
+        ]))
 
     ;; Get valid optinal-shift operand's range.
-    (define (get-shfarg-range shfop-id live-in #:mode [mode `basic])
+    (define (get-shfarg-range shfop-id opcode-name live-in
+                              #:live-out [live-out #f] #:mode [mode `basic])
       (define shfop-name (vector-ref shf-inst-id shfop-id))
+      (define (inner)
+        (cond
+         [live-in (vector (sub1 (third live-in)))]
+         [else
+          (define types (get-arg-types opcode-name))
+          (define inputs
+            (count (lambda (x) (or (equal? x `reg-i) (equal? x `reg-io)))
+                   (vector->list types)))
+          (define outputs
+            (count (lambda (x) (or (equal? x `reg-o) (equal? x `reg-io)))
+                   (vector->list types)))
+          (when (member shfop-name '(asr lsr lsl)) (add1 inputs))
+          (define in-pos
+            (+ nregs (- stack)
+               (- (third live-out) outputs) inputs (- 1)))
+          
+          (if (< in-pos nregs)
+              (vector in-pos)
+              (vector))
+              ]))
+        
       (if (member shfop-name '(asr lsr lsl)) 
-	  (if (equal? mode `no-args)
-	      `reg-i
-              (if live-in
-                  (filter-live reg-range (car live-in))
-                  reg-range))
+	  (cond
+           [(equal? mode `no-args) `reg-i]
+           [(equal? mode `basic) 
+            (if live-in
+                (filter-live reg-range (car live-in))
+                reg-range)]
+           [else (inner)])
 	  shf-range))
 
     ;; Analyze input code and remove some opcodes from instuction pool to be used during synthesis.

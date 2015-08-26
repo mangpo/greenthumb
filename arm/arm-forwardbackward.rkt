@@ -32,10 +32,19 @@
     (define bit-precise (get-field bit machine))
     ;; Reduce bitwidth
     (define bit 4)
+    (define nregs #f)
+    (define stack 4)
     
     ;; Initlized required fields.
-    (let ([machine-abst (new arm-machine% [bit bit])])
-      (send machine-abst set-config (send machine get-config))
+    (let* ([machine-abst (new arm-machine% [bit bit])]
+           [config (send machine get-config)])
+      (set! nregs (first config))
+      (send machine set-config (list (+ (first config) stack)
+                                     (second config)
+                                     (third config)))
+      (send machine-abst set-config (list (+ (first config) stack)
+                                          (second config)
+                                          (third config)))
       (set! simulator-abst (new arm-simulator-racket% [machine machine-abst]))
       (set! validator-abst (new arm-validator% [machine machine-abst] [printer printer]))
       (set! inverse (new arm-inverse% [machine machine-abst] [simulator simulator-abst]))
@@ -59,17 +68,34 @@
     ;; live-list: liveness in compact format
     ;; keep-flag: if #f, set flag to default value.
     ;; output: masked progstate in vector/list/pair format
-    (define (mask-in state-vec live-list #:keep-flag [keep #t])
-      (define live-reg (car live-list))
-      (define live-mem (cdr live-list))
+    (define (mask-in state-vec live-list [live-in #f] #:keep-flag [keep #t])
+      (define live-reg (first live-list))
+      (define live-mem (second live-list))
       
       (define regs (vector-ref state-vec 0))
       (define mems (vector-ref state-vec 1))
       (define z (vector-ref state-vec 2))
       (define fp (vector-ref state-vec 3))
+
+      (define regs-out 
+        (for/vector ([r regs] [i (in-naturals)])
+                    (and (member i live-reg) r)))
+
+      (when live-in
+            (cond
+             [(= (third live-in) (third live-list))
+              (for ([i (range nregs (+ nregs (third live-in)))])
+                   (vector-set! regs-out i (vector-ref regs i)))]
+             [else #f]
+             ;; [(< (third live-in) (third live-list)) #f]
+             ;; [else
+             ;;  (let ([diff (- (third live-in) (third live-list))])
+             ;;    (for ([i (range nregs (+ nregs (third live-list)))])
+             ;;         (vector-set! regs-out i (vector-ref regs (+ diff i)))))]
+             ))
+              
       (vector
-       (for/vector ([r regs] [i (in-naturals)])
-		   (and (member i live-reg) r))
+       regs-out
        (for/vector ([m mems] [i (in-naturals)])
 		   (and (member i live-mem) m))
        (if keep z -1) fp))
@@ -78,10 +104,10 @@
     ;; state-vec: progstate in vector/list/pair format
     ;; output: liveness in compact format.
     (define (get-live-mask state-vec)
-      (cons
+      (list
        ;; registers
        (filter number?
-               (for/list ([i (in-naturals)]
+               (for/list ([i nregs]
                           [r (vector-ref state-vec 0)])
                          (and r i)))
        ;; memory
@@ -89,6 +115,7 @@
                (for/list ([i (in-naturals)]
                           [r (vector-ref state-vec 1)])
                          (and r i)))
+       (count number? (vector->list (vector-copy (vector-ref state-vec 0) nregs (+ nregs stack))))
        )
       )
     
@@ -237,18 +264,26 @@
     ;; y: liveness from analyzing the program backward from the end to point p.
     (define (combine-live x y) 
       ;; Use register's liveness from x but memory's liveness from y.
-      (cons (car x) (cdr y)))
+      (list (first x) (second y) (third x)))
 
     ;; Sort liveness. Say we have program prefixes that have different live-outs.
     ;; If liveness A comes before B, program prefix with live-out A will be considered before program prefix with live-out B.
     (define (sort-live keys)
-      (sort keys (lambda (x y) (> (length (car (entry-live x))) (length (car (entry-live y)))))))
+      (pretty-display `(sort-live ,keys ,(length keys)))
+      (sort keys (lambda (x y)
+                   (if (= (third (entry-live x)) (third (entry-live y)))
+                       (> (length (first (entry-live x)))
+                          (length (first (entry-live y))))
+                       (> (third (entry-live x)) (third (entry-live y)))))))
 
     ;; Similar to 'sort-live' but for backward direction (program postfixes).
     (define (sort-live-bw keys)
+      (pretty-display `(sort-live-bw ,keys ,(length keys)))
       (sort keys (lambda (x y)
-		   (if (= (length (cdr x)) (length (cdr y)))
-		       (> (length (car x)) 0)
-		       (<= (length (cdr x)) (length (cdr y)))))))
+                   (if (= (third x) (third y))
+                       (if (= (length (second x)) (length (second y)))
+                           (> (length (first x)) 0)
+                           (<= (length (second x)) (length (second y))))
+                       (> (third x) (third y))))))
 
     ))

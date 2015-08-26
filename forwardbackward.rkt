@@ -31,7 +31,8 @@
     (override synthesize-window superoptimize-linear superoptimize-binary)
     (public try-cmp? combine-live inst->vector prescreen sort-live sort-live-bw
             reduce-precision-assume)
-    
+
+    (define parser (new arm-parser%))
     (define debug #f)
     (define verbo #f)
     (define ce-limit 100)
@@ -565,14 +566,14 @@
                      final-program
                      (send simulator performance-cost final-program))
                (yield p)
-               (unless (member syn-mode '(linear binary))
+               (unless #f ;;(member syn-mode '(linear binary))
                        (yield #f))
                (set! cost final-cost)
                (set! start-time (current-seconds))
 
-               (when (<= final-cost (vector-length p))
-                     (pretty-display "YIELD done early")
-                     (yield #f))
+               ;; (when (<= final-cost (vector-length p))
+               ;;       (pretty-display "YIELD done early")
+               ;;       (yield #f))
                )))
         )
       
@@ -787,7 +788,7 @@
                                         ce-out-level)))]
                            [s2 (current-milliseconds)]
                            )
-		      (set! out-vec (and out (mask-in (send machine progstate->vector out) my-live2)))
+		      (set! out-vec (and out (mask-in (send machine progstate->vector out) my-live2 my-live1)))
                       (set! t-interpret-0 (+ t-interpret-0 (- s2 s1)))
                       (set! c-interpret-0 (add1 c-interpret-0))
 		      (hash-set! cache-level inter out-vec)))
@@ -833,7 +834,7 @@
                              ;; (unless out-vec-masked
                              ;;         (pretty-display `(live-mask ,live-mask))
                              ;;         (pretty-display `(out-vec ,out-vec)))
-			     ;; (pretty-display `(inner ,level ,inter ,out-vec-masked ,new-candidates))
+			     ;; (pretty-display `(inner ,level ,inter ,out-vec-masked ,new-candidates ,progs-set))
 			     (set! t-mask (+ t-mask (- t1 t0)))
 			     (set! t-hash (+ t-hash (- t2 t1)))
 			     (set! t-intersect (+ t-intersect (- t3 t2)))
@@ -842,7 +843,7 @@
 			      (and new-candidates (not (empty? new-candidates)))
 			      (if (= 1 (- ce-count level))
 				  (begin
-				    ;;(pretty-display `(check-eqv-leaf ,level ,ce-count))
+				    ;; (pretty-display `(check-eqv-leaf ,level ,ce-count))
 				    (check-eqv (hash-ref real-hash inter)
 					       (map id->real-progs new-candidates)
 					       my-inst ce-count)
@@ -877,7 +878,7 @@
         )
 
 
-      (define (build-hash my-hash iterator) 
+      (define (build-hash my-hash iterator)
         ;; Call instruction generator
         (define inst-liveout-vreg (iterator))
         (define my-inst (first inst-liveout-vreg))
@@ -1025,10 +1026,12 @@
               (yield "timeout"))
 	(define inst-liveout-vreg (iterator))
         (define my-inst (first inst-liveout-vreg))
+        (define live-out (second inst-liveout-vreg))
 	;; (define my-inst 
 	;;   (vector-ref (send printer encode 
-	;; 		    (send parser ast-from-string "and r2, r1, r2, lsr 1"))
+	;; 		    (send parser ast-from-string "and r4, r4, r5"))
 	;; 	      0))
+        ;; (define live-out (list (list 0 1) (list) 1))
         (when 
          my-inst
          (when
@@ -1036,7 +1039,7 @@
           (send printer print-syntax-inst (send printer decode-inst my-inst)))
          (set! middle (add1 middle))
          (define ttt (current-milliseconds))
-         (refine hash1 hash2 my-inst live1 live2 flag1 flag2)
+         (refine hash1 hash2 my-inst live-out live2 flag1 flag2)
          (when 
           (and verbo (> (- (current-milliseconds) ttt) 500))
           (pretty-display (format "search ~a ~a = ~a + ~a + ~a | ~a\t(~a + ~a/~a)\t~a ~a ~a/~a\t[~a/~a]\t~a/~a\t~a/~a (~a) ~a" 
@@ -1098,7 +1101,8 @@
                     (set! order (add1 order))
                     )))))
         
-        (when (and (< size size-to) (or (not cost) (> cost (add1 size))))
+        (when ;;(and (< size size-to) (or (not cost) (> cost (add1 size))))
+         (< size size-to)
               (cond
                [(and (< step-bw step-bw-max) (> step-fw (* 2 step-bw)))
                 (set! step-bw (add1 step-bw))

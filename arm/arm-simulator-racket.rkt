@@ -523,7 +523,7 @@
  		      (or (equal? a opcode-name) ...))))
 
              (cond
-              [(inst-eq `nop) (void)]
+              [(inst-eq `nop `mov) (void)]
               [(inst-eq `str `str# `ldr `ldr#) (add-cost 3)]
               [(inst-eq `mul `mla `mls `smmul `smmla `smmls) (add-cost 5)]
               [(inst-eq `smull `umull `sdiv `udiv) (add-cost 6)]
