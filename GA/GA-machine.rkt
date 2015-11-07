@@ -113,9 +113,8 @@
 (define GA-machine%
   (class machine%
     (super-new)
-    (inherit-field bit random-input-bit inst-id nop-id classes classes-len)
-    (override set-config get-config 
-              adjust-config finalize-config get-memory-size
+    (inherit-field bit random-input-bit config inst-id nop-id classes classes-len)
+    (override set-config adjust-config finalize-config get-memory-size
               get-state display-state 
               output-constraint-string output-assume-string
 	      no-assumption
@@ -155,12 +154,14 @@
           (set! RIGHT -6)
           (set! IO -7))
 
-    (define nmems 1)
+    (define nmems (if config config 1))
+    (reset-arg-ranges)
+    
     (define/public (get-nmems) nmems)
 
     (define (window-size) 1000)
-    (define (get-config) nmems)
-    (define (set-config info) (set! nmems info) (reset-arg-ranges))
+    (define (set-config info)
+      (set! nmems info) (set! config info) (reset-arg-ranges))
     (define (adjust-config info) (* 2 info))
     (define (finalize-config info) (add1 info))
     (define (get-memory-size info) info)

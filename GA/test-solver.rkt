@@ -4,8 +4,7 @@
          "GA-parser.rkt")
 
 (define parser (new GA-parser%))
-(define machine (new GA-machine% [bit 18]))
-(send machine set-config 4)
+(define machine (new GA-machine% [bit 18] [config 4]))
 (define printer (new GA-printer% [machine machine]))
 (define simulator-rosette (new GA-simulator-rosette% [machine machine]))
 (define validator (new GA-validator% [machine machine] [printer printer] [simulator simulator-rosette]))

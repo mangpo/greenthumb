@@ -341,8 +341,7 @@
     ))
 
 #|
-(define machine (new GA-machine% [bit 4]))
-(send machine set-config 0)
+(define machine (new GA-machine% [bit 4] [config 0]))
 (define simulator (new GA-simulator-racket% [machine machine]))
 
 (define inverse (new GA-inverse% [machine machine] [simulator simulator]))

@@ -6,8 +6,7 @@
          "arm-enumerative.rkt" "arm-inverse.rkt")
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine% [bit 4]))
-(send machine set-config (list 3 0 4))
+(define machine (new arm-machine% [bit 4] [config (list 3 0 4)]))
 (define printer (new arm-printer% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 (define simulator (new arm-simulator-racket% [machine machine]))

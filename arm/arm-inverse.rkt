@@ -232,8 +232,7 @@
     ))
 
 #|
-(define machine (new arm-machine% [bit 4]))
-(send machine set-config (list 4 3 4))
+(define machine (new arm-machine% [bit 4] [config (list 4 3 4)]))
 (define simulator (new arm-simulator-racket% [machine machine]))
 
 (define inverse (new arm-inverse% [machine machine] [simulator simulator]))

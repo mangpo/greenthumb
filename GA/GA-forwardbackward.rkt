@@ -33,8 +33,8 @@
     (define RIGHT (get-field RIGHT machine))
     (define IO (get-field IO machine))
     
-    (let ([machine-abst (new GA-machine% [bit bit] [random-input-bit (sub1 bit)])])
-      (send machine-abst set-config (send machine get-config))
+    (let ([machine-abst (new GA-machine% [bit bit] [random-input-bit (sub1 bit)]
+                             [config (send machine get-config)])])
       (set! simulator-abst (new GA-simulator-racket% [machine machine-abst]))
       (set! validator-abst (new GA-validator% [machine machine-abst] [printer printer]))
       (set! inverse (new GA-inverse% [machine machine-abst] [simulator simulator-abst]))

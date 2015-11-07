@@ -4,8 +4,7 @@
          "GA-simulator-racket.rkt")
 
 (define parser (new GA-parser%))
-(define machine (new GA-machine%))
-(send machine set-config 4)
+(define machine (new GA-machine% [config 4]))
 (define printer (new GA-printer% [machine machine]))
 (define simulator-racket (new GA-simulator-racket% [machine machine]))
 

@@ -80,12 +80,12 @@
 (define arm-machine%
   (class machine%
     (super-new)
-    (inherit-field bit random-input-bit inst-id inst-pool
+    (inherit-field bit random-input-bit config
+                   inst-id inst-pool
 		   classes classes-len classes-filtered
 		   nop-id)
     (inherit get-class-id filter-live state-eq?)
-    (override set-config get-config 
-              adjust-config get-memory-size
+    (override set-config adjust-config get-memory-size
               get-state get-state-liveness display-state 
               output-constraint-string
               display-state-text parse-state-text
@@ -177,6 +177,12 @@
     (define bit-range-no-0 #f)
     (define mem-range #f)
 
+    (when config
+          (set! nregs (first config))
+          (set! nmems (second config))
+          (set! fp (third config))
+          (reset-arg-ranges))
+
     (define (get-nregs) nregs)
     (define/public (get-nmems) nmems)
     (define/public (get-fp) fp)
@@ -193,19 +199,17 @@
     ;; Context-aware window decomposition size is set in arm-symbolic.rkt and arm-forwardbackward.rkt
     (define (window-size) 100)
 
-    ;; Get current machine configuration.
-    (define (get-config)
-      (list nregs nmems fp))
-
     ;; Set machine configuration and set valid operands' ranges accordingly.
     ;; info: a list of (# of registers, # of memory, stack pointer)
     (define (set-config info)
+      (set! config info)
       (set! nregs (first info))
       (set! nmems (second info))
       (set! fp (third info))
       (reset-arg-ranges)
       )
 
+    
     ;; Set valid operands' ranges.
     (define (reset-arg-ranges)
       (set! reg-range (list->vector (range nregs)))

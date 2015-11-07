@@ -12,6 +12,7 @@
      ;; Required fields to be initialized when extending this class.
      [bit #f]              ;; Number of bits to represnet a number
      [random-input-bit #f] ;; Number of bits to generate random inputs. Often equal to 'bit'.
+     [config #f]           ;; Machine configuration such as # of regs, memory size, etc.
      [inst-id #f]          ;; A vector of opcode names.
      [nop-id #f]           ;; The index of nop in 'inst-id' vector.
      [classes #f]          ;; A vector of lists of opcodes. Each list groups opcodes with the same operands' types together.
@@ -24,7 +25,7 @@
 
     ;; Required methods to be implemented.
     ;; See comments at the point of method declaration in arm/arm-machine.rkt for example.
-    (abstract set-config get-config 
+    (abstract set-config
               get-state display-state display-state-text parse-state-text
               adjust-config get-memory-size
               output-constraint-string 
@@ -32,7 +33,8 @@
 	      get-arg-ranges reset-arg-ranges window-size)
 
     ;; Provided default methods. Can be overriden if needed.
-    (public set-config-string get-class-id no-assumption
+    (public set-config-string get-config
+            get-class-id no-assumption
             get-inst-id get-inst-name
             finalize-config config-exceed-limit?
             output-assume-string get-state-liveness
@@ -41,6 +43,8 @@
 	    update-live update-live-backward filter-live get-live-list
 	    analyze-opcode analyze-args 
             reset-inst-pool)
+
+    (define (get-config) config)
 
     (define (set-config-string x)
       (cond

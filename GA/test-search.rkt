@@ -6,8 +6,7 @@
 
 
 (define parser (new GA-parser%))
-(define machine (new GA-machine%))
-(send machine set-config 5)
+(define machine (new GA-machine% [config 5]))
 
 (define printer (new GA-printer% [machine machine]))
 (define validator (new GA-validator% [machine machine]))

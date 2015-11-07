@@ -34,8 +34,8 @@
     (define bit 4)
     
     ;; Initlized required fields.
-    (let ([machine-abst (new arm-machine% [bit bit])])
-      (send machine-abst set-config (send machine get-config))
+    (let ([machine-abst (new arm-machine% [bit bit]
+                             [config (send machine get-config)])])
       (set! simulator-abst (new arm-simulator-racket% [machine machine-abst]))
       (set! validator-abst (new arm-validator% [machine machine-abst] [printer printer]))
       (set! inverse (new arm-inverse% [machine machine-abst] [simulator simulator-abst]))

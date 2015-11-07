@@ -41,8 +41,7 @@
   )
   
 (define (arm-generate-inputs code machine-config dir)
-  (define machine (new arm-machine%))
-  (send machine set-config machine-config)
+  (define machine (new arm-machine% [config machine-config]))
   (define printer (new arm-printer% [machine machine]))
   (define validator (new arm-validator% [machine machine] [printer printer]))
   (generate-inputs (send printer encode code) #f dir machine printer validator))

@@ -6,8 +6,7 @@
 
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine%))
-(send machine set-config (list 3 0 0))
+(define machine (new arm-machine% [config (list 3 0 0)]))
 
 (define printer (new arm-printer% [machine machine]))
 (define validator (new arm-validator% [machine machine]))

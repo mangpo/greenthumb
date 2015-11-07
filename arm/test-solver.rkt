@@ -8,8 +8,7 @@
 (current-solver (new z3%))
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine% [bit 32]))
-(send machine set-config (list 4 0 0))
+(define machine (new arm-machine% [bit 32] [config (list 4 0 0)]))
 (define printer (new arm-printer% [machine machine]))
 (define validator (new arm-validator% [machine machine]))
 

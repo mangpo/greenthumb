@@ -7,8 +7,7 @@
 
 (current-bitwidth 4)
 (define parser (new arm-parser%))
-(define machine (new arm-machine% [bit 32]))
-(send machine set-config (list 4 1 2)) ;; argument = (list num-regs memory)
+(define machine (new arm-machine% [bit 32] [config (list 4 1 2)])) ;; argument = (list num-regs memory)
 (define printer (new arm-printer% [machine machine]))
 (define simulator-racket (new arm-simulator-racket% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
