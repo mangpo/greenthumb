@@ -113,12 +113,12 @@
 (define GA-machine%
   (class machine%
     (super-new)
-    (inherit-field bit random-input-bit config inst-id nop-id classes classes-len)
+    (inherit-field bit random-input-bit config inst-id nop-id classes)
     (override set-config adjust-config finalize-config get-memory-size
               get-state display-state 
               output-constraint-string output-assume-string
 	      no-assumption
-              display-state-text parse-state-text
+              parse-state-text
               progstate->vector vector->progstate
 	      get-arg-ranges window-size analyze-args reset-arg-ranges)
     (init-field [const-range #f]
@@ -144,8 +144,6 @@
 		  '(+* 2* 2/ -)
 		  '(+ and or drop push b! a!) 
 		  '(dup pop over a)))
-
-    (set! classes-len (vector-length classes))
 
     (when (= bit 4)
           (set! UP -3)
@@ -291,43 +289,43 @@
                       (vector-ref x 8)
                       (vector-ref x 9))))
 
-    (define (display-state-text pair)
-      (display (format "~a," (car pair)))
-      (define state (cdr pair))
-      (define a (progstate-a state))
-      (define b (progstate-b state))
-      (define r (progstate-r state))
-      (define s (progstate-s state))
-      (define t (progstate-t state))
-      (define data (progstate-data state))
-      (define return (progstate-return state))
-      (define memory (progstate-memory state))
-      (define recv (progstate-recv state))
-      (define comm (progstate-comm state))
+    ;; (define (display-state-text pair)
+    ;;   (display (format "~a," (car pair)))
+    ;;   (define state (cdr pair))
+    ;;   (define a (progstate-a state))
+    ;;   (define b (progstate-b state))
+    ;;   (define r (progstate-r state))
+    ;;   (define s (progstate-s state))
+    ;;   (define t (progstate-t state))
+    ;;   (define data (progstate-data state))
+    ;;   (define return (progstate-return state))
+    ;;   (define memory (progstate-memory state))
+    ;;   (define recv (progstate-recv state))
+    ;;   (define comm (progstate-comm state))
 
-      (display (format "~a,~a,~a,~a,~a," a b r s t))
-      ;; data
-      (display (format "~a;" (stack-sp data)))
-      (display (string-join (map number->string (vector->list (stack-body data)))))
-      (display ",")
-      ;; return
-      (display (format "~a;" (stack-sp return)))
-      (display (string-join (map number->string (vector->list (stack-body return)))))
-      (display ",")
-      ;; memory
-      (display "")
-      (display (string-join (map number->string (vector->list memory))))
-      (display ",")
-      ;; recv
-      (display (string-join (map number->string recv)))
-      (display ",")
-      ;; comm
-      (display (string-join 
-                (map (lambda (x) 
-                       (format "~a ~a ~a" (first x) (second x) (third x)))
-                     comm)
-                ";"))
-      (pretty-display ","))
+    ;;   (display (format "~a,~a,~a,~a,~a," a b r s t))
+    ;;   ;; data
+    ;;   (display (format "~a;" (stack-sp data)))
+    ;;   (display (string-join (map number->string (vector->list (stack-body data)))))
+    ;;   (display ",")
+    ;;   ;; return
+    ;;   (display (format "~a;" (stack-sp return)))
+    ;;   (display (string-join (map number->string (vector->list (stack-body return)))))
+    ;;   (display ",")
+    ;;   ;; memory
+    ;;   (display "")
+    ;;   (display (string-join (map number->string (vector->list memory))))
+    ;;   (display ",")
+    ;;   ;; recv
+    ;;   (display (string-join (map number->string recv)))
+    ;;   (display ",")
+    ;;   ;; comm
+    ;;   (display (string-join 
+    ;;             (map (lambda (x) 
+    ;;                    (format "~a ~a ~a" (first x) (second x) (third x)))
+    ;;                  comm)
+    ;;             ";"))
+    ;;   (pretty-display ","))
 
     (define (parse-state-text str)
       (define tokens (list->vector (string-split str ",")))

@@ -11,7 +11,7 @@
   (class stochastic%
     (super-new)
     (inherit-field machine printer validator simulator stat mutate-dist live-in)
-    (inherit random-args-from-op mutate)
+    (inherit random-args-from-op mutate pop-count32)
     (override correctness-cost 
 	      get-mutations random-instruction mutate-other mutate-swap
 	      inst-copy-with-op inst-copy-with-args)
@@ -186,18 +186,7 @@
     ;; state2: actual in progstate format
     (define (correctness-cost state1 state2 constraint)
       (define (diff-cost x y)
-        (define (pop-count a)
-          (set! a (- a (bitwise-and (arithmetic-shift a -1) #x55555555)))
-          ;;(pretty-display a)
-          (set! a (+ (bitwise-and a #x33333333)
-                     (bitwise-and (arithmetic-shift a -2) #x33333333)))
-          ;;(pretty-display a)
-          (set! a (bitwise-and (+ a (arithmetic-shift a -4)) #x0f0f0f0f))
-          (set! a (+ a (arithmetic-shift a -8)))
-          (set! a (+ a (arithmetic-shift a -16)))
-          (bitwise-and a #x3f))
-
-        (pop-count (bitwise-xor (bitwise-and x #xffffffff) 
+        (pop-count32 (bitwise-xor (bitwise-and x #xffffffff) 
                                 (bitwise-and y #xffffffff))))
       
       (define regs (progstate-regs constraint))

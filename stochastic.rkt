@@ -12,7 +12,7 @@
             mutate-opcode mutate-operand mutate-swap
             mutate-operand-specific mutate-other
             random-instruction print-mutation-info
-	    random-args-from-op)
+	    random-args-from-op pop-count32)
     (abstract correctness-cost)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
@@ -30,7 +30,7 @@
                  #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1))]
                 [live-in #f])
     
-    (define nop-id (send machine get-inst-id `nop))
+    (define nop-id (get-field nop-id machine))
     (define inst-id (get-field inst-id machine))
     (define classes (get-field classes machine))
   
@@ -516,8 +516,17 @@
                       ;; cost-all-inputs can return #f if program is invalid
                       (or (car (cost-all-inputs init w-error))
                           w-error)
-                      ))
-       )
-      )
+                      ))))
+
+    (define (pop-count32 a)
+      (set! a (- a (bitwise-and (arithmetic-shift a -1) #x55555555)))
+      ;;(pretty-display a)
+      (set! a (+ (bitwise-and a #x33333333)
+                 (bitwise-and (arithmetic-shift a -2) #x33333333)))
+      ;;(pretty-display a)
+      (set! a (bitwise-and (+ a (arithmetic-shift a -4)) #x0f0f0f0f))
+      (set! a (+ a (arithmetic-shift a -8)))
+      (set! a (+ a (arithmetic-shift a -16)))
+      (bitwise-and a #x3f))
 
     ))

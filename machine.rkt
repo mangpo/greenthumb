@@ -16,7 +16,6 @@
      [inst-id #f]          ;; A vector of opcode names.
      [nop-id #f]           ;; The index of nop in 'inst-id' vector.
      [classes #f]          ;; A vector of lists of opcodes. Each list groups opcodes with the same operands' types together.
-     [classes-len #f]      ;; Number of classes.
 
      ;; Fields to be set by method 'analyze-opcode'
      [inst-pool #f]        ;; Opcodes to be considered during synthesis.
@@ -26,10 +25,9 @@
     ;; Required methods to be implemented.
     ;; See comments at the point of method declaration in arm/arm-machine.rkt for example.
     (abstract set-config
-              get-state display-state display-state-text parse-state-text
+              get-state display-state
               adjust-config get-memory-size
               output-constraint-string 
-              progstate->vector vector->progstate
 	      get-arg-ranges reset-arg-ranges window-size)
 
     ;; Provided default methods. Can be overriden if needed.
@@ -38,7 +36,8 @@
             get-inst-id get-inst-name
             finalize-config config-exceed-limit?
             output-assume-string get-state-liveness
-            get-states-from-file 
+            progstate->vector vector->progstate
+            get-states-from-file parse-state-text
 	    clean-code state-eq? relaxed-state-eq?
 	    update-live update-live-backward filter-live get-live-list
 	    analyze-opcode analyze-args 
@@ -73,12 +72,17 @@
     ;; x: name in form of symbol
     (define (get-class-id x)
       (define id #f)
-      (for ([i (in-range classes-len)])
+      (for ([i (vector-length classes)])
            (when (member x (vector-ref classes i))
                  (set! id i)))
       id)
 
     (define (output-assume-string machine-var x) x)
+    (define (progstate->vector x) x)
+    (define (vector->progstate x) x)
+
+    (define (parse-state-text str)
+      (raise "machine:parse-state-text: override this method to read program states from file"))
 
     (define (get-states-from-file file)
       (define port (open-input-file file))

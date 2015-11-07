@@ -82,13 +82,13 @@
     (super-new)
     (inherit-field bit random-input-bit config
                    inst-id inst-pool
-		   classes classes-len classes-filtered
+		   classes classes-filtered
 		   nop-id)
     (inherit get-class-id filter-live state-eq?)
     (override set-config adjust-config get-memory-size
               get-state get-state-liveness display-state 
               output-constraint-string
-              display-state-text parse-state-text
+              parse-state-text
               progstate->vector vector->progstate
 	      get-arg-ranges get-live-list
 	      window-size clean-code 
@@ -153,9 +153,8 @@
 		  ;'(bfc) ;; rii
                   ))
 
-;; In ARM instructions, constant can have any value that can be produced by rotating an 8-bit value right by any even number of bits within a 32-bit word.
+    ;; In ARM instructions, constant can have any value that can be produced by rotating an 8-bit value right by any even number of bits within a 32-bit word.
 
-    (set! classes-len (vector-length classes))
     (define perline 8)
 
     (init-field [branch-inst-id '#(beq bne j jal b jr jr jalr bal)]
@@ -295,16 +294,16 @@
     ;; Convert live-out from compact format into progstate format.
     ;; live-out: a pair of (a list of live registers' ids, live memory)
     ;; output: a progstate object. #t elements indicate live.
-    (define/public (output-constraint live-out)
-      ;; Registers are default to be dead.
-      (define regs (make-vector nregs #f))
-      ;; Memory is default to be live.
-      (define memory (if (second live-out)
-                         (make-vector nmems #t)
-                         (make-vector nmems #f)))
-      (for ([x (first live-out)])
-           (vector-set! regs x #t))
-      (progstate regs memory #f #f))
+    ;; (define/public (output-constraint live-out)
+    ;;   ;; Registers are default to be dead.
+    ;;   (define regs (make-vector nregs #f))
+    ;;   ;; Memory is default to be live.
+    ;;   (define memory (if (second live-out)
+    ;;                      (make-vector nmems #t)
+    ;;                      (make-vector nmems #f)))
+    ;;   (for ([x (first live-out)])
+    ;;        (vector-set! regs x #t))
+    ;;   (progstate regs memory #f #f))
 
     ;; Get progstate when initialize each entry with the result of (init).
     ;; Used for generating random input states.
@@ -343,15 +342,16 @@
       )
 
     ;; Convert progstate to compact text.
-    (define (display-state-text pair)
-      (define state (cdr pair))
-      (define regs (progstate-regs state))
-      (define memory (progstate-memory state))
-      (define regs-str (string-join (map number->string (vector->list regs))))
-      (define memory-str (string-join (map number->string (vector->list memory))))
-      (pretty-display (format "~a,~a,~a,~a" regs-str memory-str 
-			      (progstate-z state) (progstate-fp state))))
+    ;; (define (display-state-text pair)
+    ;;   (define state (cdr pair))
+    ;;   (define regs (progstate-regs state))
+    ;;   (define memory (progstate-memory state))
+    ;;   (define regs-str (string-join (map number->string (vector->list regs))))
+    ;;   (define memory-str (string-join (map number->string (vector->list memory))))
+    ;;   (pretty-display (format "~a,~a,~a,~a" regs-str memory-str 
+    ;;     		      (progstate-z state) (progstate-fp state))))
 
+    ;; Optional
     ;; Convert compact ext to progstate.
     (define (parse-state-text str)
       (define tokens (string-split str ","))
