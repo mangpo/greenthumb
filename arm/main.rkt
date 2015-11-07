@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../parallel.rkt" "../ast.rkt" "../fitness-learner.rkt"
-         "arm-parser.rkt" "arm-meta.rkt" "arm-machine.rkt" 
+         "arm-parser.rkt" "arm-machine.rkt" 
          "arm-printer.rkt" "arm-compress.rkt" "arm-validator.rkt"
 	 ;; for enumerative search
 	 "arm-simulator-racket.rkt"
@@ -26,12 +26,11 @@
                   #:input-file [input-file #f])
   
   (define parser (new arm-parser%))
-  (define meta (new arm-meta%))
   (define machine (new arm-machine%))
   (define printer (new arm-printer% [machine machine]))
   (define compress (new arm-compress% [machine machine]))
   (define validator (new arm-validator% [machine machine] [printer printer]))
-  (define parallel (new parallel% [meta meta] [parser parser] [machine machine] 
+  (define parallel (new parallel% [isa "arm"] [parser parser] [machine machine] 
                         [printer printer] [compress compress] [validator validator]
                         [search-type search-type] [mode mode]
                         [window window]))

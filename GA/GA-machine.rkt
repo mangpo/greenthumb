@@ -114,7 +114,7 @@
   (class machine%
     (super-new)
     (inherit-field bit random-input-bit inst-id nop-id classes classes-len)
-    (override set-config get-config set-config-string
+    (override set-config get-config 
               adjust-config finalize-config get-memory-size
               get-state display-state 
               output-constraint-string output-assume-string
@@ -161,7 +161,6 @@
     (define (window-size) 1000)
     (define (get-config) nmems)
     (define (set-config info) (set! nmems info) (reset-arg-ranges))
-    (define (set-config-string info) info)
     (define (adjust-config info) (* 2 info))
     (define (finalize-config info) (add1 info))
     (define (get-memory-size info) info)

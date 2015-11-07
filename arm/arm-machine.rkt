@@ -84,7 +84,7 @@
 		   classes classes-len classes-filtered
 		   nop-id)
     (inherit get-class-id filter-live state-eq?)
-    (override set-config get-config set-config-string
+    (override set-config get-config 
               adjust-config get-memory-size
               get-state get-state-liveness display-state 
               output-constraint-string
@@ -273,12 +273,6 @@
       (list (first info) (* 2 (second info)) (third info)))
 
     (define (get-memory-size info) (second info))
-
-    ;; Convert config into Racket string. 
-    ;; This is used for creating multiple search instances.
-    (define (set-config-string info)
-      (format "(list ~a ~a ~a)" 
-              (first info) (second info) (third info)))
 
     ;; Convert live-out (in compact format) into Racket string (in progstate format).
     ;; This is used for creating multiple search instances.

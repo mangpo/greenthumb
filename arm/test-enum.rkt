@@ -13,7 +13,9 @@
 (define simulator (new arm-simulator-racket% [machine machine]))
 (define inverse (new arm-inverse% [machine machine] [simulator simulator]))
 
-(define enum (new arm-enumerative% [machine machine] [printer printer] [parser parser]))
+(define enum (new arm-enumerative%
+                  [machine machine]
+                  [printer printer]))
 ;(send machine analyze-opcode (vector) encoded-code (vector))
 (send machine reset-inst-pool)
 
@@ -28,13 +30,12 @@
 	add	r0, r0, r2, asr #1
 "))
 
-(define k 2)
-(define type `high)
-(send enum reset-generate-inst #f (list 0 1) (list 0) #f 
-      `all #f #:no-args #f)
+(define iterator
+  (send enum generate-inst
+        (cons (list 0 1 2) (list))
+        (cons (list 0) (list)) #f #f))
 
 (define encoded-code (send printer encode code))
-(define iterator (get-field generate-inst enum))
 (define behavior (make-hash))
 
 (define (loop count)
@@ -42,7 +43,7 @@
   (define my-inst (car p))
   (if my-inst
       (begin
-        (send printer print-syntax (send printer decode my-inst))
+        ;(send printer print-syntax (send printer decode my-inst))
         (loop (add1 count))
         )
       count))

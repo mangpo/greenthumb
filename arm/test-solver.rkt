@@ -3,6 +3,10 @@
 (require "arm-validator.rkt" "arm-machine.rkt" "arm-printer.rkt"
          "arm-parser.rkt" "arm-ast.rkt")
 
+(require rosette/solver/smt/z3)
+
+(current-solver (new z3%))
+
 (define parser (new arm-parser%))
 (define machine (new arm-machine% [bit 32]))
 (send machine set-config (list 4 0 0))
@@ -11,22 +15,25 @@
 
 (define code
 (send parser ast-from-string "
-        sub     r3, r0, #1
-        tst     r3, r0
-        movne   r3, #0
-        moveq   r3, #1
-        cmp     r0, #0
-        moveq   r0, #0
-        andne   r0, r3, #1
+mov r3, r1, asr 2
+add r1, r1, r3, lsr 29
+mov r3, r3, lsr 29
+mov r2, r1
+bic r1, r2, 248
+rsb r3, r3, r1
+mov r0, r0, asr r3
+and r0, r0, 1
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-clz r3, r0
-rsb r0, r0, 0
-orr r0, r3, r0, lsl r3
-lsr r0, r0, 31
+asr r3, r1, 2
+add r2, r1, r3, lsr 29
+and r3, r2, 248
+rsb r3, r3, r1
+asr r1, r0, r3
+and r0, r1, 1
 "))
 
 (define encoded-code (send printer encode code))

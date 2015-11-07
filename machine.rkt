@@ -10,21 +10,21 @@
     (super-new)
     (init-field 
      ;; Required fields to be initialized when extending this class.
-     [bit #f] ;; Number of bits to represnet a number
+     [bit #f]              ;; Number of bits to represnet a number
      [random-input-bit #f] ;; Number of bits to generate random inputs. Often equal to 'bit'.
-     [inst-id #f] ;; A vector of opcode names.
-     [nop-id #f] ;; The index of nop in 'inst-id' vector.
-     [classes #f] ;; A vector of lists of opcodes. Each list groups opcodes with the same operands' types together.
-     [classes-len #f] ;; Number of classes.
+     [inst-id #f]          ;; A vector of opcode names.
+     [nop-id #f]           ;; The index of nop in 'inst-id' vector.
+     [classes #f]          ;; A vector of lists of opcodes. Each list groups opcodes with the same operands' types together.
+     [classes-len #f]      ;; Number of classes.
 
      ;; Fields to be set by method 'analyze-opcode'
-     [inst-pool #f] ;; Opcodes to be considered during synthesis.
+     [inst-pool #f]        ;; Opcodes to be considered during synthesis.
      [classes-filtered #f] ;; 'classes' that is filtered in only opcodes in 'inst-pool'.
      )
 
     ;; Required methods to be implemented.
     ;; See comments at the point of method declaration in arm/arm-machine.rkt for example.
-    (abstract set-config get-config set-config-string
+    (abstract set-config get-config 
               get-state display-state display-state-text parse-state-text
               adjust-config get-memory-size
               output-constraint-string 
@@ -32,7 +32,7 @@
 	      get-arg-ranges reset-arg-ranges window-size)
 
     ;; Provided default methods. Can be overriden if needed.
-    (public get-class-id no-assumption
+    (public set-config-string get-class-id no-assumption
             get-inst-id get-inst-name
             finalize-config config-exceed-limit?
             output-assume-string get-state-liveness
@@ -41,6 +41,21 @@
 	    update-live update-live-backward filter-live get-live-list
 	    analyze-opcode analyze-args 
             reset-inst-pool)
+
+    (define (set-config-string x)
+      (cond
+       [(number? x) (number->string x)]
+       [(or (list? x) (vector? x))
+        (string-join
+         (append (list "(list")
+                 (for/list ([i x]) (set-config-string i))
+                 (list ")")))]
+       [(pair? x)
+        (format "(cons ~a ~a)"
+                (set-config-string (car x))
+                (set-config-string (cdr x)))]
+       [else
+        (raise (format "machine:set-config: unimplemented for ~a" x))]))
 
     (define (get-inst-id opcode) (vector-member opcode inst-id))
     (define (get-inst-name id) (vector-ref inst-id id))

@@ -15,11 +15,14 @@
 (define parallel%
   (class object%
     (super-new)
-    (init-field meta parser machine printer compress validator search-type mode
+    (init-field isa parser machine printer compress validator search-type mode
                 [window #f])
     ;; search = `solver, `stoch, `hybrid
     ;; mode = `linear, `binary, `syn, `opt
     (public optimize)
+
+    (define (required-module x) (format "~a/~a-~a.rkt" isa isa x))
+    (define (get-class-name x) (format "~a-~a%" isa x))
     
     ;; Optimize code
     (define (optimize-inner code-org live-out-org live-in-org rootdir cores time-limit prog-size 
@@ -58,7 +61,7 @@
         
         (define (create-file id search-type mode)
           (define (req file)
-            (format "(file \"~a/~a\")" srcpath (send meta required-module file)))
+            (format "(file \"~a/~a\")" srcpath (required-module file)))
           (define required-files
             (string-join
              (map req '(parser machine printer
@@ -68,29 +71,29 @@
               (thunk
                (pretty-display (format "#lang racket"))
                (pretty-display (format "(require ~a)" required-files))
-               (pretty-display (format "(define machine (new ~a))" (send meta get-class-name "machine")))
+               (pretty-display (format "(define machine (new ~a))" (get-class-name "machine")))
                ;; Very important to set-config before perform stochastic search.
                (pretty-display (format "(send machine set-config ~a)"
                                        (send machine set-config-string machine-info)))
-               (pretty-display (format "(define printer (new ~a [machine machine]))" (send meta get-class-name "printer")))
-               (pretty-display (format "(define parser (new ~a))" (send meta get-class-name "parser")))
+               (pretty-display (format "(define printer (new ~a [machine machine]))" (get-class-name "printer")))
+               (pretty-display (format "(define parser (new ~a))" (get-class-name "parser")))
 
 
                (cond
                 [(equal? search-type `stoch)
                  (pretty-display 
                   (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode ~a]))" 
-                          (send meta get-class-name "stochastic") 
+                          (get-class-name "stochastic") 
                           (equal? mode `syn)))]
                 [(equal? search-type `solver)
                  (pretty-display 
                   (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode `~a]))" 
-                          (send meta get-class-name "symbolic") 
+                          (get-class-name "symbolic") 
                           mode))]
                 [(equal? search-type `enum)
                  (pretty-display 
                   (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode `~a]))" 
-                          (send meta get-class-name "forwardbackward") 
+                          (get-class-name "forwardbackward") 
                           mode))])
 
                (pretty-display "(define prefix (send parser ast-from-string \"")

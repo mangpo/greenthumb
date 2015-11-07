@@ -104,6 +104,13 @@
       (when dir
 	    (define info-file (format "~a/best.info" dir))
 	    (define-values (cost-r len-r time-r id-r) (get-best-info dir))
+	    (when (or (not cost-r) (<= cost cost-r))
+		(with-output-to-file #:exists 'append (format "~a/summary" dir)
+		  (thunk
+		   (pretty-display 
+		    (format
+		     "~a,~a,~a,~a" 
+		     best-correct-cost best-correct-len best-correct-time name)))))
 	    (when (or (not cost-r) (< cost cost-r))
 		(pretty-display "I AM THE BEST. Count me.")
 		(with-output-to-file #:exists 'truncate (format "~a/best.s" dir)
@@ -117,12 +124,6 @@
 		   (pretty-display best-correct-time)
 		   (pretty-display name)
 		   ))
-		(with-output-to-file #:exists 'append (format "~a/summary" dir)
-		  (thunk
-		   (pretty-display 
-		    (format
-		     "~a,~a,~a,~a" 
-		     best-correct-cost best-correct-len best-correct-time name))))
 		(with-output-to-file #:exists 'truncate (format "~a/best-~a.s" dir best-correct-cost)
 		  (thunk
 		   (send printer print-syntax (send printer decode best-correct-program))))

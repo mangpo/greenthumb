@@ -45,7 +45,6 @@
 			       #:assume [assumption (send machine no-assumption)])
       ;;(send machine analyze-opcode prefix spec postfix)
       (send machine reset-inst-pool)
-      (pretty-display `(solver ,(current-solver)))
       (if pure-symbolic 
           (synthesize-from-sketch 
            (vector-append prefix spec postfix) 

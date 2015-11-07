@@ -1,14 +1,13 @@
 #lang racket
 
 (require "../parallel.rkt" "../fitness-learner.rkt"
-         "GA-parser.rkt" "GA-meta.rkt" "GA-machine.rkt" 
+         "GA-parser.rkt" "GA-machine.rkt" 
          "GA-printer.rkt" "../compress.rkt" 
          "GA-validator.rkt")
 
 (provide optimize)
 
 (define parser (new GA-parser%))
-(define meta (new GA-meta%))
 (define machine (new GA-machine%))
 (send machine set-config 1)
 (define printer (new GA-printer% [machine machine]))
@@ -25,7 +24,7 @@
                   #:input-file [input-file #f]
                   #:start-prog [start-prog #f])
 
-  (define parallel (new parallel% [meta meta] [parser parser] [machine machine] 
+  (define parallel (new parallel% [isa "GA"] [parser parser] [machine machine] 
                         [printer printer] [compress compress] [validator validator]
                         [search-type search-type] [mode mode]
                         [window window]))

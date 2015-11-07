@@ -7,7 +7,7 @@
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine%))
-(send machine set-config (list 4 3 4))
+(send machine set-config (list 3 0 0))
 
 (define printer (new arm-printer% [machine machine]))
 (define validator (new arm-validator% [machine machine]))
@@ -20,34 +20,18 @@
 
 (define prefix 
 (send parser ast-from-string "
-mov r2, 21845
-movt r2, 21845
-and r2, r2, r0, lsr 1
-rsb r2, r2, r0
-str r2, fp, -16
-movw r1, 13107
-movt r1, 13107
 "))
 
 (define postfix
 (send parser ast-from-string "
-add r2, r1, r1, asr 4
-movw r1, 3855
-movt r1, 3855
-and r2, r1, r2
-add r2, r2, r2, lsr 16
-add r2, r2, r2, asr 8
-and r0, r2, 63
 "))
 
 (define code
 (send parser ast-from-string "
-and r2, r1, r2
-str r2, fp, -12
-ldr r2, fp, -16
-and r2, r1, r2, lsr 2
-ldr r1, fp, -12
-add r1, r1, r2
+        eor     r2, r1, r0
+        and     r0, r1, r0
+        add     r0, r0, r2, asr #1
+add r0, r0, 11
 "))
 
 
