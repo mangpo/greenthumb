@@ -1,15 +1,13 @@
 #lang s-exp rosette
 
 (require "../symbolic.rkt" 
-	 "../ast.rkt" "arm-ast.rkt" 
-	 "arm-simulator-rosette.rkt" "arm-validator.rkt")
+	 "../ast.rkt" "arm-ast.rkt")
 
 (provide arm-symbolic%)
 
 (define arm-symbolic%
   (class symbolic%
     (super-new)
-    (inherit-field machine printer simulator validator)
     (override len-limit window-size evaluate-inst)
 
     ;; Num of instructions that can be synthesized within a minute.
@@ -18,9 +16,6 @@
     ;; Context-aware window decomposition size L.
     ;; The cooperative search tries L/2, L, 2L, 4L.
     (define (window-size) 4)
-
-    (set! simulator (new arm-simulator-rosette% [machine machine]))
-    (set! validator (new arm-validator% [machine machine] [printer printer]))
 
     ;; Evaluate a symbolic instruction to a concrete instruction according to a given model.
     (define (evaluate-inst x model)

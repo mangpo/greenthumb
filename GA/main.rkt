@@ -2,7 +2,8 @@
 
 (require "../parallel.rkt" "../fitness-learner.rkt"
          "GA-parser.rkt" "GA-machine.rkt" 
-         "GA-printer.rkt" "../compress.rkt" 
+         "GA-printer.rkt" "../compress.rkt"
+         "GA-simulator-rosette.rkt"
          "GA-validator.rkt")
 
 (provide optimize)
@@ -11,7 +12,9 @@
 (define machine (new GA-machine% [config 1]))
 (define printer (new GA-printer% [machine machine]))
 (define compress (new compress% [machine machine]))
-(define validator (new GA-validator% [machine machine] [printer printer]))
+(define simulator (new GA-simulator-rosette% [machine machine]))
+(define validator (new GA-validator% [machine machine] [printer printer]
+                       [simulator simulator]))
 
 (define (optimize code live-out search-type mode recv
                   #:assume [assume #f]

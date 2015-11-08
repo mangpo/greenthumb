@@ -1,13 +1,10 @@
 #lang racket
 
-(require "../ops-racket.rkt" "../ast.rkt" "../inverse.rkt"
-         "GA-machine.rkt" "GA-simulator-racket.rkt"
-         "GA-printer.rkt" "GA-parser.rkt")
+(require "../ops-racket.rkt" "GA-ops-racket.rkt"
+         "../ast.rkt" "../inverse.rkt"
+         "GA-machine.rkt")
 
 (provide GA-inverse%)
- 
-(define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
-(define-syntax-rule (modulo+ x y) (if (>= x 8) (- x y) x))
 
 (define GA-inverse%
   (class inverse%

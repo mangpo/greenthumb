@@ -16,10 +16,8 @@
     (abstract correctness-cost)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
-    (init-field machine printer syn-mode
+    (init-field machine printer validator simulator syn-mode
                 [parser #f]
-                [validator #f]
-                [simulator #f]
                 [stat (new stat% [printer printer])]
                 [input-file #f]
                 [w-error 9999]

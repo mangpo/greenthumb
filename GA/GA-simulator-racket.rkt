@@ -1,16 +1,9 @@
 #lang racket
 
-(require "../simulator.rkt" "../ops-racket.rkt" 
+(require "../simulator.rkt" "../ops-racket.rkt" "GA-ops-racket.rkt"
          "../ast.rkt"
          "../machine.rkt" "GA-machine.rkt")
-(provide GA-simulator-racket% get-stack)
- 
-(define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
-(define-syntax-rule (modulo+ x y) (if (>= x 8) (- x y) x))
-
-;; Get item i from the stack
-(define (get-stack stack i)
-  (vector-ref (stack-body stack) (modulo- (- (stack-sp stack) i) 8)))
+(provide GA-simulator-racket%)
 
 (define GA-simulator-racket%
   (class simulator%

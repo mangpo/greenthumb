@@ -8,8 +8,7 @@
 (define decomposer%
   (class object%
     (super-new)
-    (init-field machine printer parser 
-                [simulator #f] [validator #f] ;; required fields to be initialized
+    (init-field machine printer parser simulator validator
                 [syn-mode `linear]
 		[stat (new stat% [printer printer])])
     (abstract len-limit window-size synthesize-window)

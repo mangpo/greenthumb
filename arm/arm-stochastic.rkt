@@ -2,22 +2,18 @@
 
 (require "../stochastic.rkt"
          "../ast.rkt" "arm-ast.rkt"
-         "../machine.rkt" "arm-machine.rkt" 
-         "arm-simulator-racket.rkt" "arm-validator.rkt")
+         "../machine.rkt" "arm-machine.rkt")
 
 (provide arm-stochastic%)
 
 (define arm-stochastic%
   (class stochastic%
     (super-new)
-    (inherit-field machine printer validator simulator stat mutate-dist live-in)
+    (inherit-field machine stat mutate-dist live-in)
     (inherit random-args-from-op mutate pop-count32)
     (override correctness-cost 
 	      get-mutations random-instruction mutate-other mutate-swap
 	      inst-copy-with-op inst-copy-with-args)
-
-    (set! validator (new arm-validator% [machine machine] [printer printer]))
-    (set! simulator (new arm-simulator-racket% [machine machine]))
 
     (set! mutate-dist
 	  #hash((opcode . 2) (operand . 2) (swap . 1) (instruction . 2)

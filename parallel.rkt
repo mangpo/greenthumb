@@ -65,6 +65,8 @@
           (define required-files
             (string-join
              (map req '(parser machine printer
+                               simulator-racket simulator-rosette
+                               validator
                                stochastic symbolic forwardbackward))))
           (with-output-to-file 
               #:exists 'truncate (format "~a-~a.rkt" path id)
@@ -76,25 +78,26 @@
                                        (send machine set-config-string machine-info)))
                (pretty-display (format "(define printer (new ~a [machine machine]))" (get-class-name "printer")))
                (pretty-display (format "(define parser (new ~a))" (get-class-name "parser")))
-
+               (pretty-display (format "(define simulator-racket (new ~a [machine machine]))" (get-class-name "simulator-racket")))
+               (pretty-display (format "(define simulator-rosette (new ~a [machine machine]))" (get-class-name "simulator-rosette")))
+               (pretty-display (format "(define validator (new ~a [machine machine] [printer printer] [simulator simulator-rosette]))" (get-class-name "validator")))
 
                (cond
                 [(equal? search-type `stoch)
                  (pretty-display 
-                  (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode ~a]))" 
+                  (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [validator validator] [simulator simulator-racket] [syn-mode ~a]))" 
                           (get-class-name "stochastic") 
                           (equal? mode `syn)))]
                 [(equal? search-type `solver)
                  (pretty-display 
-                  (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode `~a]))" 
+                  (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [validator validator] [simulator simulator-rosette] [syn-mode `~a]))" 
                           (get-class-name "symbolic") 
                           mode))]
                 [(equal? search-type `enum)
                  (pretty-display 
-                  (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [syn-mode `~a]))" 
+                  (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [validator validator] [simulator simulator-racket] [syn-mode `~a]))" 
                           (get-class-name "forwardbackward") 
                           mode))])
-
                (pretty-display "(define prefix (send parser ast-from-string \"")
                (send printer print-syntax prefix)
                (pretty-display "\"))")

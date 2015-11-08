@@ -2,8 +2,8 @@
 
 (require "../stochastic.rkt"
          "../ast.rkt"
-         "../machine.rkt" "GA-machine.rkt" 
-         "GA-simulator-racket.rkt" "GA-validator.rkt")
+         "GA-machine.rkt" "GA-ops-racket.rkt"
+         "GA-simulator-racket.rkt")
 
 (provide GA-stochastic%)
 
@@ -12,8 +12,7 @@
 (define GA-stochastic%
   (class stochastic%
     (super-new)
-    (inherit-field machine printer simulator validator 
-		   stat mutate-dist nop-mass)
+    (inherit-field machine stat mutate-dist nop-mass)
     (inherit pop-count32)
     (override correctness-cost 
 	      get-mutations mutate-operand mutate-other
@@ -22,9 +21,6 @@
     (set! mutate-dist 
       #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1) (rotate . 1)))
     (set! nop-mass 0.4)
-
-    (set! simulator (new GA-simulator-racket% [machine machine]))
-    (set! validator (new GA-validator% [machine machine] [printer printer]))
 
     (define bit (get-field bit machine))
     (define inst-id (get-field inst-id machine))

@@ -1,17 +1,15 @@
 #lang s-exp rosette
 
 (require "../validator.rkt"
-	 "../ast.rkt" "../machine.rkt" "GA-machine.rkt" "GA-simulator-rosette.rkt")
+         "GA-ops-rosette.rkt"
+	 "GA-machine.rkt" "GA-simulator-rosette.rkt")
 
 (provide GA-validator%)
 
 (define GA-validator%
   (class validator%
     (super-new)
-    (inherit-field machine printer simulator)
-    (inherit sym-op sym-arg)
     (override assume get-sym-vars evaluate-state assert-state-eq)
-    (set! simulator (new GA-simulator-rosette% [machine machine]))
 
     ;; Assert assumption about start-state
     (define (assume state constraint)

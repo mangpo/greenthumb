@@ -9,7 +9,7 @@
   (class decomposer%
     (super-new)
     (inherit-field machine printer 
-                   simulator validator ;; required field to be initialized when extended
+                   simulator validator
                    stat)
     (init-field [pure-symbolic #t]
                 [bit (get-field bit machine)])

@@ -2,15 +2,18 @@
 
 (require "../forwardbackward.rkt" "../ast.rkt" "../ops-racket.rkt"
          "GA-machine.rkt"
-         "GA-simulator-racket.rkt" "GA-validator.rkt"
+         "GA-validator.rkt"
          "GA-enumerative.rkt" "GA-inverse.rkt")
+
+(require (only-in "GA-simulator-racket.rkt" [GA-simulator-racket% GA-simulator-racket%]))
+(require (only-in "GA-simulator-rosette.rkt" [GA-simulator-rosette% GA-simulator-rosette%]))
 
 (provide GA-forwardbackward%)
 
 (define GA-forwardbackward%
   (class forwardbackward%
     (super-new)
-    (inherit-field machine printer simulator validator
+    (inherit-field machine printer 
                    enum inverse simulator-abst validator-abst)
     (override len-limit window-size
               mask-in 
@@ -19,10 +22,6 @@
 
     (define (len-limit) 8)
     (define (window-size) 14)
-    
-    ;; Initialization
-    (set! simulator (new GA-simulator-racket% [machine machine]))
-    (set! validator (new GA-validator% [machine machine] [printer printer]))
 
     (define bit-precise (get-field bit machine))
     (define bit 4)
@@ -36,7 +35,8 @@
     (let ([machine-abst (new GA-machine% [bit bit] [random-input-bit (sub1 bit)]
                              [config (send machine get-config)])])
       (set! simulator-abst (new GA-simulator-racket% [machine machine-abst]))
-      (set! validator-abst (new GA-validator% [machine machine-abst] [printer printer]))
+      (set! validator-abst (new GA-validator% [machine machine-abst] [printer printer]
+                                [simulator (new GA-simulator-rosette% [machine machine-abst])]))
       (set! inverse (new GA-inverse% [machine machine-abst] [simulator simulator-abst]))
       (set! enum (new GA-enumerative% [machine machine-abst] [printer printer]))
       (set! machine machine-abst))

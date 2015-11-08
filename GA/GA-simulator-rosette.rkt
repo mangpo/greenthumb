@@ -1,16 +1,9 @@
 #lang s-exp rosette
 
-(require "../simulator.rkt" "../ops-rosette.rkt" 
+(require "../simulator.rkt" "../ops-rosette.rkt"  "GA-ops-rosette.rkt"
          "../ast.rkt"
          "../machine.rkt" "GA-machine.rkt")
-(provide GA-simulator-rosette% get-stack)
- 
-(define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
-(define-syntax-rule (modulo+ x y) (if (>= x 8) (- x y) x))
-
-;; Get item i from the stack
-(define (get-stack stack i)
-  (vector-ref (stack-body stack) (modulo- (- (stack-sp stack) i) 8)))
+(provide GA-simulator-rosette%)
 
 (define GA-simulator-rosette%
   (class simulator%

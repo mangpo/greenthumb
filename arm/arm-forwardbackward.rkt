@@ -2,7 +2,8 @@
 
 (require "../forwardbackward.rkt" "../ast.rkt" "../ops-racket.rkt"
          "arm-ast.rkt" "arm-machine.rkt"
-         "arm-simulator-racket.rkt" "arm-validator.rkt"
+         "arm-simulator-racket.rkt" "arm-simulator-rosette.rkt"
+         "arm-validator.rkt"
          "arm-enumerative.rkt" "arm-inverse.rkt")
 
 (provide arm-forwardbackward%)
@@ -10,7 +11,7 @@
 (define arm-forwardbackward%
   (class forwardbackward%
     (super-new)
-    (inherit-field machine printer simulator validator
+    (inherit-field machine printer
                    enum inverse simulator-abst validator-abst)
     (override len-limit window-size
               mask-in inst->vector
@@ -23,10 +24,6 @@
     ;; Context-aware window decomposition size L.
     ;; The cooperative search tries L/2, L, 2L, 4L.
     (define (window-size) 4)
-    
-    ;; Initialization
-    (set! simulator (new arm-simulator-racket% [machine machine]))
-    (set! validator (new arm-validator% [machine machine] [printer printer]))
 
     ;; Actual bitwidth
     (define bit-precise (get-field bit machine))
@@ -37,7 +34,7 @@
     (let ([machine-abst (new arm-machine% [bit bit]
                              [config (send machine get-config)])])
       (set! simulator-abst (new arm-simulator-racket% [machine machine-abst]))
-      (set! validator-abst (new arm-validator% [machine machine-abst] [printer printer]))
+      (set! validator-abst (new arm-validator% [machine machine-abst] [printer printer] [simulator (new arm-simulator-rosette% [machine machine-abst])]))
       (set! inverse (new arm-inverse% [machine machine-abst] [simulator simulator-abst]))
       (set! enum (new arm-enumerative% [machine machine-abst] [printer printer]))
       ;; Set machine to reduced-bidwith machine.

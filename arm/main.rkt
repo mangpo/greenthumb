@@ -2,9 +2,12 @@
 
 (require "../parallel.rkt" "../ast.rkt" "../fitness-learner.rkt"
          "arm-parser.rkt" "arm-machine.rkt" 
-         "arm-printer.rkt" "arm-compress.rkt" "arm-validator.rkt"
-	 ;; for enumerative search
-	 "arm-simulator-racket.rkt"
+         "arm-printer.rkt" "arm-compress.rkt"
+	 ;; simulator, validator
+	 "arm-simulator-racket.rkt" 
+	 "arm-simulator-rosette.rkt"
+         "arm-validator.rkt"
+         ;; search
 	 "arm-enumerative.rkt" "arm-inverse.rkt" "arm-forwardbackward.rkt")
 
 (provide optimize arm-generate-inputs)
@@ -29,7 +32,9 @@
   (define machine (new arm-machine%))
   (define printer (new arm-printer% [machine machine]))
   (define compress (new arm-compress% [machine machine]))
-  (define validator (new arm-validator% [machine machine] [printer printer]))
+  (define simulator (new arm-simulator-rosette% [machine machine]))
+  (define validator (new arm-validator% [machine machine] [printer printer]
+                         [simulator simulator]))
   (define parallel (new parallel% [isa "arm"] [parser parser] [machine machine] 
                         [printer printer] [compress compress] [validator validator]
                         [search-type search-type] [mode mode]
@@ -43,5 +48,7 @@
 (define (arm-generate-inputs code machine-config dir)
   (define machine (new arm-machine% [config machine-config]))
   (define printer (new arm-printer% [machine machine]))
-  (define validator (new arm-validator% [machine machine] [printer printer]))
+  (define simulator (new arm-simulator-rosette% [machine machine]))
+  (define validator (new arm-validator% [machine machine] [printer printer]
+                         [simulator simulator]))
   (generate-inputs (send printer encode code) #f dir machine printer validator))
