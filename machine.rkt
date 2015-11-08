@@ -28,10 +28,10 @@
               get-state display-state
               adjust-config get-memory-size
               output-constraint-string 
-	      get-arg-ranges reset-arg-ranges window-size)
+	      get-arg-ranges reset-arg-ranges)
 
     ;; Provided default methods. Can be overriden if needed.
-    (public set-config-string get-config
+    (public set-config-string get-config window-size
             get-class-id no-assumption
             get-inst-id get-inst-name
             finalize-config config-exceed-limit?
@@ -43,6 +43,9 @@
 	    analyze-opcode analyze-args 
             reset-inst-pool)
 
+    ;; Non-context-aware window decomposition size. Set it to very high value.
+    ;; Context-aware window decomposition size is set in xxx-symbolic.rkt and xxx-forwardbackward.rkt
+    (define (window-size) 100)
     (define (get-config) config)
 
     (define (set-config-string x)

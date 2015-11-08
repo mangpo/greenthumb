@@ -91,7 +91,7 @@
               parse-state-text
               progstate->vector vector->progstate
 	      get-arg-ranges get-live-list
-	      window-size clean-code 
+	      clean-code 
 	      analyze-opcode analyze-args relaxed-state-eq?
 	      update-live update-live-backward
               reset-arg-ranges)
@@ -193,10 +193,6 @@
       (vector-member x cond-inst-id))
     (define/public (get-cond-inst-name x)
       (vector-ref cond-inst-id x))
-
-    ;; Non-context-aware window decomposition size. Set it to very high value.
-    ;; Context-aware window decomposition size is set in arm-symbolic.rkt and arm-forwardbackward.rkt
-    (define (window-size) 100)
 
     ;; Set machine configuration and set valid operands' ranges accordingly.
     ;; info: a list of (# of registers, # of memory, stack pointer)

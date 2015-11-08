@@ -67,17 +67,6 @@
 
       (define correctness 0)
       (define (diff-cost x y)
-        ;; (define (pop-count a)
-        ;;   (set! a (- a (bitwise-and (arithmetic-shift a -1) #x55555555)))
-        ;;   ;;(pretty-display a)
-        ;;   (set! a (+ (bitwise-and a #x33333333)
-        ;;              (bitwise-and (arithmetic-shift a -2) #x33333333)))
-        ;;   ;;(pretty-display a)
-        ;;   (set! a (bitwise-and (+ a (arithmetic-shift a -4)) #x0f0f0f0f))
-        ;;   (set! a (+ a (arithmetic-shift a -8)))
-        ;;   (set! a (+ a (arithmetic-shift a -16)))
-        ;;   (bitwise-and a #x3f))
-
         (pop-count32 (bitwise-xor (bitwise-and x #x3ffff) 
                                   (bitwise-and y #x3ffff))))
 
