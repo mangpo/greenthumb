@@ -103,8 +103,8 @@
                           (first live-in)))))
 
       (values compressed-program
-              (list compressed-live-out (second live-out))
-              (list compressed-live-in (second live-in))
+              (list compressed-live-out (second live-out) (third live-out))
+              (list compressed-live-in (second live-in) (third live-in))
               reg-map-back 
               (list id nmems fp)))
 

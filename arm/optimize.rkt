@@ -64,9 +64,12 @@
 
 (define parser (new arm-parser%))
 (define code (send parser ast-from-file file-to-optimize))
-(define-values (live-mem live-out live-in) (send parser info-from-file (string-append file-to-optimize ".info")))
+(define-values (live-flag live-mem live-out live-in) (send parser info-from-file (string-append file-to-optimize ".info")))
 
-(optimize code (list live-out live-mem) (list live-in live-mem) (search-type) (mode)
+(optimize code
+          (list live-out live-mem live-flag)
+          (list live-in live-mem live-flag)
+          (search-type) (mode)
           #:dir (dir) #:cores (cores) 
           #:time-limit (time-limit) #:size (size) #:window (window)
           #:input-file (input-file)

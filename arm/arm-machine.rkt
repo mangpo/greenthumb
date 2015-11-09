@@ -277,16 +277,21 @@
 
     ;; Convert live-out (in compact format) into Racket string (in progstate format).
     ;; This is used for creating multiple search instances.
-    ;; live-out: a pair of (a list of live registers' ids, live memory)
+    ;; live-out: a pair of (a list of live registers' ids, live memory, live flag)
     ;; output: output constraint in Racket string format. When executing, the expression should be evaluated to a progstate with #t and #f indicating which entries are constrainted (live).
     (define (output-constraint-string machine-var live-out)
+      (define live-mem (second live-out))
+      (define live-flag (third live-out))
       (cond
        [(first live-out)
         (define live-regs-str (string-join (map number->string (first live-out))))
-        (define live-mem (second live-out))
         (if live-mem
-            (format "(constraint ~a [reg ~a] [mem-all])" machine-var live-regs-str)
-            (format "(constraint ~a [reg ~a] [mem])" machine-var live-regs-str))]
+            (format "(constraint ~a [reg ~a] [mem-all] [z ~a])" machine-var live-regs-str live-flag)
+            (format "(constraint ~a [reg ~a] [mem] [z ~a])" machine-var live-regs-str live-flag))]
+       [(or live-mem live-flag)
+        (if live-mem
+            (format "(constraint ~a [reg] [mem-all] [z ~a])" machine-var live-flag)
+            (format "(constraint ~a [reg] [mem] [z ~a])" machine-var live-flag))]
        [else #f]))
 
     ;; Convert live-out from compact format into progstate format.

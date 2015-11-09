@@ -38,7 +38,7 @@
 (define code
 (send parser ast-from-string "
 mov r0, r0
-	eor	r1, r1, r0, ror #19
+	cmp r0, r1
 "))
 
 
@@ -54,11 +54,11 @@ mov r0, r0
 
 
 (define-values (x y)
-  (send symbolic synthesize-window
+  (send backward synthesize-window
         encoded-code ;; spec
         encoded-sketch ;; sketch = spec in this case
         encoded-prefix encoded-postfix
-        (constraint machine [reg 1] [mem]) #f #f 3600)
+        (constraint machine [reg] [mem] [z #t]) #f #f 3600)
   )
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem]) ;; constraint
