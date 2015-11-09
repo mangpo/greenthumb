@@ -11,7 +11,13 @@
     (init-field machine printer parser simulator validator
                 [syn-mode `linear]
 		[stat (new stat% [printer printer])])
-    (abstract len-limit window-size synthesize-window)
+    (abstract
+     ;; Num of instructions that can be synthesized within a minute.
+     len-limit
+     ;; Context-aware window decomposition size L.
+     ;; The cooperative search tries L/2, L, 2L, 4L.
+     window-size
+     synthesize-window)
     (public superoptimize
             superoptimize-linear superoptimize-binary)
 
@@ -26,11 +32,13 @@
        time-limit
        (cond
 	[(equal? syn-mode `binary) 
+         ;; Try to synthesize up to size (len-limit)
 	 (superoptimize-binary spec constraint time-limit size extra
                                #:hard-prefix prefix #:hard-postfix postfix
 			       #:assume assumption)]
 
-	[(equal? syn-mode `linear) 
+	[(equal? syn-mode `linear)
+         ;; Try to synthesize up to size (len-limit)
 	 (superoptimize-linear spec constraint time-limit
                                (if size size (min (vector-length spec) (len-limit)))
                                extra

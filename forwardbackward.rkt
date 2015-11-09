@@ -26,21 +26,45 @@
                 )
     
     ;; Required methods to be implemented when extended. See arm/arm-forwardbackward.rkt.
-    (abstract mask-in get-live-mask
-              reduce-precision increase-precision)
+    (abstract reduce-precision increase-precision)
     (override synthesize-window superoptimize-linear superoptimize-binary)
-    (public try-cmp? combine-live inst->vector prescreen sort-live sort-live-bw
-            reduce-precision-assume)
+    (public try-cmp? combine-live prescreen sort-live sort-live-bw
+            reduce-precision-assume
+            mask-in get-live-mask inst->vector)
     
     (define debug #f)
     (define verbo #f)
     (define ce-limit 100)
     
+    ;;;;;;;;;;;;;;;;;;;;;;; Helper functions ;;;;;;;;;;;;;;;;;;;;;;
     (define (inst->vector x) (vector (inst-op x) (inst-args x)))
     (define (prescreen my-inst state-vec) #t)
+
+    ;; Heuristic to sort what programs to explore first.
     (define (sort-live x) x)
     (define (sort-live-bw x) x)
     (define (reduce-precision-assume x) x)
+    (define (mask-in state live #:keep-flag [keep #t])
+      (cond
+       [(list? state)
+        (for/list ([s state]
+                   [l live])
+                  (mask-in s l))]
+       [(vector? state)
+        (for/vector ([s state]
+                     [l live])
+                    (mask-in s l))]
+       [(pair? state)
+        (cons (mask-in (car state) (car live)) (mask-in (cdr state) (cdr live)))]
+       [else (and live state)]))
+
+    (define (get-live-mask state)
+      (cond
+       [(list? state) (for/list ([s state]) (get-live-mask s))]
+       [(vector? state) (for/vector ([s state]) (get-live-mask s))]
+       [(pair? state)
+        (cons (get-live-mask (car state)) (get-live-mask (cdr state)))]
+       [else (number? state)]))
 
     (define c-behaviors 0)
     (define c-progs 0)
@@ -226,7 +250,8 @@
 
     (define-syntax-rule (intersect l s)
       (filter (lambda (x) (set-member? s x)) l))
-    
+
+    ;;;;;;;;;;;;;;;;;;;;;;; Timing variables ;;;;;;;;;;;;;;;;;;;;;;
     (define t-build 0)
     (define t-build-inter 0)
     (define t-build-hash 0)
@@ -253,6 +278,7 @@
     (define (try-cmp? code state live) 0)
     (define (combine-live x y) y)
 
+    ;;;;;;;;;;;;;;;;;;;;;;; Main functions ;;;;;;;;;;;;;;;;;;;;;;
     (define (superoptimize-binary spec constraint time-limit size [extra #f]
 				  #:lower-bound [lower-bound 0]
                                   #:assume [assumption (send machine no-assumption)]
