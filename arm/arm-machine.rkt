@@ -108,8 +108,8 @@
                      mov mvn
                      mov# mvn# movw# movt#
                      rev rev16 revsh rbit
-                     asr lsl lsr
-                     asr# lsl# lsr#
+                     asr lsl lsr ror
+                     asr# lsl# lsr# ror#
                      mul mla mls
                      smull umull
                      smmul smmla smmls
@@ -128,7 +128,7 @@
     (set! classes 
           (vector '(add sub rsb
 			and orr eor bic orn
-			asr lsl lsr 
+			asr lsl lsr ror
                         mul
 			sdiv udiv 
                         smmul 
@@ -137,7 +137,7 @@
 			;; ldr str)
 		  '(add# sub# rsb#
 			 and# orr# eor# bic# orn#
-			 asr# lsl# lsr#) ;; rri
+			 asr# lsl# lsr# ror#) ;; rri
 		  '(mov mvn 
 			rev rev16 revsh rbit
 			uxth uxtb
@@ -158,7 +158,9 @@
     (define perline 8)
 
     (init-field [branch-inst-id '#(beq bne j jal b jr jr jalr bal)]
-                [shf-inst-id '#(nop lsl# asr lsl lsr asr# lsr#)]
+                [shf-inst-id '#(nop lsl# asr lsl lsr ror asr# lsr# ror#)]
+                [shf-inst-reg '(asr lsl lsr ror)]
+                [shf-inst-imm '(asr# lsl# lsr# ror#)]
 		[inst-with-shf '(add sub rsb and orr eor bic orn mov mvn)]
 		[cond-inst-id '#(nop eq ne ls hi cc cs)]
 		)
@@ -474,7 +476,7 @@
              (set! live-mem (add-live (+ arg fp) live-mem))]
             ))
 
-      (when (member (vector-ref shf-inst-id shfop) '(asr lsl lsr))
+      (when (member (vector-ref shf-inst-id shfop) shf-inst-reg)
             (set! live-reg (add-live shfarg live-reg)))
       (cons live-reg live-mem))
 
@@ -560,7 +562,7 @@
     ;; Get valid optinal-shift operand's range.
     (define (get-shfarg-range shfop-id live-in #:mode [mode `basic])
       (define shfop-name (vector-ref shf-inst-id shfop-id))
-      (if (member shfop-name '(asr lsr lsl)) 
+      (if (member shfop-name shf-inst-reg)
 	  (if (equal? mode `no-args)
 	      `reg-i
               (if live-in
@@ -576,8 +578,8 @@
                             add# sub# rsb#
                             mov mvn
                             mov# mvn#
-                            asr lsl lsr
-                            asr# lsl# lsr#))
+                            asr lsl lsr ror
+                            asr# lsl# lsr# ror#))
                                 
       (when (code-has code '(clz
                              and orr eor bic orn
@@ -640,9 +642,9 @@
     ;;                  mov mvn
     ;;                  mov# mvn# movw# movt#
     ;;                  rev rev16 revsh rbit
-    ;;                  asr lsl lsr
+    ;;                  asr lsl lsr ror
     ;;                  lsl# 
-    ;;     	     asr# lsr#
+    ;;     	     asr# lsr# ror#
     ;;                  mul mla mls
 
     ;;                  smull umull
@@ -712,14 +714,14 @@
       ;; (pretty-display `(shf ,shf ,shfop))
 
       (define reg-set 
-	(if (and shfop (member shfop '(lsl lsr asr)))
+	(if (and shfop (member shfop shf-inst-reg))
 	    (set shfarg)
 	    (set)))
       (define mem-set (set))
       (define const-set (set))
       (define bit-set (set))	
       (define op2-set
-	(if (and shfop (member shfop '(lsl# lsr# asr#)))
+	(if (and shfop (member shfop shf-inst-imm))
 	    (set shfarg)
 	    (set)))
 

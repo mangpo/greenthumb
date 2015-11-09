@@ -132,7 +132,8 @@
       (define args-len (vector-length args))
       (cond
        [(and (>= args-len 4) 
-	     (member (string->symbol (vector-ref args (- args-len 2))) '(asr asl lsr lsl)))
+	     (member (string->symbol (vector-ref args (- args-len 2)))
+                     '(asr asl lsr lsl ror)))
 
         (define shfop (vector-ref args (- args-len 2)))
         (when (equal? shfop "asl") (set! shfop "lsl"))

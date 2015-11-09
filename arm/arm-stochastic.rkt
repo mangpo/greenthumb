@@ -23,6 +23,8 @@
     (define bit (get-field bit machine))
     (define inst-id (get-field inst-id machine))
     (define shf-inst-id (get-field shf-inst-id machine))
+    (define shf-inst-reg (get-field shf-inst-reg machine))
+    (define shf-inst-imm (get-field shf-inst-imm machine))
     (define inst-with-shf (get-field inst-with-shf machine))
     (define nregs (send machine get-nregs))
     (define nmems (send machine get-nmems))
@@ -116,7 +118,9 @@
 
        [(< rand 0.55) ;; op
 	(define my-list
-	  (if (member shfop-name '(asr lsr lsl)) '(asr lsr lsl) '(asr# lsr# lsl#)))
+	  (if (member shfop-name shf-inst-reg)
+              shf-inst-reg
+              shf-inst-imm))
 	(set! shfop (vector-member 
 		     (random-from-list-ex my-list shfop-name)
 		     shf-inst-id))]

@@ -22,6 +22,7 @@
 
     (define (shl a b) (<< a b bit))
     (define (ushr a b) (>>> a b bit))
+    (define (ror a b) (bitwise-ior (>>> a b bit) (<< a (- bit b) bit)))
     (define-syntax-rule (finitize-bit x) (finitize x bit))
 
     (define byte0 0)
@@ -85,10 +86,12 @@
     (define bvshl  (bvshift shl))
     (define bvshr  (bvshift >>))
     (define bvushr (bvshift ushr))
+    (define bvror  (bvshift ror))
 
     (define bvshl#  (bvshift# shl))
     (define bvshr#  (bvshift# >>))
     (define bvushr# (bvshift# ushr))
+    (define bvror#  (bvshift# ror))
 
     (define uxtah (bvop (lambda (x y) (+ x (bitwise-and y low-mask)))))
     (define uxth (lambda (x) (finitize-bit (bitwise-and x low-mask))))
@@ -244,11 +247,13 @@
              [(shf-inst-eq `lsr) (rr bvushr)]
              [(shf-inst-eq `asr) (rr bvshr)]
              [(shf-inst-eq `lsl) (rr bvshl)]
+             [(shf-inst-eq `ror) (rr bvror)]
              
              ;; shift i
              [(shf-inst-eq `lsr#) (ri bvushr#)]
              [(shf-inst-eq `asr#) (ri bvshr#)]
              [(shf-inst-eq `lsl#) (ri bvshl#)]
+             [(shf-inst-eq `ror#) (ri bvror#)]
              [else
               (assert #f (format "undefine optional shift: ~a" op))]
              )
@@ -441,11 +446,13 @@
            [(inst-eq `lsr) (rrr bvushr)]
            [(inst-eq `asr) (rrr bvshr)]
            [(inst-eq `lsl) (rrr bvshl)]
+           [(inst-eq `ror) (rrr bvror)]
            
            ;; shift i
            [(inst-eq `lsr#) (rrb bvushr#)]
            [(inst-eq `asr#) (rrb bvshr#)]
            [(inst-eq `lsl#) (rrb bvshl#)]
+           [(inst-eq `ror#) (rrb bvror#)]
 
            ;; bit
            [(inst-eq `bfc)  (r!bb  clrbit)]
@@ -531,12 +538,12 @@
               [(inst-eq `sbfx `ubfx `bfc `bfi) (add-cost 2)]
               ;; [(inst-eq `mov) 
               ;;  (cond
-              ;;   [(shf-inst-eq `lsr `asr `lsl) (add-cost 2)]
+              ;;   [(shf-inst-eq `lsr `asr `lsl `ror) (add-cost 2)]
               ;;   [else (add-cost 1)])]
 
-              ;; [(shf-inst-eq `lsr# `asr# `lsl#) (add-cost 2)]
+              ;; [(shf-inst-eq `lsr# `asr# `lsl# `ror#) (add-cost 2)]
               [(and (inst-eq `add `sub `rsb `and `orr `eor `bic `orn `mov `mvn)
-                    (shf-inst-eq `lsr `asr `lsl))
+                    (shf-inst-eq `lsr `asr `lsl `ror))
                (add-cost 2)]
 
               [else (add-cost 1)])

@@ -15,6 +15,7 @@
     (define bit (get-field bit machine))
     (define inst-id (get-field inst-id machine))
     (define shf-inst-id (get-field shf-inst-id machine))
+    (define shf-inst-reg (get-field shf-inst-reg machine))
     (define reg-range-db
       (for/vector ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
     (define fp (send machine get-fp))
@@ -30,7 +31,7 @@
       (define in (list))
       (define out (list))
       (when (> shfop 0)
-	    (if (member (vector-ref shf-inst-id shfop) '(asr lsl lsr))
+	    (if (member (vector-ref shf-inst-id shfop) shf-inst-reg)
 		(set! in (cons shfarg in))
 		(set! inst-type (cons shfarg inst-type))))
       
@@ -95,7 +96,7 @@
       (define arg-types (send machine get-arg-types opcode-name))
       (define shfop (inst-shfop my-inst))
       (define shfarg (inst-shfarg my-inst))
-      (when (and shfop (member (vector-ref shf-inst-id shfop) '(asr lsl lsr)))
+      (when (and shfop (member (vector-ref shf-inst-id shfop) shf-inst-reg))
             (vector-set! in shfarg #t))
       
       (for ([arg (inst-args my-inst)]

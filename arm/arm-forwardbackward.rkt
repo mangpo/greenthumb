@@ -18,6 +18,8 @@
               reduce-precision increase-precision
 	      get-live-mask try-cmp? combine-live sort-live sort-live-bw)
 
+    (define shf-inst-imm (get-field shf-inst-imm machine))
+
     ;; Num of instructions that can be synthesized within a minute.
     (define (len-limit) 2)
 
@@ -105,7 +107,7 @@
              arg)))
 
       (define new-shfarg
-        (if (member shfop-name '(lsr# asr# lsl#))
+        (if (member shfop-name shf-inst-imm)
             (change shfarg `bit)
             shfarg))
 
@@ -127,7 +129,7 @@
              (list arg))))
 
       (define new-shfarg
-        (if (member shfop-name '(lsr# asr# lsl#))
+        (if (member shfop-name shf-inst-imm)
             (change shfarg `bit)
             (list shfarg)))
 
