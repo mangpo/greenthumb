@@ -148,13 +148,13 @@
 	(define op-len (string-length op))
 	;; Determine type
 	(define cond-type (substring op (- op-len 2)))
-	(define cond? (and (member cond-type (list "eq" "ne" "ls" "hi" "cc" "cs")) 
-			   (> op-len 3)
-                           (not (equal? op "smmls"))))
+	(define cond?
+          (and (member cond-type (list "eq" "ne" "ls" "hi" "cc" "cs" "lt" "ge")) 
+               (> op-len 3)
+               (not (equal? op "smmls"))))
 	;; ls
 	(set! cond-type (if cond? cond-type ""))
-	(when cond?
-	      (set! op (substring op 0 (- op-len 2))))
+	(when cond? (set! op (substring op 0 (- op-len 2))))
 
 	;; for ldr & str, fp => r99, divide offset by 4
 	(when (or (equal? op "str") (equal? op "ldr"))

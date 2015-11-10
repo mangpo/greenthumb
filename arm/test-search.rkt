@@ -37,14 +37,15 @@
 
 (define code
 (send parser ast-from-string "
-mov r0, r0
-	cmp r0, r1
+	cmp	r0, r1
+	movge	r0, r1
+	ubfx	r0, r0, #15, #16
 "))
 
 
 (define sketch
 (send parser ast-from-string "
-?
+? ? ?
 "))
 
 (define encoded-prefix (send printer encode prefix))
@@ -56,9 +57,9 @@ mov r0, r0
 (define-values (x y)
   (send backward synthesize-window
         encoded-code ;; spec
-        encoded-sketch ;; sketch = spec in this case
+        3 ;encoded-sketch ;; sketch = spec in this case
         encoded-prefix encoded-postfix
-        (constraint machine [reg] [mem] [z #t]) #f #f 3600)
+        (constraint machine [reg 0] [mem] [z #f]) #f #f 3600)
   )
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem]) ;; constraint

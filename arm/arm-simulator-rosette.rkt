@@ -189,10 +189,18 @@
              (set! a (>> a 1)))
         res))
 
+    ;; Flag values
+    ;; 0 - eq
+    ;; 1 - neq
+    ;; 2 - x < y same sign
+    ;; 3 - x > y same sign
+    ;; 4 - x < 0
+    ;; 5 - y < 0
     (define (tst x y) (if (= (bitwise-and x y) 0) 0 1))
     (define (cmp x y)
       (define my-x (finitize-bit x))
       (define my-y (finitize-bit y))
+      ;;(pretty-display `(cmp ,my-x ,my-y))
       (cond
        [(= my-x my-y) 0]
        [(or (and (>= my-x 0) (>= my-y 0))
@@ -200,8 +208,8 @@
 	(cond
 	 [(< my-x my-y) 2]
 	 [else 3])]
-       [(< my-y 0) 2]
-       [else 3]))
+       [(< my-x 0) 4]
+       [else 5]))
     
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
@@ -491,19 +499,25 @@
 	  (if (equal? z 0) (exec) (assert-op))]
 
 	 [(equal? cond-type 2) ;; ne
-	  (if (member z (list 1 2 3)) (exec) (assert-op))]
+	  (if (member z (list 1 2 3 4 5)) (exec) (assert-op))]
 
-	 [(equal? cond-type 3) ;; ls
-	  (if (member z (list 0 2)) (exec) (assert-op))]
+	 [(equal? cond-type 3) ;; ls (unsigned lower or same)
+	  (if (member z (list 0 2 5)) (exec) (assert-op))]
 
-	 [(equal? cond-type 4) ;; hi
-	  (if (equal? z 3) (exec) (assert-op))]
+	 [(equal? cond-type 4) ;; hi (unsigned higher)
+	  (if (member z (list 3 4)) (exec) (assert-op))]
 
-	 [(equal? cond-type 5) ;; cc
-	  (if (equal? z 2) (exec) (assert-op))]
+	 [(equal? cond-type 5) ;; cc/lo (unsigned lower)
+	  (if (member z (list 2 5)) (exec) (assert-op))]
 
-	 [(equal? cond-type 6) ;; cs
-	  (if (member z (list 0 3)) (exec) (assert-op))]
+	 [(equal? cond-type 6) ;; cs/hs (unsigned higher or same)
+	  (if (member z (list 0 3 4)) (exec) (assert-op))]
+
+	 [(equal? cond-type 7) ;; lt (signed less than)
+	  (if (member z (list 2 4)) (exec) (assert-op))]
+
+	 [(equal? cond-type 8) ;; ge (signed greater than or equal)
+	  (if (member z (list 0 3 5)) (exec) (assert-op))]
 	 
          [else (assert #f (format "illegal cond-type ~a" cond-type))]
          )        
@@ -563,7 +577,9 @@
 
     (define-syntax-rule (check-imm-mov x) 
       (assert-return 
-       (= (bitwise-and x #xffff) x) 
+       (or (= (bitwise-and x #xffff) x)
+           (ormap (lambda (i) (= (bitwise-and x i) (bitwise-and x mask)))
+                  legal-imm))
        "illegal mov immediate"
        x))
 

@@ -385,11 +385,12 @@
       (let ([tmp (reduce-precision spec)])
         (set! spec (car tmp))
         (set! abst2precise (cdr tmp)))
+      (pretty-display `(try-cmp ,try-cmp))
       (pretty-display `(abst2precise ,abst2precise))
       
       (set! prefix (car (reduce-precision prefix)))
       (set! postfix (car (reduce-precision postfix)))
-      (pretty-display `(assump ,assumption))
+      (pretty-display `(assume ,assumption))
       (set! assumption (reduce-precision-assume assumption))
 
       ;; (send machine display-state assumption-precise)

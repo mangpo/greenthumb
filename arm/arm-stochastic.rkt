@@ -155,7 +155,7 @@
 	(define new-cond-type 
 	  (if (member cmp '(tst tst#))
 	      (random-from-list-ex (range 3) cond-type)
-	      (random-from-list-ex (range 7) cond-type)))
+	      (random-from-list-ex (range 9) cond-type)))
 	(define new-entry (struct-copy arm-inst entry [cond new-cond-type]))
 	(when debug
 	      (pretty-display (format " --> cond-type = ~a --> ~a" cond-type new-cond-type)))
@@ -176,7 +176,7 @@
         (define shfop (and shf? (random (vector-length shf-inst-id))))
         (define shfarg-range (and shf? (get-shfarg-range shfop live-in)))
         (define shfarg (and shf? (vector-ref shfarg-range (random (vector-length shfarg-range)))))
-        (define cond-type (random 7))
+        (define cond-type (random 9))
         (arm-inst opcode-id args shfop shfarg cond-type)]
        [else (random-instruction live-in)])
       )

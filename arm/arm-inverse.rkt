@@ -212,19 +212,25 @@
 	(if (equal? z 0) (exec) (same))]
 
        [(equal? cond-type 2) ;; ne
-	(if (member z (list 1 2 3)) (exec) (same))]
+	(if (member z (list 1 2 3 4 5)) (exec) (same))]
 
        [(equal? cond-type 3) ;; ls
-	(if (member z (list 0 2)) (exec) (same))]
+	(if (member z (list 0 2 5)) (exec) (same))]
 
        [(equal? cond-type 4) ;; hi
-	(if (equal? z 3) (exec) (same))]
+	(if (member z (list 3 4)) (exec) (same))]
 
        [(equal? cond-type 5) ;; cc
-	(if (equal? z 2) (exec) (same))]
+	(if (member z (list 2 5)) (exec) (same))]
 
        [(equal? cond-type 6) ;; cs
-	(if (member z (list 0 3)) (exec) (same))]
+	(if (member z (list 0 3 4)) (exec) (same))]
+
+       [(equal? cond-type 7) ;; lt
+        (if (member z (list 2 4)) (exec) (same))]
+       
+       [(equal? cond-type 8) ;; ge
+        (if (member z (list 0 3 5)) (exec) (same))]
        
        [else (raise (format "illegal cond-type ~a" cond-type))]
        ))

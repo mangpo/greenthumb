@@ -162,7 +162,7 @@
                 [shf-inst-reg '(asr lsl lsr ror)]
                 [shf-inst-imm '(asr# lsl# lsr# ror#)]
 		[inst-with-shf '(add sub rsb and orr eor bic orn mov mvn)]
-		[cond-inst-id '#(nop eq ne ls hi cc cs)]
+		[cond-inst-id '#(nop eq ne ls hi cc cs lt ge)]
 		)
 
     (define nregs 5)
