@@ -2,9 +2,9 @@
 
 (require "../validator.rkt"
          "../ast.rkt")
-(provide llve-demo-validator%)
+(provide llvm-demo-validator%)
 
-(define llve-demo-validator%
+(define llvm-demo-validator%
   (class validator%
     (super-new)
     (inherit-field printer)

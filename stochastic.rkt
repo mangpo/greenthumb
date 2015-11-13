@@ -12,7 +12,7 @@
             mutate-opcode mutate-operand mutate-swap
             mutate-operand-specific mutate-other
             random-instruction print-mutation-info
-	    random-args-from-op pop-count32)
+	    random-args-from-op pop-count32 correctness-cost-base)
     (abstract correctness-cost)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
@@ -526,5 +526,30 @@
       (set! a (+ a (arithmetic-shift a -8)))
       (set! a (+ a (arithmetic-shift a -16)))
       (bitwise-and a #x3f))
+
+    ;; Helper function to calculate correctness cost.
+    ;; state1, state2, constraint are vectors of the same length,
+    ;; delta is a function that calculate the cost between two numbers.
+    ;; Compute correctness cost sum of all bit difference in live entires.
+    (define (correctness-cost-base state1 state2 constraint delta)
+      (define correctness 0)
+      (define n (vector-length state1))
+      (for ([i n]
+            [v constraint])
+           (when
+            v
+            (let* ([v1 (vector-ref state1 i)]
+                   [best-cost (delta v1 (vector-ref state2 i))]
+                   [best-j i])
+              (for ([j n])
+                   (let* ([v2 (vector-ref state2 j)]
+                          [this-cost (delta v1 v2)])
+                     (when (< this-cost best-cost)
+                           (set! best-cost this-cost)
+                           (set! best-j j))))
+              (set! correctness (+ correctness best-cost))
+              (unless (= best-j i) (set! correctness (add1 correctness))))))
+      correctness)
+      
 
     ))

@@ -101,9 +101,5 @@
 			    (raise "Currently only support i32 type.")))
 	      (last term)))
   
-  ;; (define last-arg (last args))
-  ;; (unless (regexp-match #rx"%" last-arg) 
-  ;;         (set! op (string-append op "#")))
-  
   (inst op (list->vector (cons lhs (cons out (map last terms))))))
 	     

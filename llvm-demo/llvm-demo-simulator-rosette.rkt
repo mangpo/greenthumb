@@ -65,6 +65,14 @@
           (define b (vector-ref args 2))
           (define val (f (vector-ref regs a) b))
           (vector-set! regs d val))
+        
+        ;; subi addi
+        (define (rir f)
+          (define d (vector-ref args 0))
+          (define a (vector-ref args 1))
+          (define b (vector-ref args 2))
+          (define val (f a (vector-ref regs b)))
+          (vector-set! regs d val))
 
         ;; count leading zeros
         (define (rr f)
@@ -79,7 +87,7 @@
             ((inst-eq a b ...) (or (inst-eq a) (inst-eq b) ...))))
         
         (cond
-         ;; basic
+         ;; rrr
          [(inst-eq `nop) (void)]
          [(inst-eq `add) (rrr bvadd)]
          [(inst-eq `sub) (rrr bvsub)]
@@ -88,7 +96,11 @@
          [(inst-eq `or)  (rrr bitwise-ior)]
          [(inst-eq `xor) (rrr bitwise-xor)]
          
-         ;; basic i
+         [(inst-eq `lshr) (rrr bvushr)]
+         [(inst-eq `ashr) (rrr bvshr)]
+         [(inst-eq `shl)  (rrr bvshl)]
+         
+         ;; rri
          [(inst-eq `add#) (rri bvadd)]
          [(inst-eq `sub#) (rri bvsub)]
          
@@ -96,15 +108,21 @@
          [(inst-eq `or#)  (rri bitwise-ior)]
          [(inst-eq `xor#) (rri bitwise-xor)]
 
-         ;; shift
-         [(inst-eq `lshr) (rrr bvushr)]
-         [(inst-eq `ashr) (rrr bvshr)]
-         [(inst-eq `shl)  (rrr bvshl)]
-
-         ;; shift i
          [(inst-eq `lshr#) (rri bvushr)]
          [(inst-eq `ashr#) (rri bvshr)]
          [(inst-eq `shl#)  (rri bvshl)]
+         
+         ;; rir
+         [(inst-eq `_add) (rir bvadd)]
+         [(inst-eq `_sub) (rir bvsub)]
+         
+         [(inst-eq `_and) (rir bitwise-and)]
+         [(inst-eq `_or)  (rir bitwise-ior)]
+         [(inst-eq `_xor) (rir bitwise-xor)]
+
+         [(inst-eq `_lshr) (rir bvushr)]
+         [(inst-eq `_ashr) (rir bvshr)]
+         [(inst-eq `_shl)  (rir bvshl)]
          
          [(inst-eq `ctlz)  (rr clz)]
 

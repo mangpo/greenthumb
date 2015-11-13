@@ -187,7 +187,7 @@
     (define (correctness-cost state1 state2 constraint)
       (define (diff-cost x y)
         (pop-count32 (bitwise-xor (bitwise-and x #xffffffff) 
-                                (bitwise-and y #xffffffff))))
+                                  (bitwise-and y #xffffffff))))
       
       (define regs (progstate-regs constraint))
       (define memory (progstate-memory constraint))

@@ -5,6 +5,8 @@
          "llvm-demo-simulator-racket.rkt"
          "llvm-demo-validator.rkt")
 
+;; Step -1: familiar yourself with default inst
+
 ;; Step 0: set up bitwidth for Rosette
 (current-bitwidth 32)
 
@@ -16,7 +18,7 @@
 
 (define code
 (send parser ast-from-string "
-  %1 = ctlz i32 %v
+  %1 = add i32 -1, %x0
 "))
 
 (send printer print-struct code)
@@ -28,7 +30,7 @@
 
 ;; Step 2: Test concrete simulator
 (pretty-display "Step 2: interpret program using simulator writing in Rosette.")
-(define input-state (vector 1 8 3 4))
+(define input-state (vector 1 22 3 4))
 (define simulator-rosette (new llvm-demo-simulator-rosette% [machine machine]))
 (send simulator-rosette interpret encoded-code input-state)
 (newline)
@@ -40,7 +42,7 @@
 ? ?
 "))
 ;; Use validator to encode unknown program instead of printer
-(define validator (new llve-demo-validator%
+(define validator (new llvm-demo-validator%
                        [machine machine] [printer printer]
                        [simulator simulator-rosette]))
 (define encoded-code? (send validator encode-sym code?))

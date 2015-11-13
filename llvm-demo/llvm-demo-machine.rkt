@@ -21,18 +21,20 @@
     (set! nop-id 0)
     (set! inst-id '#(nop 
                      and or xor add sub
-		     shl lshr ashr
                      and# or# xor# add# sub#
+                     _and _or _xor _add _sub
+		     shl lshr ashr
 		     shl# lshr# ashr#
+		     _shl _lshr _ashr
                      ctlz
                      ))
 
     ;; Instruction classes
     (set! classes 
-          (vector '(and or xor add sub
-			shl lshr ashr) ;; rrr
+          (vector '(and or xor add sub shl lshr ashr) ;; rrr
 		  '(and# or# xor# add# sub#) ;; rri
 		  '(shl# lshr# ashr#) ;;rri
+		  '(_and _or _xor _add _sub _shl _lshr _ashr) ;;rir
                   ))
 
     (define vars 5)
@@ -47,7 +49,7 @@
     ;; Set valid operands' ranges.
     (define (reset-arg-ranges)
       (set! var-range (list->vector (range vars)))
-      (set! const-range (vector 0 1))
+      (set! const-range (vector 0 1 -8))
       (set! bit-range (vector 0 1)))
     
     (define (set-config x) 
@@ -64,6 +66,8 @@
        [(equal? class-id 0) (vector `var-o `var-i `var-i)]
        [(equal? class-id 1) (vector `var-o `var-i `const)]
        [(equal? class-id 2) (vector `var-o `var-i `bit)]
+       [(equal? class-id 3) (vector `var-o `const `var-i)]
+       [(equal? opcode-name `ctlz) (vector `var-o `var-i)]
        [else (vector)]))
 
     ;; Get valid operands' ranges given opcode-name, live-in, live-out, and mode.
@@ -98,9 +102,12 @@
 	    [(equal? type `bit)    bit-range]))))
 
     (define (update-live live x)
-      (define new-live (vector-copy live))
-      (vector-set! new-live (vector-ref (inst-args x) 0) #t)
-      new-live)
+      (define op (inst-op x))
+      (if (= op nop-id)
+          live
+          (let ([new-live (vector-copy live)])
+            (vector-set! new-live (vector-ref (inst-args x) 0) #t)
+            new-live)))
 
     ;; For enumerative search
     (define (update-live-backward live x)

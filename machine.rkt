@@ -153,7 +153,8 @@
     (define (reset-inst-pool)
       (set! inst-pool (range (vector-length inst-id))))
 
-    (define (analyze-args prefix code postfix #:only-const [x #f])
+    (define (analyze-args prefix code postfix live-in-list live-out
+                          #:only-const [only-const #f] #:vreg [vreg 0])
       (void))
 
     ))
