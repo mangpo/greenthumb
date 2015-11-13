@@ -24,9 +24,7 @@
 
     ;; Required methods to be implemented.
     ;; See comments at the point of method declaration in arm/arm-machine.rkt for example.
-    (abstract set-config
-              get-state 
-	      get-arg-ranges reset-arg-ranges)
+    (abstract set-config get-state)
 
     ;; Provided default methods. Can be overriden if needed.
     (public set-config-string get-config window-size
@@ -41,7 +39,9 @@
 	    clean-code state-eq? relaxed-state-eq?
 	    update-live update-live-backward filter-live get-live-list
 	    analyze-opcode analyze-args 
-            reset-inst-pool)
+            reset-inst-pool
+            get-arg-ranges reset-arg-ranges
+            )
 
     ;; Non-context-aware window decomposition size. Set it to very high value.
     ;; Context-aware window decomposition size is set in xxx-symbolic.rkt and xxx-forwardbackward.rkt
@@ -156,5 +156,11 @@
     (define (analyze-args prefix code postfix live-in-list live-out
                           #:only-const [only-const #f] #:vreg [vreg 0])
       (void))
+
+    (define (get-arg-ranges opcode-name entry live-in
+                            #:live-out [live-out #f] #:mode [mode `basic])
+      (raise "machine: need to extend get-arg-ranges"))
+    
+    (define (reset-arg-ranges) (void))
 
     ))

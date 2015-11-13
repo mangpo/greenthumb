@@ -56,7 +56,7 @@
                       [parser parser]
                       [validator validator] [simulator simulator-rosette]))
 
-#;(send symbolic synthesize-window
+(send symbolic synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch
       encoded-prefix encoded-postfix
@@ -72,7 +72,7 @@
                       [validator validator] [simulator simulator-rosette]
                       [syn-mode #t] ;; #t = synthesize, #f = optimize mode
                       ))
-(send stoch superoptimize encoded-code 
+#;(send stoch superoptimize encoded-code 
       constraint ;; constraint
       (send printer encode-live '(%in)) ;; live-in
       "./driver-0" 3600 #f)

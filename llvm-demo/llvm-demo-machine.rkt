@@ -8,13 +8,15 @@
   (class machine%
     (super-new)
     (inherit-field bit random-input-bit config
-                   inst-id inst-pool
-		   classes classes-filtered
-		   nop-id)
+                   inst-id nop-id
+                   ;; required fileds for stochastic and enumerative only
+		   classes)
     (inherit get-class-id filter-live state-eq?)
     (override set-config get-state
+              ;; required functions for stochastic and enumerative only
               reset-arg-ranges get-arg-ranges ;;analyze-args
-	      update-live update-live-backward)
+	      update-live update-live-backward
+              )
 
     (unless bit (set! bit 32))
     (set! random-input-bit bit)
@@ -29,14 +31,6 @@
                      ctlz
                      ))
 
-    ;; Instruction classes
-    (set! classes 
-          (vector '(and or xor add sub shl lshr ashr) ;; rrr
-		  '(and# or# xor# add# sub#) ;; rri
-		  '(shl# lshr# ashr#) ;;rri
-		  '(_and _or _xor _add _sub _shl _lshr _ashr) ;;rir
-                  ))
-
     (define vars 5)
     (define var-range #f)
     (define const-range #f)
@@ -45,6 +39,26 @@
     (when config 
 	  (set! vars config)
           (reset-arg-ranges))
+    
+    (define (set-config x) 
+      (set! config x) 
+      (set! vars config)
+      (reset-arg-ranges))
+
+    ;; Generate program state from function init.
+    ;; Our program state is a vector storing values of variables.
+    (define (get-state init [extra #f])
+      (for/vector ([i vars]) (init)))
+
+    ;;;;;;;;;;;;;;;;;;;;; For stochastic and enumerative ;;;;;;;;;;;;;;;;;;
+
+    ;; Instruction classes
+    (set! classes 
+          (vector '(and or xor add sub shl lshr ashr) ;; rrr
+        	  '(and# or# xor# add# sub#) ;; rri
+        	  '(shl# lshr# ashr#) ;;rri
+        	  '(_and _or _xor _add _sub _shl _lshr _ashr) ;;rir
+                  ))
 	  
     ;; Set valid operands' ranges.
     (define (reset-arg-ranges)
@@ -52,14 +66,6 @@
       (set! const-range (vector 0 1 -8))
       (set! bit-range (vector 0 1)))
     
-    (define (set-config x) 
-      (set! config x) 
-      (set! vars config)
-      (reset-arg-ranges))
-
-    (define (get-state init [extra #f])
-      (for/vector ([i vars]) (init)))
-
     (define (get-arg-types opcode-name)
       (define class-id (get-class-id opcode-name))
       (cond
@@ -79,27 +85,27 @@
     (define (get-arg-ranges opcode-name entry live-in
                             #:live-out [live-out #f] #:mode [mode `basic])
       (define var-i
-	(if live-in
-	    (filter-live var-range live-in)
-	    var-range))
+        (if live-in
+            (filter-live var-range live-in)
+            var-range))
       (define var-o
-	(if live-out
-	    (filter-live var-range live-out)
-	    var-range))
+        (if live-out
+            (filter-live var-range live-out)
+            var-range))
 
       (for/vector 
        ([type (get-arg-types opcode-name)])
        (if (equal? mode `basic)
-	   (cond
-	    [(equal? type `var-o)  var-o]
-	    [(equal? type `var-i)  var-i]
-	    [(equal? type `const)  const-range]
-	    [(equal? type `bit)    bit-range])
-	   (cond
-	    [(equal? type `var-o)  `var-o]
-	    [(equal? type `var-i)  `var-i]
-	    [(equal? type `const)  const-range]
-	    [(equal? type `bit)    bit-range]))))
+           (cond
+            [(equal? type `var-o)  var-o]
+            [(equal? type `var-i)  var-i]
+            [(equal? type `const)  const-range]
+            [(equal? type `bit)    bit-range])
+           (cond
+            [(equal? type `var-o)  `var-o]
+            [(equal? type `var-i)  `var-i]
+            [(equal? type `const)  const-range]
+            [(equal? type `bit)    bit-range]))))
 
     (define (update-live live x)
       (define op (inst-op x))
@@ -116,11 +122,11 @@
       (define args (inst-args x))
       (define args-type (get-arg-types opcode-name))
       (for ([arg args]
-	    [type args-type])
-	   (cond
+            [type args-type])
+           (cond
             ;; kill first
-	    [(equal? type `var-o) (vector-set! new-live arg #f)]
-	    [(equal? type `var-i) (vector-set! new-live arg #t)]))
+            [(equal? type `var-o) (vector-set! new-live arg #f)]
+            [(equal? type `var-i) (vector-set! new-live arg #t)]))
       new-live)
 
     ))

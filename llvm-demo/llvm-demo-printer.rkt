@@ -9,8 +9,10 @@
   (class printer%
     (super-new)
     (inherit-field machine)
-    (override encode-inst decode-inst print-syntax-inst) ;; print-struct-inst
+    (override encode-inst decode-inst print-syntax-inst)
 
+    ;; Print in LLVM IR format.
+    ;; x: instruction
     (define (print-syntax-inst x [indent ""])
       (define op (inst-op x))
       (unless (equal? op "nop")
@@ -29,19 +31,25 @@
 
     (define-syntax-rule (char1=% x) (equal? (substring x 0 1) "%"))
 				  
-    ;; Convert from string to number representation.
+    ;; Convert instruction from string to number representation.
     (define (encode-inst x)
       (cond
        [(equal? (inst-op x) "nop") (inst (get-field nop-id machine) (vector))]
        [else
         (define args (inst-args x))
-        (define last-in (vector-ref args (sub1 (vector-length args))))
+        ;; First input argument.
         (define first-in (vector-ref args 1))
+        ;; Last input argument.
+        (define last-in (vector-ref args (sub1 (vector-length args))))
         (define new-args
           (for/vector ([arg args])
                       (if (equal? (substring arg 0 1) "%")
+                          ;; arg is a variable.
+                          ;; Look up if the variable is already seen before.
                           (if (hash-has-key? name2num arg)
                               (hash-ref name2num arg)
+                              ;; If not in the table, give it a fresh number
+                              ;; and update the table.
                               (let ([id n])
                                 (set! n (add1 n))
                                 (hash-set! name2num arg id)
@@ -53,15 +61,21 @@
            (cond
             [(and (char1=% first-in) (char1=% last-in))
              (inst-op x)]
+            
+            ;; Append # to opcode to indicate that last argument is a constant.
             [(char1=% first-in)
              (string-append (inst-op x) "#")]
+
+            ;; Prepend _ to opcode to indicate that first argument is a constant.
             [(char1=% last-in)
              (string-append "_" (inst-op x))]
+            
             [else
              (raise "Not support %out = op <imm>, <imm>")])))
+        
         (inst (send machine get-inst-id op) new-args)]))
     
-    
+    ;; Convert instruction from number representation back to string.
     (define (decode-inst x)
       (define op (symbol->string (send machine get-inst-name (inst-op x))))
       (cond
@@ -90,7 +104,9 @@
             (inst op (vector out first-in last-in))
             (inst op (vector out first-in)))]))
 
-    
+    ;; Convert liveness infomation to the same format as program state.
+    ;; x: a list of variables' names.
+    ;; output: vector of #t and #f.
     (define/public (encode-live x)
       (define live (make-vector (send machine get-config) #f))
       (for ([v x])
