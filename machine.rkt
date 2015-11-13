@@ -25,17 +25,17 @@
     ;; Required methods to be implemented.
     ;; See comments at the point of method declaration in arm/arm-machine.rkt for example.
     (abstract set-config
-              get-state display-state
-              adjust-config get-memory-size
-              output-constraint-string 
+              get-state 
 	      get-arg-ranges reset-arg-ranges)
 
     ;; Provided default methods. Can be overriden if needed.
     (public set-config-string get-config window-size
+	    adjust-config get-memory-size
             get-class-id no-assumption
             get-inst-id get-inst-name
             finalize-config config-exceed-limit?
-            output-assume-string get-state-liveness
+            output-assume-string get-state-liveness display-state
+	    output-constraint-string 
             progstate->vector vector->progstate
             get-states-from-file parse-state-text
 	    clean-code state-eq? relaxed-state-eq?
@@ -47,6 +47,8 @@
     ;; Context-aware window decomposition size is set in xxx-symbolic.rkt and xxx-forwardbackward.rkt
     (define (window-size) 100)
     (define (get-config) config)
+    (define (adjust-config) config)
+    (define (get-memory-size) config)
 
     (define (set-config-string x)
       (cond
@@ -67,6 +69,8 @@
     (define (get-inst-name id) (vector-ref inst-id id))
     (define (no-assumption) #f)
     (define (get-state-liveness f extra) (get-state f extra))
+    (define (display-state x) (pretty-display x))
+    (define (output-constraint-string machine-var live-out) (pretty-display live-out))
 
     (define (finalize-config info) info)
     (define (config-exceed-limit? info)
@@ -126,10 +130,15 @@
     (define (update-live live x) live)
     (define (update-live-backward live x) live)
 
+    ;; range is a vector of possible arguments.
+    ;; live is either a list of live arguments or indicator vector.
     (define (filter-live range live)
-      (if live
-          (vector-filter (lambda (x) (member x live)) range)
-          range))
+      (cond
+       [(list? live)
+	(vector-filter (lambda (x) (member x live)) range)]
+       [(vector? live)
+        (vector-filter (lambda (x) (vector-ref live x)) range)]
+       [else range]))
 
     (define (get-live-list constraint) (progstate->vector constraint))
     

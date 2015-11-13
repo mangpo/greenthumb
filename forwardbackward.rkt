@@ -276,6 +276,9 @@
     (define start-time #f)
 
     (define (try-cmp? code state live) 0)
+    ;; Combine liveness from two sources
+    ;; x is from using update-live from live-in. This does not work well for memory.
+    ;; y is from using symbolic analyze from live-out.
     (define (combine-live x y) y)
 
     ;;;;;;;;;;;;;;;;;;;;;;; Main functions ;;;;;;;;;;;;;;;;;;;;;;
