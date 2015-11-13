@@ -13,7 +13,7 @@
     (inherit-field asm-parser asm-lexer)
 
     (define-tokens a (VAR WORD NUM))
-    (define-empty-tokens b (EOF EQ COMMA))
+    (define-empty-tokens b (EOF EQ COMMA HOLE))
 
     (define-lex-abbrevs
       (digit10 (char-range "0" "9"))
@@ -33,6 +33,7 @@
       (lexer-src-pos
        (","        (token-COMMA))
        ("="        (token-EQ))
+       ("?"        (token-HOLE))
        (snumber10  (token-NUM lexeme))
        (var        (token-VAR lexeme))
        (identifier (token-WORD lexeme))
@@ -66,11 +67,12 @@
          ((words arg) (append $1 (list $2))))
         
         (terms 
-         ((term COMMA terms) (cons $1 $3))
-         ((term)             (list $1)))
+         ((term)             (list $1))
+         ((term COMMA terms) (cons $1 $3)))
         
         (instruction
-         ((VAR EQ term COMMA terms) (convert2inst $1 $3 $5)))
+         ((HOLE)         (inst #f #f))
+         ((VAR EQ terms) (convert2inst $1 (car $3) (cdr $3))))
         
         (inst-list 
          (() (list))
@@ -99,9 +101,9 @@
 			    (raise "Currently only support i32 type.")))
 	      (last term)))
   
-  (define last-arg (last args))
-  (unless (regexp-match #rx"%" last-arg) 
-	  (set! op (string-append op "#")))
+  ;; (define last-arg (last args))
+  ;; (unless (regexp-match #rx"%" last-arg) 
+  ;;         (set! op (string-append op "#")))
   
   (inst op (list->vector (cons lhs (cons out (map last terms))))))
 	     

@@ -24,6 +24,7 @@
 		     shl lshr ashr
                      and# or# xor# add# sub#
 		     shl# lshr# ashr#
+                     ctlz
                      ))
 
     ;; Instruction classes
@@ -54,7 +55,7 @@
       (set! vars config)
       (reset-arg-ranges))
 
-    (define (get-state init extra)
+    (define (get-state init [extra #f])
       (for/vector ([i vars]) (init)))
 
     (define (get-arg-types opcode-name)
