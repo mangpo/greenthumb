@@ -90,7 +90,6 @@
           (set! first-in (vector-ref num2name first-in))
           ]
          [(regexp-match #rx"_" op)
-          (pretty-display `(arg ,first-in ,last-in))
           (set! op (substring op 1))
           (set! last-in (vector-ref num2name last-in))
           ]

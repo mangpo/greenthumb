@@ -408,14 +408,12 @@
       (send printer print-syntax (send printer decode postfix))
       (pretty-display "]")
      
-      ;;(define size (if sketch sketch 4))
       (define live3-vec (send machine progstate->vector constraint))
       (define live2 (send validator-abst get-live-in postfix constraint extra))
       (define live2-vec (send machine progstate->vector live2))
       (define live1 (send validator-abst get-live-in (vector-append spec postfix) constraint extra))
       (define live0 (send validator-abst get-live-in (vector-append prefix spec postfix) constraint extra))
       (define live0-list (send machine get-live-list live0))
-      ;; (raise "xxx")
 
       (define live1-list-alt live0-list)
       (for ([x prefix])
@@ -439,47 +437,6 @@
       (define inits
         (send validator-abst generate-input-states ntests (vector-append prefix spec postfix)
               assumption extra #:db #t))
-      ;; (define inits
-      ;;   (list
-      ;;    (progstate (vector 3 4 5 7) (vector) -1 0)
-      ;;    (progstate (vector 7 -7 3 -4) (vector) -1 0)
-      ;; 	 ))
-      ;; p10
-      ;; (define inits
-      ;;   (list
-      ;;    (progstate (vector -7 5 0) (vector) -1 4)
-      ;;    (progstate (vector 5 7 0) (vector) -1 4)
-      ;; 	 ))
-      ;; (define inits
-      ;;   (list
-      ;;    (progstate (vector 1 -3 0) (vector) -1 4)
-      ;;    (progstate (vector 2 3 0) (vector) -1 4)
-      ;; 	 ))
-      ;; p11
-      ;; (define inits
-      ;;   (list
-      ;;    (progstate (vector 4 0) (vector) -1 0)
-      ;;    (progstate (vector -8 -4) (vector) -1 0)
-      ;;    ;; (progstate (vector -6 4) (vector) -1 4)
-      ;; 	 ))
-      ;; p24
-      ;; (define inits
-      ;;   (list
-      ;;    (progstate (vector 5 0) (vector) -1 4)
-      ;;    (progstate (vector 3 0) (vector) -1 4)
-      ;;    ;; (progstate (vector -1 0) (vector) -1 4)
-      ;;    ))
-      ;; p19
-      ;; (define inits
-      ;;   (list
-      ;;    (progstate (vector -6 -5 3 5) (vector) -1 4)
-      ;;    (progstate (vector 6 3 4 5) (vector) -1 4)
-      ;;    ))
-      ;; (define inits
-      ;;   (list
-      ;;    (progstate (vector -4 3 1 2) (vector) -1 4)
-      ;;    (progstate (vector 1 -1 2 -4) (vector) -1 4)
-      ;;    ))
       (define states1 
 	(map (lambda (x) (send simulator-abst interpret prefix x)) inits))
       (define states2
@@ -495,7 +452,6 @@
       (pretty-display `(live2-vec ,live2-vec))
       (pretty-display `(live1-list ,live1-list))
       (pretty-display `(live2-list ,live2-list))
-      ;; (raise "xxx")
       
       (define ce-in (make-vector ce-limit))
       (define ce-out (make-vector ce-limit))
@@ -531,7 +487,7 @@
         (define p (iterator))
         (define my-inst (car p))
         (when my-inst
-          ;(send printer print-syntax (send printer decode my-inst))
+          ;;(send printer print-syntax (send printer decode my-inst))
           (send inverse gen-inverse-behavior my-inst)
           (gen-inverse-behaviors iterator)
           ))
@@ -733,6 +689,7 @@
 	     (vector-set! cache i (make-hash)))
 
         (define (outer my-classes candidates level)
+	  ;; (pretty-display `(outer ,my-classes ,candidates ,level))
 	  (define my-classes-bw-level (vector-ref my-classes-bw level))
 	  (define cache-level (vector-ref cache level))
           (define real-hash my-classes)
@@ -798,11 +755,11 @@
             (define t1 (current-milliseconds))
             (set! t-intersect (+ t-intersect (- t1 t0)))
             (set! c-intersect (add1 c-intersect))
+	    ;; (pretty-display `(inner ,inters-fw))
 
             (for ([inter inters-fw])
               (let ([t0 (current-milliseconds)]
 		    [out-vec #f])
-
 
 		(if (and (> level 0) (hash-has-key? cache-level inter))
 		    (set! out-vec (hash-ref cache-level inter))
@@ -826,6 +783,8 @@
 		  (set! t-interpret (+ t-interpret (- t1 t0)))
 		  (set! c-interpret (add1 c-interpret))
                   )
+
+		;; (pretty-display `(out-vec ,out-vec))
 
 		(when 
 		 out-vec

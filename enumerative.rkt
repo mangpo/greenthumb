@@ -6,5 +6,8 @@
   (class object%
     (super-new)
     ;; See arm/arm-enumerative.rkt
-    (abstract get-flag generate-inst)
+    (abstract generate-inst)
+    (public get-flag)
+
+    (define (get-flag state) #f)
     ))

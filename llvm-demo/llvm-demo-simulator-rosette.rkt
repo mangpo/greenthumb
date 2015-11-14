@@ -113,12 +113,12 @@
          [(inst-eq `shl#)  (rri bvshl)]
          
          ;; rir
-         [(inst-eq `_add) (rir bvadd)]
+         ;; [(inst-eq `_add) (rir bvadd)]
          [(inst-eq `_sub) (rir bvsub)]
          
-         [(inst-eq `_and) (rir bitwise-and)]
-         [(inst-eq `_or)  (rir bitwise-ior)]
-         [(inst-eq `_xor) (rir bitwise-xor)]
+         ;; [(inst-eq `_and) (rir bitwise-and)]
+         ;; [(inst-eq `_or)  (rir bitwise-ior)]
+         ;; [(inst-eq `_xor) (rir bitwise-xor)]
 
          [(inst-eq `_lshr) (rir bvushr)]
          [(inst-eq `_ashr) (rir bvshr)]

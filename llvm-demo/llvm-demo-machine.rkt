@@ -24,7 +24,8 @@
     (set! inst-id '#(nop 
                      and or xor add sub
                      and# or# xor# add# sub#
-                     _and _or _xor _add _sub
+                     ;;_and _or _xor _add 
+		     _sub
 		     shl lshr ashr
 		     shl# lshr# ashr#
 		     _shl _lshr _ashr
@@ -57,7 +58,7 @@
           (vector '(and or xor add sub shl lshr ashr) ;; rrr
         	  '(and# or# xor# add# sub#) ;; rri
         	  '(shl# lshr# ashr#) ;;rri
-        	  '(_and _or _xor _add _sub _shl _lshr _ashr) ;;rir
+        	  '(_sub _shl _lshr _ashr) ;;rir (commutative: _and _or _xor _add)
                   ))
 	  
     ;; Set valid operands' ranges.
@@ -66,7 +67,7 @@
       (set! const-range (vector 0 1 -8))
       (set! bit-range (vector 0 1)))
     
-    (define (get-arg-types opcode-name)
+    (define/public (get-arg-types opcode-name)
       (define class-id (get-class-id opcode-name))
       (cond
        [(equal? class-id 0) (vector `var-o `var-i `var-i)]
