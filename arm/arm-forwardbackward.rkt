@@ -4,7 +4,7 @@
          "arm-ast.rkt" "arm-machine.rkt"
          "arm-simulator-racket.rkt" "arm-simulator-rosette.rkt"
          "arm-validator.rkt"
-         "arm-enumerative.rkt" "arm-inverse.rkt")
+         "arm-enumerator.rkt" "arm-inverse.rkt")
 
 (provide arm-forwardbackward%)
 
@@ -38,7 +38,7 @@
       (set! simulator-abst (new arm-simulator-racket% [machine machine-abst]))
       (set! validator-abst (new arm-validator% [machine machine-abst] [printer printer] [simulator (new arm-simulator-rosette% [machine machine-abst])]))
       (set! inverse (new arm-inverse% [machine machine-abst] [simulator simulator-abst]))
-      (set! enum (new arm-enumerative% [machine machine-abst] [printer printer]))
+      (set! enum (new arm-enumerator% [machine machine-abst] [printer printer]))
       ;; Set machine to reduced-bidwith machine.
       (set! machine machine-abst))
 

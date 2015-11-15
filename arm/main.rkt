@@ -6,9 +6,7 @@
 	 ;; simulator, validator
 	 "arm-simulator-racket.rkt" 
 	 "arm-simulator-rosette.rkt"
-         "arm-validator.rkt"
-         ;; search
-	 "arm-enumerative.rkt" "arm-inverse.rkt" "arm-forwardbackward.rkt")
+         "arm-validator.rkt")
 
 (provide optimize arm-generate-inputs)
 

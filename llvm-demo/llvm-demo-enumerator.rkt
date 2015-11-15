@@ -1,12 +1,12 @@
 #lang racket
 
-(require "../machine.rkt" "../enumerative.rkt" "../ast.rkt")
+(require "../machine.rkt" "../enumerator.rkt" "../ast.rkt")
 (require racket/generator)
 
-(provide llvm-demo-enumerative%)
+(provide llvm-demo-enumerator%)
 
-(define llvm-demo-enumerative%
-  (class enumerative%
+(define llvm-demo-enumerator%
+  (class enumerator%
     (super-new)
     (init-field machine printer)
     (override generate-inst)

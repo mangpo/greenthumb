@@ -3,7 +3,7 @@
 (require "../ast.rkt" "arm-ast.rkt" "arm-machine.rkt" "arm-printer.rkt"
          "arm-parser.rkt" 
          "arm-simulator-rosette.rkt" "arm-simulator-racket.rkt" 
-         "arm-enumerative.rkt" "arm-inverse.rkt")
+         "arm-enumerator.rkt" "arm-inverse.rkt")
 
 (define parser (new arm-parser%))
 (define machine (new arm-machine% [bit 4] [config (list 3 0 4)]))
@@ -12,7 +12,7 @@
 (define simulator (new arm-simulator-racket% [machine machine]))
 (define inverse (new arm-inverse% [machine machine] [simulator simulator]))
 
-(define enum (new arm-enumerative%
+(define enum (new arm-enumerator%
                   [machine machine]
                   [printer printer]))
 ;(send machine analyze-opcode (vector) encoded-code (vector))

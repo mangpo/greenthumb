@@ -3,7 +3,7 @@
 (require "../forwardbackward.rkt" "../ast.rkt" "../ops-racket.rkt"
          "GA-machine.rkt"
          "GA-validator.rkt"
-         "GA-enumerative.rkt" "GA-inverse.rkt")
+         "GA-enumerator.rkt" "GA-inverse.rkt")
 
 (require (only-in "GA-simulator-racket.rkt" [GA-simulator-racket% GA-simulator-racket%]))
 (require (only-in "GA-simulator-rosette.rkt" [GA-simulator-rosette% GA-simulator-rosette%]))
@@ -38,7 +38,7 @@
       (set! validator-abst (new GA-validator% [machine machine-abst] [printer printer]
                                 [simulator (new GA-simulator-rosette% [machine machine-abst])]))
       (set! inverse (new GA-inverse% [machine machine-abst] [simulator simulator-abst]))
-      (set! enum (new GA-enumerative% [machine machine-abst] [printer printer]))
+      (set! enum (new GA-enumerator% [machine machine-abst] [printer printer]))
       (set! machine machine-abst))
     
     (define UP-abst (get-field UP machine))

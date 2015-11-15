@@ -251,7 +251,7 @@
 			    time-limit))
           (define (update-stats)
             (sleep 10)
-            (when (and (< (- (current-seconds) t) limit) (> (get-free-mem) 1000000))
+            (when (and (< (- (current-seconds) t) limit));(> (get-free-mem) 1000000))
                   (for ([id (length processes-stoch)]
                         [sp processes-stoch])
                        (unless (equal? (subprocess-status sp) 'running)

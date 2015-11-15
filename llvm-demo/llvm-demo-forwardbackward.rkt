@@ -4,7 +4,7 @@
          "llvm-demo-machine.rkt"
          "llvm-demo-simulator-racket.rkt" "llvm-demo-simulator-rosette.rkt"
          "llvm-demo-validator.rkt"
-         "llvm-demo-enumerative.rkt" "llvm-demo-inverse.rkt")
+         "llvm-demo-enumerator.rkt" "llvm-demo-inverse.rkt")
 
 (provide llvm-demo-forwardbackward%)
 
@@ -34,7 +34,7 @@
       (set! simulator-abst (new llvm-demo-simulator-racket% [machine machine-abst]))
       (set! validator-abst (new llvm-demo-validator% [machine machine-abst] [printer printer] [simulator (new llvm-demo-simulator-rosette% [machine machine-abst])]))
       (set! inverse (new llvm-demo-inverse% [machine machine-abst] [simulator simulator-abst]))
-      (set! enum (new llvm-demo-enumerative% [machine machine-abst] [printer printer]))
+      (set! enum (new llvm-demo-enumerator% [machine machine-abst] [printer printer]))
       ;; Set machine to reduced-bidwith machine.
       (set! machine machine-abst))
     

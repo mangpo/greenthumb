@@ -24,14 +24,14 @@
 (send parser ast-from-string "
 "))
 
-(define code
+#;(define code
 (send parser ast-from-string "
 %1 = lshr i32 %in, 3
 %out = shl nuw i32 %1, 3
 "))
 ;; %out = and i32 %in, -8
 
-#;(define code
+(define code
 (send parser ast-from-string "
   %1 = add nsw i32 %in, -1
   %2 = ashr i32 %1, 1

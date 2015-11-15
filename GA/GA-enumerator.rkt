@@ -1,12 +1,12 @@
 #lang racket
 
-(require "../ast.rkt" "../enumerative.rkt")
+(require "../ast.rkt" "../enumerator.rkt")
 (require racket/generator)
 
-(provide GA-enumerative%)
+(provide GA-enumerator%)
 
-(define GA-enumerative%
-  (class enumerative%
+(define GA-enumerator%
+  (class enumerator%
     (super-new)
     (init-field machine printer)
     (override get-flag generate-inst)

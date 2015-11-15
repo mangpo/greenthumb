@@ -1,8 +1,8 @@
 #lang racket
 
-(provide enumerative%)
+(provide enumerator%)
 
-(define enumerative%
+(define enumerator%
   (class object%
     (super-new)
     ;; See arm/arm-enumerative.rkt
