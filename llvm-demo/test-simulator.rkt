@@ -18,7 +18,8 @@
 
 (define code
 (send parser ast-from-string "
-  %1 = add i32 -1, %x0
+%1 = lshr i32 %in, 3
+%out = shl nuw i32 %1, 3
 "))
 
 (send printer print-struct code)

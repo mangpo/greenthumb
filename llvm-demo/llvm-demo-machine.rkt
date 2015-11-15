@@ -64,7 +64,7 @@
     ;; Set valid operands' ranges.
     (define (reset-arg-ranges)
       (set! var-range (list->vector (range vars)))
-      (set! const-range (vector 0 1 -8))
+      (set! const-range (vector 0 1 -1 -2 -8))
       (set! bit-range (vector 0 1)))
     
     (define/public (get-arg-types opcode-name)

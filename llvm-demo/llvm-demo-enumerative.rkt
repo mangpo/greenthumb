@@ -22,7 +22,7 @@
       (define mode (cond [no-args `no-args] [else `basic]))
 
       (define inst-pool (get-field inst-pool machine))
-      ;; (define inst-choice '(_shl))
+      ;; (define inst-choice '(and#))
       ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
 
       (define iterator
@@ -81,12 +81,31 @@
 		       (send machine get-arg-ranges opcode-name #f live-in 
 			     #:live-out live-out
 			     #:mode mode))]
+                     [arg-types (send machine get-arg-types opcode-name)]
 		     [v-reg (cond [no-args (cons 0 3)] [else #f])])
-		(when (and live-in (not live-out))
-		      ;; use the first variable that is not in live-in.
-		      (let ([index (vector-member #f live-in)])
-			(set! arg-ranges (cons (vector index) (cdr arg-ranges)))))
-		
+		;; (cond
+                ;;  [(and live-in (not live-out))
+                ;;   ;; use the first variable that is not in live-in.
+                ;;   ;; (let ([index (vector-member #f live-in)])
+                ;;   ;;   (set! arg-ranges (cons (vector index) (cdr arg-ranges))))
+                ;;   (set! arg-ranges (cons (vector-copy (car arg-ranges) 0 1)
+                ;;                          (cdr arg-ranges)))
+                ;;   ]
+                ;;  [(and live-out (not live-in))
+                ;;   (let ([cnt 0])
+                ;;     (set!
+                ;;      arg-ranges
+                ;;      (reverse
+                ;;       (for/list
+                ;;        ([range (reverse arg-ranges)]
+                ;;         [type (reverse (vector->list arg-types))])
+                ;;        (if (equal? type `var-i)
+                ;;            (let ([index (- (vector-length range) 1 cnt)])
+                ;;              (set! cnt (add1 cnt))
+                ;;              (vector (vector-ref range index)))
+                ;;            range)))))]
+                ;;  )
+                 
 		(when debug (pretty-display `(iterate ,opcode-name ,arg-ranges,live-in)))
                 (recurse-args opcode-name opcode-id (list) arg-ranges v-reg)))))
          (yield (list #f #f #f))))

@@ -8,7 +8,7 @@
          )
 
 (define parser (new llvm-demo-parser%))
-(define machine (new llvm-demo-machine% [config 15]))
+(define machine (new llvm-demo-machine% [config 3]))
 (define printer (new llvm-demo-printer% [machine machine]))
 (define simulator-racket (new llvm-demo-simulator-racket% [machine machine]))
 (define simulator-rosette (new llvm-demo-simulator-rosette% [machine machine]))
@@ -24,14 +24,14 @@
 (send parser ast-from-string "
 "))
 
-#;(define code
+(define code
 (send parser ast-from-string "
 %1 = lshr i32 %in, 3
 %out = shl nuw i32 %1, 3
 "))
 ;; %out = and i32 %in, -8
 
-(define code
+#;(define code
 (send parser ast-from-string "
   %1 = add nsw i32 %in, -1
   %2 = ashr i32 %1, 1
@@ -52,10 +52,11 @@
 ? ? ? ?
 "))
 
-(define encoded-prefix (send printer encode prefix))
-(define encoded-postfix (send printer encode postfix))
+
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send validator encode-sym sketch))
+(define encoded-prefix (send printer encode prefix))
+(define encoded-postfix (send printer encode postfix))
 
 
 ;; Step 1: use printer to convert liveout into progstate format

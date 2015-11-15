@@ -79,7 +79,7 @@
          ((instruction inst-list) (cons $1 $2)))
         
         (code   
-         ((inst-list) (list->vector $1))))
+         ((inst-list) (rename (list->vector $1)))))
        ))))
 
 (define (convert2inst lhs term1 terms)
@@ -102,4 +102,65 @@
 	      (last term)))
   
   (inst op (list->vector (cons lhs (cons out (map last terms))))))
-	     
+
+(define (live-in-set inst-vec)
+  (define use (set))
+  (define def (set))
+  (for ([my-inst inst-vec])
+       (when (inst-op my-inst)
+             (let ([args (inst-args my-inst)])
+               (for ([arg (vector-copy args 1)])
+                    (when (and (equal? (substring arg 0 1) "%")
+                               (not (set-member? def arg)))
+                          (set! use (set-add use arg))))
+               (set! def (set-add def (vector-ref args 0))))))
+  use)
+                    
+
+(define (rename inst-vec)
+  ;; Rename variable from old to new up to instruction at index.
+  (define (rename-var old new index)
+    (for ([i index]
+          [my-inst inst-vec])
+         (let ([args (inst-args my-inst)])
+           (for ([arg args]
+                 [arg-i (in-naturals)])
+                (when (equal? arg old)
+                      (vector-set! args arg-i new))))))
+  
+  (define len (vector-length inst-vec))
+  (define names (list))
+  (define all-names (live-in-set inst-vec))
+  (for ([index (reverse (range len))])
+       (let ([my-inst (vector-ref inst-vec index)])
+         (when
+          (inst-op my-inst)
+          (let* ([args (inst-args my-inst)]
+                 [arg-o (vector-ref args 0)])
+            (unless (member args names) (set! names (cons arg-o names)))
+            (for ([i (vector-length args)])
+                 (let ([arg (vector-ref args i)])
+                   (cond
+                    [(= i 0)
+                     (unless (set-member? all-names arg)
+                             (set! all-names (set-add all-names arg)))]
+                    
+                    [(or (not (equal? (substring arg 0 1) "%"))
+                         (set-member? all-names arg)
+                         ;;(use-after arg i)
+                         )
+                     (void)]
+                    
+                    [(empty? names)
+                     (set! all-names (set-add all-names arg))]
+                    
+                    [else
+                     (rename-var arg (car names) (add1 index))
+                     (set! names (cdr names))]))))
+          )))
+
+  inst-vec)
+                
+                           
+                    
+                    

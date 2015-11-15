@@ -136,7 +136,7 @@
          [(= arg bit) (finalize bit-precise)]
          [(= arg (sub1 bit)) (finalize (sub1 bit-precise))]
          [(= arg (/ bit 2)) (finalize (/ bit-precise 2))]
-         [else (finalize arg)]))
+         [else (cons -8 (finalize arg))]))
 
       (define ret (list))
       (define (recurse lst final)
