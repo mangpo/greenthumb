@@ -52,7 +52,6 @@
       (set! live-in (send machine get-live-list this-live-in))
       (send machine analyze-args (vector) spec (vector) live-in constraint)
       (send machine analyze-opcode (vector) spec (vector))
-      (pretty-display `(live-in ,live-in))
       ;; Generate testcases
       (when debug 
             (pretty-display ">>> Phase 0: print mutation info")
@@ -284,7 +283,7 @@
       (pretty-display ">>> start MCMC sampling")
       (pretty-display ">>> Phase 3: stochastic search")
       (pretty-display "start-program:")
-      (send printer print-struct init)
+      (send printer print-syntax (send printer decode init))
       ;; (pretty-display "constraint:")
       ;; (send machine display-state constraint)
       (define syn-mode #t)
@@ -398,11 +397,11 @@
                     (send stat update-best-correct-program program))
               (when (and (= correct 0) (< total-cost (get-field best-correct-cost stat)))
                     (pretty-display "NEW! best-correct-program")
-                    (pretty-display "program-eq? --> true")
-                    (pretty-display "target:")
-                    (send printer print-struct target)
-                    (pretty-display "candidate:")
-                    (send printer print-struct program)
+                    ;; (pretty-display "program-eq? --> true")
+                    ;; (pretty-display "target:")
+                    ;; (send printer print-struct target)
+                    (pretty-display "output:")
+                    (send printer print-syntax (send printer decode program))
                     (send stat update-best-correct 
 			  (send machine clean-code program prefix) 
 			  total-cost)

@@ -100,6 +100,7 @@
       (set! best-correct-cost cost)
       (set! best-correct-len (vector-length program))
       (set! best-correct-time (- (current-seconds) start-time))
+      (pretty-display `(time ,best-correct-time))
 
       (when dir
 	    (define info-file (format "~a/best.info" dir))
@@ -388,7 +389,7 @@
 
 (define (get-best-info dir)
   (define info-file (format "~a/best.info" dir))
-  (pretty-display `(get-best-info ,info-file ,(file-exists? info-file)))
+  ;; (pretty-display `(get-best-info ,info-file ,(file-exists? info-file)))
   (if (file-exists? info-file)
       (with-handlers* 
        ([exn?

@@ -74,6 +74,20 @@
              (raise "Not support %out = op <imm>, <imm>")])))
         
         (inst (send machine get-inst-id op) new-args)]))
+
+    (define (fresh-name)
+      (define numbers
+        (filter (lambda (x)
+                  (and (string? x) (string->number (substring x 1))))
+                (vector->list num2name)))
+      (format "%~a" (add1 (foldl max 0 numbers))))
+    
+    (define (num->name x)
+      (define name (vector-ref num2name x))
+      (when (equal? name 0)
+            (set! name (fresh-name))
+            (vector-set! num2name x name))
+      name)
     
     ;; Convert instruction from number representation back to string.
     (define (decode-inst x)
@@ -87,17 +101,17 @@
         (cond
          [(regexp-match #rx"#" op)
           (set! op (substring op 0 (sub1 (string-length op))))
-          (set! first-in (vector-ref num2name first-in))
+          (set! first-in (num->name first-in))
           ]
          [(regexp-match #rx"_" op)
           (set! op (substring op 1))
-          (set! last-in (vector-ref num2name last-in))
+          (set! last-in (num->name last-in))
           ]
          [else
-          (set! first-in (vector-ref num2name first-in))
-          (set! last-in (vector-ref num2name last-in))])
+          (set! first-in (num->name first-in))
+          (set! last-in (num->name last-in))])
         
-        (define out (vector-ref num2name (vector-ref args 0)))
+        (define out (num->name (vector-ref args 0)))
 
         (if (= (vector-length args) 3)
             (inst op (vector out first-in last-in))

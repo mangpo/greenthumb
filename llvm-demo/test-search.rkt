@@ -26,14 +26,23 @@
 (send parser ast-from-string "
 "))
 
-#;(define code
+(define code
 (send parser ast-from-string "
 %1 = lshr i32 %in, 3
 %out = shl nuw i32 %1, 3
 "))
 ;; %out = and i32 %in, -8
 
-(define code
+#;(define code
+(send parser ast-from-string "
+  %1 = add nsw i32 %in, -1
+  %2 = ashr i32 %1, 1
+  %3 = or i32 %2, %1
+  %out = add i32 %3, 0
+"))
+;; solver: > 30 sec
+
+#;(define code
 (send parser ast-from-string "
   %1 = add nsw i32 %in, -1
   %2 = ashr i32 %1, 1
@@ -51,7 +60,7 @@
 
 (define sketch
 (send parser ast-from-string "
-? ? ? ?
+?
 "))
 
 
@@ -79,7 +88,7 @@
       3600 ;; time limit in seconds
       )
 
-;; Step 3: create symbolic search
+;; Step 3: create stochastic search
 (define stoch (new llvm-demo-stochastic% [machine machine] [printer printer]
                       [parser parser]
                       [validator validator] [simulator simulator-rosette]

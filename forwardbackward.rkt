@@ -29,6 +29,7 @@
     
     (define debug #f)
     (define verbo #f)
+    (define info #f)
     (define ce-limit 100)
 
     ;; Actual bitwidth
@@ -411,7 +412,7 @@
       (define live2
         (send validator get-live-in postfix constraint extra))
       (define try-cmp-status (try-cmp? spec state2 live2))
-      (pretty-display `(status ,try-cmp-status))
+      (when info (pretty-display `(status ,try-cmp-status)))
 
       (define out-program #f)
       (define (exec x)
@@ -426,7 +427,7 @@
         
         (define (loop best-p)
           (define p (iterator))
-          (pretty-display `(loop-get ,p))
+          (when info (pretty-display `(loop-get ,p)))
 
           (cond
            [(equal? p "timeout") (or best-p p)]
@@ -473,12 +474,13 @@
       (let ([tmp (reduce-precision spec)])
         (set! spec (car tmp))
         (set! abst2precise (cdr tmp)))
-      (pretty-display `(try-cmp ,try-cmp))
-      (pretty-display `(abst2precise ,abst2precise))
+      (when info
+            (pretty-display `(try-cmp ,try-cmp))
+            (pretty-display `(abst2precise ,abst2precise)))
       
       (set! prefix (car (reduce-precision prefix)))
       (set! postfix (car (reduce-precision postfix)))
-      (pretty-display `(assume ,assumption))
+      ;; (pretty-display `(assume ,assumption))
       (set! assumption (reduce-precision-assume assumption))
 
       ;; (send machine display-state assumption-precise)
@@ -532,11 +534,12 @@
       (define states2-vec 
 	(map (lambda (x) (mask-in (send machine progstate->vector x) live2-list #:keep-flag try-cmp)) states2))
 
-      (pretty-display `(states1-vec ,states1-vec))
-      (pretty-display `(states2-vec ,states2-vec))
-      (pretty-display `(live2-vec ,live2-vec))
-      (pretty-display `(live1-list ,live1-list))
-      (pretty-display `(live2-list ,live2-list))
+      (when info
+            (pretty-display `(states1-vec ,states1-vec))
+            (pretty-display `(states2-vec ,states2-vec))
+            (pretty-display `(live2-vec ,live2-vec))
+            (pretty-display `(live1-list ,live1-list))
+            (pretty-display `(live2-list ,live2-list)))
       
       (define ce-in (make-vector ce-limit))
       (define ce-out (make-vector ce-limit))
@@ -628,7 +631,7 @@
                (pretty-display `(cost ,final-cost))
                (pretty-display `(ce-count ,ce-count-extra))
                (pretty-display `(ce-count-precise ,(length ce-in-final)))
-	       (pretty-display `(time ,(- (current-seconds) start-time)))
+	       ;;(pretty-display `(time ,(- (current-seconds) start-time)))
                (newline)
 
                ;; Print to file
@@ -642,7 +645,7 @@
                (set! start-time (current-seconds))
 
                (when (<= final-cost (vector-length p))
-                     (pretty-display "YIELD done early")
+                     (when info (pretty-display "YIELD done early"))
                      (yield #f))
                )))
         )
@@ -1212,7 +1215,7 @@
         )
       
       (main-loop 1)
-      (pretty-display `(time ,(- (current-seconds) start-time)))
+      ;; (pretty-display `(time ,(- (current-seconds) start-time)))
       (yield #f)
       )
     ))
