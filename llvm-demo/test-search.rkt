@@ -4,7 +4,9 @@
          "llvm-demo-parser.rkt" "llvm-demo-machine.rkt" "llvm-demo-printer.rkt"
          "llvm-demo-simulator-rosette.rkt" "llvm-demo-simulator-racket.rkt"
          "llvm-demo-validator.rkt"
-         "llvm-demo-symbolic.rkt" "llvm-demo-stochastic.rkt" "llvm-demo-forwardbackward.rkt"
+         "llvm-demo-symbolic.rkt" "llvm-demo-stochastic.rkt"
+         "llvm-demo-forwardbackward.rkt"
+         "llvm-demo-enumerator.rkt" "llvm-demo-inverse.rkt"
          )
 
 (define parser (new llvm-demo-parser%))
@@ -93,6 +95,8 @@
 (define backward (new llvm-demo-forwardbackward% [machine machine] 
                       [printer printer] [parser parser] 
                       [validator validator] [simulator simulator-racket]
+                      [inverse% llvm-demo-inverse%]
+                      [enumerator% llvm-demo-enumerator%]
                       [syn-mode `linear]))
 (send backward synthesize-window
       encoded-code ;; spec

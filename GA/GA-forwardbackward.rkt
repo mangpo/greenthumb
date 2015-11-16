@@ -1,9 +1,7 @@
 #lang racket
 
 (require "../forwardbackward.rkt" "../ast.rkt" "../ops-racket.rkt"
-         "GA-machine.rkt"
-         "GA-validator.rkt"
-         "GA-enumerator.rkt" "GA-inverse.rkt")
+         "GA-machine.rkt")
 
 (require (only-in "GA-simulator-racket.rkt" [GA-simulator-racket% GA-simulator-racket%]))
 (require (only-in "GA-simulator-rosette.rkt" [GA-simulator-rosette% GA-simulator-rosette%]))
@@ -13,17 +11,16 @@
 (define GA-forwardbackward%
   (class forwardbackward%
     (super-new)
-    (inherit-field machine printer 
-                   enum inverse simulator-abst validator-abst)
+    (inherit-field machine printer)
     (override len-limit window-size
               mask-in 
               reduce-precision increase-precision reduce-precision-assume
+              change-inst change-inst-list
 	      get-live-mask combine-live prescreen)
 
     (define (len-limit) 8)
     (define (window-size) 14)
 
-    (define bit-precise (get-field bit machine))
     (define bit 4)
     
     (define UP (get-field UP machine))
@@ -31,15 +28,6 @@
     (define LEFT (get-field LEFT machine))
     (define RIGHT (get-field RIGHT machine))
     (define IO (get-field IO machine))
-    
-    (let ([machine-abst (new GA-machine% [bit bit] [random-input-bit (sub1 bit)]
-                             [config (send machine get-config)])])
-      (set! simulator-abst (new GA-simulator-racket% [machine machine-abst]))
-      (set! validator-abst (new GA-validator% [machine machine-abst] [printer printer]
-                                [simulator (new GA-simulator-rosette% [machine machine-abst])]))
-      (set! inverse (new GA-inverse% [machine machine-abst] [simulator simulator-abst]))
-      (set! enum (new GA-enumerator% [machine machine-abst] [printer printer]))
-      (set! machine machine-abst))
     
     (define UP-abst (get-field UP machine))
     (define DOWN-abst (get-field DOWN machine))
@@ -51,7 +39,7 @@
     (define mask (sub1 (arithmetic-shift 1 bit)))
     (define mask-1 (sub1 (arithmetic-shift 1 (sub1 bit))))
     
-    (define (reduce-inst x change)
+    (define (change-inst x change)
       (define opcode-id (inst-op x))
       (define opcode-name (send machine get-inst-name opcode-id))
       (define arg (inst-args x))
@@ -59,7 +47,7 @@
           (inst opcode-id (change arg))
           x))
 
-    (define (reduce-inst-list x change)
+    (define (change-inst-list x change)
       (define opcode-id (inst-op x))
       (define opcode-name (send machine get-inst-name opcode-id))
       (define arg (inst-args x))
@@ -87,7 +75,7 @@
             (hash-set! mapping ret (list arg)))
         ret)
         
-      (cons (for/vector ([x prog]) (reduce-inst x change)) mapping))
+      (cons (for/vector ([x prog]) (change-inst x change)) mapping))
 
     (define (reduce-precision-assume x)
       (define (inner x)
@@ -137,7 +125,7 @@
             (for ([x (car lst)])
                  (recurse (cdr lst) (cons x final)))))
       
-      (recurse (reverse (for/list ([x prog]) (reduce-inst-list x change)))
+      (recurse (reverse (for/list ([x prog]) (change-inst-list x change)))
                (list))
       ret)
 

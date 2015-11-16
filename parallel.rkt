@@ -67,7 +67,8 @@
              (map req '(parser machine printer
                                simulator-racket simulator-rosette
                                validator
-                               stochastic symbolic forwardbackward))))
+                               stochastic symbolic forwardbackward
+                               enumerator inverse))))
           (with-output-to-file 
               #:exists 'truncate (format "~a-~a.rkt" path id)
               (thunk
@@ -95,8 +96,10 @@
                           mode))]
                 [(equal? search-type `enum)
                  (pretty-display 
-                  (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [validator validator] [simulator simulator-racket] [syn-mode `~a]))" 
+                  (format "(define search (new ~a [machine machine] [printer printer] [parser parser] [validator validator] [simulator simulator-racket] [enumerator% ~a] [inverse% ~a] [syn-mode `~a]))" 
                           (get-class-name "forwardbackward") 
+                          (get-class-name "enumerator") 
+                          (get-class-name "inverse") 
                           mode))])
                (pretty-display "(define prefix (send parser ast-from-string \"")
                (send printer print-syntax prefix)

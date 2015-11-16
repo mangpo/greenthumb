@@ -1,21 +1,17 @@
 #lang racket
 
-(require "../forwardbackward.rkt" "../ast.rkt" "../ops-racket.rkt"
-         "arm-ast.rkt" "arm-machine.rkt"
-         "arm-simulator-racket.rkt" "arm-simulator-rosette.rkt"
-         "arm-validator.rkt"
-         "arm-enumerator.rkt" "arm-inverse.rkt")
+(require "../forwardbackward.rkt" "../ast.rkt"
+         "arm-ast.rkt" "arm-machine.rkt")
 
 (provide arm-forwardbackward%)
 
 (define arm-forwardbackward%
   (class forwardbackward%
     (super-new)
-    (inherit-field machine printer
-                   enum inverse simulator-abst validator-abst)
+    (inherit-field machine printer)
     (override len-limit window-size
               mask-in inst->vector
-              reduce-precision increase-precision
+              change-inst change-inst-list
 	      get-live-mask try-cmp? combine-live sort-live sort-live-bw)
 
     (define shf-inst-imm (get-field shf-inst-imm machine))
@@ -27,24 +23,6 @@
     ;; The cooperative search tries L/2, L, 2L, 4L.
     (define (window-size) 4)
 
-    ;; Actual bitwidth
-    (define bit-precise (get-field bit machine))
-    ;; Reduce bitwidth
-    (define bit 4)
-    
-    ;; Initlized required fields.
-    (let ([machine-abst (new arm-machine% [bit bit]
-                             [config (send machine get-config)])])
-      (set! simulator-abst (new arm-simulator-racket% [machine machine-abst]))
-      (set! validator-abst (new arm-validator% [machine machine-abst] [printer printer] [simulator (new arm-simulator-rosette% [machine machine-abst])]))
-      (set! inverse (new arm-inverse% [machine machine-abst] [simulator simulator-abst]))
-      (set! enum (new arm-enumerator% [machine machine-abst] [printer printer]))
-      ;; Set machine to reduced-bidwith machine.
-      (set! machine machine-abst))
-
-    (define max-val (arithmetic-shift 1 bit))
-    (define mask (sub1 (arithmetic-shift 1 bit)))
-    (define mask-1 (sub1 (arithmetic-shift 1 (sub1 bit))))
     (define inst-id (get-field inst-id machine))
     (define cmp-inst
       (map (lambda (x) (vector-member x inst-id))'(cmp tst cmp# tst#)))
@@ -91,7 +69,7 @@
        )
       )
     
-    (define (reduce-inst x change)
+    (define (change-inst x change)
       (define opcode-name (send machine get-inst-name (inst-op x)))
       (define args (inst-args x))
       (define shfop-name (and (inst-shfop x) (send machine get-shf-inst-name (inst-shfop x))))
@@ -113,7 +91,7 @@
 
       (arm-inst (inst-op x) new-args (inst-shfop x) new-shfarg (inst-cond x)))
     
-    (define (reduce-inst-list x change)
+    (define (change-inst-list x change)
       (define opcode-name (send machine get-inst-name (inst-op x)))
       (define args (inst-args x))
       (define shfop-name (and (inst-shfop x) (send machine get-shf-inst-name (inst-shfop x))))
@@ -153,67 +131,6 @@
                         (cons x args-final) shfarg-final))]))
 
       (recurse (reverse new-args) new-shfarg (list) #f)
-      ret)
-    
-    ;; Convert input program into reduced-bitwidth program by replacing constants.
-    ;; output: a pair of (reduced-bitwidth program, replacement map*)
-    ;;   *replacement map maps reduced-bitwidth constants to sets of actual constants.
-    (define (reduce-precision prog)
-      (define mapping (make-hash))
-      (define (change arg type)
-        (define (inner)
-          (cond
-           [(member type '(op2 bit bit-no-0))
-            (cond
-             [(and (> arg 0) (<= arg (/ bit-precise 4)))
-              (/ bit 4)]
-             [(and (> arg (/ bit-precise 4)) (< arg (* 3 (/ bit-precise 4))))
-              (/ bit 2)]
-             [(and (>= arg (* 3 (/ bit-precise 4))) (< arg bit-precise))
-              (* 3 (/ bit 4))]
-             [(= arg bit-precise) bit]
-             [(> arg 0) (bitwise-and arg mask-1)]
-             [else (finitize (bitwise-and arg mask) bit)])]
-
-           [(> arg 0) (bitwise-and arg mask-1)]
-           [else (finitize (bitwise-and arg mask) bit)]))
-        (define ret (inner))
-        (if (hash-has-key? mapping ret)
-            (let ([val (hash-ref mapping ret)])
-              (unless (member arg val)
-                      (hash-set! mapping ret (cons arg val))))
-            (hash-set! mapping ret (list arg)))
-        ret)
-        
-      (cons (for/vector ([x prog]) (reduce-inst x change)) mapping))
-    
-    ;; Convert reduced-bitwidth program into program in precise domain.
-    ;; prog: reduced bitwidth program
-    ;; mapping: replacement map returned from 'reduce-precision' function
-    ;; output: a list of potential programs in precise domain
-    (define (increase-precision prog mapping)
-      (define (change arg type)
-        (define (finalize x)
-          (if (hash-has-key? mapping arg)
-              (let ([val (hash-ref mapping arg)])
-                (if (member x val) val (cons x val)))
-              (list x)))
-        
-        (cond
-         [(= arg bit) (finalize bit-precise)]
-         [(= arg (sub1 bit)) (finalize (sub1 bit-precise))]
-         [(= arg (/ bit 2)) (finalize (/ bit-precise 2))]
-         [else (finalize arg)]))
-
-      (define ret (list))
-      (define (recurse lst final)
-        (if (empty? lst)
-            (set! ret (cons (list->vector final) ret))
-            (for ([x (car lst)])
-                 (recurse (cdr lst) (cons x final)))))
-      
-      (recurse (reverse (for/list ([x prog]) (reduce-inst-list x change)))
-               (list))
       ret)
 
     ;; Analyze if we should include comparing instructions into out instruction pool.

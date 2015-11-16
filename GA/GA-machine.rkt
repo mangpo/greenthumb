@@ -120,7 +120,8 @@
 	      no-assumption
               parse-state-text
               progstate->vector vector->progstate
-	      get-arg-ranges analyze-args reset-arg-ranges)
+	      get-arg-ranges analyze-args reset-arg-ranges
+              get-constructor)
     (init-field [const-range #f]
                 [UP #x145] ;325
                 [DOWN #x115] ;277
@@ -129,6 +130,8 @@
                 [IO #x15d])
 
     (public stack->vector)
+
+    (define (get-constructor) GA-machine%)
 
     (unless bit (set! bit 18))
     (unless random-input-bit (set! random-input-bit 16))

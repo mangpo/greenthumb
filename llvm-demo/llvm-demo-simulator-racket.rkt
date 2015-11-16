@@ -9,7 +9,9 @@
   (class simulator%
     (super-new)
     (init-field machine)
-    (override interpret performance-cost)
+    (override interpret performance-cost get-constructor)
+
+    (define (get-constructor) llvm-demo-simulator-racket%)
 
     (define bit (get-field bit machine))
     (define nop-id (get-field nop-id machine))

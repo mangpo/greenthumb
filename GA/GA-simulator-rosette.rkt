@@ -9,7 +9,9 @@
   (class simulator%
     (super-new)
     (init-field machine)
-    (override interpret performance-cost)
+    (override interpret performance-cost get-constructor)
+
+    (define (get-constructor) GA-simulator-rosette%)
 
     (define bit (get-field bit machine))
     (define inst-id (get-field inst-id machine))

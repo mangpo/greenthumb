@@ -41,7 +41,10 @@
 	    analyze-opcode analyze-args 
             reset-inst-pool
             get-arg-ranges reset-arg-ranges
+            get-constructor
             )
+
+    (define (get-constructor) (raise "Please implement machine:get-constructor"))
 
     ;; Non-context-aware window decomposition size. Set it to very high value.
     ;; Context-aware window decomposition size is set in xxx-symbolic.rkt and xxx-forwardbackward.rkt

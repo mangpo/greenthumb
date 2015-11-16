@@ -24,8 +24,10 @@
             get-live-in
             get-sym-vars evaluate-state
             assume assert-state-eq
+            get-constructor
             )
-
+    
+    (define (get-constructor) (raise "Please implement validator:get-constructor"))
     (define-syntax-rule (print-struct x) (send printer print-struct x))
     (define-syntax-rule (print-syntax x) (send printer print-syntax x))
     (define-syntax-rule (decode x) (send printer decode x))

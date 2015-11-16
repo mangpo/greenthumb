@@ -94,8 +94,11 @@
 	      clean-code 
 	      analyze-opcode analyze-args relaxed-state-eq?
 	      update-live update-live-backward
-              reset-arg-ranges)
+              reset-arg-ranges
+              get-constructor)
     (public get-shfarg-range get-arg-types get-nregs)
+
+    (define (get-constructor) arm-machine%)
 
     (unless bit (set! bit 32))
     (set! random-input-bit bit)

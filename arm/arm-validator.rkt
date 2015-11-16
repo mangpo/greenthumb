@@ -9,7 +9,9 @@
     (super-new)
     (inherit-field printer)
     (inherit sym-op sym-arg encode-sym)
-    (override encode-sym-inst) 
+    (override encode-sym-inst get-constructor)
+
+    (define (get-constructor) arm-validator%)
 
     ;; Encode instruction x.
     ;; If x is a concrete instruction, then encode textual representation using number.

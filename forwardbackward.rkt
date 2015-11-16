@@ -1,6 +1,6 @@
 #lang racket
 
-(require "ast.rkt" "decomposer.rkt" "arm/arm-machine.rkt" "arm/arm-parser.rkt")
+(require "ast.rkt" "decomposer.rkt" "ops-racket.rkt")
 (require racket/generator)
 
 (provide forwardbackward% entry-live entry-flag)
@@ -17,24 +17,40 @@
     (super-new)
     (inherit-field machine printer simulator validator stat syn-mode)
     (inherit window-size)
-
-    ;; Required fields to be initialized when extended. See arm/arm-forwardbackward.rkt.
-    (init-field [enum #f] ;; instruction enumerator
-                [simulator-abst #f] ;; reduced-bitwidth simulator/emulator
-                [validator-abst #f] ;; reduced-bitwidth validator/verifier
-                [inverse #f] ;; inverse simulator/enumator
-                )
+    (init-field inverse% enumerator%)
     
     ;; Required methods to be implemented when extended. See arm/arm-forwardbackward.rkt.
-    (abstract reduce-precision increase-precision)
+    (abstract change-inst change-inst-list)
     (override synthesize-window superoptimize-linear superoptimize-binary)
     (public try-cmp? combine-live prescreen sort-live sort-live-bw
+            reduce-precision increase-precision
             reduce-precision-assume
             mask-in get-live-mask inst->vector)
     
     (define debug #f)
     (define verbo #f)
     (define ce-limit 100)
+
+    ;; Actual bitwidth
+    (define bit-precise (get-field bit machine))
+    
+    ;; Reduce bitwidth
+    (define bit 4)
+    (define mask (sub1 (arithmetic-shift 1 bit)))
+    (define mask-1 (sub1 (arithmetic-shift 1 (sub1 bit))))
+
+    (set! machine
+          (new (send machine get-constructor) [bit bit]
+               [config (send machine get-config)]))
+    (define simulator-abst
+      (new (send simulator get-constructor) [machine machine]))
+    (define validator-abst
+      (new (send validator get-constructor) [machine machine] [printer printer]
+           [simulator
+            (new (send (get-field simulator validator) get-constructor)
+                 [machine machine])]))
+    (define inverse (new inverse% [machine machine] [simulator simulator-abst]))
+    (define enum (new enumerator% [machine machine] [printer printer]))
     
     ;;;;;;;;;;;;;;;;;;;;;;; Helper functions ;;;;;;;;;;;;;;;;;;;;;;
     (define (inst->vector x) (vector (inst-op x) (inst-args x)))
@@ -251,6 +267,81 @@
     (define-syntax-rule (intersect l s)
       (filter (lambda (x) (set-member? s x)) l))
 
+
+    (define (try-cmp? code state live) 0)
+    ;; Combine liveness from two sources
+    ;; x is from using update-live from live-in. This does not work well for memory.
+    ;; y is from using symbolic analyze from live-out.
+    (define (combine-live x y) y)
+    
+    ;;;;;;;;;;;;;;;;;;;;;;; Reduce/Increase bitwidth ;;;;;;;;;;;;;;;;;;;;;;
+
+    ;; Convert input program into reduced-bitwidth program by replacing constants.
+    ;; output: a pair of (reduced-bitwidth program, replacement map*)
+    ;;   *replacement map maps reduced-bitwidth constants to sets of actual constants.
+    (define (reduce-precision prog)
+      ;; TODO: common one
+      (define mapping (make-hash))
+      (define (change arg type)
+        (define (inner)
+          (cond
+           [(member type '(op2 bit bit-no-0))
+            (cond
+             [(and (> arg 0) (<= arg (/ bit-precise 4)))
+              (/ bit 4)]
+             [(and (> arg (/ bit-precise 4)) (< arg (* 3 (/ bit-precise 4))))
+              (/ bit 2)]
+             [(and (>= arg (* 3 (/ bit-precise 4))) (< arg bit-precise))
+              (* 3 (/ bit 4))]
+             [(= arg bit-precise) bit]
+             [(> arg 0) (bitwise-and arg mask-1)]
+             [else (finitize (bitwise-and arg mask) bit)])]
+
+           [(> arg 0) (bitwise-and arg mask-1)]
+           [else (finitize (bitwise-and arg mask) bit)]))
+
+        (define ret (inner))
+        (if (hash-has-key? mapping ret)
+            (let ([val (hash-ref mapping ret)])
+              (unless (member arg val)
+                      (hash-set! mapping ret (cons arg val))))
+            (hash-set! mapping ret (list arg)))
+        ret)
+        
+      (cons (for/vector ([x prog]) (change-inst x change)) mapping))
+    
+    ;; Convert reduced-bitwidth program into program in precise domain.
+    ;; prog: reduced bitwidth program
+    ;; mapping: replacement map returned from 'reduce-precision' function
+    ;; output: a list of potential programs in precise domain
+    (define (increase-precision prog mapping)
+      (define (change arg type)
+        (define (finalize x)
+          (if (hash-has-key? mapping arg)
+              (let ([val (hash-ref mapping arg)])
+                (if (member x val) val (cons x val)))
+              (if (= x -2)
+                  (list -2 -8)
+                  (list x))))
+        
+        (cond
+         [(= arg bit) (finalize bit-precise)]
+         [(= arg (sub1 bit)) (finalize (sub1 bit-precise))]
+         [(= arg (/ bit 2)) (finalize (/ bit-precise 2))]
+         [else (finalize arg)]))
+
+      (define ret (list))
+      (define (recurse lst final)
+        (if (empty? lst)
+            (set! ret (cons (list->vector final) ret))
+            (for ([x (car lst)])
+                 (recurse (cdr lst) (cons x final)))))
+      
+      (recurse (reverse (for/list ([x prog]) (change-inst-list x change)))
+               (list))
+      ret)
+
+
     ;;;;;;;;;;;;;;;;;;;;;;; Timing variables ;;;;;;;;;;;;;;;;;;;;;;
     (define t-build 0)
     (define t-build-inter 0)
@@ -274,13 +365,7 @@
     (define t-check 0)
 
     (define start-time #f)
-
-    (define (try-cmp? code state live) 0)
-    ;; Combine liveness from two sources
-    ;; x is from using update-live from live-in. This does not work well for memory.
-    ;; y is from using symbolic analyze from live-out.
-    (define (combine-live x y) y)
-
+    
     ;;;;;;;;;;;;;;;;;;;;;;; Main functions ;;;;;;;;;;;;;;;;;;;;;;
     (define (superoptimize-binary spec constraint time-limit size [extra #f]
 				  #:lower-bound [lower-bound 0]
@@ -407,7 +492,7 @@
       (display "[")
       (send printer print-syntax (send printer decode postfix))
       (pretty-display "]")
-     
+
       (define live3-vec (send machine progstate->vector constraint))
       (define live2 (send validator-abst get-live-in postfix constraint extra))
       (define live2-vec (send machine progstate->vector live2))

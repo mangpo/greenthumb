@@ -16,8 +16,11 @@
               ;; required functions for stochastic and enumerative only
               reset-arg-ranges get-arg-ranges ;;analyze-args
 	      update-live update-live-backward
+              get-constructor
               )
 
+    (define (get-constructor) llvm-demo-machine%)
+    
     (unless bit (set! bit 32))
     (set! random-input-bit bit)
     (set! nop-id 0)

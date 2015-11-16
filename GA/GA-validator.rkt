@@ -9,7 +9,10 @@
 (define GA-validator%
   (class validator%
     (super-new)
-    (override assume get-sym-vars evaluate-state assert-state-eq)
+    (override assume get-sym-vars evaluate-state assert-state-eq
+              get-constructor)
+
+    (define (get-constructor) GA-validator%)
 
     ;; Assert assumption about start-state
     (define (assume state constraint)
