@@ -39,20 +39,6 @@
 
 (send simulator-racket performance-cost encoded-code)
 
-;; ;; Section 2: Unknown program
-;; ;; ? = one instruction
-#|
-(define code?
-(send parser ast-from-string "
-? ?
-"))
-;; Use validator to encode unknown program instead of printer
-(define encoded-code? (send validator encode-sym code?))
-(pretty-display "Interpret unknown program using simulator written in rosette...")
-(define output-state?
-  (send simulator-rosette interpret encoded-code? input-state))
-(send machine display-state output-state?)
-(newline)|#
 
 ;; ;; Section 3: Symbolic inputs
 ;; ;; Concrete program with symbolic inputs

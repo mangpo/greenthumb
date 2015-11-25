@@ -35,6 +35,7 @@
     (define (encode-inst x)
       (cond
        [(equal? (inst-op x) "nop") (inst (get-field nop-id machine) (vector))]
+       [(equal? (inst-op x) #f) x]
        [else
         (define args (inst-args x))
         ;; First input argument.

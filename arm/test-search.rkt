@@ -4,7 +4,8 @@
          "arm-parser.rkt" "arm-ast.rkt" "../ast.rkt"
          "arm-simulator-rosette.rkt" 
          "arm-simulator-racket.rkt"
-         "arm-symbolic.rkt" "arm-stochastic.rkt" "arm-forwardbackward.rkt")
+         "arm-symbolic.rkt" "arm-stochastic.rkt" 
+         "arm-forwardbackward.rkt" "arm-enumerator.rkt" "arm-inverse.rkt")
 
 
 (define parser (new arm-parser%))
@@ -25,6 +26,8 @@
 (define backward (new arm-forwardbackward% [machine machine] 
                       [printer printer] [parser parser] 
                       [validator validator] [simulator simulator-racket]
+                      [inverse% arm-inverse%]
+                      [enumerator% arm-enumerator%]
                       [syn-mode `partial1]))
 
 (define prefix 
@@ -51,16 +54,14 @@
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))
 (define encoded-code (send printer encode code))
-(define encoded-sketch (send validator encode-sym sketch))
+(define encoded-sketch (send printer encode sketch))
 
 
-(define-values (x y)
   (send backward synthesize-window
         encoded-code ;; spec
         3 ;encoded-sketch ;; sketch = spec in this case
         encoded-prefix encoded-postfix
         (constraint machine [reg 0] [mem] [z #f]) #f #f 3600)
-  )
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem]) ;; constraint
       (constraint machine [reg 0] [mem]) ;; live-in

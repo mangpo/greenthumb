@@ -26,7 +26,7 @@
 (send parser ast-from-string "
 "))
 
-(define code
+#;(define code
 (send parser ast-from-string "
 %1 = lshr i32 %in, 3
 %out = shl nuw i32 %1, 3
@@ -42,7 +42,7 @@
 "))
 ;; solver: > 30 sec
 
-#;(define code
+(define code
 (send parser ast-from-string "
   %1 = add nsw i32 %in, -1
   %2 = ashr i32 %1, 1
@@ -60,12 +60,12 @@
 
 (define sketch
 (send parser ast-from-string "
-?
+? ? ? ?
 "))
 
 
 (define encoded-code (send printer encode code))
-(define encoded-sketch (send validator encode-sym sketch))
+(define encoded-sketch (send printer encode sketch))
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))
 

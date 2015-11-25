@@ -98,7 +98,7 @@
       (define (inner begin end cost [middle (quotient (+ begin end) 2)])
 	(newline)
         (pretty-display `(binary-search ,begin ,end ,middle ,cost))
-        (define sketch (send validator sym-insts middle))
+        (define sketch (gen-holes middle))
         
         (define-values (out-program out-cost)
           (with-handlers* 
@@ -171,7 +171,7 @@
       (newline)
       (define prefix-len (vector-length prefix))
       (define postfix-len (vector-length postfix))
-      (define sketch (send validator sym-insts size))
+      (define sketch (gen-holes size))
       (define final-program #f) ;; not including prefix & postfix
       (define t #f)
       (define (inner cost)
@@ -437,5 +437,6 @@
       (loop spec)
       output)
 
+    (define (gen-holes n) (for/vector ([i n]) (inst #f #f)))
 
     ))

@@ -2,19 +2,28 @@
 
 (require "GA-validator.rkt" "GA-machine.rkt" "GA-printer.rkt"
          "GA-parser.rkt" "../ast.rkt"
-         "GA-symbolic.rkt" "GA-stochastic.rkt" "GA-forwardbackward.rkt")
+         "GA-simulator-racket.rkt" "GA-simulator-rosette.rkt"
+         "GA-symbolic.rkt" "GA-stochastic.rkt" "GA-forwardbackward.rkt"
+         "GA-inverse.rkt" "GA-enumerator.rkt")
 
 
 (define parser (new GA-parser%))
 (define machine (new GA-machine% [config 5]))
 
 (define printer (new GA-printer% [machine machine]))
-(define validator (new GA-validator% [machine machine]))
+(define simulator-racket (new GA-simulator-racket% [machine machine]))
+(define simulator-rosette (new GA-simulator-rosette% [machine machine]))
+(define validator (new GA-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
 
-(define symbolic (new GA-symbolic% [machine machine] [printer printer] [parser parser]))
-(define stoch (new GA-stochastic% [machine machine] [printer printer] [parser parser] [syn-mode #t]))
+(define symbolic (new GA-symbolic% [machine machine] [printer printer] [parser parser]
+                      [validator validator] [simulator simulator-rosette]))
+(define stoch (new GA-stochastic% [machine machine] [printer printer] [parser parser] [syn-mode #t]
+                   [validator validator] [simulator simulator-racket]))
 (define backward (new GA-forwardbackward% [machine machine] 
                       [printer printer] [parser parser] 
+                      [validator validator] [simulator simulator-racket]
+                      [inverse% GA-inverse%]
+                      [enumerator% GA-enumerator%]
                       [syn-mode `partial1]))
 
 (define prefix 

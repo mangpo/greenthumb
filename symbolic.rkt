@@ -14,7 +14,19 @@
     (init-field [pure-symbolic #t]
                 [bit (get-field bit machine)])
     (override synthesize-window)
-    (public synthesize-from-sketch evaluate-inst)
+    (public synthesize-from-sketch evaluate-inst sym-op sym-arg)
+    (abstract gen-sym-inst)
+
+    ;; Create symbolic opcode using Rosette symbolic variable.
+    (define (sym-op)
+      (define-symbolic* op number?)
+      (assert (and (>= op 0) (< op ninsts)))
+      op)
+    
+    ;; Create symbolic operand using Rosette symbolic variable.
+    (define (sym-arg)
+      (define-symbolic* arg number?)
+      arg)
     
     (define ninsts (vector-length (get-field inst-id machine)))
 
@@ -45,6 +57,7 @@
 			       #:assume [assumption (send machine no-assumption)])
       ;;(send machine analyze-opcode prefix spec postfix)
       (send machine reset-inst-pool)
+      (set! sketch (for/vector ([x sketch]) (if (inst-op x) x (gen-sym-inst))))
       (if pure-symbolic 
           (synthesize-from-sketch 
            (vector-append prefix spec postfix) 

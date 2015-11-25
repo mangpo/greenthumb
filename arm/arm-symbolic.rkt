@@ -8,7 +8,8 @@
 (define arm-symbolic%
   (class symbolic%
     (super-new)
-    (override len-limit window-size evaluate-inst)
+    (inherit sym-op sym-arg)
+    (override len-limit window-size evaluate-inst gen-sym-inst)
 
     ;; Num of instructions that can be synthesized within a minute.
     (define (len-limit) 2)
@@ -25,5 +26,12 @@
                 (evaluate (inst-shfop x) model)
                 (evaluate (inst-shfarg x) model)
                 (evaluate (inst-cond x) model)))
+
+    (define (gen-sym-inst)
+      (arm-inst (sym-op) 
+		(vector (sym-arg) (sym-arg) (sym-arg) (sym-arg))
+		(sym-op)
+		(sym-arg)
+		(sym-op)))
 
     ))

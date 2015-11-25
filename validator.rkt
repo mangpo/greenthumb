@@ -19,15 +19,13 @@
                 [random-input-bit (get-field random-input-bit machine)])
     (public proper-machine-config generate-input-states generate-inputs-inner
             counterexample
-            sym-op sym-arg sym-insts
-            encode-sym-inst encode-sym
             get-live-in
             get-sym-vars evaluate-state
             assume assert-state-eq
             get-constructor
             )
     
-    (define (get-constructor) (raise "Please implement validator:get-constructor"))
+    (define (get-constructor) validator%)
     (define-syntax-rule (print-struct x) (send printer print-struct x))
     (define-syntax-rule (print-syntax x) (send printer print-syntax x))
     (define-syntax-rule (decode x) (send printer decode x))
@@ -37,33 +35,6 @@
     (define start-time #f)
 
     ;(current-solver (new z3%))
-
-    ;; Create symbolic opcode using Rosette symbolic variable.
-    (define (sym-op)
-      (define-symbolic* op number?)
-      (assert (and (>= op 0) (< op ninsts)))
-      op)
-    
-    ;; Create symbolic operand using Rosette symbolic variable.
-    (define (sym-arg)
-      (define-symbolic* arg number?)
-      arg)
-
-    ;; Encode instruction x.
-    ;; If x is a concrete instruction, then encode textual representation using number.
-    ;; If (inst-op x) = #f, create symbolic instruction.
-    (define (encode-sym-inst x)
-      (if (inst-op x)
-          (send printer encode-inst x)
-          (inst (sym-op) (sym-arg))))
-
-    ;; Encode program. Convert textual representation to numbers.
-    (define (encode-sym code)
-      (traverse code inst? encode-sym-inst))
-
-    ;; Create n symbolic instructions
-    (define (sym-insts n)
-      (encode-sym (for/vector ([i n]) (inst #f #f))))
 
     ;; Default: no assumption
     (define (assume state assumption)
@@ -86,7 +57,7 @@
     ;; config: machine config
     (define (proper-machine-config code config [extra #f])
       (pretty-display `(config ,config))
-      (define encoded-code (encode-sym code))
+      (define encoded-code (send printer encode code))
       (define (solve-until-valid config)
         (send machine set-config config)
         (clear-asserts)

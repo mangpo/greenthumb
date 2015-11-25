@@ -2,8 +2,7 @@
 
 (require "llvm-demo-parser.rkt" "llvm-demo-printer.rkt" "llvm-demo-machine.rkt"
          "llvm-demo-simulator-rosette.rkt"
-         "llvm-demo-simulator-racket.rkt"
-         "llvm-demo-validator.rkt")
+         "llvm-demo-simulator-racket.rkt")
 
 ;; Step -1: familiar yourself with default inst
 
@@ -36,28 +35,7 @@
 (send simulator-rosette interpret encoded-code input-state)
 (newline)
 
-;; Step 3: Unknown program
-(pretty-display "Step 3: test parser and printer for unknown program.")
-(define code?
-(send parser ast-from-string "
-? ?
-"))
-;; Use validator to encode unknown program instead of printer
-(define validator (new llvm-demo-validator%
-                       [machine machine] [printer printer]
-                       [simulator simulator-rosette]))
-(define encoded-code? (send validator encode-sym code?))
-
-(send printer print-struct code?)
-(send printer print-struct encoded-code?)
-(newline)
-
-;; Step 4: interpret unknown program
-(pretty-display "Step 4: interpret unknown program.")
-(send simulator-rosette interpret encoded-code? input-state)
-(newline)
-
-;; Step 5: interpret concrete program with symbolic inputs
+;; Step 3: interpret concrete program with symbolic inputs
 (pretty-display "Step 5: interpret concrete program with symbolic inputs.")
 (define (sym-input)
   (define-symbolic* in number?)
@@ -67,7 +45,7 @@
 (send simulator-rosette interpret encoded-code input-state-sym)
 (newline)
 
-;; Step 6: duplicate rosette simulator to racket simulator
+;; Step 4: duplicate rosette simulator to racket simulator
 (pretty-display "Step 6: interpret program using simulator writing in Racket.")
 (define simulator-racket (new llvm-demo-simulator-racket% [machine machine]))
 (send simulator-racket interpret encoded-code input-state)

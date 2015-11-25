@@ -51,25 +51,28 @@
     ;; an instruction encoded using numbers.
     (define (encode-inst x)
       (define op (inst-op x))
-      (define args (inst-args x))
-      (define args-len (vector-length args))
-      (when (and (> args-len 0)
-		 (not (equal? "r" (substring (vector-ref args (sub1 args-len)) 0 1)))
-                 (not (member (string->symbol op) '(bfc bfi sbfx ubfx))))
-	    (set! op (string-append op "#")))
-      (define shfop (inst-shfop x))
-      (define shfarg (inst-shfarg x))
-      (when (and shfarg (not (equal? "r" (substring shfarg 0 1))))
-	    (set! shfop (string-append shfop "#")))
-      
-      (let ([cond-type (arm-inst-cond x)])
-        (arm-inst (send machine get-inst-id (string->symbol op))
-                  (vector-map name->id args)
-                  (and shfop (send machine get-shf-inst-id (string->symbol shfop)))
-                  (and shfarg (name->id shfarg))
-		  (if (equal? cond-type "")
-		      (send machine get-cond-inst-id `nop)
-		      (send machine get-cond-inst-id (string->symbol cond-type))))))
+      (cond
+       [(not op) x]
+       [op
+	(define args (inst-args x))
+	(define args-len (vector-length args))
+	(when (and (> args-len 0)
+		   (not (equal? "r" (substring (vector-ref args (sub1 args-len)) 0 1)))
+		   (not (member (string->symbol op) '(bfc bfi sbfx ubfx))))
+	      (set! op (string-append op "#")))
+	(define shfop (inst-shfop x))
+	(define shfarg (inst-shfarg x))
+	(when (and shfarg (not (equal? "r" (substring shfarg 0 1))))
+	      (set! shfop (string-append shfop "#")))
+	
+	(let ([cond-type (arm-inst-cond x)])
+	  (arm-inst (send machine get-inst-id (string->symbol op))
+		    (vector-map name->id args)
+		    (and shfop (send machine get-shf-inst-id (string->symbol shfop)))
+		    (and shfarg (name->id shfarg))
+		    (if (equal? cond-type "")
+			(send machine get-cond-inst-id `nop)
+			(send machine get-cond-inst-id (string->symbol cond-type)))))]))
                 
 
     ;; Convert an instruction encoded using numbers

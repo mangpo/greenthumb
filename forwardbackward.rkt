@@ -27,9 +27,9 @@
             reduce-precision-assume
             mask-in get-live-mask inst->vector)
     
-    (define debug #f)
-    (define verbo #f)
-    (define info #f)
+    (define debug #t)
+    (define verbo #t)
+    (define info #t)
     (define ce-limit 100)
 
     ;; Actual bitwidth
@@ -41,7 +41,7 @@
     (define mask-1 (sub1 (arithmetic-shift 1 (sub1 bit))))
 
     (set! machine
-          (new (send machine get-constructor) [bit bit]
+          (new (send machine get-constructor) [bit bit] [random-input-bit (sub1 bit)]
                [config (send machine get-config)]))
     (define simulator-abst
       (new (send simulator get-constructor) [machine machine]))
@@ -777,7 +777,8 @@
 	     (vector-set! cache i (make-hash)))
 
         (define (outer my-classes candidates level)
-	  ;; (pretty-display `(outer ,my-classes ,candidates ,level))
+	  (when (= 1 (inst-op my-inst))
+		(pretty-display `(outer ,level ,candidates)))
 	  (define my-classes-bw-level (vector-ref my-classes-bw level))
 	  (define cache-level (vector-ref cache level))
           (define real-hash my-classes)
@@ -843,7 +844,8 @@
             (define t1 (current-milliseconds))
             (set! t-intersect (+ t-intersect (- t1 t0)))
             (set! c-intersect (add1 c-intersect))
-	    ;; (pretty-display `(inner ,inters-fw))
+	    (when (= 1 (inst-op my-inst))
+		  (pretty-display `(inner ,level ,(length inters-fw))))
 
             (for ([inter inters-fw])
               (let ([t0 (current-milliseconds)]
