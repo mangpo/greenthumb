@@ -8,15 +8,11 @@
   (class forwardbackward%
     (super-new)
     (inherit-field machine printer)
-    (override len-limit window-size
+    (override len-limit
               change-inst change-inst-list)
 
     ;; Num of instructions that can be synthesized within a minute.
     (define (len-limit) 2)
-
-    ;; Context-aware window decomposition size L.
-    ;; The cooperative search tries L/2, L, 2L, 4L.
-    (define (window-size) 4)
     
     (define (change-inst x change)
       (define opcode-name (send machine get-inst-name (inst-op x)))

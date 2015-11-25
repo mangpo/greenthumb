@@ -14,12 +14,14 @@
     (abstract
      ;; Num of instructions that can be synthesized within a minute.
      len-limit
-     ;; Context-aware window decomposition size L.
-     ;; The cooperative search tries L/2, L, 2L, 4L.
-     window-size
      synthesize-window)
     (public superoptimize
-            superoptimize-linear superoptimize-binary)
+            superoptimize-linear superoptimize-binary
+            window-size)
+
+    ;; Context-aware window decomposition size L.
+    ;; The cooperative search tries L/2, L, 2L, 4L.
+    (define (window-size) (* 2 (len-limit)))
 
     (define (superoptimize spec constraint live-in name time-limit size [extra #f]
                            #:prefix [prefix (vector)] #:postfix [postfix (vector)]
