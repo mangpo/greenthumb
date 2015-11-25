@@ -137,6 +137,9 @@
       )
 
     (define (performance-cost code)
-      (vector-count (lambda (x) (not (= (inst-op x) nop-id))) code))
+      (define cost 0)
+      (for ([x code])
+	   (unless (= (inst-op x) nop-id) (set! cost (add1 cost))))
+      cost)
     
     ))

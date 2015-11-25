@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../parallel.rkt" "../fitness-learner.rkt"
+(require "../parallel-driver.rkt" "../fitness-learner.rkt"
          "GA-parser.rkt" "GA-machine.rkt" 
          "GA-printer.rkt" "../compress.rkt"
          "GA-simulator-rosette.rkt"
@@ -25,7 +25,7 @@
                   #:input-file [input-file #f]
                   #:start-prog [start-prog #f])
 
-  (define parallel (new parallel% [isa "GA"] [parser parser] [machine machine] 
+  (define parallel (new parallel-driver% [isa "GA"] [parser parser] [machine machine] 
                         [printer printer] [compress compress] [validator validator]
                         [search-type search-type] [mode mode]
                         [window window]))

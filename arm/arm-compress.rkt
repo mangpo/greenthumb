@@ -28,12 +28,13 @@
 		(inst-cond x)))
 
     ;; Input
-    ;; program, a list of (inst opcode args) where opcode is string and args is a list of string
+    ;; program: string IR format
     ;; Output
     ;; 1) compressed program in the same format as input
     ;; 2) compressed live-out
-    ;; 3) map-back
-    ;; 4) machine-info in custom format--- (list nregs nmem) for arm
+    ;; 3) compressed live-in
+    ;; 4) map-back
+    ;; 5) machine-info in custom format--- (list nregs nmem) for arm
     (define (compress-reg-space program live-out live-in)
       (define reg-set (mutable-set))
       (define max-reg 0)

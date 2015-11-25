@@ -124,7 +124,7 @@
     (define/public (encode-live x)
       (define live (make-vector (send machine get-config) #f))
       (for ([v x])
-           (vector-set! live (hash-ref name2num (symbol->string v)) #t))
+           (vector-set! live (hash-ref name2num (if (symbol? v) (symbol->string v) v)) #t))
       live)
 
     ))

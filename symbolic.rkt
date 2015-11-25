@@ -150,6 +150,7 @@
         (when debug (pretty-display "check output"))
         ;; (set! spec-cost (send simulator performance-cost spec))
         (set! sketch-cost (send simulator performance-cost sketch))
+	(pretty-display `(cost-compare ,cost ,sketch-cost))
         (when cost (assert (< sketch-cost cost) "cost"))
         (send validator assert-state-eq spec-state sketch-state constraint)
         (when debug (pretty-display "=========== done compare-spec-sketch"))

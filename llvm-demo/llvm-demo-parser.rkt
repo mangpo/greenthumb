@@ -80,7 +80,15 @@
         
         (code   
          ((inst-list) (rename (list->vector $1)))))
-       ))))
+       ))
+
+    (define/public (info-from-file file)
+      (define lines (file->lines file))
+      (define live-out (string-split (first lines) ","))
+      (define live-in (string-split (second lines) ","))
+      (values live-out live-in))
+
+    ))
 
 (define (convert2inst lhs term1 terms)
   (define op

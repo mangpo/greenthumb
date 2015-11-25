@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../parallel.rkt" "../ast.rkt" "../fitness-learner.rkt"
+(require "../parallel-driver.rkt" "../ast.rkt" "../fitness-learner.rkt"
          "arm-parser.rkt" "arm-machine.rkt" 
          "arm-printer.rkt" "arm-compress.rkt"
 	 ;; simulator, validator
@@ -32,7 +32,7 @@
   (define compress (new arm-compress% [machine machine]))
   (define simulator (new arm-simulator-rosette% [machine machine]))
   (define validator (new arm-validator% [machine machine] [simulator simulator]))
-  (define parallel (new parallel% [isa "arm"] [parser parser] [machine machine] 
+  (define parallel (new parallel-driver% [isa "arm"] [parser parser] [machine machine] 
                         [printer printer] [compress compress] [validator validator]
                         [search-type search-type] [mode mode]
                         [window window]))

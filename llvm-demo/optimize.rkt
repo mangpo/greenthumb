@@ -1,0 +1,61 @@
+#lang racket
+
+(require "llvm-demo-parser.rkt"
+         "main.rkt")
+
+(define size (make-parameter #f))
+(define cores (make-parameter #f))
+(define search-type (make-parameter #f))
+(define mode (make-parameter `partial))
+
+(define dir (make-parameter "output"))
+(define time-limit (make-parameter 3600))
+ 
+(define file-to-optimize
+  (command-line
+   #:once-each
+   [("-c" "--core")      c
+                        "Number of cores to run on (default=12)"
+                        (cores (string->number c))]
+   [("-d" "--dir")      d
+                        "Output directory (default=output)"
+                        (dir d)]
+   [("-t" "--time-limit") t
+                        "Time limit in seconds (default=3600)."
+                        (time-limit t)]
+   
+   #:once-any
+   [("--sym") "Use symbolic search."
+                        (search-type `solver)]
+   [("--stoch") "Use stochastic search."
+                        (search-type `stoch)]
+   [("--enum") "Use enumerative search."
+                        (search-type `enum)]
+   [("--hybrid") "Use cooperative search."
+                        (search-type `hybrid)]
+
+   #:once-any
+   [("-l" "--linear")   "[For symbolic and enumerative search] Linear search mode (no decomposition)."
+                        (mode `linear)]
+   [("-p" "--partial")  "[For cooperative, symbolic, enumerative search] Partial search mode (context-aware window decomposition)."
+                        (mode `partial)]
+
+   #:once-any
+   [("-o" "--optimize") "[For stochastic search] Optimize mode starts searching from the original program"
+                        (mode `opt)]
+   [("-s" "--synthesize") "[For stochastic search] Synthesize mode starts searching from random programs"
+                        (mode `syn)]
+
+   #:args (filename) ; expect one command-line argument: <filename>
+   ; return the argument as a filename to compile
+   filename))
+
+(define parser (new llvm-demo-parser%))
+(define code (send parser ast-from-file file-to-optimize))
+(define-values (live-out live-in) (send parser info-from-file (string-append file-to-optimize ".info")))
+
+(optimize code
+          live-out
+          live-in
+          (search-type) (mode)
+          #:dir (dir) #:cores (cores) #:time-limit (time-limit))

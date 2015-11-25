@@ -16,7 +16,7 @@
               ;; required functions for stochastic and enumerative only
               reset-arg-ranges get-arg-ranges ;;analyze-args
 	      update-live update-live-backward
-              get-constructor
+              get-constructor output-constraint-string
               )
 
     (define (get-constructor) llvm-demo-machine%)
@@ -132,6 +132,10 @@
             [(equal? type `var-o) (vector-set! new-live arg #f)]
             [(equal? type `var-i) (vector-set! new-live arg #t)]))
       new-live)
+    
+    ;;;;;;;;;;;;;;;;;;;;; For cooperative search ;;;;;;;;;;;;;;;;;;
+    (define (output-constraint-string machine-var live-out) 
+      (format "(send printer encode-live '~a)" live-out))
 
     ))
       
