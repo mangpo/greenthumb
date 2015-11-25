@@ -171,7 +171,7 @@
         (define cores-stoch
           (cond
            [(equal? search-type `stoch) cores]
-           [(equal? search-type `hybrid) 3] ;;(floor (* (/ 2 6) cores))]
+           [(equal? search-type `hybrid) (min 3 (floor (* (/ 2 6) cores)))]
            [else 0]))
         (define cores-enum
           (cond
@@ -186,7 +186,13 @@
            [else 0]
            ))
 
-        (pretty-display `(stoch-enum-sym ,cores-stoch ,cores-enum ,cores-solver))
+        (newline)
+        (pretty-display "SEARCH INSTANCES")
+        (pretty-display "----------------")
+        (pretty-display (format "stoch:\t~a instances" cores-stoch))
+        (pretty-display (format "sym:\t~a instances" cores-solver))
+        (pretty-display (format "enum:\t~a instances" cores-enum))
+        (newline)
 
         ;; STEP 1: create file & run
         (define-syntax-rule (create-and-run id mode search-type)
@@ -202,7 +208,10 @@
               ;;                     (create-and-run id `opt `stoch))
               ;;           (for/list ([id (- cores-stoch n)]) 
               ;;                     (create-and-run (+ n id) `syn `stoch))))
-              (for/list ([id cores-stoch]) (create-and-run id `opt `stoch))
+              (begin
+                (when (> cores-stoch 0)
+                      (pretty-display (format "ID ~a-~a: stoch (optimize)" 0 (sub1 cores-stoch))))
+                (for/list ([id cores-stoch]) (create-and-run id `opt `stoch)))
               (for/list ([id cores-stoch]) (create-and-run id mode `stoch))))
 
         (define processes-solver
@@ -211,11 +220,17 @@
                 (and (equal? search-type `solver) (equal? mode `partial)))
             (define n1 (if (equal? search-type `solver) 1 0))
             (define n2 (floor (* (/ 8 16) cores-solver)))
-            (define n3 0);(floor (* (/ 4 16) cores-solver)))
+            (define n3 1);(floor (* (/ 4 16) cores-solver)))
             (define n4 (if (< (+ n1 n2 n3) cores-solver) (ceiling (* (/ 2 16) cores-solver)) 0))
             (define n5 (if (< (+ n1 n2 n3 n4) cores-solver) (ceiling (* (/ 1 16) cores-solver)) 0))
-            (set! n3 (- cores-solver n1 n2 n3 n4 n5))
-            (pretty-display `(sym ,n1 ,n2 ,n3 ,n4 ,n5))
+            (set! n3 (- cores-solver n1 n2 n4 n5))
+            ;;(pretty-display `(sym ,n1 ,n2 ,n3 ,n4 ,n5))
+            (when (> n1 0) (pretty-display (format "ID ~a-~a: sym (no-decomposition)" cores-stoch (sub1 (+ cores-stoch n1)))))
+            (when (> n2 0) (pretty-display (format "ID ~a-~a: sym (window=L/2)" (+ cores-stoch n1) (sub1 (+ cores-stoch n1 n2)))))
+            (when (> n3 0) (pretty-display (format "ID ~a-~a: sym (window=L)" (+ cores-stoch n1 n2) (sub1 (+ cores-stoch n1 n2 n3)))))
+            (when (> n4 0) (pretty-display (format "ID ~a-~a: sym (window=L*2)" (+ cores-stoch n1 n2 n3) (sub1 (+ cores-stoch n1 n2 n3 n4)))))
+            (when (> n5 0) (pretty-display (format "ID ~a-~a: sym (window=L*4)" (+ cores-stoch n1 n2 n3 n4) (sub1 (+ cores-stoch n1 n2 n3 n4 n5)))))
+            
             (append (for/list ([i n1]) (create-and-run (+ cores-stoch i) `linear `solver))
                     (for/list ([i n2]) (create-and-run (+ cores-stoch n1 i) `partial1 `solver))
                     (for/list ([i n3]) (create-and-run (+ cores-stoch n1 n2 i) `partial2 `solver))
@@ -237,7 +252,13 @@
             (define n4 (if (< (+ n1 n2 n3) cores-enum) (ceiling (* (/ 2 16) cores-enum)) 0))
             (define n5 (if (< (+ n1 n2 n3 n4) cores-enum) (ceiling (* (/ 1 16) cores-enum)) 0))
             (set! n3 (- cores-enum n1 n2 n3 n4 n5))
-            (pretty-display `(enum ,n1 ,n2 ,n3 ,n4 ,n5))
+            ;;(pretty-display `(enum ,n1 ,n2 ,n3 ,n4 ,n5))
+            (when (> n1 0) (pretty-display (format "ID ~a-~a: enum (no-decomposition)" (+ cores-stoch cores-solver) (sub1 (+ cores-stoch cores-solver n1)))))
+            (when (> n2 0) (pretty-display (format "ID ~a-~a: enum (window=L/2)" (+ cores-stoch cores-solver n1) (sub1 (+ cores-stoch cores-solver n1 n2)))))
+            (when (> n3 0) (pretty-display (format "ID ~a-~a: enum (window=L)" (+ cores-stoch cores-solver n1 n2) (sub1 (+ cores-stoch cores-solver n1 n2 n3)))))
+            (when (> n4 0) (pretty-display (format "ID ~a-~a: enum (window=L*2)" (+ cores-stoch cores-solver n1 n2 n3) (sub1 (+ cores-stoch cores-solver n1 n2 n3 n4)))))
+            (when (> n5 0) (pretty-display (format "ID ~a-~a: enum (window=L*4)" (+ cores-stoch cores-solver n1 n2 n3 n4) (sub1 (+ cores-stoch cores-solver n1 n2 n3 n4 n5)))))
+            
             (append (for/list ([i n1]) (create-and-run (+ cores-stoch cores-solver i) `linear `enum))
                     (for/list ([i n2]) (create-and-run (+ cores-stoch cores-solver n1 i) `partial1 `enum))
                     (for/list ([i n3]) (create-and-run (+ cores-stoch cores-solver n1 n2 i) `partial2 `enum))
@@ -248,6 +269,7 @@
            
            [else
             (for/list ([id cores-enum]) (create-and-run id mode `enum))]))
+        (newline)
         
         (define (result)
 	  (define limit (if (string? time-limit) 
@@ -335,6 +357,9 @@
       (system "pkill -u mangpo java")
       (system "pkill -u mangpo z3")
       (let ([decompressed-code (send compress decompress-reg-space output-code map-back)])
+        (newline)
+        (pretty-display "OUTPUT")
+        (pretty-display "------")
         (send printer print-syntax decompressed-code)
         decompressed-code)
       )
