@@ -78,9 +78,10 @@
 
     (define (fresh-name)
       (define numbers
-        (filter (lambda (x)
-                  (and (string? x) (string->number (substring x 1))))
-                (vector->list num2name)))
+	(filter 
+	 number?
+	 (map (lambda (x) (and (string? x) (string->number (substring x 1))))
+	      (vector->list num2name))))
       (format "%~a" (add1 (foldl max 0 numbers))))
     
     (define (num->name x)

@@ -146,14 +146,24 @@
           (let* ([args (inst-args my-inst)]
                  [arg-o (vector-ref args 0)])
             (unless (member args names) (set! names (cons arg-o names)))
+
+	    ;; remove from names first
             (for ([i (vector-length args)])
                  (let ([arg (vector-ref args i)])
                    (cond
                     [(= i 0)
                      (unless (set-member? all-names arg)
                              (set! all-names (set-add all-names arg)))]
-                    
-                    [(or (not (equal? (substring arg 0 1) "%"))
+
+		    [(set-member? all-names arg)
+		     (set! names (remove arg names))])))
+
+	    ;; rename
+            (for ([i (vector-length args)])
+                 (let ([arg (vector-ref args i)])
+                   (cond
+                    [(or (= i 0)
+			 (not (equal? (substring arg 0 1) "%"))
                          (set-member? all-names arg)
                          ;;(use-after arg i)
                          )
