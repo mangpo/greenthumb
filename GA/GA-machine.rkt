@@ -134,7 +134,10 @@
     (define (get-constructor) GA-machine%)
 
     (unless bit (set! bit 18))
-    (unless random-input-bit (set! random-input-bit 16))
+    (unless random-input-bit 
+	    (if (= bit 18)
+		(set! random-input-bit 16)
+		(set! random-input-bit (sub1 bit))))
     (set! inst-id '#(nop @p @+ @b @ !+ !b ! +* 2* 
 			 2/ - + and or drop dup pop over a 
 			 push b! a!))

@@ -23,17 +23,17 @@
 
     (define bit 4)
     
-    (define UP (get-field UP machine))
-    (define DOWN (get-field DOWN machine))
-    (define LEFT (get-field LEFT machine))
-    (define RIGHT (get-field RIGHT machine))
-    (define IO (get-field IO machine))
+    (define UP #x145)
+    (define DOWN #x115)
+    (define LEFT #x175)
+    (define RIGHT #x1d5)
+    (define IO #x15d)
     
-    (define UP-abst (get-field UP machine))
-    (define DOWN-abst (get-field DOWN machine))
-    (define LEFT-abst (get-field LEFT machine))
-    (define RIGHT-abst (get-field RIGHT machine))
-    (define IO-abst (get-field IO machine))
+    (define UP-abst -3)
+    (define DOWN-abst -4)
+    (define LEFT-abst -5)
+    (define RIGHT-abst -6)
+    (define IO-abst -7)
 
     (define inst-id (get-field inst-id machine))
     (define mask (sub1 (arithmetic-shift 1 bit)))

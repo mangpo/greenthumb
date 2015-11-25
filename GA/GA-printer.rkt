@@ -22,11 +22,13 @@
 
     (define (encode-inst x)
       (define arg (inst-args x))
-      (inst (send machine get-inst-id (string->symbol (inst-op x)))
-	    (and arg
-		 (if (string->number arg)
-		     (string->number arg)
-		     (hash-ref encode-port-dict arg)))))
+      (if (inst-op x)
+	  (inst (send machine get-inst-id (string->symbol (inst-op x)))
+		(and arg
+		     (if (string->number arg)
+			 (string->number arg)
+			 (hash-ref encode-port-dict arg))))
+	  x))
 
     (define (decode-inst x)
       (define arg (inst-args x))

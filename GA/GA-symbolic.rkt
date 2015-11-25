@@ -1,15 +1,18 @@
 #lang s-exp rosette
 
-(require "../symbolic.rkt")
+(require "../symbolic.rkt" "../ast.rkt")
 
 (provide GA-symbolic%)
 
 (define GA-symbolic%
   (class symbolic%
     (super-new)
-    (override len-limit window-size)
+    (inherit sym-op sym-arg)
+    (override len-limit window-size gen-sym-inst)
 
     (define (len-limit) 8)
     (define (window-size) 14)
+    
+    (define (gen-sym-inst)  (inst (sym-op) (sym-arg)))
 
     ))

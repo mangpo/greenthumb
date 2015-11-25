@@ -53,7 +53,7 @@ drop pop a 325 a! !
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))
 (define encoded-code (send printer encode code))
-(define encoded-sketch (send validator encode-sym sketch))
+(define encoded-sketch (send printer encode sketch))
 
 (define f
   (send backward synthesize-window
