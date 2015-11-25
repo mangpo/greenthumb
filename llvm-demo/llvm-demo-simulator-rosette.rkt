@@ -1,12 +1,12 @@
 #lang s-exp rosette
 
-(require "../simulator.rkt" "../ops-rosette.rkt" 
+(require "../simulator-rosette.rkt" "../ops-rosette.rkt" 
          "../ast.rkt"
          "../machine.rkt" "llvm-demo-machine.rkt")
 (provide llvm-demo-simulator-rosette%)
 
 (define llvm-demo-simulator-rosette%
-  (class simulator%
+  (class simulator-rosette%
     (super-new)
     (init-field machine)
     (override interpret performance-cost get-constructor)

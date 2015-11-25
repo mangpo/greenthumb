@@ -1,16 +1,20 @@
 #lang racket
 
 (require "../parallel-driver.rkt" "../ast.rkt"
-         "llvm-demo-parser.rkt" "llvm-demo-machine.rkt" 
-         "llvm-demo-printer.rkt" "llvm-demo-compress.rkt"
+         "$-parser.rkt" "$-machine.rkt" 
+         "$-printer.rkt" "$-compress.rkt"
 	 ;; simulator, validator
-	 "llvm-demo-simulator-racket.rkt" 
-	 "llvm-demo-simulator-rosette.rkt"
-         "llvm-demo-validator.rkt")
+	 "$-simulator-racket.rkt" 
+	 "$-simulator-rosette.rkt"
+         "$-validator.rkt")
 
 (provide optimize)
 
 ;; Main function to perform superoptimization on multiple cores.
+;; >>> INPUT >>>
+;; code: program to superoptimized in string-IR format
+;; >>> OUTPUT >>>
+;; Optimized code in string-IR format.
 (define (optimize code live-out live-in search-type mode
                   #:dir [dir "output"] 
                   #:cores [cores 4]
@@ -19,13 +23,13 @@
                   #:window [window #f]
                   #:input-file [input-file #f])
   
-  (define parser (new llvm-demo-parser%))
-  (define machine (new llvm-demo-machine%))
-  (define printer (new llvm-demo-printer% [machine machine]))
-  (define compress (new llvm-demo-compress% [machine machine]))
-  (define simulator (new llvm-demo-simulator-rosette% [machine machine]))
-  (define validator (new llvm-demo-validator% [machine machine] [simulator simulator]))
-  (define parallel (new parallel-driver% [isa "llvm-demo"] [parser parser] [machine machine] 
+  (define parser (new $-parser%))
+  (define machine (new $-machine%))
+  (define printer (new $-printer% [machine machine]))
+  (define compress (new $-compress% [machine machine]))
+  (define simulator (new $-simulator-rosette% [machine machine]))
+  (define validator (new $-validator% [machine machine] [simulator simulator]))
+  (define parallel (new parallel-driver% [isa "$"] [parser parser] [machine machine] 
                         [printer printer] [compress compress] [validator validator]
                         [search-type search-type] [mode mode]
                         [window window]))

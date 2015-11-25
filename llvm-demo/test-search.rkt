@@ -25,7 +25,7 @@
 (send parser ast-from-string "
 "))
 
-#;(define code
+(define code
 (send parser ast-from-string "
 %1 = lshr i32 %in, 3
 %out = shl nuw i32 %1, 3
@@ -41,7 +41,7 @@
 "))
 ;; solver: > 30 sec
 
-(define code
+#;(define code
 (send parser ast-from-string "
   %1 = add nsw i32 %in, -1
   %2 = ashr i32 %1, 1
@@ -59,7 +59,7 @@
 
 (define sketch
 (send parser ast-from-string "
-? ? ? ?
+?
 "))
 
 
@@ -77,7 +77,7 @@
                       [parser parser]
                       [validator validator] [simulator simulator-rosette]))
 
-#;(send symbolic synthesize-window
+(send symbolic synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch
       encoded-prefix encoded-postfix
@@ -88,7 +88,7 @@
       )
 
 ;; Step 3: create stochastic search
-(define stoch (new llvm-demo-stochastic% [machine machine] [printer printer]
+#;(define stoch (new llvm-demo-stochastic% [machine machine] [printer printer]
                       [parser parser]
                       [validator validator] [simulator simulator-rosette]
                       [syn-mode #t] ;; #t = synthesize, #f = optimize mode

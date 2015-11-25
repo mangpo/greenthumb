@@ -1,12 +1,12 @@
 #lang racket
 
-(require "../simulator.rkt" "../ops-racket.rkt" 
+(require "../simulator-racket.rkt" "../ops-racket.rkt" 
          "../ast.rkt"
          "../machine.rkt" "llvm-demo-machine.rkt")
 (provide llvm-demo-simulator-racket%)
 
 (define llvm-demo-simulator-racket%
-  (class simulator%
+  (class simulator-racket%
     (super-new)
     (init-field machine)
     (override interpret performance-cost get-constructor)
