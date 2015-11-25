@@ -14,8 +14,7 @@
 (define printer (new llvm-demo-printer% [machine machine]))
 (define simulator-racket (new llvm-demo-simulator-racket% [machine machine]))
 (define simulator-rosette (new llvm-demo-simulator-rosette% [machine machine]))
-(define validator (new llvm-demo-validator% [machine machine] [printer printer]
-                       [simulator simulator-rosette]))
+(define validator (new llvm-demo-validator% [machine machine] [simulator simulator-rosette]))
 
 
 (define prefix 

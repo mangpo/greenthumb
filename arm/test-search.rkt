@@ -14,8 +14,7 @@
 (define printer (new arm-printer% [machine machine]))
 (define simulator-racket (new arm-simulator-racket% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
-(define validator (new arm-validator% [machine machine] [printer printer]
-                       [simulator simulator-rosette]))
+(define validator (new arm-validator% [machine machine] [simulator simulator-rosette]))
 
 (define symbolic (new arm-symbolic% [machine machine] [printer printer]
                       [parser parser]

@@ -46,7 +46,8 @@
       (pretty-display ">>> compressed-code:")
       (send printer print-syntax code)
       ;; machine-info from compress-reg-space is only accurate for reg but not memory. This will adjust the rest of the machine info.
-      (set! machine-info (send validator proper-machine-config code machine-info extra-info))
+      (set! machine-info (send validator proper-machine-config 
+			       (send printer encode code) machine-info extra-info))
       (pretty-display (format ">>> machine-info: ~a" machine-info))
       (pretty-display (format ">>> live-in: ~a" live-in))
       (pretty-display (format ">>> live-out: ~a" live-out))
@@ -81,7 +82,7 @@
                (pretty-display (format "(define parser (new ~a))" (get-class-name "parser")))
                (pretty-display (format "(define simulator-racket (new ~a [machine machine]))" (get-class-name "simulator-racket")))
                (pretty-display (format "(define simulator-rosette (new ~a [machine machine]))" (get-class-name "simulator-rosette")))
-               (pretty-display (format "(define validator (new ~a [machine machine] [printer printer] [simulator simulator-rosette]))" (get-class-name "validator")))
+               (pretty-display (format "(define validator (new ~a [machine machine] [simulator simulator-rosette]))" (get-class-name "validator")))
 
                (cond
                 [(equal? search-type `stoch)

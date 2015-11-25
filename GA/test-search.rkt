@@ -13,7 +13,7 @@
 (define printer (new GA-printer% [machine machine]))
 (define simulator-racket (new GA-simulator-racket% [machine machine]))
 (define simulator-rosette (new GA-simulator-rosette% [machine machine]))
-(define validator (new GA-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
+(define validator (new GA-validator% [machine machine] [simulator simulator-rosette]))
 
 (define symbolic (new GA-symbolic% [machine machine] [printer printer] [parser parser]
                       [validator validator] [simulator simulator-rosette]))

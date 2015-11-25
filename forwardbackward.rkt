@@ -46,7 +46,7 @@
     (define simulator-abst
       (new (send simulator get-constructor) [machine machine]))
     (define validator-abst
-      (new (send validator get-constructor) [machine machine] [printer printer]
+      (new (send validator get-constructor) [machine machine]
            [simulator
             (new (send (get-field simulator validator) get-constructor)
                  [machine machine])]))

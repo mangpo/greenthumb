@@ -31,8 +31,7 @@
   (define printer (new arm-printer% [machine machine]))
   (define compress (new arm-compress% [machine machine]))
   (define simulator (new arm-simulator-rosette% [machine machine]))
-  (define validator (new arm-validator% [machine machine] [printer printer]
-                         [simulator simulator]))
+  (define validator (new arm-validator% [machine machine] [simulator simulator]))
   (define parallel (new parallel% [isa "arm"] [parser parser] [machine machine] 
                         [printer printer] [compress compress] [validator validator]
                         [search-type search-type] [mode mode]
@@ -47,6 +46,5 @@
   (define machine (new arm-machine% [config machine-config]))
   (define printer (new arm-printer% [machine machine]))
   (define simulator (new arm-simulator-rosette% [machine machine]))
-  (define validator (new arm-validator% [machine machine] [printer printer]
-                         [simulator simulator]))
+  (define validator (new arm-validator% [machine machine] [simulator simulator]))
   (generate-inputs (send printer encode code) #f dir machine printer validator))

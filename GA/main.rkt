@@ -13,8 +13,7 @@
 (define printer (new GA-printer% [machine machine]))
 (define compress (new compress% [machine machine]))
 (define simulator (new GA-simulator-rosette% [machine machine]))
-(define validator (new GA-validator% [machine machine] [printer printer]
-                       [simulator simulator]))
+(define validator (new GA-validator% [machine machine] [simulator simulator]))
 
 (define (optimize code live-out search-type mode recv
                   #:assume [assume #f]

@@ -1,6 +1,6 @@
 #lang s-exp rosette
 
-(require  "ast.rkt" "machine.rkt" "printer.rkt")
+(require  "ast.rkt" "machine.rkt")
 
 (require rosette/solver/smt/z3)
 
@@ -14,7 +14,7 @@
 (define validator%
   (class object%
     (super-new)
-    (init-field machine printer simulator
+    (init-field machine simulator
                 [bit (get-field bit machine)]
                 [random-input-bit (get-field random-input-bit machine)])
     (public proper-machine-config generate-input-states generate-inputs-inner
@@ -26,9 +26,6 @@
             )
     
     (define (get-constructor) validator%)
-    (define-syntax-rule (print-struct x) (send printer print-struct x))
-    (define-syntax-rule (print-syntax x) (send printer print-syntax x))
-    (define-syntax-rule (decode x) (send printer decode x))
     (define-syntax-rule (display-state x) (send machine display-state x))
 
     (define ninsts (vector-length (get-field inst-id machine)))
@@ -53,11 +50,10 @@
       (send simulator interpret spec start-state))
     
     ;; Adjust machine config. Specifially, increase memory size if necessary.
-    ;; code: non-encoded concrete code
+    ;; encoded concrete code
     ;; config: machine config
-    (define (proper-machine-config code config [extra #f])
+    (define (proper-machine-config encoded-code config [extra #f])
       (pretty-display `(config ,config))
-      (define encoded-code (send printer encode code))
       (define (solve-until-valid config)
         (send machine set-config config)
         (clear-asserts)
@@ -199,16 +195,6 @@
     (define (counterexample spec program constraint [extra #f]
                             #:assume [assumption (send machine no-assumption)])
       ;;(pretty-display (format "solver = ~a" (current-solver)))
-      (when debug
-            (pretty-display (format "program-eq? START bit = ~a" bit))
-            (pretty-display "spec:")
-            (print-syntax (decode spec))
-            (pretty-display "program:")
-            (print-syntax (decode program))
-            (pretty-display "constraint:")
-            (display-state constraint)
-            ;; (pretty-display (format "assumption: ~a" assumption))
-            )
       
       (clear-asserts)
       (current-bitwidth bit)
