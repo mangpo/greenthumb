@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../ops-racket.rkt" "GA-ops-racket.rkt"
-         "../ast.rkt" "../inverse.rkt"
+         "../inst.rkt" "../inverse.rkt"
          "GA-machine.rkt")
 
 (provide GA-inverse%)

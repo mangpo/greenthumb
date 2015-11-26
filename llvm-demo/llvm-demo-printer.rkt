@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../printer.rkt" 
-         "../ast.rkt")
+         "../inst.rkt")
 
 (provide llvm-demo-printer%)
 

@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../machine.rkt" "../ast.rkt" "neon-ast.rkt")
+(require "../machine.rkt" "../inst.rkt" "neon-inst.rkt")
 
 (provide neon-machine% (all-defined-out))
 

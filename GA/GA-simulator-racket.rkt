@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../simulator.rkt" "../ops-racket.rkt" "GA-ops-racket.rkt"
-         "../ast.rkt"
+         "../inst.rkt"
          "../machine.rkt" "GA-machine.rkt")
 (provide GA-simulator-racket%)
 

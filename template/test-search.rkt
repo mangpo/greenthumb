@@ -1,6 +1,6 @@
 #lang s-exp rosette
 
-(require "../ast.rkt"
+(require "../inst.rkt"
          "$-parser.rkt" "$-machine.rkt" "$-printer.rkt"
          "$-simulator-rosette.rkt" "$-simulator-racket.rkt"
          "$-validator.rkt"

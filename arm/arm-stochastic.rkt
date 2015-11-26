@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../stochastic.rkt"
-         "../ast.rkt" "arm-ast.rkt"
+         "../inst.rkt" "arm-inst.rkt"
          "../machine.rkt" "arm-machine.rkt")
 
 (provide arm-stochastic%)

@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../ast.rkt" "neon-ast.rkt" "neon-machine.rkt")
+(require "../inst.rkt" "neon-inst.rkt" "neon-machine.rkt")
 (provide (all-defined-out))
 
 ;; unit: load, store, bit-permute (lsbp) or alu

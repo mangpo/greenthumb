@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "../simulator.rkt" "../ops-rosette.rkt" 
-         "../ast.rkt" "neon-ast.rkt"
+         "../inst.rkt" "neon-inst.rkt"
          "neon-machine.rkt"
          "schedule.rkt")
 (provide neon-simulator-rosette%)

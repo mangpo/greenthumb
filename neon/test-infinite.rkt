@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "neon-simulator-rosette.rkt" "neon-machine.rkt" "neon-printer.rkt"
-         "neon-parser.rkt" "neon-ast.rkt")
+         "neon-parser.rkt" "neon-inst.rkt")
 
 (define (sym-arg)
   (define-symbolic* arg number?)

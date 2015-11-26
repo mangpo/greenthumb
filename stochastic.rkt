@@ -1,6 +1,6 @@
 #lang racket
 
-(require "ast.rkt" "stat.rkt" "machine.rkt")
+(require "inst.rkt" "stat.rkt" "machine.rkt")
 
 (provide stochastic%)
 

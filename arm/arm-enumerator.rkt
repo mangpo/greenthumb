@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../machine.rkt" "../enumerator.rkt" "arm-ast.rkt")
+(require "../machine.rkt" "../enumerator.rkt" "arm-inst.rkt")
 (require racket/generator)
 
 (provide arm-enumerator%)

@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../stochastic.rkt"
-         "../ast.rkt" "neon-ast.rkt"
+         "../inst.rkt" "neon-inst.rkt"
          "../machine.rkt" "neon-machine.rkt" 
          "neon-simulator-racket.rkt" "neon-validator.rkt")
 

@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../forwardbackward.rkt" "../ast.rkt")
+(require "../forwardbackward.rkt" "../inst.rkt")
 
 (provide llvm-demo-forwardbackward%)
 

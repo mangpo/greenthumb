@@ -1,6 +1,6 @@
 #lang s-exp rosette
 
-(require "../ast.rkt" "arm-ast.rkt" "arm-machine.rkt" "arm-printer.rkt"
+(require "../inst.rkt" "arm-inst.rkt" "arm-machine.rkt" "arm-printer.rkt"
          "arm-parser.rkt" 
          "arm-simulator-rosette.rkt" "arm-simulator-racket.rkt" 
          "arm-enumerator.rkt" "arm-inverse.rkt")

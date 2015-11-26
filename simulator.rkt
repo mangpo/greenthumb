@@ -1,6 +1,5 @@
 #lang racket
 
-(require "ast.rkt")
 (provide simulator%)
 
 (define simulator%

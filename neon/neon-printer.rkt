@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../printer.rkt" 
-         "../ast.rkt" "neon-ast.rkt"
+         "../inst.rkt" "neon-inst.rkt"
          "neon-machine.rkt")
 (provide neon-printer%)
 

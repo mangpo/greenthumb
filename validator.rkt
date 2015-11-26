@@ -1,6 +1,6 @@
 #lang s-exp rosette
 
-(require  "ast.rkt" "machine.rkt")
+(require  "inst.rkt" "machine.rkt")
 
 (require rosette/solver/smt/z3)
 

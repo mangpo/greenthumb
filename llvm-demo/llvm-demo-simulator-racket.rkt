@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../simulator-racket.rkt" "../ops-racket.rkt" 
-         "../ast.rkt"
+         "../inst.rkt"
          "../machine.rkt" "llvm-demo-machine.rkt")
 (provide llvm-demo-simulator-racket%)
 

@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../compress.rkt" "../ast.rkt")
+(require "../compress.rkt" "../inst.rkt")
 
 (provide llvm-demo-compress%)
 

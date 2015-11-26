@@ -1,6 +1,6 @@
 #lang s-exp rosette
 
-(require "ast.rkt" "machine.rkt" "decomposer.rkt")
+(require "inst.rkt" "machine.rkt" "decomposer.rkt")
 (require rosette/solver/kodkod/kodkod)
 
 (provide symbolic%)

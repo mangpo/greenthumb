@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../ast.rkt" "../enumerator.rkt")
+(require "../inst.rkt" "../enumerator.rkt")
 (require racket/generator)
 
 (provide GA-enumerator%)

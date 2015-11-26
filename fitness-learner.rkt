@@ -1,6 +1,6 @@
 #lang racket
 
-(require "ast.rkt")
+(require "inst.rkt")
 (provide generate-inputs generate-outputs-steps calculate-cost
          generate-tree calculate-cost2)
 

@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "../validator.rkt"
-         "../ast.rkt" "neon-ast.rkt"
+         "../inst.rkt" "neon-inst.rkt"
          "../machine.rkt" "neon-machine.rkt" "neon-simulator-rosette.rkt")
 (provide neon-validator%)
 

@@ -1,7 +1,7 @@
 #lang racket
 
-(require "../ops-racket.rkt" "../ast.rkt" "../inverse.rkt"
-         "arm-ast.rkt" "arm-machine.rkt" "arm-simulator-racket.rkt"
+(require "../ops-racket.rkt" "../inst.rkt" "../inverse.rkt"
+         "arm-inst.rkt" "arm-machine.rkt" "arm-simulator-racket.rkt"
          "arm-printer.rkt" "arm-parser.rkt")
 
 (provide arm-inverse%)

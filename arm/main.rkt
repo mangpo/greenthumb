@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../parallel-driver.rkt" "../ast.rkt" "../fitness-learner.rkt"
+(require "../parallel-driver.rkt" "../inst.rkt" "../fitness-learner.rkt"
          "arm-parser.rkt" "arm-machine.rkt" 
          "arm-printer.rkt" "arm-compress.rkt"
 	 ;; simulator, validator

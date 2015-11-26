@@ -1,6 +1,6 @@
 #lang racket
 
-(require "state.rkt" "stack.rkt" "interpret.rkt" "../ast.rkt")
+(require "state.rkt" "stack.rkt" "interpret.rkt" "../inst.rkt")
 
 (provide decompress)
 

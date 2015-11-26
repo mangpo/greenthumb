@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../machine.rkt" "../enumerator.rkt" "../ast.rkt")
+(require "../machine.rkt" "../enumerator.rkt" "../inst.rkt")
 (require racket/generator)
 
 (provide llvm-demo-enumerator%)

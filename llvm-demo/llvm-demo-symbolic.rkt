@@ -1,6 +1,6 @@
 #lang s-exp rosette
 
-(require "../symbolic.rkt" "../ast.rkt")
+(require "../symbolic.rkt" "../inst.rkt")
 
 (provide llvm-demo-symbolic%)
 

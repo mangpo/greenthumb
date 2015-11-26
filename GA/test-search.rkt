@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "GA-validator.rkt" "GA-machine.rkt" "GA-printer.rkt"
-         "GA-parser.rkt" "../ast.rkt"
+         "GA-parser.rkt" "../inst.rkt"
          "GA-simulator-racket.rkt" "GA-simulator-rosette.rkt"
          "GA-symbolic.rkt" "GA-stochastic.rkt" "GA-forwardbackward.rkt"
          "GA-inverse.rkt" "GA-enumerator.rkt")

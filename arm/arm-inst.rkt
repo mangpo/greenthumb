@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../ast.rkt")
+(require "../inst.rkt")
 (provide (all-defined-out))
 
 (struct arm-inst inst (shfop shfarg cond)) ;; extend inst

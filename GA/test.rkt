@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../controller.rkt" "../ast.rkt" 
+(require "../controller.rkt" "../inst.rkt" 
 	 "state.rkt" "interpret.rkt" "compress.rkt" "print.rkt")
 
 (define-syntax-rule (timeout sec expr)

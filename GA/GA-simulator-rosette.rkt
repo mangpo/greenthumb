@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "../simulator.rkt" "../ops-rosette.rkt"  "GA-ops-rosette.rkt"
-         "../ast.rkt"
+         "../inst.rkt"
          "../machine.rkt" "GA-machine.rkt")
 (provide GA-simulator-rosette%)
 

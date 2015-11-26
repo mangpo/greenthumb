@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../printer.rkt" 
-         "../ast.rkt" "arm-ast.rkt"
+         "../inst.rkt" "arm-inst.rkt"
          "arm-machine.rkt")
 
 (provide arm-printer%)

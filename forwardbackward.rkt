@@ -1,6 +1,6 @@
 #lang racket
 
-(require "ast.rkt" "decomposer.rkt" "ops-racket.rkt")
+(require "inst.rkt" "decomposer.rkt" "ops-racket.rkt")
 (require racket/generator)
 
 (provide forwardbackward% entry-live entry-flag)

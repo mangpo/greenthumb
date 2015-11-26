@@ -31,7 +31,7 @@
                         (search-type `stoch)]
    [("--enum") "Use enumerative search."
                         (search-type `enum)]
-   [("--hybrid") "Use cooperative search."
+   [("--hybrid") "Use cooperative search using all search techniques."
                         (search-type `hybrid)]
 
    #:once-any

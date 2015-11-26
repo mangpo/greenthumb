@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../parallel-driver.rkt" "../ast.rkt"
+(require "../parallel-driver.rkt" "../inst.rkt"
          "llvm-demo-parser.rkt" "llvm-demo-machine.rkt" 
          "llvm-demo-printer.rkt" "llvm-demo-compress.rkt"
 	 ;; simulator, validator

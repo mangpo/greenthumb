@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../parser.rkt" "../ast.rkt")
+(require "../parser.rkt" "../inst.rkt")
 (provide GA-parser%)
 
 (define GA-parser%

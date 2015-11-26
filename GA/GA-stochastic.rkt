@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../stochastic.rkt"
-         "../ast.rkt"
+         "../inst.rkt"
          "GA-machine.rkt" "GA-ops-racket.rkt"
          "GA-simulator-racket.rkt")
 

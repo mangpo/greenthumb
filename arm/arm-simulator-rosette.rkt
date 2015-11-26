@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "../simulator.rkt" "../ops-rosette.rkt" 
-         "../ast.rkt" "arm-ast.rkt"
+         "../inst.rkt" "arm-inst.rkt"
          "../machine.rkt" "arm-machine.rkt")
 (provide arm-simulator-rosette%)
 

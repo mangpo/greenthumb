@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../compress.rkt" "../ast.rkt" "arm-ast.rkt" "../machine.rkt" "arm-machine.rkt")
+(require "../compress.rkt" "../inst.rkt" "arm-inst.rkt" "../machine.rkt" "arm-machine.rkt")
 
 (provide arm-compress%)
 

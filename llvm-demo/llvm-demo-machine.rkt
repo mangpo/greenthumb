@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../machine.rkt" "../ast.rkt")
+(require "../machine.rkt" "../inst.rkt")
 
 (provide llvm-demo-machine% (all-defined-out))
 

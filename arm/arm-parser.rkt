@@ -3,7 +3,7 @@
 (require parser-tools/lex
          (prefix-in re- parser-tools/lex-sre)
          parser-tools/yacc
-	 "../parser.rkt" "../ast.rkt" "arm-ast.rkt")
+	 "../parser.rkt" "../inst.rkt" "arm-inst.rkt")
 
 (provide arm-parser%)
 

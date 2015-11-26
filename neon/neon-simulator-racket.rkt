@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../simulator.rkt" "../ops-racket.rkt" 
-         "../ast.rkt" "neon-ast.rkt"
+         "../inst.rkt" "neon-inst.rkt"
          "neon-machine.rkt"
          "schedule.rkt")
 (provide neon-simulator-racket%)

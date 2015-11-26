@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../printer.rkt" 
-         "../ast.rkt"
+         "../inst.rkt"
          "GA-machine.rkt")
 
 (provide GA-printer%)

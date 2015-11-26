@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "../symbolic.rkt" 
-	 "../ast.rkt" "arm-ast.rkt")
+	 "../inst.rkt" "arm-inst.rkt")
 
 (provide arm-symbolic%)
 

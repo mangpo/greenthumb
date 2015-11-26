@@ -3,7 +3,7 @@
 (require "llvm-demo-validator.rkt" "llvm-demo-machine.rkt"
          "llvm-demo-printer.rkt"
          "llvm-demo-simulator-rosette.rkt" 
-         "llvm-demo-parser.rkt" "../ast.rkt")
+         "llvm-demo-parser.rkt" "../inst.rkt")
 
 (require rosette/solver/smt/z3)
 

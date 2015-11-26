@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "arm-validator.rkt" "arm-machine.rkt" "arm-printer.rkt"
-         "arm-parser.rkt" "arm-ast.rkt" "../ast.rkt"
+         "arm-parser.rkt" "arm-inst.rkt" "../inst.rkt"
          "arm-simulator-rosette.rkt" 
          "arm-simulator-racket.rkt"
          "arm-symbolic.rkt" "arm-stochastic.rkt" 

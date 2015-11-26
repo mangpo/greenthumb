@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../parallel-driver.rkt" "../ast.rkt"
+(require "../parallel-driver.rkt" "../inst.rkt"
          "$-parser.rkt" "$-machine.rkt" 
          "$-printer.rkt" "$-compress.rkt"
 	 ;; simulator, validator

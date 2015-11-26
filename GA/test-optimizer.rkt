@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../controller.rkt" "../ast.rkt"
+(require "../controller.rkt" "../inst.rkt"
 	 "interpret.rkt" "state.rkt" "print.rkt")
 
 (define a

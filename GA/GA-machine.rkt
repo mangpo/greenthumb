@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../ast.rkt" "../machine.rkt" "../ops-racket.rkt")
+(require "../inst.rkt" "../machine.rkt" "../ops-racket.rkt")
 
 (provide GA-machine% (all-defined-out))
 

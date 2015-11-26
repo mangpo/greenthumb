@@ -1,6 +1,6 @@
 #lang racket
 
-(require "ast.rkt")
+(require "inst.rkt")
 (provide debug machine%)
 
 (define debug #f)

@@ -1,7 +1,7 @@
 #lang racket
 
-(require "../forwardbackward.rkt" "../ast.rkt"
-         "arm-ast.rkt" "arm-machine.rkt")
+(require "../forwardbackward.rkt" "../inst.rkt"
+         "arm-inst.rkt" "arm-machine.rkt")
 
 (provide arm-forwardbackward%)
 

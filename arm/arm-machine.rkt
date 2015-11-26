@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../machine.rkt" "../ast.rkt" "arm-ast.rkt")
+(require "../machine.rkt" "../inst.rkt" "arm-inst.rkt")
 
 (provide arm-machine% (all-defined-out))
 

@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "../symbolic.rkt" 
-	 "../ast.rkt" "neon-ast.rkt" 
+	 "../inst.rkt" "neon-inst.rkt" 
 	 "neon-simulator-rosette.rkt" "neon-validator.rkt")
 (provide neon-symbolic%)
 

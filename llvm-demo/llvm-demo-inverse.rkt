@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../ops-racket.rkt" "../ast.rkt" "../inverse.rkt")
+(require "../ops-racket.rkt" "../inst.rkt" "../inverse.rkt")
 
 (provide llvm-demo-inverse%)
 

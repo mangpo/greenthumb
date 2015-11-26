@@ -1,6 +1,6 @@
 #lang racket
 
-(require  "ast.rkt" "machine.rkt" "printer.rkt" "stat.rkt")
+(require  "inst.rkt" "machine.rkt" "printer.rkt" "stat.rkt")
 
 (provide decomposer%)
 (struct exn:restart exn (program))

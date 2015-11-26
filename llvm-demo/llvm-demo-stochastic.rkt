@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../stochastic.rkt"
-         "../ast.rkt" 
+         "../inst.rkt" 
          "../machine.rkt" "llvm-demo-machine.rkt")
 (provide llvm-demo-stochastic%)
 

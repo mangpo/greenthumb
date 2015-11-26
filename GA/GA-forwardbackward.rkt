@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../forwardbackward.rkt" "../ast.rkt" "../ops-racket.rkt"
+(require "../forwardbackward.rkt" "../inst.rkt" "../ops-racket.rkt"
          "GA-machine.rkt")
 
 (require (only-in "GA-simulator-racket.rkt" [GA-simulator-racket% GA-simulator-racket%]))

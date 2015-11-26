@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "neon-validator.rkt" "neon-machine.rkt" "neon-printer.rkt"
-         "neon-parser.rkt" "neon-ast.rkt" "neon-simulator-rosette.rkt" 
+         "neon-parser.rkt" "neon-inst.rkt" "neon-simulator-rosette.rkt" 
          "neon-symbolic.rkt" "neon-stochastic.rkt")
 
 (define parser (new neon-parser%))

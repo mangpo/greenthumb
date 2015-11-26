@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../simulator.rkt" "../ops-racket.rkt" 
-         "../ast.rkt" "arm-ast.rkt"
+         "../inst.rkt" "arm-inst.rkt"
          "../machine.rkt" "arm-machine.rkt")
 (provide arm-simulator-racket%)
 
