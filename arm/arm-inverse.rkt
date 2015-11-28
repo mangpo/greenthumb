@@ -247,12 +247,12 @@
 (define parser (new arm-parser%))
 (define my-inst-0
   (vector-ref (send printer encode 
-                    (send parser ast-from-string "eor r3, r1, r2, lsl r0"))
+                    (send parser ir-from-string "eor r3, r1, r2, lsl r0"))
               0))
 
 (define my-inst 
   (vector-ref (send printer encode 
-                    (send parser ast-from-string "str r0, fp, -16"))
+                    (send parser ir-from-string "str r0, fp, -16"))
               0))
 
 (define input-state (vector (vector 4 2 4 6)

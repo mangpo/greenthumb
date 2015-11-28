@@ -1,15 +1,26 @@
 #!/usr/bin/python
 
 import sys, os
+import os.path
 
 def create(isa,c,filename,lang):
-    fin = open(filename,"r")
-    fout = open(isa + "/" + isa + "-" + c + ".rkt","w")
-    text = fin.read().replace("$1",isa).replace("$2",c)
-    print >>fout, "#lang", lang
-    print >>fout, text
-    fin.close()
-    fout.close()
+    
+    if os.path.isfile("template/"+c+".rkt"):
+        filename = "template/"+c+".rkt"
+        fin = open(filename,"r")
+        fout = open(isa + "/" + isa + "-" + c + ".rkt","w")
+        text = fin.read().replace("$-",isa+"-")
+        print >>fout, text
+        fin.close()
+        fout.close()
+    else:
+        fin = open(filename,"r")
+        fout = open(isa + "/" + isa + "-" + c + ".rkt","w")
+        text = fin.read().replace("$1",isa).replace("$2",c)
+        print >>fout, "#lang", lang
+        print >>fout, text
+        fin.close()
+        fout.close()
 
 def main(isa):
     print "Create template files for", isa

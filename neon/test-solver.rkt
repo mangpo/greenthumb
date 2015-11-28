@@ -35,7 +35,7 @@
 (define symbolic (new neon-symbolic% [machine machine] [printer printer] [parser parser]))
 
 (define code
-(send parser ast-from-string "
+(send parser ir-from-string "
 vorr q3, q0, q0
 vld1 {d4,d5}, [r2]
 vmov q1, q4
@@ -46,7 +46,7 @@ vst1.32	{d6,d7}, [r2]
 
 
 (define sketch
-(send parser ast-from-string "
+(send parser ir-from-string "
 vld1 {d4,d5}, [r2]
 vorr d2, d9, d9
 vorr d3, d8, d8

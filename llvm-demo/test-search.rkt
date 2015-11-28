@@ -18,22 +18,22 @@
 
 
 (define prefix 
-(send parser ast-from-string "
+(send parser ir-from-string "
 "))
 
 (define postfix
-(send parser ast-from-string "
+(send parser ir-from-string "
 "))
 
 #;(define code
-(send parser ast-from-string "
+(send parser ir-from-string "
 %1 = lshr i32 %in, 3
 %out = shl nuw i32 %1, 3
 "))
 ;; %out = and i32 %in, -8
 
 #;(define code
-(send parser ast-from-string "
+(send parser ir-from-string "
   %1 = add nsw i32 %in, -1
   %2 = ashr i32 %1, 1
   %3 = or i32 %2, %1
@@ -42,7 +42,7 @@
 ;; solver: > 30 sec
 
 (define code
-(send parser ast-from-string "
+(send parser ir-from-string "
   %1 = add nsw i32 %in, -1
   %2 = ashr i32 %1, 1
   %3 = or i32 %2, %1
@@ -58,7 +58,7 @@
 "))
 
 (define sketch
-(send parser ast-from-string "
+(send parser ir-from-string "
 ? ? ? ?
 "))
 

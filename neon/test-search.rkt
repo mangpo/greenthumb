@@ -14,20 +14,20 @@
 (define stoch (new neon-stochastic% [machine machine] [printer printer] [parser parser] [syn-mode #t]))
 
 (define prefix
-(send parser ast-from-string "
+(send parser ir-from-string "
 "))
 
 (define postfix
-(send parser ast-from-string "
+(send parser ir-from-string "
 "))
 
 (define code
-(send parser ast-from-string "
+(send parser ir-from-string "
 vst1.32	{d6,d7}, [r0]
 "))
 
 (define sketch
-(send parser ast-from-string "
+(send parser ir-from-string "
 ?
 "))
 

@@ -6,7 +6,7 @@
 (define GA-parser%
   (class parser%
     (super-new)
-    (override ast-from-string ast-from-file)
+    (override ir-from-string ir-from-file)
 
     (define (string->inst x)
       (cond
@@ -17,11 +17,11 @@
        [else
 	(inst x #f)]))
 
-    (define (ast-from-string str)
+    (define (ir-from-string str)
       (for/vector ([x (string-split str)])
 		  (string->inst x)))
 
-    (define (ast-from-file file)
+    (define (ir-from-file file)
       (for*/vector ([line (file->lines file)]
 		  [x (string-split line)])
 		 (string->inst x)))

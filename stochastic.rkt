@@ -432,7 +432,7 @@
                 (set! current new-p)
                 (set! current-cost new-cost)
                 ;; (define tmp (send printer encode
-                ;;                   (send parser ast-from-file
+                ;;                   (send parser ir-from-file
                 ;;                         (format "~a/best.s" (get-field dir stat)))))
                 ;; (send machine analyze-args (vector) tmp (vector))
                 ]
@@ -442,7 +442,7 @@
                 (define-values (best-cost len time id) (send stat get-best-info-stat))
                 (set! current
                       (send printer encode
-                            (send parser ast-from-file 
+                            (send parser ir-from-file 
                                   (format "~a/best.s" (get-field dir stat)))))
 		;; (send machine analyze-args (vector) current (vector) #:only-const #t)
                 (set! current-cost best-cost)

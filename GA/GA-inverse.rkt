@@ -346,12 +346,12 @@
 (define parser (new GA-parser%))
 (define my-inst-0
   (vector-ref (send printer encode 
-                    (send parser ast-from-string "+*"))
+                    (send parser ir-from-string "+*"))
               0))
 
 (define my-inst 
   (vector-ref (send printer encode 
-                    (send parser ast-from-string "!"))
+                    (send parser ir-from-string "!"))
               0))
 
 (define input-state (vector #f 10 #f 2 99

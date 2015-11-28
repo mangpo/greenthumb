@@ -16,7 +16,7 @@
 (define printer (new llvm-demo-printer% [machine machine]))
 
 (define code
-(send parser ast-from-string "
+(send parser ir-from-string "
 %1 = lshr i32 %in, 3
 %out = shl nuw i32 %1, 3
 "))

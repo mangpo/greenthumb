@@ -1,8 +1,6 @@
 #lang racket
 
-(require "../simulator-racket.rkt" "../ops-racket.rkt" 
-         "../inst.rkt"
-         "../machine.rkt" "llvm-demo-machine.rkt")
+(require "../simulator-racket.rkt" "../ops-racket.rkt" "../inst.rkt")
 (provide llvm-demo-simulator-racket%)
 
 (define llvm-demo-simulator-racket%

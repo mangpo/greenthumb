@@ -8,7 +8,7 @@
 (define printer (new GA-printer% [machine machine]))
 (define simulator-racket (new GA-simulator-racket% [machine machine]))
 
-(define code (send parser ast-from-string 
+(define code (send parser ir-from-string 
                    "dup push or and pop or"))
 (define encoded-code (send printer encode code))
 (send printer print-struct encoded-code)

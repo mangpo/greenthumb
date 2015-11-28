@@ -11,7 +11,7 @@
     (super-new)
     ;; Required fields to be intialized when extended.
     (init-field [asm-parser #f] [asm-lexer #f])
-    (public ast-from-string ast-from-file)
+    (public ir-from-string ir-from-file)
     
     (define (lex-this input)
       (lambda ()
@@ -22,11 +22,11 @@
     (define (ast input)
       (asm-parser (lex-this input)))
 
-    (define (ast-from-string s)
+    (define (ir-from-string s)
       (let ((input (open-input-string s)))
         (ast input)))
 
-    (define (ast-from-file file)
+    (define (ir-from-file file)
       (and (file-exists? file)
            (let ((input (open-input-file file)))
              (port-count-lines! input)

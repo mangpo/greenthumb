@@ -62,7 +62,7 @@
    filename))
 
 (define parser (new GA-parser%))
-(define code (send parser ast-from-file file-to-optimize))
+(define code (send parser ir-from-file file-to-optimize))
 (define-values (live-out recv assume input-file) (send parser info-from-file (string-append file-to-optimize ".info")))
 
 (pretty-display `(live-out ,live-out ,recv  ,assume ,input-file))

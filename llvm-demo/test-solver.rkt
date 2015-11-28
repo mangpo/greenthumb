@@ -17,14 +17,14 @@
                        [simulator simulator-rosette]))
 
 (define code
-(send parser ast-from-string "
+(send parser ir-from-string "
 %1 = lshr i32 %in, 1
 %out = shl nuw i32 %1, 1
 "))
 
 
 (define sketch
-(send parser ast-from-string "
+(send parser ir-from-string "
 %out = and i32 %in, -2
 "))
 

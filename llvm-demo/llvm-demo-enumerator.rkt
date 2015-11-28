@@ -14,7 +14,23 @@
     (define inst-id (get-field inst-id machine))
 
     (define commutative-1-2 '(and or xor add))
-
+    
+    ;; Mode `no-args is for generating instructions to be used for creating
+    ;; inverse behaviors, so we don't have to enumerate variables/registers.
+    ;; 
+    ;; Examples of all possible instrucions with opcode add# that
+    ;; the generator has to yeild.
+    ;; Assume our program state has 3 variables/registers
+    ;; const-range = #(0 1 -1), live-in = #(#t #t #f), live-out = #(#f #t #t)
+    ;; (If live-in = #f, then everything is live. Similar for live-out.)
+    ;; 
+    ;; In mode `basic,
+    ;; (inst add#-id #({1 or 2} {0 or1} {0, 1, or -1}))
+    ;;
+    ;; In mode `no-args, live-in and live-out don't matter.
+    ;; (inst add#-id #(2 0 {0, 1, or -1}))
+    ;; Only enumerate const and not variables, but make sure to assign
+    ;; different IDs for the variables.
     (define (generate-inst 
              live-in live-out flag-in flag-out
              #:no-args [no-args #f] #:try-cmp [try-cmp #f])

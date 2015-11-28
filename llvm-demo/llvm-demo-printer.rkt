@@ -31,7 +31,7 @@
 
     (define-syntax-rule (char1=% x) (equal? (substring x 0 1) "%"))
 				  
-    ;; Convert instruction from string to number representation.
+    ;; Convert an insstruction x from string-IR to encoded-IR format.
     (define (encode-inst x)
       (cond
        [(equal? (inst-op x) "nop") (inst (get-field nop-id machine) (vector))]
@@ -91,7 +91,7 @@
             (vector-set! num2name x name))
       name)
     
-    ;; Convert instruction from number representation back to string.
+    ;; Convert an instruction x from encoded-IR to string-IR format.
     (define (decode-inst x)
       (define op (symbol->string (send machine get-inst-name (inst-op x))))
       (cond

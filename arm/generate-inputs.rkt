@@ -2,7 +2,7 @@
 
 (require "main.rkt" "arm-parser.rkt" "arm-compress.rkt")
 
-(define code (send (new arm-parser%) ast-from-string "
+(define code (send (new arm-parser%) ir-from-string "
 	eor	r0, r0, r0, asr #1
 	movw	r3, #4369
 	movt	r3, 4369

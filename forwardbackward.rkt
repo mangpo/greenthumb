@@ -964,7 +964,7 @@
 
 	;; (define my-inst 
 	;;   (vector-ref (send printer encode 
-	;; 		    (send parser ast-from-string "and r0, r1, r2"))
+	;; 		    (send parser ir-from-string "and r0, r1, r2"))
 	;; 	      0))
 	;; (define my-liveout (cons '(0 1 2) '(0)))
 
@@ -1060,7 +1060,7 @@
 
 	  ;; (define my-inst 
 	  ;;   (vector-ref (send printer encode 
-	  ;; 		    (send parser ast-from-string "add r1, r0, r2"))
+	  ;; 		    (send parser ir-from-string "add r1, r0, r2"))
 	  ;; 	      0))
 	  ;; (define my-liveout (cons (list 0 2) (list)))
 
@@ -1106,7 +1106,7 @@
         (define my-inst (first inst-liveout-vreg))
 	;; (define my-inst 
 	;;   (vector-ref (send printer encode 
-	;; 		    (send parser ast-from-string "and r2, r1, r2, lsr 1"))
+	;; 		    (send parser ir-from-string "and r2, r1, r2, lsr 1"))
 	;; 	      0))
         (when 
          my-inst

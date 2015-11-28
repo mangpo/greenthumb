@@ -16,13 +16,13 @@
                        [simulator simulator-rosette]))
 
 (define code
-(send parser ast-from-string "
+(send parser ir-from-string "
 	mov	r0, #-1073741824
 "))
 
 
 (define sketch
-(send parser ast-from-string "
+(send parser ir-from-string "
 sub r0, r0, r0
 "))
 

@@ -63,7 +63,7 @@
    filename))
 
 (define parser (new arm-parser%))
-(define code (send parser ast-from-file file-to-optimize))
+(define code (send parser ir-from-file file-to-optimize))
 (define-values (live-flag live-mem live-out live-in) (send parser info-from-file (string-append file-to-optimize ".info")))
 
 (optimize code

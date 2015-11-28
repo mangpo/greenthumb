@@ -15,7 +15,7 @@
   (command-line
    #:once-each
    [("-c" "--core")      c
-                        "Number of cores to run on"
+                        "Number of search instances (cores to run on)"
                         (cores (string->number c))]
    [("-d" "--dir")      d
                         "Output directory (default=output)"
@@ -51,7 +51,7 @@
    filename))
 
 (define parser (new $-parser%))
-(define code (send parser ast-from-file file-to-optimize))
+(define code (send parser ir-from-file file-to-optimize))
 (define-values (live-out live-in) (send parser info-from-file (string-append file-to-optimize ".info")))
 
 (optimize code

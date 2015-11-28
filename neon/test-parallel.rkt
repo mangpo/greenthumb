@@ -5,7 +5,7 @@
 (define parser (new neon-parser%))
 
 (define code
-(send parser ast-from-string "
+(send parser ir-from-string "
 vorr q3, q0, q0
 vld1 {d4,d5}, [r0]
 vorr d2, d9, d9

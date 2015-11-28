@@ -18,20 +18,20 @@
 
 
 (define prefix 
-(send parser ast-from-string "
+(send parser ir-from-string "
 "))
 
 (define postfix
-(send parser ast-from-string "
+(send parser ir-from-string "
 "))
 
 (define code
-(send parser ast-from-string "
+(send parser ir-from-string "
 code here
 "))
 
 (define sketch
-(send parser ast-from-string "
+(send parser ir-from-string "
 ?
 "))
 

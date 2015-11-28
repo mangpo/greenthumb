@@ -19,7 +19,7 @@
 ;; Section 1: Concrete program
 
 (define code
-(send parser ast-from-string "
+(send parser ir-from-string "
 	mov	r0, #-1073741824
 "))
 

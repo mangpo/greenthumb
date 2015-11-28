@@ -12,7 +12,7 @@
 (define simulator-racket (new neon-simulator-racket% [machine machine]))
 
 (define code
-(send parser ast-from-string "
+(send parser ir-from-string "
 vld1 {d9}, [r0]
 vld1 {d9}, [r0]
 VMLAL.S16 q0, d3, d2[0] 

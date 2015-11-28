@@ -11,12 +11,13 @@
                    inst-id nop-id
                    ;; required fileds for stochastic and enumerative only
 		   classes)
-    (inherit get-class-id filter-live state-eq?)
-    (override set-config get-state
+    (inherit get-class-id filter-live)
+    (override get-constructor set-config get-state
               ;; required functions for stochastic and enumerative only
-              reset-arg-ranges get-arg-ranges ;;analyze-args
+              reset-arg-ranges get-arg-ranges 
 	      update-live update-live-backward
-              get-constructor output-constraint-string
+              ;; required functions for running parallel search driver
+              output-constraint-string
               )
 
     (define (get-constructor) llvm-demo-machine%)
@@ -40,9 +41,7 @@
     (define const-range #f)
     (define bit-range #f)
 
-    (when config 
-	  (set! vars config)
-          (reset-arg-ranges))
+    (when config (set-config config))
     
     (define (set-config x) 
       (set! config x) 
@@ -85,7 +84,7 @@
     ;; live-in & live-out: compact format
     ;; There are 3 modes.
     ;;  1) `basic (no restriction)
-    ;;  2) `no-args = ignore reigster operands. Return `reg-o, `reg-i, and `reg-io for operand that is input register, output register, and input/output register respectively.
+    ;;  2) `no-args = ignore reigster operands. Return `var-o and `var-i for operand that is input variable and output variable respectively. This mode is only used for enumerative search.
     (define (get-arg-ranges opcode-name entry live-in
                             #:live-out [live-out #f] #:mode [mode `basic])
       (define var-i

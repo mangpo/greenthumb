@@ -23,7 +23,7 @@
                                (vector) -1 4))
 
 (define code
-(send parser ast-from-string "
+(send parser ir-from-string "
 	eor	r2, r1, r0
 	and	r0, r1, r0
 	add	r0, r0, r2, asr #1

@@ -13,7 +13,7 @@
     ;; Reduced-bit
     (define bit (get-field bit machine))
     (define inst-id (get-field inst-id machine))
-    (define reg-range-db
+    (define val-range
       (for/vector ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
 
     (define (get-inst-in-out x)
@@ -74,7 +74,7 @@
          [else
           (if (car in-list)
               ;; Enumerate all possible values for a register if the register is input.
-	      (for ([i reg-range-db])
+	      (for ([i val-range])
 		   (recurse-regs (cdr in-list) (cons i in-res)))
 	      (recurse-regs (cdr in-list) (cons #f in-res)))]))
 

@@ -14,7 +14,7 @@
 (define printer (new $-printer% [machine machine]))
 
 (define code
-(send parser ast-from-string "
+(send parser ir-from-string "
 code here
 "))
 

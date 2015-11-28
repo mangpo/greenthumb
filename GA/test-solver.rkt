@@ -10,10 +10,10 @@
 (define validator (new GA-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
 
 (define code
-(send parser ast-from-string 
+(send parser ir-from-string 
       "drop pop a 3 b! !b 0 b! !b 3 b! @b 325 b! !b 0 b! @b 2* 2* 325 b! @b 3 and + "))
 
-(define sketch (send parser ast-from-string 
+(define sketch (send parser ir-from-string 
       "drop pop a 3 b! !b 0 b! !b 3 b! @b 325 b! !b 0 b! @b 2* 2* 325 b! @b 3 and + "))
 
 (define encoded-code (send printer encode code))

@@ -1,8 +1,6 @@
 #lang s-exp rosette
 
-(require "../simulator-rosette.rkt" "../ops-rosette.rkt" 
-         "../inst.rkt"
-         "../machine.rkt" "llvm-demo-machine.rkt")
+(require "../simulator-rosette.rkt" "../ops-rosette.rkt" "../inst.rkt")
 (provide llvm-demo-simulator-rosette%)
 
 (define llvm-demo-simulator-rosette%

@@ -27,22 +27,22 @@
                       [syn-mode `partial1]))
 
 (define prefix 
-(send parser ast-from-string "
+(send parser ir-from-string "
 drop pop a 325 a! !
 "))
 
 (define postfix
-(send parser ast-from-string "
+(send parser ir-from-string "
 "))
 
 (define code
-(send parser ast-from-string "
+(send parser ir-from-string "
 2* 2* @+ 3 and +
 "))
 
 
 (define sketch
-(send parser ast-from-string "
+(send parser ir-from-string "
 ? ? ? ? ? ?
 ")) 
 ;[drop pop a ] 325 9 2/ b! a! ! !b @b 2* 2* 325 b! @b 3  [and + ]

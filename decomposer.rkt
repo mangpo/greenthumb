@@ -340,7 +340,7 @@
           (define best-program 
             (if cost 
                 (send printer encode
-                      (send parser ast-from-file 
+                      (send parser ir-from-file 
                             (format "~a/best.s" (get-field dir stat))))
                 quick-restart))
           (pretty-display "restart!!!!!")

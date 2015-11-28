@@ -30,15 +30,15 @@
                       [syn-mode `partial1]))
 
 (define prefix 
-(send parser ast-from-string "
+(send parser ir-from-string "
 "))
 
 (define postfix
-(send parser ast-from-string "
+(send parser ir-from-string "
 "))
 
 (define code
-(send parser ast-from-string "
+(send parser ir-from-string "
 	cmp	r0, r1
 	movge	r0, r1
 	ubfx	r0, r0, #15, #16
@@ -46,7 +46,7 @@
 
 
 (define sketch
-(send parser ast-from-string "
+(send parser ir-from-string "
 ? ? ?
 "))
 

@@ -11,7 +11,7 @@
 (define validator (new neon-validator% [machine machine] [printer printer]))
 
 (define code
-(send parser ast-from-string "
+(send parser ir-from-string "
 vorr q3, q0, q0
 vld1 {d4,d5}, [r2]
 vmov q1, q4
@@ -21,7 +21,7 @@ vst1.32	{d6,d7}, [r2]
 "))
 
 (define code2
-  (send parser ast-from-string "?"))
+  (send parser ir-from-string "?"))
 
 (define encoded-code (send printer encode code))
 (define encoded-code2 (send validator encode-sym code2))

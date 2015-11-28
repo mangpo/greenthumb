@@ -14,7 +14,7 @@
 ;(raise "done")
 
 (define code
-(send parser ast-from-string "
+(send parser ir-from-string "
 vorr q3, q0, q0
 vld1 {d4,d5}, [r0]
 vmov q1, q4
