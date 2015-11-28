@@ -133,7 +133,7 @@
       new-live)
     
     ;;;;;;;;;;;;;;;;;;;;; For cooperative search ;;;;;;;;;;;;;;;;;;
-    (define (output-constraint-string machine-var live-out) 
+    (define (output-constraint-string live-out) 
       (format "(send printer encode-live '~a)" live-out))
 
     ))

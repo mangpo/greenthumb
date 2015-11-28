@@ -71,14 +71,13 @@
       ?)
     
     ;;;;;;;;;;;;;;;;;;;;; For cooperative search ;;;;;;;;;;;;;;;;;;
-    ;; TODO: no machine-var
-    ;; Require method if using cooperative search driver.
+    ;; Required method if using cooperative search driver.
     ;; Convert live-out (which is one of the outputs from 
-    ;; parser::info-from-file) into string, which will be used as 
-    ;; a piece of code the search driver generates as
+    ;; parser::info-from-file) into string. 
+    ;; The string will be used as a piece of code the search driver generates as
     ;; the live-out argument to the method superoptimize of 
     ;; stochastics%, forwardbackward%, and symbolic%.
-    (define (output-constraint-string machine-var live-out) ?)
+    (define (output-constraint-string live-out) ?)
     |#
 
     ))

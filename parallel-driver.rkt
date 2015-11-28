@@ -122,8 +122,8 @@
                      )
                (pretty-display 
                 (format "(send search superoptimize encoded-code ~a ~a \"~a-~a\" ~a ~a ~a #:assume ~a #:input-file ~a #:start-prog ~a #:prefix encoded-prefix #:postfix encoded-postfix)" 
-                        (send machine output-constraint-string "machine" live-out)
-                        (send machine output-constraint-string "machine" live-in)
+                        (send machine output-constraint-string live-out)
+                        (send machine output-constraint-string live-in)
                         path id time-limit prog-size extra-info
                         (send machine output-assume-string "machine" assume)
                         (if input-file (string-append "\"" input-file "\"") #f)

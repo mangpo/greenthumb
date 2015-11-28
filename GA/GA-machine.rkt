@@ -172,10 +172,10 @@
       (if x
           (format "(constrain-stack ~a '~a)" machine-var x)
           #f))
-    (define (output-constraint-string machine-var live-out)
+    (define (output-constraint-string live-out)
       ;; live-out is something like '((data . 0) (return . 1) memory a)
       (if live-out
-          (format "(send ~a output-constraint '~a)" machine-var live-out)
+          (format "(send machine output-constraint '~a)" live-out)
           #f))
 
     (define/public (output-constraint lst [extra-data 0] [extra-return 0])
