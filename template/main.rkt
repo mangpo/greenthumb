@@ -2,7 +2,7 @@
 
 (require "../parallel-driver.rkt" "../inst.rkt"
          "$-parser.rkt" "$-machine.rkt" 
-         "$-printer.rkt" "$-compress.rkt"
+         "$-printer.rkt"
 	 ;; simulator, validator
 	 "$-simulator-racket.rkt" 
 	 "$-simulator-rosette.rkt"
@@ -26,11 +26,10 @@
   (define parser (new $-parser%))
   (define machine (new $-machine%))
   (define printer (new $-printer% [machine machine]))
-  (define compress (new $-compress% [machine machine]))
   (define simulator (new $-simulator-rosette% [machine machine]))
   (define validator (new $-validator% [machine machine] [simulator simulator]))
   (define parallel (new parallel-driver% [isa "$"] [parser parser] [machine machine] 
-                        [printer printer] [compress compress] [validator validator]
+                        [printer printer] [validator validator]
                         [search-type search-type] [mode mode]
                         [window window]))
 

@@ -10,7 +10,8 @@
   (class printer%
     (super-new)
     (inherit-field machine report-mutations)
-    (override encode-inst decode-inst print-syntax-inst)
+    (override encode-inst decode-inst print-syntax-inst
+              output-constraint-string output-assume-string)
     (set! report-mutations (vector-append report-mutations '#(rotate)))
 
     (define UP (get-field UP machine))
@@ -40,5 +41,16 @@
           (display (inst-args x))
           (display (inst-op x)))
       (display " "))
+
+    
+    (define (output-assume-string x)
+      (if x
+          (format "(constrain-stack machine '~a)" x)
+          #f))
+    (define (output-constraint-string live-out)
+      ;; live-out is something like '((data . 0) (return . 1) memory a)
+      (if live-out
+          (format "(send machine output-constraint '~a)" live-out)
+          #f))
 
     ))

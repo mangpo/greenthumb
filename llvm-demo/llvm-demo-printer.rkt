@@ -9,7 +9,9 @@
   (class printer%
     (super-new)
     (inherit-field machine)
-    (override encode-inst decode-inst print-syntax-inst)
+    (override encode-inst decode-inst print-syntax-inst
+              ;; Required method for cooperative search
+              config-from-string-ir output-constraint-string)
 
     ;; Print in LLVM IR format.
     ;; x: instruction
@@ -127,5 +129,24 @@
       (for ([v x])
            (vector-set! live (hash-ref name2num (if (symbol? v) (symbol->string v) v)) #t))
       live)
+
+    ;;;;;;;;;;;;;;;;;;;;; For cooperative search ;;;;;;;;;;;;;;;;;;
+    
+    ;; Return program state config from a given program in string-IR format.
+    ;; program: string IR format
+    ;; output: program state config, an input to machine:set-config
+    (define (config-from-string-ir program)
+      (define vars (list))
+      (for* ([x program]
+	     [arg (inst-args x)])
+	    (when (and (equal? "%" (substring arg 0 1))
+		       (not (member arg vars)))
+		  (set! vars (cons arg vars))))
+      (add1 (length vars)))
+    
+    ;; Convert live-out (which is one of the outputs from 
+    ;; parser::info-from-file) into string. 
+    (define (output-constraint-string live-out) 
+      (format "(send printer encode-live '~a)" live-out))
 
     ))

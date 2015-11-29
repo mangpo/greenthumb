@@ -116,7 +116,6 @@
     (inherit-field bit random-input-bit config inst-id nop-id classes)
     (override set-config adjust-config finalize-config get-memory-size
               get-state display-state 
-              output-constraint-string output-assume-string
 	      no-assumption
               parse-state-text
               progstate->vector vector->progstate
@@ -168,15 +167,6 @@
     (define (adjust-config info) (* 2 info))
     (define (finalize-config info) (add1 info))
     (define (get-memory-size info) info)
-    (define (output-assume-string machine-var x)
-      (if x
-          (format "(constrain-stack ~a '~a)" machine-var x)
-          #f))
-    (define (output-constraint-string live-out)
-      ;; live-out is something like '((data . 0) (return . 1) memory a)
-      (if live-out
-          (format "(send machine output-constraint '~a)" live-out)
-          #f))
 
     (define/public (output-constraint lst [extra-data 0] [extra-return 0])
       (define a #f) 

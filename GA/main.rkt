@@ -2,7 +2,7 @@
 
 (require "../parallel-driver.rkt" "../fitness-learner.rkt"
          "GA-parser.rkt" "GA-machine.rkt" 
-         "GA-printer.rkt" "../compress.rkt"
+         "GA-printer.rkt" 
          "GA-simulator-rosette.rkt"
          "GA-validator.rkt")
 
@@ -11,7 +11,6 @@
 (define parser (new GA-parser%))
 (define machine (new GA-machine% [config 1]))
 (define printer (new GA-printer% [machine machine]))
-(define compress (new compress% [machine machine]))
 (define simulator (new GA-simulator-rosette% [machine machine]))
 (define validator (new GA-validator% [machine machine] [simulator simulator]))
 
@@ -26,7 +25,7 @@
                   #:start-prog [start-prog #f])
 
   (define parallel (new parallel-driver% [isa "GA"] [parser parser] [machine machine] 
-                        [printer printer] [compress compress] [validator validator]
+                        [printer printer] [validator validator]
                         [search-type search-type] [mode mode]
                         [window window]))
   (send parallel optimize code live-out #f

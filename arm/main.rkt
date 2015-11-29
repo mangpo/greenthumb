@@ -2,7 +2,7 @@
 
 (require "../parallel-driver.rkt" "../inst.rkt" "../fitness-learner.rkt"
          "arm-parser.rkt" "arm-machine.rkt" 
-         "arm-printer.rkt" "arm-compress.rkt"
+         "arm-printer.rkt"
 	 ;; simulator, validator
 	 "arm-simulator-racket.rkt" 
 	 "arm-simulator-rosette.rkt"
@@ -26,11 +26,10 @@
   (define parser (new arm-parser%))
   (define machine (new arm-machine%))
   (define printer (new arm-printer% [machine machine]))
-  (define compress (new arm-compress% [machine machine]))
   (define simulator (new arm-simulator-rosette% [machine machine]))
   (define validator (new arm-validator% [machine machine] [simulator simulator]))
   (define parallel (new parallel-driver% [isa "arm"] [parser parser] [machine machine] 
-                        [printer printer] [compress compress] [validator validator]
+                        [printer printer] [validator validator]
                         [search-type search-type] [mode mode]
                         [window window]))
 

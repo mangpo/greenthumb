@@ -142,13 +142,13 @@ The script will generate `llvm` directory that contains
 
 Now, we can start implementing our superoptimizer in the following order.
 - **Step 1**: Extend `machine%`. Open `llvm/llvm-machine.rkt` and complete the implementation before the "for stochastic and enumerative" section.
-- **Step 2**: Extend `parser%` and `printer%`. Use `test-simulator.rkt` to test the parser and the printer.
+- **Step 2**: Extend `parser%` and `printer%`. Complete the implementation before the "for cooperative search" section. Use `test-simulator.rkt` to test the parser and the printer.
 - **Step 3**: Extend `simulator-rosette%`. Use `test-simulator.rkt` and uncomment the next test to run the ISA simulator in Rosette. Then, copy the required methods implemented for `simulator-rosette%` to `simulator-racket%`. Use `test-simulator.rkt` to run the ISA simulator in Racket.
 - **Step 4**: Extend `symbolic%`. Then, use `test-search.rkt` to test the symbolic search on a small code fragment.
 - **Step 5**: Extend `stochastic%`, and implement more methods in `machine.rkt`; complete the implementation in the "for stochastic and enumerative" section in `llvm/llvm-machine.rkt`. Then, uncomment the stochastic search section in `test-search.rkt` and run it.
 - **Step 6**: Extend `forwardbackward%`, `enumerator%`, and `inverse%` to enable the enumerative search. Then, uncomment the enumerative search section in `test-search.rkt` and run it.
 - **Step 7**: To enable the cooperative search, we need to implement a few more methods:
-   - method `output-string-constraint` of `llvm-machine%`
+   - methods `config-from-string-ir` and `output-string-constraint` of `llvm-printer%`
    - method `info-from-file` of `llvm-parser%`
    - method `len-limit` of `llvm-symbolic%` and `llvm-forwardbackward%`
 

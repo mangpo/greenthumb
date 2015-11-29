@@ -87,7 +87,6 @@
     (inherit get-class-id filter-live state-eq?)
     (override set-config adjust-config get-memory-size
               get-state get-state-liveness display-state 
-              output-constraint-string
               parse-state-text
               progstate->vector vector->progstate
 	      get-arg-ranges get-live-list
@@ -277,25 +276,6 @@
       (list (first info) (* 2 (second info)) (third info)))
 
     (define (get-memory-size info) (second info))
-
-    ;; Convert live-out (in compact format) into Racket string (in progstate format).
-    ;; This is used for creating multiple search instances.
-    ;; live-out: a pair of (a list of live registers' ids, live memory, live flag)
-    ;; output: output constraint in Racket string format. When executing, the expression should be evaluated to a progstate with #t and #f indicating which entries are constrainted (live).
-    (define (output-constraint-string live-out)
-      (define live-mem (second live-out))
-      (define live-flag (third live-out))
-      (cond
-       [(first live-out)
-        (define live-regs-str (string-join (map number->string (first live-out))))
-        (if live-mem
-            (format "(constraint machine [reg ~a] [mem-all] [z ~a])" live-regs-str live-flag)
-            (format "(constraint machine [reg ~a] [mem] [z ~a])" live-regs-str live-flag))]
-       [(or live-mem live-flag)
-        (if live-mem
-            (format "(constraint machine [reg] [mem-all] [z ~a])" live-flag)
-            (format "(constraint machine [reg] [mem] [z ~a])" live-flag))]
-       [else #f]))
 
     ;; Convert live-out from compact format into progstate format.
     ;; live-out: a pair of (a list of live registers' ids, live memory)

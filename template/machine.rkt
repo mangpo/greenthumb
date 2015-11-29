@@ -14,10 +14,8 @@
                    )
     (inherit get-class-id filter-live)
     (override get-constructor set-config get-state
-              ;; >> required methods for stochastic and enumerative only
+              ;; >> Required methods for stochastic and enumerative only
               ;; reset-arg-ranges get-arg-ranges update-live update-live-backward
-              ;; >> required methods for running parallel search driver
-              ;; output-constraint-string
               )
 
     (define (get-constructor) $-machine%)
@@ -70,15 +68,5 @@
     (define (update-live-backward live-out this-inst)
       ?)
     
-    ;;;;;;;;;;;;;;;;;;;;; For cooperative search ;;;;;;;;;;;;;;;;;;
-    ;; Required method if using cooperative search driver.
-    ;; Convert live-out (which is one of the outputs from 
-    ;; parser::info-from-file) into string. 
-    ;; The string will be used as a piece of code the search driver generates as
-    ;; the live-out argument to the method superoptimize of 
-    ;; stochastics%, forwardbackward%, and symbolic%.
-    (define (output-constraint-string live-out) ?)
-    |#
-
     ))
       

@@ -15,7 +15,7 @@
 (define parallel-driver%
   (class object%
     (super-new)
-    (init-field isa parser machine printer compress validator search-type mode
+    (init-field isa parser machine printer validator search-type mode
                 [window #f])
     ;; search = `solver, `stoch, `hybrid
     ;; mode = `linear, `binary, `syn, `opt
@@ -39,7 +39,7 @@
 
       ;; Use the fewest number of registers possible.
       (define-values (code live-out live-in map-back machine-info) 
-        (send compress compress-reg-space code-org live-out-org live-in-org))
+        (send printer compress-reg-space code-org live-out-org live-in-org))
       (pretty-display (format ">>> machine-info: ~a" machine-info))
       (pretty-display `(map-back ,map-back))
 
@@ -77,7 +77,7 @@
                (pretty-display (format "(require ~a)" required-files))
                (pretty-display (format "(define machine (new ~a [config ~a]))"
                                        (get-class-name "machine")
-                                       (send machine set-config-string machine-info)))
+                                       (send printer set-config-string machine-info)))
                (pretty-display (format "(define printer (new ~a [machine machine]))" (get-class-name "printer")))
                (pretty-display (format "(define parser (new ~a))" (get-class-name "parser")))
                (pretty-display (format "(define simulator-racket (new ~a [machine machine]))" (get-class-name "simulator-racket")))
@@ -122,10 +122,10 @@
                      )
                (pretty-display 
                 (format "(send search superoptimize encoded-code ~a ~a \"~a-~a\" ~a ~a ~a #:assume ~a #:input-file ~a #:start-prog ~a #:prefix encoded-prefix #:postfix encoded-postfix)" 
-                        (send machine output-constraint-string live-out)
-                        (send machine output-constraint-string live-in)
+                        (send printer output-constraint-string live-out)
+                        (send printer output-constraint-string live-in)
                         path id time-limit prog-size extra-info
-                        (send machine output-assume-string "machine" assume)
+                        (send printer output-assume-string assume)
                         (if input-file (string-append "\"" input-file "\"") #f)
                         (if start-prog "encoded-start-code" #f)
                         ))
@@ -356,7 +356,7 @@
 
       (system "pkill -u mangpo java")
       (system "pkill -u mangpo z3")
-      (let ([decompressed-code (send compress decompress-reg-space output-code map-back)])
+      (let ([decompressed-code (send printer decompress-reg-space output-code map-back)])
         (newline)
         (pretty-display "OUTPUT")
         (pretty-display "------")

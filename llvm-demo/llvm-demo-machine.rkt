@@ -16,8 +16,6 @@
               ;; required functions for stochastic and enumerative only
               reset-arg-ranges get-arg-ranges 
 	      update-live update-live-backward
-              ;; required functions for running parallel search driver
-              output-constraint-string
               )
 
     (define (get-constructor) llvm-demo-machine%)
@@ -131,10 +129,6 @@
             [(equal? type `var-o) (vector-set! new-live arg #f)]
             [(equal? type `var-i) (vector-set! new-live arg #t)]))
       new-live)
-    
-    ;;;;;;;;;;;;;;;;;;;;; For cooperative search ;;;;;;;;;;;;;;;;;;
-    (define (output-constraint-string live-out) 
-      (format "(send printer encode-live '~a)" live-out))
 
     ))
       

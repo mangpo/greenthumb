@@ -27,13 +27,12 @@
     (abstract set-config get-state)
 
     ;; Provided default methods. Can be overriden if needed.
-    (public set-config-string get-config window-size
+    (public get-config window-size
 	    adjust-config get-memory-size
             get-class-id no-assumption
             get-inst-id get-inst-name
             finalize-config config-exceed-limit?
-            output-assume-string get-state-liveness display-state
-	    output-constraint-string 
+            get-state-liveness display-state
             progstate->vector vector->progstate
             get-states-from-file parse-state-text
 	    clean-code state-eq? relaxed-state-eq?
@@ -52,28 +51,11 @@
     (define (get-config) config)
     (define (adjust-config) config)
     (define (get-memory-size) config)
-
-    (define (set-config-string x)
-      (cond
-       [(number? x) (number->string x)]
-       [(or (list? x) (vector? x))
-        (string-join
-         (append (list "(list")
-                 (for/list ([i x]) (set-config-string i))
-                 (list ")")))]
-       [(pair? x)
-        (format "(cons ~a ~a)"
-                (set-config-string (car x))
-                (set-config-string (cdr x)))]
-       [else
-        (raise (format "machine:set-config: unimplemented for ~a" x))]))
-
     (define (get-inst-id opcode) (vector-member opcode inst-id))
     (define (get-inst-name id) (vector-ref inst-id id))
     (define (no-assumption) #f)
     (define (get-state-liveness f extra) (get-state f extra))
     (define (display-state x) (pretty-display x))
-    (define (output-constraint-string machine-var live-out) (pretty-display live-out))
 
     (define (finalize-config info) info)
     (define (config-exceed-limit? info)
@@ -87,7 +69,6 @@
                  (set! id i)))
       id)
 
-    (define (output-assume-string machine-var x) x)
     (define (progstate->vector x) x)
     (define (vector->progstate x) x)
 

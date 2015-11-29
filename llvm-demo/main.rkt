@@ -2,7 +2,7 @@
 
 (require "../parallel-driver.rkt" "../inst.rkt"
          "llvm-demo-parser.rkt" "llvm-demo-machine.rkt" 
-         "llvm-demo-printer.rkt" "llvm-demo-compress.rkt"
+         "llvm-demo-printer.rkt" 
 	 ;; simulator, validator
 	 "llvm-demo-simulator-racket.rkt" 
 	 "llvm-demo-simulator-rosette.rkt"
@@ -22,11 +22,10 @@
   (define parser (new llvm-demo-parser%))
   (define machine (new llvm-demo-machine%))
   (define printer (new llvm-demo-printer% [machine machine]))
-  (define compress (new llvm-demo-compress% [machine machine]))
   (define simulator (new llvm-demo-simulator-rosette% [machine machine]))
   (define validator (new llvm-demo-validator% [machine machine] [simulator simulator]))
   (define parallel (new parallel-driver% [isa "llvm-demo"] [parser parser] [machine machine] 
-                        [printer printer] [compress compress] [validator validator]
+                        [printer printer] [validator validator]
                         [search-type search-type] [mode mode]
                         [window window]))
 
