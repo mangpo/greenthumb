@@ -4,7 +4,7 @@ GreenThumb is an extensible framework for constructing superoptimizers. It is de
 The top level directory contains ISA-independent files, which implement the superclasses to be extended. We have built superoptimizers for ARM, GreenArrays GA144 (GA), and a small subset of LLVM IR. Directories `arm`, `GA`, and `llvm-demo` contain ISA-sepcific files for ARM, GA, and LLVM IR respectively.
 
 ## Software Prerequisites
-- **Racket**: Download and install drracket from https://racket-lang.org/download/. Include the installed 'bin' directory to the environment path. The 'bin' directory should contain racket, drracket, raco, and etc.
+- **Racket**: Download and install drracket from https://racket-lang.org/download/. Include the installed 'bin' directory, which contains racket, drracket, raco, and etc., to the environment path.
 - **Rosette**: Download and follow the instruction to install rosette from https://github.com/emina/rosette
 - **Python**
 
@@ -13,7 +13,6 @@ The top level directory contains ISA-independent files, which implement the supe
 git clone https://github.com/mangpo/greenthumb.git
 cd greenthumb
 make
-```
 ```
 
 `path.rkt` will be generated.
