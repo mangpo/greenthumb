@@ -1,8 +1,7 @@
 #lang racket
 
-(require "../ops-racket.rkt" "../inst.rkt" "../inverse.rkt"
-         "arm-inst.rkt" "arm-machine.rkt" "arm-simulator-racket.rkt"
-         "arm-printer.rkt" "arm-parser.rkt")
+(require "../ops-racket.rkt" "../inst.rkt" "../inverse.rkt" "../enumerator.rkt"
+         "arm-inst.rkt" "arm-machine.rkt")
 
 (provide arm-inverse%)
 
@@ -56,41 +55,6 @@
       (define out (make-vector 5 #f))
       ;; Inverse table behavior
       (define behavior-bw (make-hash))
-      
-      (define (recurse-regs in-list in-res)
-	(cond
-	 [(empty? in-list)
-          (define out-state
-	    (with-handlers*
-	     ([exn? (lambda (e) #f)])
-	     (send simulator interpret
-		   (vector my-inst)
-		   (progstate (list->vector in-res) (vector) -1 fp))))
-          
-	  (when 
-	   out-state
-	   (define in-list-filtered (filter number? in-res))
-	   (define out-list (list))
-	   (for ([r (progstate-regs out-state)]
-		 [m out])
-		(when m (set! out-list (cons r out-list))))
-	   
-	   (define key (reverse out-list))
-
-           ;; Insert into the inverse table. 
-           ;; Key is outputs. Value is a set of possible inputs.
-	   (if (hash-has-key? behavior-bw key)
-	       (hash-set! behavior-bw key
-			  (cons in-list-filtered (hash-ref behavior-bw key)))
-	       (hash-set! behavior-bw key (list in-list-filtered))))
-	  ]
-
-         [else
-          (if (car in-list)
-              ;; Enumerate all possible values for a register if the register is input.
-	      (for ([i reg-range-db])
-		   (recurse-regs (cdr in-list) (cons i in-res)))
-	      (recurse-regs (cdr in-list) (cons #f in-res)))]))
           
       ;; Collect information on which registers are input and output.
       (define arg-types (send machine get-arg-types opcode-name))
@@ -103,11 +67,38 @@
 	    [type arg-types])
 	   (cond
 	    [(equal? type `reg-o) (vector-set! out arg #t)]
-	    [(equal? type `reg-i) (vector-set! in arg #t)]
+	    [(equal? type `reg-i) (vector-set! in arg reg-range-db)]
 	    [(equal? type `reg-io)
-             (vector-set! out arg #t) (vector-set! in arg #t)]))
+             (vector-set! out arg #t)
+             (vector-set! in arg reg-range-db)]))
 
-      (recurse-regs (reverse (vector->list in)) (list))
+      (define (inner in-res)
+        (define out-state
+          (with-handlers*
+           ([exn? (lambda (e) #f)])
+           (send simulator interpret
+                 (vector my-inst)
+                 (progstate (list->vector in-res) (vector) -1 fp))))
+        
+        (when 
+         out-state
+         (define in-list-filtered (filter number? in-res))
+         (define out-list (list))
+         (for ([r (progstate-regs out-state)]
+               [m out])
+              (when m (set! out-list (cons r out-list))))
+         
+         (define key (reverse out-list))
+         
+         ;; Insert into the inverse table. 
+         ;; Key is outputs. Value is a set of possible inputs.
+         (if (hash-has-key? behavior-bw key)
+             (hash-set! behavior-bw key
+                        (cons in-list-filtered (hash-ref behavior-bw key)))
+             (hash-set! behavior-bw key (list in-list-filtered)))))
+        
+      (for ([in-res (all-combination-list (vector->list in))])
+           (inner in-res))
       
       (define-values (x regs-in regs-out) (get-inst-in-out my-inst))
       ;;(pretty-display `(behavior-bw ,behavior-bw))

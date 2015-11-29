@@ -89,13 +89,13 @@
               get-state get-state-liveness display-state 
               parse-state-text
               progstate->vector vector->progstate
-	      get-arg-ranges get-live-list
+	      get-arg-types get-arg-ranges get-live-list
 	      clean-code 
 	      analyze-opcode analyze-args relaxed-state-eq?
 	      update-live update-live-backward
               reset-arg-ranges
               get-constructor)
-    (public get-shfarg-range get-arg-types get-nregs)
+    (public get-shfarg-range get-nregs)
 
     (define (get-constructor) arm-machine%)
 

@@ -70,68 +70,36 @@
       )
     
     (define (change-inst x change)
-      (define opcode-name (send machine get-inst-name (inst-op x)))
-      (define args (inst-args x))
+      (define base-inst (super change-inst x change))
       (define shfop-name (and (inst-shfop x) (send machine get-shf-inst-name (inst-shfop x))))
       (define shfarg (inst-shfarg x))
-      (define types (send machine get-arg-types opcode-name))
-      
-      (define new-args
-        (for/vector
-         ([arg args]
-          [type types])
-         (if (member type '(const op2 bit bit-no-0))
-             (change arg type)
-             arg)))
 
       (define new-shfarg
         (if (member shfop-name shf-inst-imm)
             (change shfarg `bit)
             shfarg))
 
-      (arm-inst (inst-op x) new-args (inst-shfop x) new-shfarg (inst-cond x)))
+      (arm-inst (inst-op x) (inst-args base-inst)
+                (inst-shfop x) new-shfarg (inst-cond x)))
     
     (define (change-inst-list x change)
-      (define opcode-name (send machine get-inst-name (inst-op x)))
-      (define args (inst-args x))
+      (define op (inst-op x))
+      (define shfop (inst-shfop x))
+      (define cond-type (inst-cond x))
+      (define base-list (super change-inst-list x change))
+
       (define shfop-name (and (inst-shfop x) (send machine get-shf-inst-name (inst-shfop x))))
       (define shfarg (inst-shfarg x))
-      (define types (send machine get-arg-types opcode-name))
-      
-      (define new-args
-        (for/list
-         ([arg args]
-          [type types])
-         (if (member type '(const op2 bit bit-no-0))
-             (change arg type)
-             (list arg))))
 
       (define new-shfarg
         (if (member shfop-name shf-inst-imm)
             (change shfarg `bit)
             (list shfarg)))
 
-      (define op (inst-op x))
-      (define shfop (inst-shfop x))
-      (define cond-type (inst-cond x))
-
-      (define ret (list))
-      (define (recurse args-list shfarg-list args-final shfarg-final)
-        (cond
-         [(equal? shfarg-list #f)
-          (set! ret (cons (arm-inst op (list->vector args-final)
-                                    shfop shfarg-final cond-type) ret))]
-         [(empty? args-list)
-          (for ([x shfarg-list])
-               (recurse args-list #f args-final x))]
-
-         [else
-          (for ([x (car args-list)])
-               (recurse (cdr args-list) shfarg-list
-                        (cons x args-final) shfarg-final))]))
-
-      (recurse (reverse new-args) new-shfarg (list) #f)
-      ret)
+      (for*/list ([base-inst base-list]
+                  [shfarg-final new-shfarg])
+                 (arm-inst op (inst-args base-inst)
+                           shfop shfarg-final cond-type)))
 
     ;; Analyze if we should include comparing instructions into out instruction pool.
     ;; code: input program

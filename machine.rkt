@@ -39,7 +39,8 @@
 	    update-live update-live-backward filter-live get-live-list
 	    analyze-opcode analyze-args 
             reset-inst-pool
-            get-arg-ranges reset-arg-ranges
+            reset-arg-ranges
+            get-arg-ranges get-arg-types
             get-constructor
             )
 
@@ -144,6 +145,9 @@
     (define (get-arg-ranges opcode-name entry live-in
                             #:live-out [live-out #f] #:mode [mode `basic])
       (raise "machine: need to extend get-arg-ranges"))
+
+    (define (get-arg-types opcode-name)
+      (raise "machine: need to extend get-arg-types"))
     
     (define (reset-arg-ranges) (void))
 

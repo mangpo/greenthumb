@@ -14,7 +14,7 @@
     (inherit get-class-id filter-live)
     (override get-constructor set-config get-state
               ;; required functions for stochastic and enumerative only
-              reset-arg-ranges get-arg-ranges 
+              reset-arg-ranges get-arg-types get-arg-ranges 
 	      update-live update-live-backward
               )
 
@@ -66,8 +66,9 @@
       (set! var-range (list->vector (range vars)))
       (set! const-range (vector 0 1 -1 -2 -8))
       (set! bit-range (vector 0 1)))
-    
-    (define/public (get-arg-types opcode-name)
+
+    ;; Return types of operands given opcode-name.
+    (define (get-arg-types opcode-name)
       (define class-id (get-class-id opcode-name))
       (cond
        [(equal? class-id 0) (vector `var-o `var-i `var-i)]
@@ -77,7 +78,7 @@
        [(equal? opcode-name `ctlz) (vector `var-o `var-i)]
        [else (vector)]))
 
-    ;; Get valid operands' ranges given opcode-name, live-in, live-out, and mode.
+    ;; Return valid operands' ranges given opcode-name, live-in, live-out, and mode.
     ;; opcode-name: symbol
     ;; live-in & live-out: compact format
     ;; There are 3 modes.

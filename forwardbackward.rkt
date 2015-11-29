@@ -1,6 +1,6 @@
 #lang racket
 
-(require "inst.rkt" "decomposer.rkt" "ops-racket.rkt")
+(require "inst.rkt" "decomposer.rkt" "ops-racket.rkt" "enumerator.rkt")
 (require racket/generator)
 
 (provide forwardbackward% entry-live entry-flag)
@@ -18,13 +18,11 @@
     (inherit-field machine printer simulator validator stat syn-mode)
     (inherit window-size)
     (init-field inverse% enumerator% [enum #f])
-    
-    ;; Required methods to be implemented when extended. See arm/arm-forwardbackward.rkt.
-    (abstract change-inst change-inst-list)
     (override synthesize-window superoptimize-linear superoptimize-binary)
     (public try-cmp? combine-live prescreen sort-live sort-live-bw
             reduce-precision increase-precision
             reduce-precision-assume
+            change-inst change-inst-list
             mask-in get-live-mask inst->vector)
     
     (define debug #f)
@@ -56,6 +54,45 @@
     ;;;;;;;;;;;;;;;;;;;;;;; Helper functions ;;;;;;;;;;;;;;;;;;;;;;
     (define (inst->vector x) (vector (inst-op x) (inst-args x)))
     (define (prescreen my-inst state-vec) #t)
+    
+    ;; Return a copy of a given instruction x,
+    ;; but replacing each constant c in the instruction x with (change c).
+    (define (change-inst x change)
+      (define opcode-name (send machine get-inst-name (inst-op x)))
+      (define args (inst-args x))
+      (define types (send machine get-arg-types opcode-name))
+      
+      (define new-args
+        (for/vector
+         ([arg args]
+          [type types])
+         (if (member type '(const bit bit-no-0 op2))
+             (change arg type)
+             arg)))
+
+      (inst (inst-op x) new-args))
+
+    ;; Return a list of copies of a given instruction x,
+    ;; but replacing each constant c in the instruction x with
+    ;; one of the values from (change c).
+    ;; Because (change c) returns a list of values instead of a value,
+    ;; this method has to return all possible unique copies of x.
+    (define (change-inst-list x change)
+      (define op (inst-op x))
+      (define opcode-name (send machine get-inst-name op))
+      (define args (inst-args x))
+      (define types (send machine get-arg-types opcode-name))
+      
+      (define new-args
+        (for/list
+         ([arg args]
+          [type types])
+         (if (member type '(const bit bit-no-0 op2))
+             (change arg type)
+             (list arg))))
+
+      (for/list ([final-args (all-combination-list new-args)])
+                (inst op (list->vector final-args))))
 
     ;; Heuristic to sort what programs to explore first.
     (define (sort-live x) x)

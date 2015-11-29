@@ -119,7 +119,7 @@
 	      no-assumption
               parse-state-text
               progstate->vector vector->progstate
-	      get-arg-ranges analyze-args reset-arg-ranges
+	      analyze-args reset-arg-ranges
               get-constructor)
     (init-field [const-range #f]
                 [UP #x145] ;325
@@ -347,9 +347,6 @@
 
     (define (no-assumption)
       (default-state this))
-
-    (define (get-arg-ranges opcode-name entry live-in)
-      (raise "GA: get-arg-ranges should not be called."))
     
     (define (analyze-args prefix code postfix live1 live2 #:vreg [vreg 0])
       (define constants (list))
