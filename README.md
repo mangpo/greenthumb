@@ -106,7 +106,6 @@ nop        0.175311  7.187534  0.000409
 shf        0.282056  0.008171  0.028971
 cond-type	 0.0       0.0       0
 
-
 accept-count:        0.047734  << rate of accepting mutated programs
 accept-higher-count: 0.000457  << rate of accepting mutated programs with higher cost
 
@@ -118,7 +117,7 @@ time:	15           << time in seconds to find the best program
 output/0/driver-7  << the best program is found by driver-<id> (7 in this case).
 ```
 
-Hit Ctrl-C to end the process early or wait until time is up. At the end, the search driver will print out the optimized program. Below is the output program when optimizing p14_floor_avg_o0.s.
+Press Ctrl-C to end the process early or wait until time is up. At the end, the search driver will print out the optimized program. Below is the output program when optimizing p14_floor_avg_o0.s.
 
 ```
 OUTPUT
@@ -156,7 +155,7 @@ Now, we can start implementing our superoptimizer in the following order.
 Now, we can run our LLVM IR cooperative superoptimizer, similar to the way we run the ARM superoptimizer in the earlier section, using the generated `optimize.rkt`. Note that even if we do not implement all search techniques, for instance, we only implement `llvm-stochastic%`, we can still use `optimize.rkt` to run the stochastic search instaces in parallel, communicating to each other about the best program.
 
 ## Reduce Memory Usage
-To reduce memory usage and overhead of Racket translating program to bytecode, we can precompile our superoptimizer application to bytecode by running in command line:
+To reduce the memory usage and the overhead of Racket translating program to bytecode, we can precompile our superoptimizer application to bytecode by running in command line:
 ```
 raco make <list_of_flies_to_be_compiled>
 ```

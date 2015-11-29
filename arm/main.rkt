@@ -10,17 +10,14 @@
 
 (provide optimize arm-generate-inputs)
 
-;; Main function to perform stochastic superoptimization on multiple cores.
+;; Main function to perform superoptimization on multiple cores.
 ;; >>> INPUT >>>
-;; code: program to superoptimized, parsed but not encoded.
-;; live-out: a list of live register ids
-;; synthesize: #t if synthesize mode, #f if optimize mode
-;; size (optional)
+;; code: program to superoptimized in string-IR format
 ;; >>> OUTPUT >>>
-;; Optimized code, not encoded.
+;; Optimized code in string-IR format
 (define (optimize code live-out live-in search-type mode
                   #:dir [dir "output"] 
-                  #:cores [cores 12]
+                  #:cores [cores 4]
                   #:time-limit [time-limit 3600]
                   #:size [size #f]
                   #:window [window #f]

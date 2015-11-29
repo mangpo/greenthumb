@@ -18,7 +18,7 @@
 (define (optimize code live-out search-type mode recv
                   #:assume [assume #f]
                   #:dir [dir "output"] 
-                  #:cores [cores 12]
+                  #:cores [cores 4]
                   #:time-limit [time-limit 3600]
                   #:size [size #f]
                   #:window [window #f]

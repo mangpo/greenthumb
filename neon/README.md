@@ -1,1 +1,0 @@
-Neon superoptimizer is not quite fully working.
