@@ -17,7 +17,7 @@
     (super-new)
     (inherit-field machine printer simulator validator stat syn-mode)
     (inherit window-size)
-    (init-field inverse% enumerator%)
+    (init-field inverse% enumerator% [enum #f])
     
     ;; Required methods to be implemented when extended. See arm/arm-forwardbackward.rkt.
     (abstract change-inst change-inst-list)
@@ -51,7 +51,7 @@
             (new (send (get-field simulator validator) get-constructor)
                  [machine machine])]))
     (define inverse (new inverse% [machine machine] [simulator simulator-abst]))
-    (define enum (new enumerator% [machine machine] [printer printer]))
+    (set! enum (new enumerator% [machine machine] [printer printer]))
     
     ;;;;;;;;;;;;;;;;;;;;;;; Helper functions ;;;;;;;;;;;;;;;;;;;;;;
     (define (inst->vector x) (vector (inst-op x) (inst-args x)))

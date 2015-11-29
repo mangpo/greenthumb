@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../forwardbackward.rkt" "../inst.rkt")
+(require "../forwardbackward.rkt" "../inst.rkt" "../enumerator.rkt")
 
 (provide $-forwardbackward%)
 

@@ -204,7 +204,7 @@
                        (recurse-args opcode-name opcode-id 0 #f cond-type 
                                      (list) arg-ranges v-reg)
                        ))))))
-         (yield (list #f #f #f #f))))
+         (yield (list #f #f #f))))
       iterator 
       )
 

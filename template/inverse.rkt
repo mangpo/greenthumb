@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../ops-racket.rkt" "../inst.rkt" "../inverse.rkt")
+(require "../ops-racket.rkt" "../inst.rkt" "../inverse.rkt" "../enumerator.rkt")
 
 (provide $-inverse%)
 

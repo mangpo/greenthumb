@@ -24,16 +24,15 @@
     ;; const-range = #(0 1 -1), live-in = #(#t #t #f), live-out = #(#f #t #t)
     ;; (If live-in = #f, then everything is live. Similar for live-out.)
     ;; 
-    ;; In mode `basic,
-    ;; (inst add#-id #({1 or 2} {0 or1} {0, 1, or -1}))
+    ;; In mode `basic, yield all combinations of
+    ;; (inst add#-id #({1 or 2} {0 or 1} {0, 1, or -1}))
     ;;
     ;; In mode `no-args, live-in and live-out don't matter.
     ;; (inst add#-id #(2 0 {0, 1, or -1}))
     ;; Only enumerate const and not variables, but make sure to assign
     ;; different IDs for the variables.
-    (define (generate-inst 
-             live-in live-out flag-in flag-out
-             #:no-args [no-args #f] #:try-cmp [try-cmp #f])
+    (define (generate-inst live-in live-out flag-in flag-out
+                           #:no-args [no-args #f] #:try-cmp [try-cmp #f])
 
       (define mode (cond [no-args `no-args] [else `basic]))
 
@@ -44,49 +43,36 @@
       (define iterator
         (generator 
          ()
-         (define (recurse-args opcode opcode-id args ranges v-reg)
-	   ;; check for faster search
-           (define (check-yield)  
-	     (let* ([new-args (reverse args)]
-		    [i (inst opcode-id (list->vector new-args))]
-		    [new-live-in (and live-in (send machine update-live live-in i))]
-		    [new-live-out (and live-out (send machine update-live-backward live-out i))]
-		    [ret (list i new-live-in new-live-out)])
-               (yield ret)))
-           
-           (when debug (pretty-display `(recurse-args ,args ,ranges ,v-reg)))
-           ;; Symmetry reduction for commutative operations
-           (define pass
-             (cond
-               [(and (= (length args) 3) (member opcode commutative-1-2))
-                (<= (second args) (first args))]
-               [else #t]))
-
-           (when
-               pass
-             (cond
-               [(empty? ranges) (check-yield)]
-               
-               [(equal? (car ranges) `var-o)
-                ;; enumerate no-arg
-                (recurse-args opcode opcode-id 
-                              (cons (cdr v-reg) args)
-                              (cdr ranges) (cons (car v-reg) (add1 (cdr v-reg))))
-                ]
-               
-               [(equal? (car ranges) `var-i)
-                ;; enumerate no-arg
-                (recurse-args opcode opcode-id
-                              (cons (car v-reg) args)
-                              (cdr ranges) (cons (add1 (car v-reg)) (cdr v-reg)))
-                ]
-               
-               [else
-                (for ([arg (shuffle (vector->list (car ranges)))])
-                  (recurse-args opcode opcode-id
-                                (cons arg args)
-                                (cdr ranges) v-reg))
-                ])))
+         (define (finalize args)
+           (define out 1)
+           (define in -1)
+           (for/list
+            ([arg args])
+            ;; If arg is `var-i or `var-o (mode=`no-args), assign fresh ID.
+            (cond
+             [(equal? arg `var-i) (set! in (add1 in)) in]
+             [(equal? arg `var-o) (set! out (add1 out)) out]
+             [else arg])))
+         
+         (define (enumerate opcode opcode-id ranges)
+           ;; Get all combinations of args
+           (for ([args (all-combination-list ranges)])
+                (let* ([new-args (finalize args)]
+                       [pass
+                        (cond
+                         [(and (= (length args) 3)
+                               (member opcode commutative-1-2))
+                          (<= (second new-args) (third new-args))]
+                         [else #t])])
+                  (when
+                   pass
+                   (let* ([i (inst opcode-id (list->vector new-args))]
+                          [new-live-in
+                           (and live-in (send machine update-live live-in i))]
+                          [new-live-out
+                           (and live-out (send machine update-live-backward live-out i))])              
+                     (yield
+                      (list i new-live-in new-live-out)))))))
        
          (for ([opcode-id (shuffle inst-pool)])
            (let ([opcode-name (vector-ref inst-id opcode-id)])
@@ -95,35 +81,9 @@
 	      (let* ([arg-ranges 
 		      (vector->list 
 		       (send machine get-arg-ranges opcode-name #f live-in 
-			     #:live-out live-out
-			     #:mode mode))]
-                     [arg-types (send machine get-arg-types opcode-name)]
-		     [v-reg (cond [no-args (cons 0 3)] [else #f])])
-		;; (cond
-                ;;  [(and live-in (not live-out))
-                ;;   ;; use the first variable that is not in live-in.
-                ;;   ;; (let ([index (vector-member #f live-in)])
-                ;;   ;;   (set! arg-ranges (cons (vector index) (cdr arg-ranges))))
-                ;;   (set! arg-ranges (cons (vector-copy (car arg-ranges) 0 1)
-                ;;                          (cdr arg-ranges)))
-                ;;   ]
-                ;;  [(and live-out (not live-in))
-                ;;   (let ([cnt 0])
-                ;;     (set!
-                ;;      arg-ranges
-                ;;      (reverse
-                ;;       (for/list
-                ;;        ([range (reverse arg-ranges)]
-                ;;         [type (reverse (vector->list arg-types))])
-                ;;        (if (equal? type `var-i)
-                ;;            (let ([index (- (vector-length range) 1 cnt)])
-                ;;              (set! cnt (add1 cnt))
-                ;;              (vector (vector-ref range index)))
-                ;;            range)))))]
-                ;;  )
-                 
-		(when debug (pretty-display `(iterate ,opcode-name ,arg-ranges,live-in)))
-                (recurse-args opcode-name opcode-id (list) arg-ranges v-reg)))))
+			     #:live-out live-out #:mode mode))])
+                (enumerate opcode-name opcode-id arg-ranges)
+                ))))
          (yield (list #f #f #f))))
       iterator)
 

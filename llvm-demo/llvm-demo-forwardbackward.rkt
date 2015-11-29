@@ -1,13 +1,13 @@
 #lang racket
 
-(require "../forwardbackward.rkt" "../inst.rkt")
+(require "../forwardbackward.rkt" "../inst.rkt" "../enumerator.rkt")
 
 (provide llvm-demo-forwardbackward%)
 
 (define llvm-demo-forwardbackward%
   (class forwardbackward%
     (super-new)
-    (inherit-field machine printer)
+    (inherit-field machine printer enum)
     (override len-limit
               change-inst change-inst-list)
 
@@ -44,18 +44,8 @@
              (change arg type)
              (list arg))))
 
-      (define ret (list))
-      (define (recurse args-list args-final)
-        (cond
-         [(empty? args-list)
-          (set! ret (cons (inst op (list->vector args-final)) ret))]
-
-         [else
-          (for ([x (car args-list)])
-               (recurse (cdr args-list) (cons x args-final)))]))
-
-      (recurse (reverse new-args) (list))
-      ret)
+      (for/list ([final-args (all-combination-list new-args)])
+                (inst op (list->vector final-args))))
 
     ))
     

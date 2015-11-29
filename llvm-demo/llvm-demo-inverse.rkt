@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../ops-racket.rkt" "../inst.rkt" "../inverse.rkt")
+(require "../ops-racket.rkt" "../inst.rkt" "../inverse.rkt" "../enumerator.rkt")
 
 (provide llvm-demo-inverse%)
 
@@ -33,7 +33,6 @@
 
       (values (reverse inst-type) (reverse in) out))
 
-
     ;; Inverse tables for all instructions.
     (define behaviors-bw (make-hash))
 
@@ -47,44 +46,29 @@
       (define out-reg (vector-ref args 0))
       ;; Inverse table behavior
       (define behavior-bw (make-hash))
-      
-      (define (recurse-regs in-list in-res)
-	(cond
-	 [(empty? in-list)
-          (define out-state
-	    (with-handlers*
-	     ([exn? (lambda (e) #f)])
-	     (send simulator interpret
-		   (vector my-inst)
-		   (list->vector in-res))))
-          
-	  (when 
-	   out-state
-	   (define in-list-filtered (filter number? in-res))
-	   (define key (vector-ref out-state out-reg))
-
-           ;; Insert into the inverse table. 
-           ;; Key is outputs. Value is a set of possible inputs.
-	   (if (hash-has-key? behavior-bw key)
-	       (hash-set! behavior-bw key
-			  (cons in-list-filtered (hash-ref behavior-bw key)))
-	       (hash-set! behavior-bw key (list in-list-filtered))))
-	  ]
-
-         [else
-          (if (car in-list)
-              ;; Enumerate all possible values for a register if the register is input.
-	      (for ([i val-range])
-		   (recurse-regs (cdr in-list) (cons i in-res)))
-	      (recurse-regs (cdr in-list) (cons #f in-res)))]))
-
-          
       ;; Collect information on which registers are input and output.
       (for ([arg args]
 	    [type (send machine get-arg-types opcode-name)])
-	   (when (equal? type `var-i) (vector-set! in arg #t)))
+	   (when (equal? type `var-i) (vector-set! in arg val-range)))
 
-      (recurse-regs (reverse (vector->list in)) (list))
+      (for ([in-res (all-combination-list (vector->list in))])
+           (let ([out-state
+                  (with-handlers*
+                   ([exn? (lambda (e) #f)])
+                   (send simulator interpret
+                         (vector my-inst) (list->vector in-res)))])
+          
+             (when 
+              out-state
+              (define in-list-filtered (filter number? in-res))
+              (define key (vector-ref out-state out-reg))
+
+              ;; Insert into the inverse table. 
+              ;; Key is outputs. Value is a set of possible inputs.
+              (if (hash-has-key? behavior-bw key)
+                  (hash-set! behavior-bw key
+                             (cons in-list-filtered (hash-ref behavior-bw key)))
+                  (hash-set! behavior-bw key (list in-list-filtered))))))
       
       (define-values (x vars-in var-out) (get-inst-in-out my-inst))
       ;;(pretty-display `(behavior-bw ,behavior-bw))
