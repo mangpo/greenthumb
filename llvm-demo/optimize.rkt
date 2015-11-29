@@ -37,6 +37,8 @@
    #:once-any
    [("-l" "--linear")   "[For symbolic and enumerative search] Linear search mode (no decomposition)."
                         (mode `linear)]
+   [("-b" "--binary")   "[For symbolic and enumerative search] Binary search mode (no decomposition)."
+                        (mode `binary)]
    [("-p" "--partial")  "[For cooperative, symbolic, enumerative search] Partial search mode (context-aware window decomposition)."
                         (mode `partial)]
 

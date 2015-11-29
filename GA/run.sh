@@ -28,7 +28,7 @@ do
 done
 
 mode=p
-for type in solver enum
+for type in sym enum
 do
     for t in 1 2 3
     do

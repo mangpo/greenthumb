@@ -31,12 +31,14 @@
                         (search-type `stoch)]
    [("--enum") "Use enumerative search."
                         (search-type `enum)]
-   [("--hybrid") "Use cooperative search using all search techniques."
+   [("--hybrid") "Use cooperative search running all search techniques."
                         (search-type `hybrid)]
 
    #:once-any
    [("-l" "--linear")   "[For symbolic and enumerative search] Linear search mode (no decomposition)."
                         (mode `linear)]
+   [("-b" "--binary")   "[For symbolic and enumerative search] Binary search mode (no decomposition)."
+                        (mode `binary)]
    [("-p" "--partial")  "[For cooperative, symbolic, enumerative search] Partial search mode (context-aware window decomposition)."
                         (mode `partial)]
 

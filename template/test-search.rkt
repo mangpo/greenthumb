@@ -42,10 +42,10 @@ code here
 (define encoded-postfix (send printer encode postfix))
 
 
-;; Step 1: create constriant (live-out)
+;; Step I: create constriant (live-out)
 (define constraint ?)
 
-;; Step 2: create symbolic search
+;; Step II: create symbolic search
 (define symbolic (new $-symbolic% [machine machine]
                       [printer printer] [parser parser]
                       [validator validator] [simulator simulator-rosette]))
@@ -60,7 +60,7 @@ code here
       3600 ;; time limit in seconds
       )
 
-;; Step 3: create stochastic search
+;; Step III: create stochastic search
 #;(define stoch (new $-stochastic% [machine machine]
                       [printer printer] [parser parser]
                       [validator validator] [simulator simulator-rosette]
@@ -75,7 +75,7 @@ code here
       )
 
 
-;; Step 4: create enumerative search
+;; Step IV: create enumerative search
 #;(define backward (new $-forwardbackward% [machine machine] 
                       [printer printer] [parser parser] 
                       [validator validator] [simulator simulator-racket]

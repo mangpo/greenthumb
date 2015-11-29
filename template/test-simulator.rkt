@@ -4,10 +4,10 @@
          "$-simulator-rosette.rkt"
          "$-simulator-racket.rkt")
 
-;; Step 0: set up bitwidth for Rosette
+;; Step I: set up bitwidth for Rosette
 (current-bitwidth ?)
 
-;; Step 1: Test parser and printer
+;; Step II: Test parser and printer
 (pretty-display "Step 1: test parser and printer.")
 (define parser (new $-parser%))
 (define machine (new $-machine% [config ?]))
@@ -26,14 +26,14 @@ code here
 (newline)
 
 #|
-;; Step 2: Test concrete simulator
+;; Step III: Test concrete simulator
 (pretty-display "Step 2: interpret program using simulator writing in Rosette.")
 (define input-state ?)
 (define simulator-rosette (new $-simulator-rosette% [machine machine]))
 (send simulator-rosette interpret encoded-code input-state)
 (newline)
 
-;; Step 3: interpret concrete program with symbolic inputs
+;; Step IV: interpret concrete program with symbolic inputs
 (pretty-display "Step 5: interpret concrete program with symbolic inputs.")
 (define (sym-input)
   (define-symbolic* in number?)
@@ -43,7 +43,7 @@ code here
 (send simulator-rosette interpret encoded-code input-state-sym)
 (newline)
 
-;; Step 4: duplicate rosette simulator to racket simulator
+;; Step V: duplicate rosette simulator to racket simulator
 (pretty-display "Step 6: interpret program using simulator writing in Racket.")
 (define simulator-racket (new $-simulator-racket% [machine machine]))
 (send simulator-racket interpret encoded-code input-state)

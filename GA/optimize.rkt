@@ -4,7 +4,7 @@
          "main.rkt")
 
 (define size (make-parameter #f))
-(define cores (make-parameter 12))
+(define cores (make-parameter 8))
 (define search-type (make-parameter `hybrid))
 (define mode (make-parameter `syn))
 (define dir (make-parameter "output"))
@@ -15,7 +15,7 @@
   (command-line
    #:once-each
    [("-c" "--core")      c
-                        "Number of cores to run on (default=12)"
+                        "Number of search instances (default=8)"
                         (cores (string->number c))]
    [("-d" "--dir")      d
                         "Output directory (default=output)"
@@ -34,7 +34,7 @@
                         (window (string->number w))]
 
    #:once-any
-   [("--solver") "Use solver-based search."
+   [("--sym") "Use symbolic search."
                         (search-type `solver)]
    [("--stoch") "Use stochastic search."
                         (search-type `stoch)]
