@@ -4,27 +4,20 @@ GreenThumb is an extensible framework for constructing superoptimizers. It is de
 The top level directory contains ISA-independent files, which implement the superclasses to be extended. We have built superoptimizers for ARM, GreenArrays GA144 (GA), and a small subset of LLVM IR. Directories `arm`, `GA`, and `llvm-demo` contain ISA-sepcific files for ARM, GA, and LLVM IR respectively.
 
 ## Software Prerequisites
-- **Racket**: Download and install the latest drracket from https://racket-lang.org/download/. Include the installed racket bin directory to the environment path. The bin directory should contain racket, drracket, raco, and etc.
+- **Racket**: Download and install drracket from https://racket-lang.org/download/. Include the installed 'bin' directory to the environment path. The 'bin' directory should contain racket, drracket, raco, and etc.
 - **Rosette**: Download and follow the instruction to install rosette from https://github.com/emina/rosette
 - **Python**
 
 ## Setting Up
-Clone the repository: 
 ```
 git clone https://github.com/mangpo/greenthumb.git
-```
-
-After obtaining all the source code, under supertopimizer directory run 
-```
+cd greenthumb
 make
 ```
-
-This will generate `path.rkt`.
-
-Racket program can be executed without compiling. However, compiling is recommended since it will reduce the overhead of translating program source to bytecode. As a result, the program will run faster and use less memory. Compile  by running
 ```
-raco make <list_of_flies_to_be_compiled>
-```
+
+`path.rkt` will be generated.
+
 
 ## Running an Existing Superoptimizer
 For example, we will walk through how one can run the ARM supertoptimizer.
@@ -65,13 +58,12 @@ racket optimize.rkt --hybrid -p -c 8 -t 3600 programs/p14_floor_avg_o0.s
 Run `racket optimize.rkt --help` to see all supported arguments and what their default values are.
 
 ### Outputs
-The superoptimizer will create an output directory that contains `driver-<id>.rkt` files. The default output directory is named `output`. You can specify output directory name using `-d` flag. The number of `driver-<id>.rkt` files is equal to the number of search instances specified. Each `driver-<id>.rkt` file is used for executing a search instance. 
+An output directory containing `driver-<id>.rkt` files will be created. The default name of the output directory is `output`. Use `-d` flag to specify the output directory's name. Each `driver-<id>.rkt` file runs a search instance. 
 
 Each `driver-<id>.rkt`
-- updates the most optimal program found so far in `driver-<id>.best` and `best.s` (best of all search instances)
-- updates `summary` file, which contains statistic of best programs found at different points of time
+- updates the shared file `best.s`, which always contains the current best program, if the search instance finds a better program than the current best.
+- updates `summary` file, which contains the statistic of best programs found at different points of time.
 - writes debug and error messages to `driver-<id>.log` 
-- updates the statistic information in `driver-<id>.stat` every 1000 iterations by overwriting the old content if using the stochastic search.
 
 At the beginning, the search driver will report the numbers of search instances allocated for different search techniques.
 
@@ -92,42 +84,39 @@ ID 7-7: enum (window=L*2)        << driver-7 run enumerative search.
 
 X in (window=X) indicates the size of window used in the context-aware window decomposition.
 
-Then, every 10 second, the search driver will print the aggregated statistic of the search from all search instances. Here is an example of the statistic.
+Then, the search driver will report the status of the search every 10 seconds.
 ```
 // This first part is the statistics from all stochastic search instances.
-elapsed-time:   60
-mutate-time:    0.011061	<< time spent on mutating/total
-simulate-time:  0.848529	<< time spent on interpreting/total
-check-time:     0.058881	<< time spent on checking the correctness against test cases/total
-validate-time:  0.035559	<< time spent on validating the correctness using solver/total
+elapsed time:   74
+mutate time:    0.080541	<< (time spent on mutating)/total
+simulate time:  0.126095	<< (time spent on interpreting)/total
+check time:     0.054595	<< (time spent on checking actual outputs against expected outputs)/total
+validate time:  0.702649	<< (time spent on validating the correctness using solver)/total
 
-validate-count: 0.000061	<< number of validation invocations/total count
-correct-count:  0.000057	<< number of validation invocations that returns correct/total count
+iterations/s:      5324.89
+best cost:         5       << best cost despite the correctness
+best correct cost: 5       << best performance cost considering the correctness
+best correct time: 27      << time in seconds to find the best correct proposal
 
-iterations:         167418
-iterations/s:       3720.4
-best-cost:          5       << best cost despite the correctness
-best-correct-cost:  5       << best performance cost considering the correctness
-best-correct-time:  37      << time in seconds to find the best correct proposal
+Mutate     Proposed  Accepted  Accepted/Proposed
+opcode     0.217529  0.029182  0.134155
+operand    0.220791  0.000276  0.001250
+swap       0.061042  0.009864  0.161608
+inst       0.043268  0.000167  0.003859
+nop        0.175311  7.187534  0.000409
+shf        0.282056  0.008171  0.028971
+cond-type	 0.0       0.0       0
 
-Mutate      Proposed            Accepted            Accepted/Proposed
-opcode      0.1286808272868922  0.11044402877693389 0.8582788213717369
-operand     0.1471035672160758  0.12721613915365462 0.8648066227162993
-swap        0.327319674532673   0.32115689667891    0.9811719907684687
-inst        0.20960571357568197 0.13376954061918497 0.6381960602943442
-nop         0.11775171864359524 0.11425287866768653 0.9702862937695304
-shf         0.10282148787005306 0.0502050022464683  0.4882734464017671
-cond-type   0.0                 0.0                 0
 
-accept-count:           0.879237    << rate of accepting mutated programs
-accept-higher-count:    0.000005    << rate of accepting mutated programs with higher cost
+accept-count:        0.047734  << rate of accepting mutated programs
+accept-higher-count: 0.000457  << rate of accepting mutated programs with higher cost
 
 // This second part summarizes the charateristics of the best program found so far.
 =============== SUMMARY ===============
-cost:	3              << cost of the best program found so far
-len:	3              << length of the best program found so far
-time:	16             << time in seconds to find the best program
-output/0/driver-5      << the best program is found by driver-<id> (5 in this case).
+cost:	3            << cost of the best program found so far
+len:	3            << length of the best program found so far
+time:	15           << time in seconds to find the best program
+output/0/driver-7  << the best program is found by driver-<id> (7 in this case).
 ```
 
 Hit Ctrl-C to end the process early or wait until time is up. At the end, the search driver will print out the optimized program. Below is the output program when optimizing p14_floor_avg_o0.s.
@@ -166,6 +155,12 @@ Now, we can start implementing our superoptimizer in the following order.
    - method `len-limit` of `llvm-symbolic%` and `llvm-forwardbackward%`
 
 Now, we can run our LLVM IR cooperative superoptimizer, similar to the way we run the ARM superoptimizer in the earlier section, using the generated `optimize.rkt`. Note that even if we do not implement all search techniques, for instance, we only implement `llvm-stochastic%`, we can still use `optimize.rkt` to run the stochastic search instaces in parallel, communicating to each other about the best program.
+
+## Reduce Memory Usage
+To reduce memory usage and overhead of Racket translating program to bytecode, we can precompile our superoptimizer application to bytecode by running in command line:
+```
+raco make <list_of_flies_to_be_compiled>
+```
 
 ## Inquery and Bug Report
 Please contact mangpo [at] eecs.berkeley.edu
