@@ -8,7 +8,7 @@
   (class machine%
     (super-new)
     (inherit-field bitwidth random-input-bits config
-                   inst-id nop-id
+                   opcodes nop-id
                    ;; >> required fileds for stochastic and enumerative only
 		   ;; classes
                    )
@@ -24,7 +24,7 @@
     (unless bitwidth (set! bitwidth ?))
     (set! random-input-bits bitwidth)
     (set! nop-id 0)
-    (set! inst-id '#(nop)) ;; list of instructions
+    (set! opcodes '#(nop)) ;; list of instructions
 
     (when config (set-config config))
 

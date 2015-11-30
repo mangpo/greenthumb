@@ -28,7 +28,7 @@
     (define (get-constructor) validator%)
     (define-syntax-rule (display-state x) (send machine display-state x))
 
-    (define ninsts (vector-length (get-field inst-id machine)))
+    (define ninsts (vector-length (get-field opcodes machine)))
     (define start-time #f)
 
     ;(current-solver (new z3%))

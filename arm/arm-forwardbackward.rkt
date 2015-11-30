@@ -23,9 +23,9 @@
     ;; The cooperative search tries L/2, L, 2L, 4L.
     (define (window-size) 4)
 
-    (define inst-id (get-field inst-id machine))
+    (define opcodes (get-field opcodes machine))
     (define cmp-inst
-      (map (lambda (x) (vector-member x inst-id))'(cmp tst cmp# tst#)))
+      (map (lambda (x) (vector-member x opcodes))'(cmp tst cmp# tst#)))
 
     ;; Convert instruction into vector/list/pair format.
     (define (inst->vector x)

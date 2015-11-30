@@ -23,7 +23,7 @@
     (set! nop-mass 0.4)
 
     (define bit (get-field bitwidth machine))
-    (define inst-id (get-field inst-id machine))
+    (define opcodes (get-field opcodes machine))
     (define nmems (send machine get-nmems))
 
     (define (get-mutations opcode-name)
@@ -52,8 +52,8 @@
 		   (inst opcode-id (random-from-vec-ex (get-field const-range machine) arg)))
       new-p)
     
-    (define (random-instruction live-in [opcode-id (random (vector-length inst-id))])
-      (define opcode-name (vector-ref inst-id opcode-id))
+    (define (random-instruction live-in [opcode-id (random (vector-length opcodes))])
+      (define opcode-name (vector-ref opcodes opcode-id))
       (define arg (and (equal? opcode-name `@p) (random-from-vec (get-field const-range machine))))
       (inst opcode-id arg))
 

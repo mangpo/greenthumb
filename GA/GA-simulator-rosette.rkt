@@ -14,7 +14,7 @@
     (define (get-constructor) GA-simulator-rosette%)
 
     (define bit (get-field bitwidth machine))
-    (define inst-id (get-field inst-id machine))
+    (define opcodes (get-field opcodes machine))
 
     (define debug #f)
     
@@ -183,7 +183,7 @@
 	(define inst (inst-op inst-const))
 	(define const (inst-args inst-const))
 	(when debug (pretty-display `(interpret-step ,inst ,const)))
-	(define-syntax-rule (inst-eq x) (equal? x (vector-ref inst-id inst)))
+	(define-syntax-rule (inst-eq x) (equal? x (vector-ref opcodes inst)))
 	(cond
 	 [(inst-eq `@p)   (push! const)]
 	 [(inst-eq `@+)   (mem-to-stack a)
@@ -269,7 +269,7 @@
 
       (define (cost-step inst-const)
 	(define inst (inst-op inst-const))
-	(define-syntax-rule (inst-eq x) (equal? x (vector-ref inst-id inst)))
+	(define-syntax-rule (inst-eq x) (equal? x (vector-ref opcodes inst)))
 	(cond
 	 [(inst-eq `@p) 5]
 	 [(inst-eq `+) 2]

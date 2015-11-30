@@ -11,15 +11,15 @@
     (init-field machine printer)
     (override get-flag generate-inst)
     
-    (define inst-id (get-field inst-id machine))
+    (define opcodes (get-field opcodes machine))
     (define inst-with-shf (get-field inst-with-shf machine))
-    (define cond-type-len (vector-length (get-field cond-inst-id machine)))
-    (define shf-inst-id (get-field shf-inst-id machine))
-    (define shf-inst-len (vector-length shf-inst-id))
+    (define cond-type-len (vector-length (get-field cond-opcodes machine)))
+    (define shf-opcodes (get-field shf-opcodes machine))
+    (define shf-inst-len (vector-length shf-opcodes))
     (define cmp-inst
-      (map (lambda (x) (vector-member x inst-id)) '(cmp tst cmp# tst#)))
+      (map (lambda (x) (vector-member x opcodes)) '(cmp tst cmp# tst#)))
     (define ldst-inst
-      (map (lambda (x) (vector-member x inst-id)) '(ldr# str#)))
+      (map (lambda (x) (vector-member x opcodes)) '(ldr# str#)))
 
     (define commutative-0-1 '(tst))
     (define commutative-1-2 '(add and orr eor mul smmul))
@@ -54,7 +54,7 @@
 
       (define mode (cond [no-args `no-args] [else `basic]))
       ;; (define inst-choice '(add and))
-      ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
+      ;; (define inst-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
       (define inst-pool (get-field inst-pool machine))
       (define z
         (cond
@@ -163,7 +163,7 @@
                 ])))
          
          (for ([opcode-id (shuffle inst-pool)])
-           (let ([opcode-name (vector-ref inst-id opcode-id)])
+           (let ([opcode-name (vector-ref opcodes opcode-id)])
              (set! arg-types (send machine get-arg-types opcode-name))
              (unless 
                  (equal? opcode-name `nop)

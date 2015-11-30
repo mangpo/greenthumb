@@ -24,7 +24,7 @@
     (define (encode-inst x)
       (define arg (inst-args x))
       (if (inst-op x)
-	  (inst (send machine get-inst-id (string->symbol (inst-op x)))
+	  (inst (send machine get-opcode-id (string->symbol (inst-op x)))
 		(and arg
 		     (if (string->number arg)
 			 (string->number arg)
@@ -33,7 +33,7 @@
 
     (define (decode-inst x)
       (define arg (inst-args x))
-      (inst (symbol->string (send machine get-inst-name (inst-op x)))
+      (inst (symbol->string (send machine get-opcode-name (inst-op x)))
 	    (and (number? arg) (number->string arg))))
 
     (define (print-syntax-inst x [indent ""])

@@ -28,7 +28,7 @@
       (define-symbolic* arg number?)
       arg)
     
-    (define ninsts (vector-length (get-field inst-id machine)))
+    (define ninsts (vector-length (get-field opcodes machine)))
 
     (define (interpret-spec spec start-state assumption)
       (send validator assume start-state assumption)

@@ -13,8 +13,8 @@
     (override gen-inverse-behavior interpret-inst uid-inst-in-out)
 
     (define bit (get-field bitwidth machine))
-    (define inst-id (get-field inst-id machine))
-    (define shf-inst-id (get-field shf-inst-id machine))
+    (define opcodes (get-field opcodes machine))
+    (define shf-opcodes (get-field shf-opcodes machine))
     (define shf-inst-reg (get-field shf-inst-reg machine))
     (define reg-range-db
       (for/vector ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
@@ -27,7 +27,7 @@
       (define shfarg (inst-shfarg x))
       (define inst-type-append (list shfop))
       (when (> shfop 0)
-	    (if (member (vector-ref shf-inst-id shfop) shf-inst-reg)
+	    (if (member (vector-ref shf-opcodes shfop) shf-inst-reg)
 		(set! in (append in (list shfarg)))
 		(set! inst-type-append (append inst-type-append (list shfarg)))))
       (values (append inst-type inst-type-append) in out))
@@ -37,7 +37,7 @@
 
     ;; Generate inverse table behavior for my-inst.
     (define (gen-inverse-behavior my-inst)
-      (define opcode-name (vector-ref inst-id (inst-op my-inst)))
+      (define opcode-name (vector-ref opcodes (inst-op my-inst)))
       ;; For collecting which registers in my-inst are input and output.
       (define in (make-vector 5 #f))
       (define out (make-vector 5 #f))
@@ -48,7 +48,7 @@
       (define arg-types (send machine get-arg-types opcode-name))
       (define shfop (inst-shfop my-inst))
       (define shfarg (inst-shfarg my-inst))
-      (when (and shfop (member (vector-ref shf-inst-id shfop) shf-inst-reg))
+      (when (and shfop (member (vector-ref shf-opcodes shfop) shf-inst-reg))
             (vector-set! in shfarg #t))
       
       (for ([arg (inst-args my-inst)]
@@ -95,7 +95,7 @@
     ;; output: a list of progstates in vector/list/pair format
     (define (interpret-inst my-inst state-vec old-liveout)
       ;;(pretty-display `(interpret ,state-vec ,old-liveout))
-      (define opcode-name (vector-ref inst-id (inst-op my-inst)))
+      (define opcode-name (vector-ref opcodes (inst-op my-inst)))
       (define cond-type (arm-inst-cond my-inst))
 
       (define regs (vector-ref state-vec 0))

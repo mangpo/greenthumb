@@ -35,13 +35,13 @@
     (define RIGHT-abst -6)
     (define IO-abst -7)
 
-    (define inst-id (get-field inst-id machine))
+    (define opcodes (get-field opcodes machine))
     (define mask (sub1 (arithmetic-shift 1 bit)))
     (define mask-1 (sub1 (arithmetic-shift 1 (sub1 bit))))
     
     (define (change-inst x change)
       (define opcode-id (inst-op x))
-      (define opcode-name (send machine get-inst-name opcode-id))
+      (define opcode-name (send machine get-opcode-name opcode-id))
       (define arg (inst-args x))
       (if (equal? opcode-name `@p)
           (inst opcode-id (change arg))
@@ -49,7 +49,7 @@
 
     (define (change-inst-list x change)
       (define opcode-id (inst-op x))
-      (define opcode-name (send machine get-inst-name opcode-id))
+      (define opcode-name (send machine get-opcode-name opcode-id))
       (define arg (inst-args x))
 
       (if (equal? opcode-name `@p)
@@ -175,7 +175,7 @@
       (define t (vector-ref state 4))
       (define mem-len (vector-length (vector-ref state 7)))
 
-      (define opcode-name (vector-ref inst-id opcode-id))
+      (define opcode-name (vector-ref opcodes opcode-id))
       (define-syntax-rule (inst-eq x) (equal? x opcode-name))
       (cond
        [(member opcode-name '(@b))

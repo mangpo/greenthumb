@@ -11,7 +11,7 @@
     (init-field machine printer)
     (override generate-inst)
     
-    (define inst-id (get-field inst-id machine))
+    (define opcodes (get-field opcodes machine))
 
     (define (generate-inst live-in live-out flag-in flag-out
                            #:no-args [no-args #f] #:try-cmp [try-cmp #f])

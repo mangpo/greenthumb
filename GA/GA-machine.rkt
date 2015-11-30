@@ -113,7 +113,7 @@
 (define GA-machine%
   (class machine%
     (super-new)
-    (inherit-field bitwidth random-input-bits config inst-id nop-id classes)
+    (inherit-field bitwidth random-input-bits config opcodes nop-id classes)
     (override set-config adjust-config finalize-config get-memory-size
               get-state display-state 
 	      no-assumption
@@ -137,7 +137,7 @@
 	    (if (= bitwidth 18)
 		(set! random-input-bits 16)
 		(set! random-input-bits (sub1 bitwidth))))
-    (set! inst-id '#(nop @p @+ @b @ !+ !b ! +* 2* 
+    (set! opcodes '#(nop @p @+ @b @ !+ !b ! +* 2* 
 			 2/ - + and or drop dup pop over a 
 			 push b! a!))
     (set! nop-id 0)
@@ -351,7 +351,7 @@
     (define (analyze-args prefix code postfix live1 live2 #:vreg [vreg 0])
       (define constants (list))
       (for ([x (vector-append prefix code postfix)])
-           (when (equal? (vector-ref inst-id (inst-op x)) `@p)
+           (when (equal? (vector-ref opcodes (inst-op x)) `@p)
                  (set! constants (cons (inst-args x) constants))))
       (set! const-range
             (list->vector

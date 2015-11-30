@@ -13,7 +13,7 @@
 
     ;; Reduced-bit
     (define bit (get-field bitwidth machine))
-    (define inst-id (get-field inst-id machine))
+    (define opcodes (get-field opcodes machine))
     (define val-range
       (for/vector ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
 

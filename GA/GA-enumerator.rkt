@@ -11,11 +11,11 @@
     (init-field machine printer)
     (override get-flag generate-inst)
     
-    (define inst-id (get-field inst-id machine))
+    (define opcodes (get-field opcodes machine))
     (define arith-inst
-      (map (lambda (x) (vector-member x inst-id)) '(+* 2* 2/ - + and or drop)))
+      (map (lambda (x) (vector-member x opcodes)) '(+* 2* 2/ - + and or drop)))
     (define mem-inst
-      (map (lambda (x) (vector-member x inst-id)) '(! !b @ @b)))
+      (map (lambda (x) (vector-member x opcodes)) '(! !b @ @b)))
 
     (define-syntax-rule (min-list x) (foldl min (car x) (cdr x)))
     (define-syntax-rule (max-list x) (foldl max (car x) (cdr x)))
@@ -26,7 +26,7 @@
              #:no-args [no-args #f] #:try-cmp [try-cmp #f])
       (define const-range (get-field const-range machine))
       ;; (define inst-choice '(drop @p b! !b))
-      ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
+      ;; (define inst-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
       (define inst-pool (get-field inst-pool machine))
       (when no-args
             (set! inst-pool
@@ -42,7 +42,7 @@
       (generator 
        ()
        (for ([opcode-id inst-pool])
-            (let ([opcode-name (vector-ref inst-id opcode-id)])
+            (let ([opcode-name (vector-ref opcodes opcode-id)])
               (cond
                [(equal? opcode-name `nop) (void)]
                [(equal? opcode-name `@p)

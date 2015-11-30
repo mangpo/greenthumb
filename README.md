@@ -74,11 +74,11 @@ sym:	2 instances
 enum:	4 instances
 
 ID 0-1: stoch (optimize)         << driver-0 and 1 run stochastic search.
-ID 2-2: sym (window=L/2)         << driver-2 runs symbolic search.
-ID 3-3: sym (window=L)           << driver-3 runs symbolic search.
+ID 2-2: sym (window=L)         << driver-2 runs symbolic search.
+ID 3-3: sym (window=2L)           << driver-3 runs symbolic search.
 ID 4-4: enum (no-decomposition)  << driver-4 runs enumerative search (no window).
-ID 5-6: enum (window=L/2)        << driver-5 and 6 run enumerative search.
-ID 7-7: enum (window=L*2)        << driver-7 run enumerative search.
+ID 5-6: enum (window=L)        << driver-5 and 6 run enumerative search.
+ID 7-7: enum (window=2L)        << driver-7 run enumerative search.
 ```
 
 X in (window=X) indicates the size of window used in the context-aware window decomposition.

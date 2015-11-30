@@ -13,7 +13,7 @@
 
     (define bit (get-field bitwidth machine))
     (define nop-id (get-field nop-id machine))
-    (define inst-id (get-field inst-id machine))
+    (define opcodes (get-field opcodes machine))
 
     (define-syntax-rule (bvop op)     
       (lambda (x y) (finitize-bit (op x y))))
@@ -83,7 +83,7 @@
       
         (define-syntax inst-eq
           (syntax-rules ()
-            ((inst-eq x) (equal? x (vector-ref inst-id op)))
+            ((inst-eq x) (equal? x (vector-ref opcodes op)))
             ((inst-eq a b ...) (or (inst-eq a) (inst-eq b) ...))))
         
         (cond

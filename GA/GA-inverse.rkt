@@ -13,7 +13,7 @@
     (override gen-inverse-behavior interpret-inst)
     
     (define bit (get-field bitwidth machine))
-    (define inst-id (get-field inst-id machine))
+    (define opcodes (get-field opcodes machine))
     (define val-range
       (for/list ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
     (define nmems (send machine get-nmems))
@@ -30,7 +30,7 @@
     ;;   +* 2* 2/ - + and or drop
     (define (gen-inverse-behavior my-inst)
       (define opcode-id (inst-op my-inst))
-      (define opcode-name (vector-ref inst-id opcode-id))
+      (define opcode-name (vector-ref opcodes opcode-id))
 
       (define behavior-bw (make-hash))
       (cond
@@ -109,7 +109,7 @@
       (define nmems (vector-length memory))
       
       (define opcode-id (inst-op my-inst))
-      (define opcode-name (vector-ref inst-id opcode-id))
+      (define opcode-name (vector-ref opcodes opcode-id))
       (define const (inst-args my-inst))
       
       (define out-list (list))
