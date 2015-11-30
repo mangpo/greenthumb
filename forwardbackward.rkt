@@ -437,7 +437,7 @@
 			       #:hard-postfix [hard-postfix (vector)]
 			       #:assume [assumption (send machine no-assumption)])
       (set! start-time (current-seconds))
-      (send machine reset-inst-pool)
+      (send machine reset-opcode-pool)
       (send machine analyze-opcode prefix spec postfix)
       (define init
         (car (send validator

@@ -47,7 +47,7 @@
                            #:assume [assumption (send machine no-assumption)]
                            #:input-file [input-file #f]
                            #:start-prog [start #f])
-      (send machine reset-inst-pool)
+      (send machine reset-opcode-pool)
       (send machine reset-arg-ranges)
       (set! live-in (send machine get-live-list this-live-in))
       (send machine analyze-args (vector) spec (vector) live-in constraint)
@@ -198,7 +198,7 @@
             (begin (send stat inc-propose `nop) 
                    nop-id)
             (begin (send stat inc-propose `inst) 
-		   (random-from-list (get-field inst-pool machine)))))
+		   (random-from-list (get-field opcode-pool machine)))))
       (when debug
             (pretty-display (format " >> mutate instruction ~a" (vector-ref opcodes new-opcode-id))))
       (define my-live-in live-in)
@@ -210,7 +210,7 @@
     
     ;; Create a new instruction with operands that are live (in live-in) and with opcode-id if specified.
     ;; live-in: compact format
-    (define (random-instruction live-in [opcode-id (random-from-list (get-field inst-pool machine))])
+    (define (random-instruction live-in [opcode-id (random-from-list (get-field opcode-pool machine))])
       (when debug (pretty-display `(random-instruction ,opcode-id)))
       (define opcode-name (vector-ref opcodes opcode-id))
       (define args (random-args-from-op opcode-name live-in))

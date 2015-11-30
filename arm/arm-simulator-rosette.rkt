@@ -216,7 +216,7 @@
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
     (define (interpret program state [policy #f])
-      (define inst-pool (get-field inst-pool machine))
+      (define opcode-pool (get-field opcode-pool machine))
       ;;(pretty-display `(interpret))
       (define regs (vector-copy (progstate-regs state)))
       (define memory (vector-copy (progstate-memory state)))

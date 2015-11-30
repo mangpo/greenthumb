@@ -11,6 +11,7 @@
   (class parser%
     (super-new)
     (inherit-field asm-parser asm-lexer)
+    (init-field [compress? #f])
 
     (define-tokens a (VAR WORD NUM))
     (define-empty-tokens b (EOF EQ COMMA HOLE))
@@ -79,13 +80,15 @@
          ((instruction inst-list) (cons $1 $2)))
         
         (code   
-         ((inst-list) (rename (list->vector $1)))))
-       ))
+         ((inst-list) (if compress? (rename (list->vector $1)) (list->vector $1))))
+       )))
 
     (define/public (info-from-file file)
       (define lines (file->lines file))
       (define live-out (string-split (first lines) ","))
       (define live-in (string-split (second lines) ","))
+      (set! compress? #t)
+      (set! all-names (list->set (append live-in live-out)))
       (values live-out live-in))
 
     ))
@@ -111,6 +114,8 @@
   
   (inst op (list->vector (cons lhs (cons out (map last terms))))))
 
+(define all-names (set)) ;;(live-in-set inst-vec))
+
 (define (live-in-set inst-vec)
   (define use (set))
   (define def (set))
@@ -128,17 +133,18 @@
 (define (rename inst-vec)
   ;; Rename variable from old to new up to instruction at index.
   (define (rename-var old new index)
-    (for ([i index]
-          [my-inst inst-vec])
-         (let ([args (inst-args my-inst)])
-           (for ([arg args]
-                 [arg-i (in-naturals)])
-                (when (equal? arg old)
-                      (vector-set! args arg-i new))))))
+    (define def #f)
+    (for ([i (reverse (range index))] #:break def)
+	 (let* ([my-inst (vector-ref inst-vec i)]
+		[args (inst-args my-inst)])
+	   (for ([arg args]
+		 [arg-i (in-naturals)] #:break def)
+		(when (equal? arg old)
+		      (vector-set! args arg-i new)
+		      (when (= arg-i 0) (set! def #t)))))))
   
   (define len (vector-length inst-vec))
   (define names (list))
-  (define all-names (live-in-set inst-vec))
   (for ([index (reverse (range len))])
        (let ([my-inst (vector-ref inst-vec index)])
          (when

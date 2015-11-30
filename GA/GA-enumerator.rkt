@@ -26,22 +26,22 @@
              #:no-args [no-args #f] #:try-cmp [try-cmp #f])
       (define const-range (get-field const-range machine))
       ;; (define inst-choice '(drop @p b! !b))
-      ;; (define inst-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
-      (define inst-pool (get-field inst-pool machine))
+      ;; (define opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
+      (define opcode-pool (get-field opcode-pool machine))
       (when no-args
-            (set! inst-pool
-                  (filter (lambda (x) (member x arith-inst)) inst-pool)))
+            (set! opcode-pool
+                  (filter (lambda (x) (member x arith-inst)) opcode-pool)))
       (when (and flag-in flag-out)
             (cond
              [(= (add1 flag-in) (min-list flag-out)) 
-	      (set! inst-pool (filter (lambda (x) (member x mem-inst)) inst-pool))]
-             [(< flag-in (min-list flag-out)) (set! inst-pool (list))]
-             [(> flag-in (max-list flag-out)) (set! inst-pool (list))]
+	      (set! opcode-pool (filter (lambda (x) (member x mem-inst)) opcode-pool))]
+             [(< flag-in (min-list flag-out)) (set! opcode-pool (list))]
+             [(> flag-in (max-list flag-out)) (set! opcode-pool (list))]
              ))
               
       (generator 
        ()
-       (for ([opcode-id inst-pool])
+       (for ([opcode-id opcode-pool])
             (let ([opcode-name (vector-ref opcodes opcode-id)])
               (cond
                [(equal? opcode-name `nop) (void)]

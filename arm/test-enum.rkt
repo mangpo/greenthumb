@@ -16,7 +16,7 @@
                   [machine machine]
                   [printer printer]))
 ;(send machine analyze-opcode (vector) encoded-code (vector))
-(send machine reset-inst-pool)
+(send machine reset-opcode-pool)
 
 ;; Input machine state
 (define input-state (progstate (vector 0 0 0)

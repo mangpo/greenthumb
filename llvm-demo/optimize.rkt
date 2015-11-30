@@ -53,8 +53,8 @@
    filename))
 
 (define parser (new llvm-demo-parser%))
-(define code (send parser ir-from-file file-to-optimize))
 (define-values (live-out live-in) (send parser info-from-file (string-append file-to-optimize ".info")))
+(define code (send parser ir-from-file file-to-optimize))
 
 (optimize code
           live-out

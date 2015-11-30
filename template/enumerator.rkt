@@ -20,12 +20,12 @@
       ;; Mode `no-args is for generating instructions to be used for creating
       ;; inverse behaviors, so we don't have to enumerate variables/registers.
       
-      (define inst-pool (get-field inst-pool machine))
+      (define opcode-pool (get-field opcode-pool machine))
       
       (define iterator
         (generator 
          ()
-         (for ([opcode-id (shuffle inst-pool)])
+         (for ([opcode-id (shuffle opcode-pool)])
               (yield (inst opcode-id ?)))
          ))
       iterator)

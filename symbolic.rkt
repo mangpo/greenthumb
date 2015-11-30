@@ -56,7 +56,7 @@
 			       #:hard-postfix [hard-postfix (vector)]
 			       #:assume [assumption (send machine no-assumption)])
       ;;(send machine analyze-opcode prefix spec postfix)
-      (send machine reset-inst-pool)
+      (send machine reset-opcode-pool)
       (set! sketch (for/vector ([x sketch]) (if (inst-op x) x (gen-sym-inst))))
       (if pure-symbolic 
           (synthesize-from-sketch 

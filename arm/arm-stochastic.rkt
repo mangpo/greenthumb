@@ -167,7 +167,7 @@
 
     ;; (overriden) Create a new instruction with operands that are live (in live-in) and with opcode-id if specified.
     ;; live-in: compact format
-    (define (random-instruction live-in [opcode-id (random-from-list (get-field inst-pool machine))])
+    (define (random-instruction live-in [opcode-id (random-from-list (get-field opcode-pool machine))])
       (define opcode-name (vector-ref opcodes opcode-id))
       (define args (random-args-from-op opcode-name live-in))
       (cond

@@ -81,7 +81,7 @@
   (class machine%
     (super-new)
     (inherit-field bitwidth random-input-bits config
-                   opcodes inst-pool
+                   opcodes opcode-pool
 		   classes classes-filtered
 		   nop-id)
     (inherit get-class-id filter-live state-eq?)
@@ -605,7 +605,7 @@
             (set! inst-choice (append inst-choice '(str#))))
       (when (code-has code '(tst cmp tst# cmp#))
             (set! inst-choice (append inst-choice '(tst cmp tst# cmp#))))
-      (set! inst-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
+      (set! opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
       (set! classes-filtered 
             (for/vector ([c classes])
                         (map (lambda (x) (vector-member x opcodes))
@@ -621,7 +621,7 @@
               (let ([opcode-name (vector-ref opcodes (inst-op i))])
                 (member opcode-name inst-list))))
 
-    ;; (define/override (reset-inst-pool)
+    ;; (define/override (reset-opcode-pool)
     ;;   (define inst-choice '(
     ;;                  add sub rsb
     ;;                  add# sub# rsb#
@@ -649,7 +649,7 @@
     ;;                  tst# cmp#
     ;;                  ))
                                 
-    ;;   (set! inst-pool (map (lambda (x) (vector-member x opcodes)) inst-choice)))
+    ;;   (set! opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice)))
 
     ;; Analyze input code and update operands' ranges.
     (define (analyze-args prefix code postfix live-in-list live-out

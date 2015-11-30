@@ -14,7 +14,7 @@
 (define validator%
   (class object%
     (super-new)
-    (init-field machine simulator
+    (init-field machine simulator [printer #f]
                 [bit (get-field bitwidth machine)]
                 [random-input-bit (get-field random-input-bits machine)])
     (public proper-machine-config generate-input-states generate-inputs-inner
@@ -195,6 +195,14 @@
     (define (counterexample spec program constraint [extra #f]
                             #:assume [assumption (send machine no-assumption)])
       ;;(pretty-display (format "solver = ~a" (current-solver)))
+      (when (and debug printer)
+	    (pretty-display `(counterexample ,bit))
+	    (pretty-display `(spec))
+	    (send printer print-syntax (send printer decode spec))
+	    (pretty-display `(program))
+	    (send printer print-syntax (send printer decode program))
+	    (pretty-display `(constraint ,constraint))
+	    )
       
       (clear-asserts)
       (current-bitwidth bit)

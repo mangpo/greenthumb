@@ -54,8 +54,8 @@
 
       (define mode (cond [no-args `no-args] [else `basic]))
       ;; (define inst-choice '(add and))
-      ;; (define inst-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
-      (define inst-pool (get-field inst-pool machine))
+      ;; (define opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
+      (define opcode-pool (get-field opcode-pool machine))
       (define z
         (cond
          [try-cmp
@@ -66,16 +66,16 @@
 
       ;; (pretty-display `(enumerate ,flag-in ,flag-out ,z))
 
-      ;; Remove some opcode from inst-pool
+      ;; Remove some opcode from opcode-pool
       (cond
        [try-cmp 
         (when (and (number? flag-in) (list? flag-out)
                    (not (member flag-in flag-out)))
-              (set! inst-pool (filter (lambda (x) (member x cmp-inst)) inst-pool)))]
+              (set! opcode-pool (filter (lambda (x) (member x cmp-inst)) opcode-pool)))]
        [no-args
-        (set! inst-pool (remove* (append ldst-inst cmp-inst) inst-pool))]
+        (set! opcode-pool (remove* (append ldst-inst cmp-inst) opcode-pool))]
        [else
-        (set! inst-pool (remove* cmp-inst inst-pool))])
+        (set! opcode-pool (remove* cmp-inst opcode-pool))])
 	
       (define iterator
         (generator 
@@ -162,7 +162,7 @@
                                 (cdr ranges) v-reg))
                 ])))
          
-         (for ([opcode-id (shuffle inst-pool)])
+         (for ([opcode-id (shuffle opcode-pool)])
            (let ([opcode-name (vector-ref opcodes opcode-id)])
              (set! arg-types (send machine get-arg-types opcode-name))
              (unless 

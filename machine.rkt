@@ -18,8 +18,8 @@
      [classes #f]          ;; A vector of lists of opcodes. Each list groups opcodes with the same operands' types together.
 
      ;; Fields to be set by method 'analyze-opcode'
-     [inst-pool #f]        ;; Opcodes to be considered during synthesis.
-     [classes-filtered #f] ;; 'classes' that is filtered in only opcodes in 'inst-pool'.
+     [opcode-pool #f]        ;; Opcodes to be considered during synthesis.
+     [classes-filtered #f] ;; 'classes' that is filtered in only opcodes in 'opcode-pool'.
      )
 
     ;; Required methods to be implemented.
@@ -38,7 +38,7 @@
 	    clean-code state-eq? relaxed-state-eq?
 	    update-live update-live-backward filter-live get-live-list
 	    analyze-opcode analyze-args 
-            reset-inst-pool
+            reset-opcode-pool
             reset-arg-ranges
             get-arg-ranges get-arg-types
             get-constructor
@@ -128,15 +128,15 @@
     (define (get-live-list constraint) (progstate->vector constraint))
     
     (define (analyze-opcode prefix code postfix)
-      (set! inst-pool (range (vector-length opcodes)))
+      (set! opcode-pool (range (vector-length opcodes)))
       (set! classes-filtered 
             (for/vector ([c classes])
                         (map (lambda (x) (vector-member x opcodes)) c)))
       #t
       )
 
-    (define (reset-inst-pool)
-      (set! inst-pool (range (vector-length opcodes))))
+    (define (reset-opcode-pool)
+      (set! opcode-pool (range (vector-length opcodes))))
 
     (define (analyze-args prefix code postfix live-in-list live-out
                           #:only-const [only-const #f] #:vreg [vreg 0])

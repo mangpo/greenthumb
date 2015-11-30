@@ -36,9 +36,9 @@
 
       (define mode (cond [no-args `no-args] [else `basic]))
 
-      (define inst-pool (get-field inst-pool machine))
+      (define opcode-pool (get-field opcode-pool machine))
       ;; (define inst-choice '(and#))
-      ;; (define inst-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
+      ;; (define opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
 
       (define iterator
         (generator 
@@ -74,7 +74,7 @@
                      (yield
                       (list i new-live-in new-live-out)))))))
        
-         (for ([opcode-id (shuffle inst-pool)])
+         (for ([opcode-id (shuffle opcode-pool)])
            (let ([opcode-name (vector-ref opcodes opcode-id)])
              (unless 
 	      (equal? opcode-name `nop)
