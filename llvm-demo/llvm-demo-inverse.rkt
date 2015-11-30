@@ -7,8 +7,9 @@
 (define llvm-demo-inverse%
   (class inverse%
     (super-new)
-    (init-field machine simulator)
-    (override gen-inverse-behavior interpret-inst)
+    (inherit-field machine simulator)
+    (inherit lookup-bw)
+    (override gen-inverse-behavior interpret-inst uid-inst-in-out)
 
     ;; Reduced-bit
     (define bit (get-field bit machine))
@@ -16,22 +17,9 @@
     (define val-range
       (for/vector ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
 
-    (define (get-inst-in-out x)
-      (define opcode (inst-op x))
-      (define args (inst-args x))
-      (define inst-type (list opcode))
-
-      (define in (list))
-      (define out #f)
-      
-      (for ([arg args]
-	    [type (send machine get-arg-types (vector-ref inst-id opcode))])
-	   (cond
-	    [(equal? type `var-o) (set! out arg)]
-	    [(equal? type `var-i) (set! in (cons arg in))]
-	    [else (set! inst-type (cons arg inst-type))]))
-
-      (values (reverse inst-type) (reverse in) out))
+    (define (uid-inst-in-out x)
+      (define-values (i in out) (super uid-inst-in-out x))
+      (values i in (car out)))
 
     ;; Inverse tables for all instructions.
     (define behaviors-bw (make-hash))
@@ -61,19 +49,14 @@
              (when 
               out-state
               (define in-list-filtered (filter number? in-res))
-              (define key (vector-ref out-state out-reg))
+              (define key2 (vector-ref out-state out-reg))
 
               ;; Insert into the inverse table. 
-              ;; Key is outputs. Value is a set of possible inputs.
-              (if (hash-has-key? behavior-bw key)
-                  (hash-set! behavior-bw key
-                             (cons in-list-filtered (hash-ref behavior-bw key)))
-                  (hash-set! behavior-bw key (list in-list-filtered))))))
+              (hash-insert-to-list behavior-bw key2 in-list-filtered))))
       
-      (define-values (x vars-in var-out) (get-inst-in-out my-inst))
+      (define-values (key1 vars-in var-out) (uid-inst-in-out my-inst))
       ;;(pretty-display `(behavior-bw ,behavior-bw))
-      (hash-set! behaviors-bw x behavior-bw))
-
+      (hash-set! behaviors-bw key1 behavior-bw))
     
     ;; Inverse interpret my-inst using the pre-computed 'behaviors-bw'.
     ;; my-inst: instruction
@@ -85,33 +68,22 @@
       (define opcode-name (vector-ref inst-id (inst-op my-inst)))
       (define n (vector-length state))
 
-      (define-values (x vars-in var-out) (get-inst-in-out my-inst))
+      (define-values (key1 vars-in var-out) (uid-inst-in-out my-inst))
+      
+      ;; Extract values of var-out from state.
+      ;; This corresponds to key2 in gen-inverse-behavior.
+      ;; It will be used as key2 to the same table.
+      (define key2 (vector-ref state var-out))
+      
+      ;; A vector for initializing a vector containing values of variables in the input state.
       (define state-base (make-vector n #f))
       (for ([i n]
 	    [l old-liveout])
 	   (when (and l (not (= i var-out)))
 		 (vector-set! state-base i (vector-ref state i))))
-      (define var-out-val (vector-ref state var-out))
 
-      (define mapping (hash-ref behaviors-bw x))
-      (define ret (and (hash-has-key? mapping var-out-val) (list)))
-
-      (when ret
-	    (define vars-in-val-list (hash-ref mapping var-out-val))
-	    ;;(pretty-display `(ref ,var-out-val ,vars-in-val-list))
-	    (for ([vars-in-val vars-in-val-list])
-		 (let ([new-state (vector-copy state-base)]
-		       [pass #t])
-		   (for ([r vars-in]
-			 [v vars-in-val] #:break (not pass))
-			(cond
-			 [(vector-ref new-state r)
-			  (unless (= v (vector-ref new-state r))
-				  
-				  (set! pass #f))]
-			 [else (vector-set! new-state r v)]))
-		   (when pass (set! ret (cons new-state ret))))))
-      
-      ret)
+      (define mapping (hash-ref behaviors-bw key1))
+      (lookup-bw mapping vars-in key2 state-base)
+      )
 
     ))

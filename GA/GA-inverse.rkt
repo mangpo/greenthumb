@@ -9,7 +9,7 @@
 (define GA-inverse%
   (class inverse%
     (super-new)
-    (init-field machine simulator)
+    (inherit-field machine simulator)
     (override gen-inverse-behavior interpret-inst)
     
     (define bit (get-field bit machine))
@@ -43,9 +43,7 @@
                       (send simulator interpret (vector my-inst) state))]
                     [out-v (and out-state (progstate-t out-state))])
                (when out-v
-                     (if (hash-has-key? behavior-bw out-v)
-                         (hash-set! behavior-bw out-v (cons v (hash-ref behavior-bw out-v)))
-                         (hash-set! behavior-bw out-v (list v))))))]
+                     (hash-insert-to-list behavior-bw out-v v))))]
 
 
        [(member opcode-name '(+ and or))
@@ -57,12 +55,8 @@
                        ([exn? (lambda (e) #f)])
                        (send simulator interpret (vector my-inst) state))]
                      [out-v (and out-state (progstate-t out-state))])
-               (when out-v
-                     (if (hash-has-key? behavior-bw out-v)
-                         (hash-set! behavior-bw out-v
-                                    (cons (list v1 v2) (hash-ref behavior-bw out-v)))
-                         (hash-set! behavior-bw out-v
-                                    (list (list v1 v2)))))))]
+                (when out-v
+                      (hash-insert-to-list behavior-bw out-v (list v1 v2)))))]
 
        [(member opcode-name '(+*))
         (for* ([v1 val-range]
@@ -79,11 +73,8 @@
                                      (progstate-a out-state)))])
                 (when key
                       (for ([key (get-all-keys key)])
-                           (if (hash-has-key? behavior-bw key)
-                               (hash-set! behavior-bw key
-                                          (cons (list v1 v2 a) (hash-ref behavior-bw key)))
-                               (hash-set! behavior-bw key
-                                          (list (list v1 v2 a))))))))])
+                           (hash-insert-to-list behavior-bw key (list v1 v2 a))))))]
+       )
 
       (hash-set! behaviors-bw opcode-id behavior-bw))
 

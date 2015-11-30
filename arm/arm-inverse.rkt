@@ -8,8 +8,9 @@
 (define arm-inverse%
   (class inverse%
     (super-new)
-    (init-field machine simulator)
-    (override gen-inverse-behavior interpret-inst)
+    (inherit-field machine simulator)
+    (inherit lookup-bw)
+    (override gen-inverse-behavior interpret-inst uid-inst-in-out)
 
     (define bit (get-field bit machine))
     (define inst-id (get-field inst-id machine))
@@ -18,31 +19,18 @@
     (define reg-range-db
       (for/vector ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
     (define fp (send machine get-fp))
-    
-    (define (get-inst-in-out x)
-      (define opcode (inst-op x))
-      (define args (inst-args x))
+
+    (define (uid-inst-in-out x)
+      (define-values (inst-type in out) (super uid-inst-in-out x))
+
       (define shfop (inst-shfop x))
       (define shfarg (inst-shfarg x))
-      (unless shfop (set! shfop 0))
-
-      (define inst-type (list shfop opcode))
-      (define in (list))
-      (define out (list))
+      (define inst-type-append (list shfop))
       (when (> shfop 0)
 	    (if (member (vector-ref shf-inst-id shfop) shf-inst-reg)
-		(set! in (cons shfarg in))
-		(set! inst-type (cons shfarg inst-type))))
-      
-      (for ([arg args]
-	    [type (send machine get-arg-types (vector-ref inst-id opcode))])
-	   (cond
-	    [(equal? type `reg-o) (set! out (cons arg out))]
-	    [(equal? type `reg-i) (set! in (cons arg in))]
-	    [(equal? type `reg-io) (set! in (cons arg in)) (set! out (cons arg out))]
-	    [else (set! inst-type (cons arg inst-type))]))
-
-      (values (reverse inst-type) (reverse in) (reverse out)))
+		(set! in (append in (list shfarg)))
+		(set! inst-type-append (append inst-type-append (list shfarg)))))
+      (values (append inst-type inst-type-append) in out))
     
     ;; Inverse tables for all instructions.
     (define behaviors-bw (make-hash))
@@ -91,16 +79,12 @@
          (define key (reverse out-list))
          
          ;; Insert into the inverse table. 
-         ;; Key is outputs. Value is a set of possible inputs.
-         (if (hash-has-key? behavior-bw key)
-             (hash-set! behavior-bw key
-                        (cons in-list-filtered (hash-ref behavior-bw key)))
-             (hash-set! behavior-bw key (list in-list-filtered)))))
+         (hash-insert-to-list behavior-bw key in-list-filtered)))
         
       (for ([in-res (all-combination-list (vector->list in))])
            (inner in-res))
       
-      (define-values (x regs-in regs-out) (get-inst-in-out my-inst))
+      (define-values (x regs-in regs-out) (uid-inst-in-out my-inst))
       ;;(pretty-display `(behavior-bw ,behavior-bw))
       (hash-set! behaviors-bw x behavior-bw))
 
@@ -120,7 +104,7 @@
       (define fp (vector-ref state-vec 3))
 
       (define (exec-reg)
-	(define-values (x regs-in regs-out) (get-inst-in-out my-inst))
+	(define-values (x regs-in regs-out) (uid-inst-in-out my-inst))
 	(define regs-base (make-vector (vector-length regs) #f))
 	(for ([i (car old-liveout)])
 	     (unless (member i regs-out) (vector-set! regs-base i (vector-ref regs i))))
@@ -128,27 +112,9 @@
 	  (for/list ([r regs-out]) (vector-ref regs r)))
 
 	(define mapping (hash-ref behaviors-bw x))
-        (define ret (and (hash-has-key? mapping regs-out-val) (list)))
-
-	(when ret
-	      (define regs-in-val-list (hash-ref mapping regs-out-val))
-              ;;(pretty-display `(ref ,regs-out-val ,regs-in-val-list))
-	      (for ([regs-in-val regs-in-val-list])
-		   (let ([new-regs (vector-copy regs-base)]
-			 [pass #t])
-		     (for ([r regs-in]
-			   [v regs-in-val] #:break (not pass))
-			  (cond
-			   [(vector-ref new-regs r)
-			    (unless (= v (vector-ref new-regs r))
-                              
-                              (set! pass #f))]
-			   [else (vector-set! new-regs r v)]))
-		     (when pass (set! ret (cons
-                                           (vector new-regs mem z fp)
-                                           ret))))))
-	
-        ret)
+        (define ret (lookup-bw mapping regs-in regs-out-val regs-base))
+        (and ret (map (lambda (x) (vector x mem z fp)) ret))
+        )
 
       (define (exec)
         (cond
