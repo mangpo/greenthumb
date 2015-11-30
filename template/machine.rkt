@@ -15,7 +15,8 @@
     (inherit get-class-id filter-live)
     (override get-constructor set-config get-state
               ;; >> Required methods for stochastic and enumerative only
-              ;; reset-arg-ranges get-arg-ranges update-live update-live-backward
+              ;; reset-arg-ranges get-arg-types get-arg-ranges
+              ;; update-live update-live-backward
               )
 
     (define (get-constructor) $-machine%)
@@ -46,6 +47,16 @@
           (vector '() ;; list of type 1 instructions
         	  '() ;; list of type 2 instructions
                   ))
+
+    ;; Return a vector of operands' types given opcode-name.
+    ;; Type should be a symbol such as `var-i, `var-o, `mem, `const, `bit.
+    ;; Make sure to use `bit for a shifting constant, and `const for a non-shifting constant.
+    (define (get-arg-types opcode-name)
+      (define class-id (get-class-id opcode-name))
+      (cond
+       [(equal? class-id 0) (vector ?)]
+       [(equal? class-id 1) (vector ?)]
+       [else (vector)]))
 
     ;; Get valid operands' values given opcode-name, live-in, live-out, and mode.
     ;; >> INPUT >>
