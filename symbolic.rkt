@@ -12,7 +12,7 @@
                    simulator validator
                    stat)
     (init-field [pure-symbolic #t]
-                [bit (get-field bit machine)])
+                [bit (get-field bitwidth machine)])
     (override synthesize-window)
     (public synthesize-from-sketch evaluate-inst sym-op sym-arg)
     (abstract gen-sym-inst)

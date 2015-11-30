@@ -10,8 +10,8 @@
     (super-new)
     (init-field 
      ;; Required fields to be initialized when extending this class.
-     [bit #f]              ;; Number of bits to represnet a number
-     [random-input-bit #f] ;; Number of bits to generate random inputs. Often equal to 'bit'.
+     [bitwidth #f]          ;; Number of bits to represnet a number
+     [random-input-bits #f] ;; Number of bits to generate random inputs. Often equal to 'bit'.
      [config #f]           ;; Machine configuration such as # of regs, memory size, etc.
      [inst-id #f]          ;; A vector of opcode names.
      [nop-id #f]           ;; The index of nop in 'inst-id' vector.

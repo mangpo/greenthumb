@@ -9,7 +9,7 @@
 (current-solver (new z3%))
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine% [bit 32] [config (list 4 0 0)]))
+(define machine (new arm-machine% [config (list 4 0 0)]))
 (define printer (new arm-printer% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 (define validator (new arm-validator% [machine machine] [printer printer]

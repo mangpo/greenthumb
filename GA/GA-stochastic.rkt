@@ -22,7 +22,7 @@
       #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1) (rotate . 1)))
     (set! nop-mass 0.4)
 
-    (define bit (get-field bit machine))
+    (define bit (get-field bitwidth machine))
     (define inst-id (get-field inst-id machine))
     (define nmems (send machine get-nmems))
 

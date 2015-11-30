@@ -13,7 +13,7 @@
 
     (define (get-constructor) GA-simulator-racket%)
 
-    (define bit (get-field bit machine))
+    (define bit (get-field bitwidth machine))
     (define inst-id (get-field inst-id machine))
 
     (define debug #f)

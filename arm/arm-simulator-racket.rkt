@@ -13,7 +13,7 @@
 
     (define (get-constructor) arm-simulator-racket%)
         
-    (define bit (get-field bit machine))
+    (define bit (get-field bitwidth machine))
 
     (define nop-id (send machine get-inst-id `nop))
     (define inst-id (get-field inst-id machine))

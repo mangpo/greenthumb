@@ -12,7 +12,7 @@
     (inherit-field machine simulator)
     (override gen-inverse-behavior interpret-inst)
     
-    (define bit (get-field bit machine))
+    (define bit (get-field bitwidth machine))
     (define inst-id (get-field inst-id machine))
     (define val-range
       (for/list ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
@@ -329,7 +329,7 @@
     ))
 
 #|
-(define machine (new GA-machine% [bit 4] [config 0]))
+(define machine (new GA-machine% [bitwidth 4] [config 0]))
 (define simulator (new GA-simulator-racket% [machine machine]))
 
 (define inverse (new GA-inverse% [machine machine] [simulator simulator]))

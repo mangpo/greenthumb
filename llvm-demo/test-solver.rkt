@@ -10,7 +10,7 @@
 (current-solver (new z3%))
 
 (define parser (new llvm-demo-parser%))
-(define machine (new llvm-demo-machine% [config 3] [bit 4]))
+(define machine (new llvm-demo-machine% [config 3] [bitwidth 4]))
 (define printer (new llvm-demo-printer% [machine machine]))
 (define simulator-rosette (new llvm-demo-simulator-rosette% [machine machine]))
 (define validator (new llvm-demo-validator% [machine machine] [printer printer]

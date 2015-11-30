@@ -11,7 +11,7 @@
 
     (define (get-constructor) $-simulator-rosette%)
 
-    (define bit (get-field bit machine))
+    (define bit (get-field bitwidth machine))
     (define nop-id (get-field nop-id machine))
     (define inst-id (get-field inst-id machine))
 

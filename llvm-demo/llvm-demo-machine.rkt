@@ -7,7 +7,7 @@
 (define llvm-demo-machine%
   (class machine%
     (super-new)
-    (inherit-field bit random-input-bit config
+    (inherit-field bitwidth random-input-bits config
                    inst-id nop-id
                    ;; required fileds for stochastic and enumerative only
 		   classes)
@@ -20,8 +20,8 @@
 
     (define (get-constructor) llvm-demo-machine%)
     
-    (unless bit (set! bit 32))
-    (set! random-input-bit bit)
+    (unless bitwidth (set! bitwidth 32))
+    (set! random-input-bits bitwidth)
     (set! nop-id 0)
     (set! inst-id '#(nop 
                      and or xor add sub

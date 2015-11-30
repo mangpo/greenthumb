@@ -31,7 +31,7 @@
     (define ce-limit 100)
 
     ;; Actual bitwidth
-    (define bit-precise (get-field bit machine))
+    (define bit-precise (get-field bitwidth machine))
     
     ;; Reduce bitwidth
     (define bit 4)
@@ -39,7 +39,7 @@
     (define mask-1 (sub1 (arithmetic-shift 1 (sub1 bit))))
 
     (set! machine
-          (new (send machine get-constructor) [bit bit]
+          (new (send machine get-constructor) [bitwidth bit]
                [config (send machine get-config)]))
     (define simulator-abst
       (new (send simulator get-constructor) [machine machine]))

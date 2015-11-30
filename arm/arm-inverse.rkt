@@ -12,7 +12,7 @@
     (inherit lookup-bw)
     (override gen-inverse-behavior interpret-inst uid-inst-in-out)
 
-    (define bit (get-field bit machine))
+    (define bit (get-field bitwidth machine))
     (define inst-id (get-field inst-id machine))
     (define shf-inst-id (get-field shf-inst-id machine))
     (define shf-inst-reg (get-field shf-inst-reg machine))
@@ -194,35 +194,3 @@
       
 
     ))
-
-#|
-(define machine (new arm-machine% [bit 4] [config (list 4 3 4)]))
-(define simulator (new arm-simulator-racket% [machine machine]))
-
-(define inverse (new arm-inverse% [machine machine] [simulator simulator]))
-(define printer (new arm-printer% [machine machine]))
-(define parser (new arm-parser%))
-(define my-inst-0
-  (vector-ref (send printer encode 
-                    (send parser ir-from-string "eor r3, r1, r2, lsl r0"))
-              0))
-
-(define my-inst 
-  (vector-ref (send printer encode 
-                    (send parser ir-from-string "str r0, fp, -16"))
-              0))
-
-(define input-state (vector (vector 4 2 4 6)
-			    (vector -1 0 0) -1 4))
-
-;; (send inverse gen-inverse-behavior my-inst-0)
-(send inverse interpret-inst my-inst input-state (cons (list 0) (list 0)))
-|#
-
-#|
-(define t (current-seconds))
-(define x
-(for/list ([i (* 16 930)])
-  (send inverse interpret-inst my-inst input-state (list 0 1))))
-(pretty-display `(t ,(- (current-seconds) t) ,(length x)))|#
-

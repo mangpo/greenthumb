@@ -80,7 +80,7 @@
 (define arm-machine%
   (class machine%
     (super-new)
-    (inherit-field bit random-input-bit config
+    (inherit-field bitwidth random-input-bits config
                    inst-id inst-pool
 		   classes classes-filtered
 		   nop-id)
@@ -99,8 +99,8 @@
 
     (define (get-constructor) arm-machine%)
 
-    (unless bit (set! bit 32))
-    (set! random-input-bit bit)
+    (unless bitwidth (set! bitwidth 32))
+    (set! random-input-bits bitwidth)
     (set! nop-id 0)
     (set! inst-id '#(nop 
                      add sub rsb
@@ -213,7 +213,7 @@
     (define (reset-arg-ranges)
       (set! reg-range (list->vector (range nregs)))
       (set! reg-range-o (list->vector (range nregs)))
-      (set! operand2-range (vector 0 1 (sub1 bit)))
+      (set! operand2-range (vector 0 1 (sub1 bitwidth)))
       (set! const-range (vector 0 1))
       (set! shf-range (vector 1))
       (set! bit-range (vector 0 1))

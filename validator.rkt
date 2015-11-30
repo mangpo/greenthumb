@@ -15,8 +15,8 @@
   (class object%
     (super-new)
     (init-field machine simulator
-                [bit (get-field bit machine)]
-                [random-input-bit (get-field random-input-bit machine)])
+                [bit (get-field bitwidth machine)]
+                [random-input-bit (get-field random-input-bits machine)])
     (public proper-machine-config generate-input-states generate-inputs-inner
             counterexample
             get-live-in

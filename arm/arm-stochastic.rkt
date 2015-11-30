@@ -20,7 +20,7 @@
 		(shf . 4) (cond-type . 2)))
 	  
 
-    (define bit (get-field bit machine))
+    (define bit (get-field bitwidth machine))
     (define inst-id (get-field inst-id machine))
     (define shf-inst-id (get-field shf-inst-id machine))
     (define shf-inst-reg (get-field shf-inst-reg machine))
