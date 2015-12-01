@@ -12,8 +12,8 @@
     (inherit-field machine simulator)
     (override gen-inverse-behavior interpret-inst)
     
-    (define bit (get-field bit machine))
-    (define inst-id (get-field inst-id machine))
+    (define bit (get-field bitwidth machine))
+    (define opcodes (get-field opcodes machine))
     (define val-range
       (for/list ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
     (define nmems (send machine get-nmems))
@@ -30,7 +30,7 @@
     ;;   +* 2* 2/ - + and or drop
     (define (gen-inverse-behavior my-inst)
       (define opcode-id (inst-op my-inst))
-      (define opcode-name (vector-ref inst-id opcode-id))
+      (define opcode-name (vector-ref opcodes opcode-id))
 
       (define behavior-bw (make-hash))
       (cond
@@ -109,7 +109,7 @@
       (define nmems (vector-length memory))
       
       (define opcode-id (inst-op my-inst))
-      (define opcode-name (vector-ref inst-id opcode-id))
+      (define opcode-name (vector-ref opcodes opcode-id))
       (define const (inst-args my-inst))
       
       (define out-list (list))
@@ -329,7 +329,7 @@
     ))
 
 #|
-(define machine (new GA-machine% [bit 4] [config 0]))
+(define machine (new GA-machine% [bitwidth 4] [config 0]))
 (define simulator (new GA-simulator-racket% [machine machine]))
 
 (define inverse (new GA-inverse% [machine machine] [simulator simulator]))

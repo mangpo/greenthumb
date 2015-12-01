@@ -7,8 +7,8 @@
 (define $-machine%
   (class machine%
     (super-new)
-    (inherit-field bit random-input-bit config
-                   inst-id nop-id
+    (inherit-field bitwidth random-input-bits config
+                   opcodes nop-id
                    ;; >> required fileds for stochastic and enumerative only
 		   ;; classes
                    )
@@ -21,10 +21,10 @@
 
     (define (get-constructor) $-machine%)
     
-    (unless bit (set! bit ?))
-    (set! random-input-bit bit)
+    (unless bitwidth (set! bitwidth ?))
+    (set! random-input-bits bitwidth)
     (set! nop-id 0)
-    (set! inst-id '#(nop)) ;; list of instructions
+    (set! opcodes '#(nop)) ;; list of instructions
 
     (when config (set-config config))
 

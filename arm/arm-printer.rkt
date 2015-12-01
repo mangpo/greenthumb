@@ -68,19 +68,19 @@
 	      (set! shfop (string-append shfop "#")))
 	
 	(let ([cond-type (arm-inst-cond x)])
-	  (arm-inst (send machine get-inst-id (string->symbol op))
+	  (arm-inst (send machine get-opcode-id (string->symbol op))
 		    (vector-map name->id args)
-		    (and shfop (send machine get-shf-inst-id (string->symbol shfop)))
+		    (and shfop (send machine get-shf-opcodes (string->symbol shfop)))
 		    (and shfarg (name->id shfarg))
 		    (if (equal? cond-type "")
-			(send machine get-cond-inst-id `nop)
-			(send machine get-cond-inst-id (string->symbol cond-type)))))]))
+			(send machine get-cond-opcodes `nop)
+			(send machine get-cond-opcodes (string->symbol cond-type)))))]))
                 
 
     ;; Convert an instruction encoded using numbers
     ;; into an instruction in string format.
     (define (decode-inst x)
-      (define opcode (send machine get-inst-name (inst-op x)))
+      (define opcode (send machine get-opcode-name (inst-op x)))
       (define args (inst-args x))
       (define cond-type (inst-cond x))
       (define shf (member opcode (get-field inst-with-shf machine)))
@@ -116,14 +116,14 @@
 	  (arm-inst (convert-op opcode) new-args
 		    (and shfop (convert-op shfop))
 		    (and shfarg (convert-shfarg shfarg shfop))
-		    (if (= cond-type (send machine get-cond-inst-id `nop))
+		    (if (= cond-type (send machine get-cond-opcodes `nop))
 			"" 
 			(send machine get-cond-inst-name cond-type))))
       )
 
     ;;;;;;;;;;;;;;;;;;;;;;; For compressing reg space ;;;;;;;;;;;;;;;;;;;;
-    (define inst-id (get-field inst-id machine))
-    (define branch-inst-id (get-field branch-inst-id machine))
+    (define opcodes (get-field opcodes machine))
+    (define branch-opcodes (get-field branch-opcodes machine))
 
     (define (inner-rename x reg-map)
       (define (register-rename r)

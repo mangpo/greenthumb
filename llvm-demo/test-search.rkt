@@ -9,7 +9,7 @@
          "llvm-demo-enumerator.rkt" "llvm-demo-inverse.rkt"
          )
 
-(define parser (new llvm-demo-parser%))
+(define parser (new llvm-demo-parser% [compress? #t]))
 (define machine (new llvm-demo-machine% [config 3]))
 (define printer (new llvm-demo-printer% [machine machine]))
 (define simulator-racket (new llvm-demo-simulator-racket% [machine machine]))

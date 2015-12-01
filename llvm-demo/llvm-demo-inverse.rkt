@@ -12,8 +12,8 @@
     (override gen-inverse-behavior interpret-inst uid-inst-in-out)
 
     ;; Reduced-bit
-    (define bit (get-field bit machine))
-    (define inst-id (get-field inst-id machine))
+    (define bit (get-field bitwidth machine))
+    (define opcodes (get-field opcodes machine))
     (define val-range
       (for/vector ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
 
@@ -27,7 +27,7 @@
     ;; Generate inverse table behavior for my-inst.
     (define (gen-inverse-behavior my-inst)
       (define opcode (inst-op my-inst))
-      (define opcode-name (vector-ref inst-id opcode))
+      (define opcode-name (vector-ref opcodes opcode))
       (define args (inst-args my-inst))
       ;; For collecting which registers in my-inst are input and output.
       (define in (make-vector 5 #f))
@@ -65,7 +65,7 @@
     ;; output: a list of progstates in vector/list/pair format
     (define (interpret-inst my-inst state old-liveout)
       ;;(pretty-display `(interpret ,state ,old-liveout))
-      (define opcode-name (vector-ref inst-id (inst-op my-inst)))
+      (define opcode-name (vector-ref opcodes (inst-op my-inst)))
       (define n (vector-length state))
 
       (define-values (key1 vars-in var-out) (uid-inst-in-out my-inst))

@@ -31,7 +31,7 @@
     (define ce-limit 100)
 
     ;; Actual bitwidth
-    (define bit-precise (get-field bit machine))
+    (define bit-precise (get-field bitwidth machine))
     
     ;; Reduce bitwidth
     (define bit 4)
@@ -39,7 +39,7 @@
     (define mask-1 (sub1 (arithmetic-shift 1 (sub1 bit))))
 
     (set! machine
-          (new (send machine get-constructor) [bit bit]
+          (new (send machine get-constructor) [bitwidth bit]
                [config (send machine get-config)]))
     (define simulator-abst
       (new (send simulator get-constructor) [machine machine]))
@@ -58,7 +58,7 @@
     ;; Return a copy of a given instruction x,
     ;; but replacing each constant c in the instruction x with (change c).
     (define (change-inst x change)
-      (define opcode-name (send machine get-inst-name (inst-op x)))
+      (define opcode-name (send machine get-opcode-name (inst-op x)))
       (define args (inst-args x))
       (define types (send machine get-arg-types opcode-name))
       
@@ -79,7 +79,7 @@
     ;; this method has to return all possible unique copies of x.
     (define (change-inst-list x change)
       (define op (inst-op x))
-      (define opcode-name (send machine get-inst-name op))
+      (define opcode-name (send machine get-opcode-name op))
       (define args (inst-args x))
       (define types (send machine get-arg-types opcode-name))
       
@@ -437,7 +437,7 @@
 			       #:hard-postfix [hard-postfix (vector)]
 			       #:assume [assumption (send machine no-assumption)])
       (set! start-time (current-seconds))
-      (send machine reset-inst-pool)
+      (send machine reset-opcode-pool)
       (send machine analyze-opcode prefix spec postfix)
       (define init
         (car (send validator
@@ -786,9 +786,9 @@
         
         ;; (let ([x my-inst])
         ;;   (when (and (equal? `eor
-        ;;                      (vector-ref (get-field inst-id machine) (inst-op x)))
+        ;;                      (vector-ref (get-field opcodes machine) (inst-op x)))
         ;;              (equal? `nop 
-        ;;                      (vector-ref (get-field shf-inst-id machine) 
+        ;;                      (vector-ref (get-field shf-opcodes machine) 
         ;;                                  (inst-shfop x)))
         ;;              (equal? 0 (vector-ref (inst-args x) 0))
         ;;              (equal? 0 (vector-ref (inst-args x) 1))

@@ -20,9 +20,9 @@
 		(shf . 4) (cond-type . 2)))
 	  
 
-    (define bit (get-field bit machine))
-    (define inst-id (get-field inst-id machine))
-    (define shf-inst-id (get-field shf-inst-id machine))
+    (define bit (get-field bitwidth machine))
+    (define opcodes (get-field opcodes machine))
+    (define shf-opcodes (get-field shf-opcodes machine))
     (define shf-inst-reg (get-field shf-inst-reg machine))
     (define shf-inst-imm (get-field shf-inst-imm machine))
     (define inst-with-shf (get-field inst-with-shf machine))
@@ -33,7 +33,7 @@
       (send machine get-shfarg-range shfop my-live-in))
 
     (define (inst-copy-with-op x op) 
-      (define opname (vector-ref inst-id op))
+      (define opname (vector-ref opcodes op))
       (if (member opname inst-with-shf)
           (arm-inst op (inst-args x) (inst-shfop x) (inst-shfarg x) (inst-cond x))
           (arm-inst op (inst-args x) #f #f (inst-cond x))))
@@ -43,7 +43,7 @@
 
     ;; (overriden) Get a list of valid mutations given an opcode.
     (define (get-mutations opcode-name)
-      ;;(pretty-display `(get-mutations ,opcode-name ,(vector-member opcode-name shf-inst-id) ,shf-inst-id))
+      ;;(pretty-display `(get-mutations ,opcode-name ,(vector-member opcode-name shf-opcodes) ,shf-opcodes))
       (define mutations '(instruction swap))
       (unless (equal? opcode-name `nop)
               (set! mutations (cons `opcode mutations))
@@ -66,7 +66,7 @@
       (for ([i index-small])
            (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
       (define opcode-id (inst-op entry-large))
-      (define opcode-name (vector-ref inst-id opcode-id))
+      (define opcode-name (vector-ref opcodes opcode-id))
       (define ranges (send machine get-arg-ranges opcode-name entry-large my-live-in))
 
       ;; Only swap if operands of instruction at index-large are live at index-small.
@@ -100,10 +100,10 @@
     (define (mutate-shf index entry p)
       (define opcode-id (inst-op entry))
       (define args (vector-copy (inst-args entry)))
-      (define len (vector-length shf-inst-id))
+      (define len (vector-length shf-opcodes))
 
       (define shfop (inst-shfop entry))
-      (define shfop-name (and shfop (vector-ref shf-inst-id shfop)))
+      (define shfop-name (and shfop (vector-ref shf-opcodes shfop)))
       (define shfarg (inst-shfarg entry))
       (define rand (random)) ;; op 0.5, arg 0.25, all 0.05, nop 0.2
       (when debug
@@ -113,7 +113,7 @@
         (define my-live-in live-in)
         (for ([i index])
              (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
-	(set! shfop (vector-member (random-from-vec-ex shf-inst-id `nop) shf-inst-id))
+	(set! shfop (vector-member (random-from-vec-ex shf-opcodes `nop) shf-opcodes))
 	(set! shfarg (random-from-vec (get-shfarg-range shfop my-live-in)))]
 
        [(< rand 0.55) ;; op
@@ -123,7 +123,7 @@
               shf-inst-imm))
 	(set! shfop (vector-member 
 		     (random-from-list-ex my-list shfop-name)
-		     shf-inst-id))]
+		     shf-opcodes))]
 
        [(< rand 0.8) ;; arg
         (define my-live-in live-in)
@@ -146,7 +146,7 @@
     (define (mutate-cond index entry p)
       (define cmp 
 	(for/or ([i (reverse (range index))])
-		(let ([name-i (vector-ref inst-id (inst-op (vector-ref p i)))])
+		(let ([name-i (vector-ref opcodes (inst-op (vector-ref p i)))])
 		  (and (member name-i '(tst cmp tst# cmp#)) name-i))))
 
       (cond
@@ -167,13 +167,13 @@
 
     ;; (overriden) Create a new instruction with operands that are live (in live-in) and with opcode-id if specified.
     ;; live-in: compact format
-    (define (random-instruction live-in [opcode-id (random-from-list (get-field inst-pool machine))])
-      (define opcode-name (vector-ref inst-id opcode-id))
+    (define (random-instruction live-in [opcode-id (random-from-list (get-field opcode-pool machine))])
+      (define opcode-name (vector-ref opcodes opcode-id))
       (define args (random-args-from-op opcode-name live-in))
       (cond
        [args
         (define shf? (and (member opcode-name inst-with-shf) (< (random) 0.3)))
-        (define shfop (and shf? (random (vector-length shf-inst-id))))
+        (define shfop (and shf? (random (vector-length shf-opcodes))))
         (define shfarg-range (and shf? (get-shfarg-range shfop live-in)))
         (define shfarg (and shf? (vector-ref shfarg-range (random (vector-length shfarg-range)))))
         (define cond-type (random 9))

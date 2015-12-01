@@ -20,7 +20,7 @@
             window-size)
 
     ;; Context-aware window decomposition size L.
-    ;; The cooperative search tries L/2, L, 2L, 4L.
+    ;; The cooperative search tries L, 2L, 3L, 4L
     (define (window-size) (* 2 (len-limit)))
 
     (define (superoptimize spec constraint live-in name time-limit size [extra #f]

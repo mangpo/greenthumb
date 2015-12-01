@@ -12,9 +12,9 @@
     (inherit lookup-bw)
     (override gen-inverse-behavior interpret-inst uid-inst-in-out)
 
-    (define bit (get-field bit machine))
-    (define inst-id (get-field inst-id machine))
-    (define shf-inst-id (get-field shf-inst-id machine))
+    (define bit (get-field bitwidth machine))
+    (define opcodes (get-field opcodes machine))
+    (define shf-opcodes (get-field shf-opcodes machine))
     (define shf-inst-reg (get-field shf-inst-reg machine))
     (define reg-range-db
       (for/vector ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
@@ -27,7 +27,7 @@
       (define shfarg (inst-shfarg x))
       (define inst-type-append (list shfop))
       (when (> shfop 0)
-	    (if (member (vector-ref shf-inst-id shfop) shf-inst-reg)
+	    (if (member (vector-ref shf-opcodes shfop) shf-inst-reg)
 		(set! in (append in (list shfarg)))
 		(set! inst-type-append (append inst-type-append (list shfarg)))))
       (values (append inst-type inst-type-append) in out))
@@ -37,7 +37,7 @@
 
     ;; Generate inverse table behavior for my-inst.
     (define (gen-inverse-behavior my-inst)
-      (define opcode-name (vector-ref inst-id (inst-op my-inst)))
+      (define opcode-name (vector-ref opcodes (inst-op my-inst)))
       ;; For collecting which registers in my-inst are input and output.
       (define in (make-vector 5 #f))
       (define out (make-vector 5 #f))
@@ -48,7 +48,7 @@
       (define arg-types (send machine get-arg-types opcode-name))
       (define shfop (inst-shfop my-inst))
       (define shfarg (inst-shfarg my-inst))
-      (when (and shfop (member (vector-ref shf-inst-id shfop) shf-inst-reg))
+      (when (and shfop (member (vector-ref shf-opcodes shfop) shf-inst-reg))
             (vector-set! in shfarg #t))
       
       (for ([arg (inst-args my-inst)]
@@ -95,7 +95,7 @@
     ;; output: a list of progstates in vector/list/pair format
     (define (interpret-inst my-inst state-vec old-liveout)
       ;;(pretty-display `(interpret ,state-vec ,old-liveout))
-      (define opcode-name (vector-ref inst-id (inst-op my-inst)))
+      (define opcode-name (vector-ref opcodes (inst-op my-inst)))
       (define cond-type (arm-inst-cond my-inst))
 
       (define regs (vector-ref state-vec 0))
@@ -194,35 +194,3 @@
       
 
     ))
-
-#|
-(define machine (new arm-machine% [bit 4] [config (list 4 3 4)]))
-(define simulator (new arm-simulator-racket% [machine machine]))
-
-(define inverse (new arm-inverse% [machine machine] [simulator simulator]))
-(define printer (new arm-printer% [machine machine]))
-(define parser (new arm-parser%))
-(define my-inst-0
-  (vector-ref (send printer encode 
-                    (send parser ir-from-string "eor r3, r1, r2, lsl r0"))
-              0))
-
-(define my-inst 
-  (vector-ref (send printer encode 
-                    (send parser ir-from-string "str r0, fp, -16"))
-              0))
-
-(define input-state (vector (vector 4 2 4 6)
-			    (vector -1 0 0) -1 4))
-
-;; (send inverse gen-inverse-behavior my-inst-0)
-(send inverse interpret-inst my-inst input-state (cons (list 0) (list 0)))
-|#
-
-#|
-(define t (current-seconds))
-(define x
-(for/list ([i (* 16 930)])
-  (send inverse interpret-inst my-inst input-state (list 0 1))))
-(pretty-display `(t ,(- (current-seconds) t) ,(length x)))|#
-

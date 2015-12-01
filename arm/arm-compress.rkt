@@ -10,8 +10,8 @@
     (inherit-field machine)
     (override compress-reg-space decompress-reg-space)
     
-    (define inst-id (get-field inst-id machine))
-    (define branch-inst-id (get-field branch-inst-id machine))
+    (define opcodes (get-field opcodes machine))
+    (define branch-opcodes (get-field branch-opcodes machine))
 
     (define (inner-rename x reg-map)
       (define (register-rename r)

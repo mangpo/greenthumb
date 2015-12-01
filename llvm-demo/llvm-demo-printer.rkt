@@ -76,7 +76,7 @@
             [else
              (raise "Not support %out = op <imm>, <imm>")])))
         
-        (inst (send machine get-inst-id op) new-args)]))
+        (inst (send machine get-opcode-id op) new-args)]))
 
     (define (fresh-name)
       (define numbers
@@ -95,7 +95,7 @@
     
     ;; Convert an instruction x from encoded-IR to string-IR format.
     (define (decode-inst x)
-      (define op (symbol->string (send machine get-inst-name (inst-op x))))
+      (define op (symbol->string (send machine get-opcode-name (inst-op x))))
       (cond
        [(equal? op "nop") (inst op (vector))]
        [else

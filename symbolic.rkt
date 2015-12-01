@@ -12,7 +12,7 @@
                    simulator validator
                    stat)
     (init-field [pure-symbolic #t]
-                [bit (get-field bit machine)])
+                [bit (get-field bitwidth machine)])
     (override synthesize-window)
     (public synthesize-from-sketch evaluate-inst sym-op sym-arg)
     (abstract gen-sym-inst)
@@ -28,7 +28,7 @@
       (define-symbolic* arg number?)
       arg)
     
-    (define ninsts (vector-length (get-field inst-id machine)))
+    (define ninsts (vector-length (get-field opcodes machine)))
 
     (define (interpret-spec spec start-state assumption)
       (send validator assume start-state assumption)
@@ -56,7 +56,7 @@
 			       #:hard-postfix [hard-postfix (vector)]
 			       #:assume [assumption (send machine no-assumption)])
       ;;(send machine analyze-opcode prefix spec postfix)
-      (send machine reset-inst-pool)
+      (send machine reset-opcode-pool)
       (set! sketch (for/vector ([x sketch]) (if (inst-op x) x (gen-sym-inst))))
       (if pure-symbolic 
           (synthesize-from-sketch 

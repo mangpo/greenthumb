@@ -13,14 +13,14 @@
 
     (define (get-constructor) arm-simulator-rosette%)
         
-    (define bit (get-field bit machine))
+    (define bit (get-field bitwidth machine))
 
-    (define nop-id (send machine get-inst-id `nop))
-    (define inst-id (get-field inst-id machine))
-    (define shf-inst-id (get-field shf-inst-id machine))
-    (define cond-inst-id (get-field cond-inst-id machine))
-    (define ninsts (vector-length inst-id))
-    (define n-shf-insts (vector-length shf-inst-id))
+    (define nop-id (send machine get-opcode-id `nop))
+    (define opcodes (get-field opcodes machine))
+    (define shf-opcodes (get-field shf-opcodes machine))
+    (define cond-opcodes (get-field cond-opcodes machine))
+    (define ninsts (vector-length opcodes))
+    (define n-shf-insts (vector-length shf-opcodes))
 
     (define (shl a b) (<< a b bit))
     (define (ushr a b) (>>> a b bit))
@@ -216,7 +216,7 @@
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
     (define (interpret program state [policy #f])
-      (define inst-pool (get-field inst-pool machine))
+      (define opcode-pool (get-field opcode-pool machine))
       ;;(pretty-display `(interpret))
       (define regs (vector-copy (progstate-regs state)))
       (define memory (vector-copy (progstate-memory state)))
@@ -232,7 +232,7 @@
 
         (define-syntax inst-eq
           (syntax-rules ()
-            ((inst-eq x) (equal? x (vector-ref inst-id op)))
+            ((inst-eq x) (equal? x (vector-ref opcodes op)))
             ((inst-eq a b ...) (or (inst-eq a) (inst-eq b) ...))))
 
         (define-syntax-rule (args-ref args i) (vector-ref args i))
@@ -242,7 +242,7 @@
             (define op (arm-inst-shfop step))
             (define k (arm-inst-shfarg step))
             (define-syntax-rule (shf-inst-eq xx) 
-              (equal? xx (vector-ref shf-inst-id op)))
+              (equal? xx (vector-ref shf-opcodes op)))
 
             (define val #f)
             (define (rr f)
@@ -538,11 +538,11 @@
            (let ([op (inst-op x)]
                  [shfop (inst-shfop x)])
              (define-syntax-rule (inst-eq a ...)
- 	       (let ([opcode-name (vector-ref inst-id op)])
+ 	       (let ([opcode-name (vector-ref opcodes op)])
  		 (or (equal? a opcode-name) ...)))
              (define-syntax-rule (shf-inst-eq a ...)
  	       (and shfop
- 		    (let ([opcode-name (vector-ref shf-inst-id shfop)])
+ 		    (let ([opcode-name (vector-ref shf-opcodes shfop)])
  		      (or (equal? a opcode-name) ...))))
 
              (cond

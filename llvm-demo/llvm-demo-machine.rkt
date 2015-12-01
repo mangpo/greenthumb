@@ -7,8 +7,8 @@
 (define llvm-demo-machine%
   (class machine%
     (super-new)
-    (inherit-field bit random-input-bit config
-                   inst-id nop-id
+    (inherit-field bitwidth random-input-bits config
+                   opcodes nop-id
                    ;; required fileds for stochastic and enumerative only
 		   classes)
     (inherit get-class-id filter-live)
@@ -20,10 +20,10 @@
 
     (define (get-constructor) llvm-demo-machine%)
     
-    (unless bit (set! bit 32))
-    (set! random-input-bit bit)
+    (unless bitwidth (set! bitwidth 32))
+    (set! random-input-bits bitwidth)
     (set! nop-id 0)
-    (set! inst-id '#(nop 
+    (set! opcodes '#(nop 
                      and or xor add sub
                      and# or# xor# add# sub#
                      ;;_and _or _xor _add 
@@ -120,7 +120,7 @@
     ;; For enumerative search
     (define (update-live-backward live x)
       (define new-live (vector-copy live))
-      (define opcode-name (vector-ref inst-id (inst-op x)))
+      (define opcode-name (vector-ref opcodes (inst-op x)))
       (define args (inst-args x))
       (define args-type (get-arg-types opcode-name))
       (for ([arg args]

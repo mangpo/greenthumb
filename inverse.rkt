@@ -16,7 +16,7 @@
     (abstract gen-inverse-behavior interpret-inst)
     (public uid-inst-in-out lookup-bw)
     
-    (define inst-id (get-field inst-id machine))
+    (define opcodes (get-field opcodes machine))
 
     ;; Return unique representation for
     ;;  i) instruction including opcode and constant arguments (IDs list)
@@ -32,7 +32,7 @@
       (define out (list))
       
       (for ([arg args]
-	    [type (send machine get-arg-types (vector-ref inst-id opcode))])
+	    [type (send machine get-arg-types (vector-ref opcodes opcode))])
 	   (cond
 	    [(member type '(reg-o var-o)) (set! out (cons arg out))]
 	    [(member type '(reg-i var-i)) (set! in (cons arg in))]

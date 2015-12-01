@@ -11,9 +11,9 @@
 
     (define (get-constructor) $-simulator-rosette%)
 
-    (define bit (get-field bit machine))
+    (define bit (get-field bitwidth machine))
     (define nop-id (get-field nop-id machine))
-    (define inst-id (get-field inst-id machine))
+    (define opcodes (get-field opcodes machine))
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;; Helper functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Truncate x to 'bit' bits and convert to signed number.

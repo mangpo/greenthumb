@@ -11,7 +11,7 @@
     (init-field machine printer)
     (override generate-inst)
     
-    (define inst-id (get-field inst-id machine))
+    (define opcodes (get-field opcodes machine))
 
     (define commutative-1-2 '(and or xor add))
     
@@ -36,9 +36,9 @@
 
       (define mode (cond [no-args `no-args] [else `basic]))
 
-      (define inst-pool (get-field inst-pool machine))
+      (define opcode-pool (get-field opcode-pool machine))
       ;; (define inst-choice '(and#))
-      ;; (define inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
+      ;; (define opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
 
       (define iterator
         (generator 
@@ -74,8 +74,8 @@
                      (yield
                       (list i new-live-in new-live-out)))))))
        
-         (for ([opcode-id (shuffle inst-pool)])
-           (let ([opcode-name (vector-ref inst-id opcode-id)])
+         (for ([opcode-id (shuffle opcode-pool)])
+           (let ([opcode-name (vector-ref opcodes opcode-id)])
              (unless 
 	      (equal? opcode-name `nop)
 	      (let* ([arg-ranges 

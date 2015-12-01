@@ -10,16 +10,16 @@
     (super-new)
     (init-field 
      ;; Required fields to be initialized when extending this class.
-     [bit #f]              ;; Number of bits to represnet a number
-     [random-input-bit #f] ;; Number of bits to generate random inputs. Often equal to 'bit'.
+     [bitwidth #f]          ;; Number of bits to represnet a number
+     [random-input-bits #f] ;; Number of bits to generate random inputs. Often equal to 'bit'.
      [config #f]           ;; Machine configuration such as # of regs, memory size, etc.
-     [inst-id #f]          ;; A vector of opcode names.
-     [nop-id #f]           ;; The index of nop in 'inst-id' vector.
+     [opcodes #f]          ;; A vector of opcode names.
+     [nop-id #f]           ;; The index of nop in 'opcodes' vector.
      [classes #f]          ;; A vector of lists of opcodes. Each list groups opcodes with the same operands' types together.
 
      ;; Fields to be set by method 'analyze-opcode'
-     [inst-pool #f]        ;; Opcodes to be considered during synthesis.
-     [classes-filtered #f] ;; 'classes' that is filtered in only opcodes in 'inst-pool'.
+     [opcode-pool #f]        ;; Opcodes to be considered during synthesis.
+     [classes-filtered #f] ;; 'classes' that is filtered in only opcodes in 'opcode-pool'.
      )
 
     ;; Required methods to be implemented.
@@ -30,7 +30,7 @@
     (public get-config window-size
 	    adjust-config get-memory-size
             get-class-id no-assumption
-            get-inst-id get-inst-name
+            get-opcode-id get-opcode-name
             finalize-config config-exceed-limit?
             get-state-liveness display-state
             progstate->vector vector->progstate
@@ -38,7 +38,7 @@
 	    clean-code state-eq? relaxed-state-eq?
 	    update-live update-live-backward filter-live get-live-list
 	    analyze-opcode analyze-args 
-            reset-inst-pool
+            reset-opcode-pool
             reset-arg-ranges
             get-arg-ranges get-arg-types
             get-constructor
@@ -52,8 +52,8 @@
     (define (get-config) config)
     (define (adjust-config) config)
     (define (get-memory-size) config)
-    (define (get-inst-id opcode) (vector-member opcode inst-id))
-    (define (get-inst-name id) (vector-ref inst-id id))
+    (define (get-opcode-id opcode) (vector-member opcode opcodes))
+    (define (get-opcode-name id) (vector-ref opcodes id))
     (define (no-assumption) #f)
     (define (get-state-liveness f extra) (get-state f extra))
     (define (display-state x) (pretty-display x))
@@ -128,15 +128,15 @@
     (define (get-live-list constraint) (progstate->vector constraint))
     
     (define (analyze-opcode prefix code postfix)
-      (set! inst-pool (range (vector-length inst-id)))
+      (set! opcode-pool (range (vector-length opcodes)))
       (set! classes-filtered 
             (for/vector ([c classes])
-                        (map (lambda (x) (vector-member x inst-id)) c)))
+                        (map (lambda (x) (vector-member x opcodes)) c)))
       #t
       )
 
-    (define (reset-inst-pool)
-      (set! inst-pool (range (vector-length inst-id))))
+    (define (reset-opcode-pool)
+      (set! opcode-pool (range (vector-length opcodes))))
 
     (define (analyze-args prefix code postfix live-in-list live-out
                           #:only-const [only-const #f] #:vreg [vreg 0])

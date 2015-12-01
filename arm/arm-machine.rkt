@@ -80,8 +80,8 @@
 (define arm-machine%
   (class machine%
     (super-new)
-    (inherit-field bit random-input-bit config
-                   inst-id inst-pool
+    (inherit-field bitwidth random-input-bits config
+                   opcodes opcode-pool
 		   classes classes-filtered
 		   nop-id)
     (inherit get-class-id filter-live state-eq?)
@@ -99,10 +99,10 @@
 
     (define (get-constructor) arm-machine%)
 
-    (unless bit (set! bit 32))
-    (set! random-input-bit bit)
+    (unless bitwidth (set! bitwidth 32))
+    (set! random-input-bits bitwidth)
     (set! nop-id 0)
-    (set! inst-id '#(nop 
+    (set! opcodes '#(nop 
                      add sub rsb
                      add# sub# rsb#
                      and orr eor bic orn
@@ -159,12 +159,12 @@
 
     (define perline 8)
 
-    (init-field [branch-inst-id '#(beq bne j jal b jr jr jalr bal)]
-                [shf-inst-id '#(nop lsl# asr lsl lsr ror asr# lsr# ror#)]
+    (init-field [branch-opcodes '#(beq bne j jal b jr jr jalr bal)]
+                [shf-opcodes '#(nop lsl# asr lsl lsr ror asr# lsr# ror#)]
                 [shf-inst-reg '(asr lsl lsr ror)]
                 [shf-inst-imm '(asr# lsl# lsr# ror#)]
 		[inst-with-shf '(add sub rsb and orr eor bic orn mov mvn)]
-		[cond-inst-id '#(nop eq ne ls hi cc cs lt ge)]
+		[cond-opcodes '#(nop eq ne ls hi cc cs lt ge)]
 		)
 
     (define nregs 5)
@@ -189,14 +189,14 @@
     (define (get-nregs) nregs)
     (define/public (get-nmems) nmems)
     (define/public (get-fp) fp)
-    (define/public (get-shf-inst-id x)
-      (vector-member x shf-inst-id))
+    (define/public (get-shf-opcodes x)
+      (vector-member x shf-opcodes))
     (define/public (get-shf-inst-name x)
-      (vector-ref shf-inst-id x))
-    (define/public (get-cond-inst-id x)
-      (vector-member x cond-inst-id))
+      (vector-ref shf-opcodes x))
+    (define/public (get-cond-opcodes x)
+      (vector-member x cond-opcodes))
     (define/public (get-cond-inst-name x)
-      (vector-ref cond-inst-id x))
+      (vector-ref cond-opcodes x))
 
     ;; Set machine configuration and set valid operands' ranges accordingly.
     ;; info: a list of (# of registers, # of memory, stack pointer)
@@ -213,7 +213,7 @@
     (define (reset-arg-ranges)
       (set! reg-range (list->vector (range nregs)))
       (set! reg-range-o (list->vector (range nregs)))
-      (set! operand2-range (vector 0 1 (sub1 bit)))
+      (set! operand2-range (vector 0 1 (sub1 bitwidth)))
       (set! const-range (vector 0 1))
       (set! shf-range (vector 1))
       (set! bit-range (vector 0 1))
@@ -363,15 +363,15 @@
       ;; Filter out nop.
       (set! code (vector-filter-not (lambda (x) (= (inst-op x) nop-id)) code))
       (define z-flag #f)
-      (define cond-type-nop (vector-member `nop cond-inst-id))
+      (define cond-type-nop (vector-member `nop cond-opcodes))
       (for ([x prefix])
 	   (let ([op (inst-op x)])
-	     (when (member (vector-ref inst-id op) '(tst cmp tst# cmp#))
+	     (when (member (vector-ref opcodes op) '(tst cmp tst# cmp#))
 		   (set! z-flag #t))))
       (for/vector ([x code])
 	   (let ([op (inst-op x)]
 		 [cond-type (inst-cond x)])
-	     (when (member (vector-ref inst-id op) '(tst cmp tst# cmp#))
+	     (when (member (vector-ref opcodes op) '(tst cmp tst# cmp#))
 		   (set! z-flag #t))
 	     (if (or z-flag (equal? cond-type cond-type-nop))
 		 x
@@ -408,7 +408,7 @@
       (define live-mem (cdr live))
       
       (define args (inst-args x))
-      (define opcode-name (vector-ref inst-id (inst-op x)))
+      (define opcode-name (vector-ref opcodes (inst-op x)))
       (define (add-live ele lst)
 	(if (member ele lst) 
 	    ;; remove and add because we want the latest reg at the beginning.
@@ -439,7 +439,7 @@
       (define live-reg (car live))
       (define live-mem (cdr live))
       
-      (define opcode-name (vector-ref inst-id (inst-op x)))
+      (define opcode-name (vector-ref opcodes (inst-op x)))
       (define args (inst-args x))
       (define args-type (get-arg-types opcode-name))
       (define shfop (inst-shfop x))
@@ -464,7 +464,7 @@
              (set! live-mem (add-live (+ arg fp) live-mem))]
             ))
 
-      (when (member (vector-ref shf-inst-id shfop) shf-inst-reg)
+      (when (member (vector-ref shf-opcodes shfop) shf-inst-reg)
             (set! live-reg (add-live shfarg live-reg)))
       (cons live-reg live-mem))
 
@@ -549,7 +549,7 @@
 
     ;; Get valid optinal-shift operand's range.
     (define (get-shfarg-range shfop-id live-in #:mode [mode `basic])
-      (define shfop-name (vector-ref shf-inst-id shfop-id))
+      (define shfop-name (vector-ref shf-opcodes shfop-id))
       (if (member shfop-name shf-inst-reg)
 	  (if (equal? mode `no-args)
 	      `reg-i
@@ -605,10 +605,10 @@
             (set! inst-choice (append inst-choice '(str#))))
       (when (code-has code '(tst cmp tst# cmp#))
             (set! inst-choice (append inst-choice '(tst cmp tst# cmp#))))
-      (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice))
+      (set! opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
       (set! classes-filtered 
             (for/vector ([c classes])
-                        (map (lambda (x) (vector-member x inst-id))
+                        (map (lambda (x) (vector-member x opcodes))
                              (filter (lambda (x) (member x inst-choice)) c))))
       (when debug
 	    (pretty-display `(inst-choice ,inst-choice))
@@ -618,10 +618,10 @@
     ;; Helper function for 'analyze-opcode'.
     (define (code-has code inst-list)
       (for/or ([i code])
-              (let ([opcode-name (vector-ref inst-id (inst-op i))])
+              (let ([opcode-name (vector-ref opcodes (inst-op i))])
                 (member opcode-name inst-list))))
 
-    ;; (define/override (reset-inst-pool)
+    ;; (define/override (reset-opcode-pool)
     ;;   (define inst-choice '(
     ;;                  add sub rsb
     ;;                  add# sub# rsb#
@@ -649,7 +649,7 @@
     ;;                  tst# cmp#
     ;;                  ))
                                 
-    ;;   (set! inst-pool (map (lambda (x) (vector-member x inst-id)) inst-choice)))
+    ;;   (set! opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice)))
 
     ;; Analyze input code and update operands' ranges.
     (define (analyze-args prefix code postfix live-in-list live-out
@@ -694,10 +694,10 @@
                          mem-set only-const vreg))
 
     (define (analyze-args-inst x)
-      (define opcode (vector-ref inst-id (inst-op x)))
+      (define opcode (vector-ref opcodes (inst-op x)))
       (define args (inst-args x))
       (define shf (member opcode inst-with-shf))
-      (define shfop (and shf (inst-shfop x) (vector-ref shf-inst-id (inst-shfop x))))
+      (define shfop (and shf (inst-shfop x) (vector-ref shf-opcodes (inst-shfop x))))
       (define shfarg (and shf (inst-shfarg x)))
       ;; (pretty-display `(shf ,shf ,shfop))
 
