@@ -11,6 +11,6 @@
     (override len-limit)
 
     ;; Num of instructions that can be synthesized within a minute.
-    (define (len-limit) 2)
+    (define (len-limit) 5)
 
     ))
