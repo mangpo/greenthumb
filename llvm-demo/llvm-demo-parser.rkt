@@ -114,21 +114,7 @@
   
   (inst op (list->vector (cons lhs (cons out (map last terms))))))
 
-(define all-names (set)) ;;(live-in-set inst-vec))
-
-(define (live-in-set inst-vec)
-  (define use (set))
-  (define def (set))
-  (for ([my-inst inst-vec])
-       (when (inst-op my-inst)
-             (let ([args (inst-args my-inst)])
-               (for ([arg (vector-copy args 1)])
-                    (when (and (equal? (substring arg 0 1) "%")
-                               (not (set-member? def arg)))
-                          (set! use (set-add use arg))))
-               (set! def (set-add def (vector-ref args 0))))))
-  use)
-                    
+(define all-names (set))      
 
 (define (rename inst-vec)
   ;; Rename variable from old to new up to instruction at index.

@@ -7,7 +7,7 @@
 (define $-inverse%
   (class inverse%
     (super-new)
-    (init-field machine simulator)
+    (inherit-field machine simulator)
     (inherit lookup-bw)
     (override gen-inverse-behavior interpret-inst uid-inst-in-out)
 
@@ -30,7 +30,7 @@
     ;;  iii) output argument (list)
     (define (uid-inst-in-out x)
       (define-values (inst-key in out) (super uid-inst-in-out x))
-      (values inst-key in out))
+      (values ? ? ?))
 
     
     ;; Generate inverse table behavior for my-inst.

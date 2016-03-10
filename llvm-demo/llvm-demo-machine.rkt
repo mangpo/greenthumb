@@ -26,15 +26,14 @@
     (set! opcodes '#(nop 
                      and or xor add sub
                      and# or# xor# add# sub#
-                     ;;_and _or _xor _add 
 		     _sub
 		     shl lshr ashr
 		     shl# lshr# ashr#
 		     _shl _lshr _ashr
                      ctlz
                      ))
+    ;;_and _or _xor _add 
 
-    (define vars 5)
     (define var-range #f)
     (define const-range #f)
     (define bit-range #f)
@@ -43,13 +42,12 @@
     
     (define (set-config x) 
       (set! config x) 
-      (set! vars config)
       (reset-arg-ranges))
 
     ;; Generate program state from function init.
     ;; Our program state is a vector storing values of variables.
     (define (get-state init [extra #f])
-      (for/vector ([i vars]) (init)))
+      (for/vector ([i config]) (init)))
 
     ;;;;;;;;;;;;;;;;;;;;; For stochastic and enumerative ;;;;;;;;;;;;;;;;;;
 
@@ -63,7 +61,7 @@
 	  
     ;; Set valid operands' ranges.
     (define (reset-arg-ranges)
-      (set! var-range (list->vector (range vars)))
+      (set! var-range (list->vector (range config)))
       (set! const-range (vector 0 1 -1 -2 -8))
       (set! bit-range (vector 0 1)))
 

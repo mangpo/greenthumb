@@ -13,9 +13,9 @@
 		   ;; classes
                    )
     (inherit get-class-id filter-live)
-    (override get-constructor set-config get-state
+    (override get-constructor set-config get-state reset-arg-ranges
               ;; >> Required methods for stochastic and enumerative only
-              ;; reset-arg-ranges get-arg-types get-arg-ranges
+              ;; get-arg-types get-arg-ranges
               ;; update-live update-live-backward
               )
 
@@ -29,8 +29,8 @@
     (when config (set-config config))
 
     ;; Save program state parameters to appropriate fields.
-    (define (set-config config)
-      ?
+    (define (set-config config-init)
+      (set! config config-init)
       (reset-arg-ranges))
     
     ;; Generate a program state from lambda init.
@@ -78,6 +78,6 @@
     ;; Return live-in (for enumerative search).
     (define (update-live-backward live-out this-inst)
       ?)
-    
+|#
     ))
-      
+     

@@ -64,7 +64,6 @@
     ;; old-liveout: liveout info
     ;; output: a list of progstates in vector/list/pair format
     (define (interpret-inst my-inst state old-liveout)
-      ;;(pretty-display `(interpret ,state ,old-liveout))
       (define opcode-name (vector-ref opcodes (inst-op my-inst)))
       (define n (vector-length state))
 

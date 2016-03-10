@@ -44,7 +44,7 @@
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
     (define (interpret program state [policy #f])
-      (define regs (vector-copy state))
+      (define out (vector-copy state))
 
       (define (interpret-step step)
         (define op (inst-op step))
@@ -55,31 +55,31 @@
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
           (define b (vector-ref args 2))
-          (define val (f (vector-ref regs a) (vector-ref regs b)))
-          (vector-set! regs d val))
+          (define val (f (vector-ref out a) (vector-ref out b)))
+          (vector-set! out d val))
         
         ;; subi addi
         (define (rri f)
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
           (define b (vector-ref args 2))
-          (define val (f (vector-ref regs a) b))
-          (vector-set! regs d val))
+          (define val (f (vector-ref out a) b))
+          (vector-set! out d val))
         
         ;; subi addi
         (define (rir f)
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
           (define b (vector-ref args 2))
-          (define val (f a (vector-ref regs b)))
-          (vector-set! regs d val))
+          (define val (f a (vector-ref out b)))
+          (vector-set! out d val))
 
         ;; count leading zeros
         (define (rr f)
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
-          (define val (f (vector-ref regs a)))
-          (vector-set! regs d val))
+          (define val (f (vector-ref out a)))
+          (vector-set! out d val))
       
         (define-syntax inst-eq
           (syntax-rules ()
@@ -131,7 +131,7 @@
       (for ([x program])
            (interpret-step x))
 
-      regs
+      out
       )
 
     (define (performance-cost code)

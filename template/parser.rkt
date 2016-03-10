@@ -11,6 +11,7 @@
   (class parser%
     (super-new)
     (inherit-field asm-parser asm-lexer)
+    (init-field [compress? #f])
     
     (define-tokens a (WORD NUM)) ;; add more tokens
     (define-empty-tokens b (EOF HOLE)) ;; add more tokens
@@ -24,6 +25,7 @@
       (identifier-characters-ext (re-or digit10 identifier-characters "_"))
       (identifier (re-seq identifier-characters 
                           (re-* (re-or identifier-characters digit10))))
+      (var (re-: "%" (re-+ (re-or identifier-characters digit10))))
       )
 
     ;; Complete lexer

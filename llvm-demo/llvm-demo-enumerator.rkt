@@ -59,6 +59,7 @@
            (for ([args (all-combination-list ranges)])
                 (let* ([new-args (finalize args)]
                        [pass
+                        ;; Symmetry reduction
                         (cond
                          [(and (= (length args) 3)
                                (member opcode commutative-1-2))

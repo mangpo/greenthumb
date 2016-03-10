@@ -25,6 +25,7 @@
 (send parser ir-from-string "
 "))
 
+;; clearing 3 lowest bits
 #;(define code
 (send parser ir-from-string "
 %1 = lshr i32 %in, 3
@@ -41,6 +42,8 @@
 "))
 ;; solver: > 30 sec
 
+;; rounding to power of 2
+;; geneated from clang -O3
 (define code
 (send parser ir-from-string "
   %1 = add nsw i32 %in, -1
@@ -55,7 +58,7 @@
   %10 = ashr i32 %9, 16
   %11 = or i32 %10, %9
   %out = add nsw i32 %11, 1
-"))
+")) ;; 12 instructions
 
 (define sketch
 (send parser ir-from-string "
@@ -67,7 +70,6 @@
 (define encoded-sketch (send printer encode sketch))
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))
-
 
 ;; Step 1: use printer to convert liveout into progstate format
 (define constraint (send printer encode-live '(%out)))
@@ -88,7 +90,7 @@
       )
 
 ;; Step 3: create stochastic search
-#;(define stoch (new llvm-demo-stochastic% [machine machine] [printer printer]
+(define stoch (new llvm-demo-stochastic% [machine machine] [printer printer]
                       [parser parser]
                       [validator validator] [simulator simulator-rosette]
                       [syn-mode #t] ;; #t = synthesize, #f = optimize mode
@@ -97,7 +99,6 @@
       constraint ;; constraint
       (send printer encode-live '(%in)) ;; live-in
       "./driver-0" 3600 #f)
-
 
 ;; Step 4: create enumerative search
 (define backward (new llvm-demo-forwardbackward% [machine machine] 

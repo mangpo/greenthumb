@@ -15,6 +15,7 @@
 (define machine (new llvm-demo-machine% [config 4]))
 (define printer (new llvm-demo-printer% [machine machine]))
 
+;; clear 3 lowest bits.
 (define code
 (send parser ir-from-string "
 %1 = lshr i32 %in, 3
