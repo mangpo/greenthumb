@@ -21,7 +21,7 @@
 
     (define (get-constructor) $-machine%)
     
-    (unless bitwidth (set! bitwidth ?))
+    (unless bitwidth (set! bitwidth 32))
     (set! random-input-bits bitwidth)
     (set! nop-id 0)
     (set! opcodes '#(nop)) ;; list of instructions
@@ -34,7 +34,8 @@
       (reset-arg-ranges))
     
     ;; Generate a program state from lambda init.
-    (define (get-state init [extra #f]) ?)
+    (define (get-state init [extra #f])
+      (for/vector ([i config]) (init)))
 
     ;;;;;;;;;;;;;;;;;;;;; For stochastic and enumerative ;;;;;;;;;;;;;;;;;;
 

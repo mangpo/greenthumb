@@ -1,17 +1,17 @@
 #lang s-exp rosette
 
 (require "$-parser.rkt" "$-printer.rkt" "$-machine.rkt"
-         ;;"$-simulator-rosette.rkt"
+         "$-simulator-rosette.rkt"
          ;;"$-simulator-racket.rkt"
          )
 
 ;; Phase 0: Set up bitwidth for Rosette
-(current-bitwidth ?)
+(current-bitwidth 32)
 
 ;; Phase A: Test machine, parser, printer (step 1 & 2)
 (pretty-display "Phase A: test machine, parser, and printer.")
 (define parser (new $-parser%))
-(define machine (new $-machine% [config ?]))
+(define machine (new $-machine% [config 3]))
 (define printer (new $-printer% [machine machine]))
 
 (define code
@@ -30,7 +30,6 @@ code here
 (send printer print-struct encoded-code)
 (newline)
 
-#|
 ;; Phase B: Interpret concrete program with concrete inputs (step 3)
 (pretty-display "Phase B: interpret program using simulator writing in Rosette.")
 (define input-state ?)
@@ -38,6 +37,7 @@ code here
 (send simulator-rosette interpret encoded-code input-state)
 (newline)
 
+#|
 ;; Phase C: Interpret concrete program with symbolic inputs
 (pretty-display "Phase C: interpret concrete program with symbolic inputs.")
 (define (sym-input)

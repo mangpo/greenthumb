@@ -11,7 +11,7 @@
          )
 
 (define parser (new $-parser%))
-(define machine (new $-machine% [config ?]))
+(define machine (new $-machine% [config 3]))
 (define printer (new $-printer% [machine machine]))
 ;;(define simulator-racket (new $-simulator-racket% [machine machine]))
 (define simulator-rosette (new $-simulator-rosette% [machine machine]))
@@ -22,13 +22,13 @@
 (send parser ir-from-string "
 "))
 
-(define postfix
-(send parser ir-from-string "
-"))
-
 (define code
 (send parser ir-from-string "
 code here
+"))
+
+(define postfix
+(send parser ir-from-string "
 "))
 
 (define sketch
