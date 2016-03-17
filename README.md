@@ -114,7 +114,7 @@ accept-higher-count: 0.000457  << rate of accepting mutated programs with higher
 cost:	3            << cost of the best program found so far
 len:	3            << length of the best program found so far
 time:	15           << time in seconds to find the best program
-output/0/driver-7  << the best program is found by driver-<id> (7 in this case).
+output/0/driver-7    << the best program is found by driver-7 (enumerative search in this example).
 ```
 
 Press Ctrl-C to end the process early or wait until time is up. At the end, the search driver will print out the optimized program. Below is the output program when optimizing p14_floor_avg_o0.s.
