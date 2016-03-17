@@ -73,12 +73,12 @@ stoch:	2 instances
 sym:	2 instances
 enum:	4 instances
 
-ID 0-1: stoch (optimize)         << driver-0 and 1 run stochastic search.
-ID 2-2: sym (window=L)         << driver-2 runs symbolic search.
+ID 0-1: stoch (optimize)          << driver-0 and 1 run stochastic search.
+ID 2-2: sym (window=L)            << driver-2 runs symbolic search.
 ID 3-3: sym (window=2L)           << driver-3 runs symbolic search.
-ID 4-4: enum (no-decomposition)  << driver-4 runs enumerative search (no window).
-ID 5-6: enum (window=L)        << driver-5 and 6 run enumerative search.
-ID 7-7: enum (window=2L)        << driver-7 run enumerative search.
+ID 4-4: enum (no-decomposition)   << driver-4 runs enumerative search (no window).
+ID 5-6: enum (window=L)           << driver-5 and 6 run enumerative search.
+ID 7-7: enum (window=2L)          << driver-7 run enumerative search.
 ```
 
 X in (window=X) indicates the size of window used in the context-aware window decomposition.
@@ -140,7 +140,7 @@ The script will generate `llvm` directory that contains
 - `test-search.rkt` program for testing the individual search techniques
 - `main.rkt` and `optimize.rkt` programs for running the complete cooperative search launching multiple search instances
 
-Now, we can start implementing our superoptimizer in the following order. The more detailed explanations about the classes and methods that need to be extended can be found on http://www.eecs.berkeley.edu/Pubs/TechRpts/2016/EECS-2016-8.pdf.
+Now, we can start implementing our superoptimizer in the following order. The more detailed explanations about the classes and methods that need to be extended can be found at http://www.eecs.berkeley.edu/Pubs/TechRpts/2016/EECS-2016-8.pdf.
 
 - **Step 1**: Extend `machine%`. Open `llvm/llvm-machine.rkt` and complete the implementation before the "for stochastic and enumerative" section.
 - **Step 2**: Extend `parser%` and `printer%`. Complete the implementation before the "for cooperative search" section. Use `test-simulator.rkt` to test the parser and the printer.
