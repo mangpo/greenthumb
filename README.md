@@ -140,7 +140,8 @@ The script will generate `llvm` directory that contains
 - `test-search.rkt` program for testing the individual search techniques
 - `main.rkt` and `optimize.rkt` programs for running the complete cooperative search launching multiple search instances
 
-Now, we can start implementing our superoptimizer in the following order.
+Now, we can start implementing our superoptimizer in the following order. The more detailed explanations about the classes and methods that need to be extended can be found on http://www.eecs.berkeley.edu/Pubs/TechRpts/2016/EECS-2016-8.pdf.
+
 - **Step 1**: Extend `machine%`. Open `llvm/llvm-machine.rkt` and complete the implementation before the "for stochastic and enumerative" section.
 - **Step 2**: Extend `parser%` and `printer%`. Complete the implementation before the "for cooperative search" section. Use `test-simulator.rkt` to test the parser and the printer.
 - **Step 3**: Extend `simulator-rosette%`. Use `test-simulator.rkt` and uncomment the next test to run the ISA simulator in Rosette. Then, copy the required methods implemented for `simulator-rosette%` to `simulator-racket%`. Use `test-simulator.rkt` to run the ISA simulator in Racket.
@@ -161,4 +162,4 @@ raco make <list_of_flies_to_be_compiled>
 ```
 
 ## Inquery and Bug Report
-Please contact mangpo [at] eecs.berkeley.edu
+If you are interested in using GreenThumb, please feel free to contact mangpo [at] eecs.berkeley.edu. If there is enough interest, we can write a very detailed step-by-step tutorial!
