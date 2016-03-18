@@ -3,6 +3,12 @@
 GreenThumb is an extensible framework for constructing superoptimizers. It is designed to be easily extended to a new target ISA using inheritance. GreenThumb is implemented in Racket.
 The top level directory contains ISA-independent files, which implement the superclasses to be extended. We have built superoptimizers for ARM, GreenArrays GA144 (GA), and a small subset of LLVM IR. Directories `arm`, `GA`, and `llvm-demo` contain ISA-sepcific files for ARM, GA, and LLVM IR respectively.
 
+## References
+
+- [Greenthumb: Superoptimizer Construction Framework (CC'16)](http://www.eecs.berkeley.edu/~mangpo/www/papers/greenthumb_cc2016.pdf) explains the framework overview.
+- [Greenthumb: Superoptimizer Construction Framework (Tech Report)](http://www.eecs.berkeley.edu/Pubs/TechRpts/2016/EECS-2016-8.pdf) explains the overview of how to extend the framework to support a new ISA.
+- [Scaling Up Superoptimization (ASPLOS'16)](http://www.eecs.berkeley.edu/~mangpo/www/papers/lens-asplos16.pdf) explains the search strategy provided by GreenThumb.
+
 ## Software Prerequisites
 - **Racket**: Download and install drracket from https://racket-lang.org/download/. Include the installed 'bin' directory, which contains racket, drracket, raco, and etc., to the environment path.
 - **Rosette**: Download and follow the instruction to install rosette from https://github.com/emina/rosette
