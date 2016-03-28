@@ -5,6 +5,7 @@ The top level directory contains ISA-independent files, which implement the supe
 
 ## References
 
+- [Video](https://youtu.be/3l7Z7kB5p3g) demonstrates how to build a LLVM IR superoptimizer using GreenThumb.
 - [Greenthumb: Superoptimizer Construction Framework (CC'16)](http://www.eecs.berkeley.edu/~mangpo/www/papers/greenthumb_cc2016.pdf) explains the framework overview.
 - [Greenthumb: Superoptimizer Construction Framework (Tech Report)](http://www.eecs.berkeley.edu/Pubs/TechRpts/2016/EECS-2016-8.pdf) explains the overview of how to extend the framework to support a new ISA.
 - [Scaling Up Superoptimization (ASPLOS'16)](http://www.eecs.berkeley.edu/~mangpo/www/papers/lens-asplos16.pdf) explains the search strategy provided by GreenThumb.
