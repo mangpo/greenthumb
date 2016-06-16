@@ -499,7 +499,7 @@
       (when (vector? sketch)
             (let ([len (vector-length sketch)])
               (set! size-from 1)
-              (set! size-to (min (+ len (extra-slots)) (window-size)))))
+              (set! size-to (+ len (extra-slots)))))
       
       (reset)
       (send machine reset-arg-ranges)
