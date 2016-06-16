@@ -8,8 +8,9 @@
 (require rosette/solver/smt/z3)
 
 (current-solver (new z3%))
+(current-bitwidth 32)
 
-(define parser (new llvm-demo-parser% [compress? #t]))
+(define parser (new llvm-demo-parser% [compress? #f]))
 (define machine (new llvm-demo-machine% [config 15] [bitwidth 32]))
 (define printer (new llvm-demo-printer% [machine machine]))
 (define simulator-rosette (new llvm-demo-simulator-rosette% [machine machine]))
@@ -17,35 +18,33 @@
 
 (define code
 (send parser ir-from-string "
-  %1 = add nsw i32 %in, -1
-  %2 = ashr i32 %1, 1
-  %3 = or i32 %2, %1
-  %4 = ashr i32 %3, 2
-  %5 = or i32 %4, %3
-  %6 = ashr i32 %5, 4
-  %7 = or i32 %6, %5
-  %8 = ashr i32 %7, 8
-  %9 = or i32 %8, %7
-  %10 = ashr i32 %9, 16
-  %11 = or i32 %10, %9
-  %out = add nsw i32 %11, 1
+%1 = mul i32 %1, 9
+%2 = mul i32 %2, 6
+%3 = mul i32 %3, 3
+%out = add i32 %1, %2
+%out = add i32 %3, %out
 "))
 
 
 (define sketch
 (send parser ir-from-string "
-%9 = sub i32 %in, 1
-%9 = ctlz i32 %9
-%out = lshr i32 -1, %9
-%9 = lshr i32 %out, %9
-%9 = or i32 %9, %out
-%out = ashr i32 %9, 16
-%out = add i32 %9, 1
-"))
+%out = add i32 %2, %3
+%out = shl i32 %out, 1
+%5 = shl i32 %2, 2
+%out = add i32 %out, %5
+%out = add i32 %out, %3
+%out = add i32 %out, %1
+%1 = shl i32 %1, 3
+%out = add i32 %out, %1
+")) ;; 5 vars are enough.
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send printer encode sketch))
 (send printer print-syntax (send printer decode encoded-code))
+(send printer print-struct encoded-code)
+(pretty-display "-------------------")
+(send printer print-syntax (send printer decode encoded-sketch))
+(send printer print-struct encoded-sketch)
 
 (define ex 
   (send validator counterexample encoded-code encoded-sketch 

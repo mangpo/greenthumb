@@ -7,7 +7,7 @@
   (class stochastic%
     (super-new)
     (inherit pop-count32 correctness-cost-base)
-    (override correctness-cost)
+    (override correctness-cost extra-slots)
     
     (define (diff-cost x y)
       (pop-count32 (bitwise-xor (bitwise-and x #xffffffff) 
@@ -18,6 +18,8 @@
     ;; state2: actual in progstate format
     (define (correctness-cost state1 state2 constraint)
       (correctness-cost-base state1 state2 constraint diff-cost))
+
+    (define (extra-slots) 4)
 
     ))
            

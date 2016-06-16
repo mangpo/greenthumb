@@ -12,7 +12,8 @@
             mutate-opcode mutate-operand mutate-swap
             mutate-operand-specific mutate-other
             random-instruction print-mutation-info
-	    random-args-from-op pop-count32 correctness-cost-base)
+	    random-args-from-op pop-count32 correctness-cost-base
+            extra-slots)
     (abstract correctness-cost)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
@@ -39,6 +40,7 @@
 ;;;;;;;;;;;;;;;;;;;;; Functions ;;;;;;;;;;;;;;;;;;
     (define (inst-copy-with-op x op) (struct-copy inst x [op op]))
     (define (inst-copy-with-args x args) (struct-copy inst x [args args]))
+    (define (extra-slots) 0)
 
     (define (superoptimize spec constraint this-live-in
                            name time-limit size [extra-info #f]
@@ -85,7 +87,7 @@
 
       ;; MCMC sampling
       (define-syntax-rule (get-sketch) 
-        (random-insts (if size size (vector-length spec))))
+        (random-insts (if size size (+ (vector-length spec) (extra-slots)))))
       (mcmc-main prefix postfix spec 
                  (cond
                   [start start]

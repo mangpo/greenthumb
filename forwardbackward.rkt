@@ -23,7 +23,7 @@
             reduce-precision increase-precision
             reduce-precision-assume
             change-inst change-inst-list
-            mask-in get-live-mask inst->vector)
+            mask-in get-live-mask inst->vector extra-slots)
     
     (define debug #f)
     (define verbo #f)
@@ -54,6 +54,7 @@
     ;;;;;;;;;;;;;;;;;;;;;;; Helper functions ;;;;;;;;;;;;;;;;;;;;;;
     (define (inst->vector x) (vector (inst-op x) (inst-args x)))
     (define (prescreen my-inst state-vec) #t)
+    (define (extra-slots) 0)
     
     ;; Return a copy of a given instruction x,
     ;; but replacing each constant c in the instruction x with (change c).
@@ -498,7 +499,7 @@
       (when (vector? sketch)
             (let ([len (vector-length sketch)])
               (set! size-from 1)
-              (set! size-to (min len (window-size)))))
+              (set! size-to (min (+ len (extra-slots)) (window-size)))))
       
       (reset)
       (send machine reset-arg-ranges)

@@ -24,8 +24,8 @@
     (set! random-input-bits bitwidth)
     (set! nop-id 0)
     (set! opcodes '#(nop 
-                     and or xor add sub
-                     and# or# xor# add# sub#
+                     and or xor add sub mul
+                     and# or# xor# add# sub# mul#
 		     _sub
 		     shl lshr ashr
 		     shl# lshr# ashr#
@@ -53,8 +53,8 @@
 
     ;; Instruction classes
     (set! classes 
-          (vector '(and or xor add sub shl lshr ashr) ;; rrr
-        	  '(and# or# xor# add# sub#) ;; rri
+          (vector '(and or xor add sub shl lshr ashr mul) ;; rrr
+        	  '(and# or# xor# add# sub# mul#) ;; rri
         	  '(shl# lshr# ashr#) ;;rri
         	  '(_sub _shl _lshr _ashr) ;;rir (commutative: _and _or _xor _add)
                   ))
@@ -63,7 +63,7 @@
     (define (reset-arg-ranges)
       (set! var-range (list->vector (range config)))
       (set! const-range (vector 0 1 -1 -2 -8))
-      (set! bit-range (vector 0 1)))
+      (set! bit-range (vector 0 1 2 3)))
 
     ;; Return types of operands given opcode-name.
     (define (get-arg-types opcode-name)

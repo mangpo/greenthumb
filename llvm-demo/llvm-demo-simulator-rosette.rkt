@@ -27,6 +27,7 @@
     (define bvshl  (bvop shl))
     (define bvshr  (bvop >>))
     (define bvushr (bvop ushr))
+    (define bvmul  (bvop *))
 
     (define (clz x)
       (let ([mask (shl 1 (sub1 bit))]
@@ -91,6 +92,7 @@
          [(inst-eq `nop) (void)]
          [(inst-eq `add) (rrr bvadd)]
          [(inst-eq `sub) (rrr bvsub)]
+         [(inst-eq `mul) (rrr bvmul)]
          
          [(inst-eq `and) (rrr bitwise-and)]
          [(inst-eq `or)  (rrr bitwise-ior)]
@@ -103,6 +105,7 @@
          ;; rri
          [(inst-eq `add#) (rri bvadd)]
          [(inst-eq `sub#) (rri bvsub)]
+         [(inst-eq `mul#) (rri bvmul)]
          
          [(inst-eq `and#) (rri bitwise-and)]
          [(inst-eq `or#)  (rri bitwise-ior)]
@@ -137,7 +140,12 @@
     (define (performance-cost program)
       (define cost 0)
       (for ([x program])
-	   (unless (= (inst-op x) nop-id) (set! cost (add1 cost))))
+           (let ([op (inst-op x)])
+             (cond
+              [(= op nop-id) (void)]
+              [(member (vector-ref opcodes op) (list `mul `mul#))
+               (set! cost (+ cost 10))]
+              [else (set! cost (add1 cost))])))
       cost)
     
     ))

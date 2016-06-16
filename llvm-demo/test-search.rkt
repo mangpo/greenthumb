@@ -9,8 +9,8 @@
          "llvm-demo-enumerator.rkt" "llvm-demo-inverse.rkt"
          )
 
-(define parser (new llvm-demo-parser% [compress? #t]))
-(define machine (new llvm-demo-machine% [config 3]))
+(define parser (new llvm-demo-parser% [compress? #f]))
+(define machine (new llvm-demo-machine% [config 5]))
 (define printer (new llvm-demo-printer% [machine machine]))
 (define simulator-racket (new llvm-demo-simulator-racket% [machine machine]))
 (define simulator-rosette (new llvm-demo-simulator-rosette% [machine machine]))
@@ -25,44 +25,18 @@
 (send parser ir-from-string "
 "))
 
-;; clearing 3 lowest bits
-#;(define code
-(send parser ir-from-string "
-%1 = lshr i32 %in, 3
-%out = shl nuw i32 %1, 3
-"))
-;; %out = and i32 %in, -8
-
-#;(define code
-(send parser ir-from-string "
-  %1 = add nsw i32 %in, -1
-  %2 = ashr i32 %1, 1
-  %3 = or i32 %2, %1
-  %out = add i32 %3, 0
-"))
-;; solver: > 30 sec
-
-;; rounding to power of 2
-;; geneated from clang -O3
 (define code
 (send parser ir-from-string "
-  %1 = add nsw i32 %in, -1
-  %2 = ashr i32 %1, 1
-  %3 = or i32 %2, %1
-  %4 = ashr i32 %3, 2
-  %5 = or i32 %4, %3
-  %6 = ashr i32 %5, 4
-  %7 = or i32 %6, %5
-  %8 = ashr i32 %7, 8
-  %9 = or i32 %8, %7
-  %10 = ashr i32 %9, 16
-  %11 = or i32 %10, %9
-  %out = add nsw i32 %11, 1
-")) ;; 12 instructions
+%1 = mul i32 %1, 9
+%2 = mul i32 %2, 6
+%3 = mul i32 %3, 3
+%out = add i32 %1, %2
+%out = add i32 %3, %out
+"))
 
 (define sketch
 (send parser ir-from-string "
-? ? ? ?
+? ? ? ? ?
 "))
 
 
