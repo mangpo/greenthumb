@@ -8,7 +8,7 @@
   (class machine%
     (super-new)
     (inherit-field bitwidth random-input-bits config
-                   opcodes nop-id
+                   opcodes opcode-pool nop-id
                    ;; required fileds for stochastic and enumerative only
 		   classes)
     (inherit get-class-id filter-live)
@@ -49,6 +49,11 @@
     (define (get-state init [extra #f])
       (for/vector ([i config]) (init)))
 
+    (define/override (reset-opcode-pool)
+      (define inst-choice '(add add# mul mul# shl shl# lshr lshr#))
+      (set! opcode-pool
+            (map (lambda (x) (vector-member x opcodes)) inst-choice)))
+
     ;;;;;;;;;;;;;;;;;;;;; For stochastic and enumerative ;;;;;;;;;;;;;;;;;;
 
     ;; Instruction classes
@@ -62,7 +67,7 @@
     ;; Set valid operands' ranges.
     (define (reset-arg-ranges)
       (set! var-range (list->vector (range config)))
-      (set! const-range (vector 0 1 -1 -2 -8))
+      (set! const-range (vector 0 1 -1)) ;; -2 -8
       (set! bit-range (vector 0 1 2 3)))
 
     ;; Return types of operands given opcode-name.
