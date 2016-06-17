@@ -144,6 +144,8 @@
              (cond
               [(= op nop-id) (void)]
               [(member (vector-ref opcodes op) (list `mul `mul#))
+               (set! cost (+ cost 100))]
+              [(member (vector-ref opcodes op) (list `add `add#))
                (set! cost (+ cost 10))]
               [else (set! cost (add1 cost))])))
       cost)
