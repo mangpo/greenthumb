@@ -10,7 +10,7 @@
     (inherit-field bitwidth random-input-bits config
                    opcodes opcode-pool nop-id
                    ;; required fileds for stochastic and enumerative only
-		   classes)
+		   classes classes-filtered)
     (inherit get-class-id filter-live)
     (override get-constructor set-config get-state
               ;; required functions for stochastic and enumerative only
@@ -51,8 +51,15 @@
 
     (define/override (reset-opcode-pool)
       (define inst-choice '(add add# mul mul# shl shl# lshr lshr#))
-      (set! opcode-pool
-            (map (lambda (x) (vector-member x opcodes)) inst-choice)))
+      (set! opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
+      (set! classes-filtered 
+            (for/vector ([c classes])
+                        (map (lambda (x) (vector-member x opcodes))
+                             (filter (lambda (x) (member x inst-choice)) c)))))
+
+      
+    (define/override (analyze-opcode prefix code postfix)
+      (void))
 
     ;;;;;;;;;;;;;;;;;;;;; For stochastic and enumerative ;;;;;;;;;;;;;;;;;;
 

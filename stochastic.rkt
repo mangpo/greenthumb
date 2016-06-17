@@ -282,6 +282,7 @@
       
     ;; MCMC sampling process.
     (define (mcmc-main prefix postfix target init inputs outputs constraint assumption time-limit extra-info)
+      (pretty-display `(opcode-pool ,(get-field opcode-pool machine)))
       (pretty-display ">>> start MCMC sampling")
       (pretty-display ">>> Phase 3: stochastic search")
       (pretty-display "start-program:")
