@@ -17,11 +17,12 @@
      synthesize-window)
     (public superoptimize
             superoptimize-linear superoptimize-binary
-            window-size)
+            window-size extra-slots)
 
     ;; Context-aware window decomposition size L.
     ;; The cooperative search tries L, 2L, 3L, 4L
     (define (window-size) (* 2 (len-limit)))
+    (define (extra-slots) 0)
 
     (define (superoptimize spec constraint live-in name time-limit size [extra #f]
                            #:prefix [prefix (vector)] #:postfix [postfix (vector)]
@@ -100,7 +101,7 @@
       (define (inner begin end cost [middle (quotient (+ begin end) 2)])
 	(newline)
         (pretty-display `(binary-search ,begin ,end ,middle ,cost))
-        (define sketch (gen-holes middle))
+        (define sketch (gen-holes (+ middle (extra-slots))))
         
         (define-values (out-program out-cost)
           (with-handlers* 
@@ -173,7 +174,7 @@
       (newline)
       (define prefix-len (vector-length prefix))
       (define postfix-len (vector-length postfix))
-      (define sketch (gen-holes size))
+      (define sketch (gen-holes (+ size (extra-slots))))
       (define final-program #f) ;; not including prefix & postfix
       (define t #f)
       (define (inner cost)

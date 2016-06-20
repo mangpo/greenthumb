@@ -15,4 +15,7 @@
     
     (define (gen-sym-inst)
       (inst (sym-op) (vector (sym-arg) (sym-arg) (sym-arg))))
+
+    (define/override (extra-slots) 1)
+    
     ))

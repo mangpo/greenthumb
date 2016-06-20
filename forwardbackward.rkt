@@ -16,14 +16,14 @@
   (class decomposer%
     (super-new)
     (inherit-field machine printer simulator validator stat syn-mode)
-    (inherit window-size)
+    (inherit window-size extra-slots)
     (init-field inverse% enumerator% [enum #f])
     (override synthesize-window superoptimize-linear superoptimize-binary)
     (public try-cmp? combine-live prescreen sort-live sort-live-bw
             reduce-precision increase-precision
             reduce-precision-assume
             change-inst change-inst-list
-            mask-in get-live-mask inst->vector extra-slots)
+            mask-in get-live-mask inst->vector)
     
     (define debug #f)
     (define verbo #f)
@@ -54,7 +54,6 @@
     ;;;;;;;;;;;;;;;;;;;;;;; Helper functions ;;;;;;;;;;;;;;;;;;;;;;
     (define (inst->vector x) (vector (inst-op x) (inst-args x)))
     (define (prescreen my-inst state-vec) #t)
-    (define (extra-slots) 0)
     
     ;; Return a copy of a given instruction x,
     ;; but replacing each constant c in the instruction x with (change c).

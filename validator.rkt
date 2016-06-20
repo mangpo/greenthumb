@@ -31,7 +31,7 @@
     (define ninsts (vector-length (get-field opcodes machine)))
     (define start-time #f)
 
-    ;(current-solver (new z3%))
+    (current-solver (new z3%))
 
     ;; Default: no assumption
     (define (assume state assumption)
