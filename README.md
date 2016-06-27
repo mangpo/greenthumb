@@ -12,7 +12,7 @@ The top level directory contains ISA-independent files, which implement the supe
 
 ## Software Prerequisites
 - **Racket**: Download and install drracket from https://racket-lang.org/download/. Include the installed 'bin' directory, which contains racket, drracket, raco, and etc., to the environment path.
-- **Rosette**: Download and follow the instruction to install rosette from https://github.com/emina/rosette
+- **Rosette**: Download [Rosette v1.1](https://github.com/emina/rosette/releases/tag/v1.1) and follow the instruction to install in Rosette's README file. Don't forget to put Z3 executable in rosette/bin, as GreenThumb depends on Z3 (but not CVC4).
 - **Python**
 
 ## Setting Up
