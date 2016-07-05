@@ -1,6 +1,6 @@
 #lang s-exp rosette
 
-(require  "inst.rkt" "machine.rkt")
+(require  "inst.rkt" "machine.rkt" "memory-rosette.rkt")
 
 (require rosette/solver/smt/z3)
 
@@ -86,6 +86,36 @@
             (pretty-display `(generate-inputs-inner ,n ,assumption ,random-input-bit)))
       (clear-asserts)
       (current-bitwidth bit)
+
+      (define sols (list))
+      (define first-solve #t)
+      (define (loop [extra #t] [count n])
+        (define (assert-extra-and-interpret)
+          ;; Assert that the solution has to be different.
+          (assert extra)
+          (assume start-state assumption)
+          (interpret spec start-state)
+          )
+        (define sol (solve (assert-extra-and-interpret)))
+        (define restrict-pairs (solution->list sol))
+        (set! first-solve #f)
+        (unless (empty? restrict-pairs)
+                (set! sols (cons sol sols))
+                (when (> count 1)
+                      (loop 
+                       (and extra (ormap (lambda (x) (not (equal? (car x) (cdr x)))) restrict-pairs))
+                       (sub1 count)))))
+      
+      (with-handlers* 
+       ([exn:fail? 
+         (lambda (e)
+           (if  (equal? (exn-message e) "solve: no satisfying execution found")
+                (if first-solve
+                    (raise "Cannot construct valid inputs.")
+                    (when debug (pretty-display "no more!")))
+                (raise e)))])
+       (loop))
+
       (define const-range 
 	;; (- (arithmetic-shift 1 (sub1 random-input-bit)))
 	(for/vector ([i (sub1 random-input-bit)]) (arithmetic-shift 1 i)))
@@ -129,40 +159,19 @@
       ;;       (interpret spec start-state)
       ;;       (pretty-display "Passed!"))
       ;; Construct cnstr-inputs.
+
       (define cnstr-inputs (list))
-      (define first-solve #t)
-      (define (loop [extra #t] [count n])
-        (define (assert-extra-and-interpret)
-          ;; Assert that the solution has to be different.
-          (assert extra)
-          (assume start-state assumption)
-          (interpret spec start-state)
-          )
-        (define sol (solve (assert-extra-and-interpret)))
-        (define restrict-pairs (list))
-        (set! first-solve #f)
-        (for ([pair (solution->list sol)])
-             ;; Filter only the ones that matter.
-             (when (hash-has-key? (car inputs) (car pair))
-                   (set! restrict-pairs (cons pair restrict-pairs))))
+      (for ([sol sols])
+           (define restrict-pairs (list))
+           (set! first-solve #f)
+           (for ([pair (solution->list sol)])
+                ;; Filter only the ones that matter.
+                (when (hash-has-key? (car inputs) (car pair))
+                      (set! restrict-pairs (cons pair restrict-pairs))))
         (unless (empty? restrict-pairs)
-                (set! cnstr-inputs (cons restrict-pairs cnstr-inputs))
-                (when (> count 1)
-                      (loop 
-                       (and extra (ormap (lambda (x) (not (equal? (car x) (cdr x)))) restrict-pairs))
-                       (sub1 count)))))
+                (set! cnstr-inputs (cons restrict-pairs cnstr-inputs))))
       
-      (with-handlers* 
-       ([exn:fail? 
-         (lambda (e)
-           (if  (equal? (exn-message e) "solve: no satisfying execution found")
-                (if first-solve
-                    (raise "Cannot construct valid inputs.")
-                    (when debug (pretty-display "no more!")))
-                (raise e)))])
-       (loop))
-      
-      (set! cnstr-inputs (list->vector (reverse cnstr-inputs)))
+      (set! cnstr-inputs (list->vector cnstr-inputs))
       (define cnstr-inputs-len (vector-length cnstr-inputs))
       (when debug (pretty-display `(cnstr-inputs ,cnstr-inputs-len ,cnstr-inputs)))
       
@@ -274,6 +283,8 @@
          [(pair? x)
           (collect-sym (car pred) (car x))
           (collect-sym (cdr pred) (cdr x))]
+         [(is-a? x memory-rosette%) ;; TODO: treat all memory update to be live.
+          (set! live-list (append (vector->list (get-field store x)) live-list))]
          [else
           (for ([p pred] [i x]) (collect-sym p i))]))
 
@@ -318,8 +329,13 @@
     (define (assert-state-eq state1 state2 pred)
       (define (inner state1 state2 pred)
 	(cond
+         [(and pred (is-a? state1 memory-rosette%))
+          (assert (send state1 update-equal? state2))]
 	 [(equal? pred #t)
-	  (assert (equal? state1 state2))]
+          (for*/all ([i state2])
+                    (assert (equal? state1 i)))
+	  ;;(assert (equal? state1 state2))
+          ]
 	 [(equal? pred #f)
 	  (void)]
 	 [(number? pred)
@@ -349,6 +365,7 @@
 	 [(vector? x) (for/vector ([i x]) (inner i))]
 	 [(list? x) (for/vector ([i x]) (inner i))]
 	 [(pair? x) (cons (inner (car x)) (inner (cdr x)))]
+         [(is-a? x memory-rosette%) (send x create sol inner)] 
 	 [else (eval x sol)]))
       (send machine vector->progstate
 	    (inner (send machine progstate->vector state))))
@@ -367,8 +384,10 @@
 	  (for ([i x]) (inner i))]
 	 [(pair? x)
 	  (inner (car x)) (inner (cdr x))]
+         [(is-a? x memory-rosette%)
+          (inner (get-field init x))]
 	 [else (add x)]))
       (inner (send machine progstate->vector state))
-      lst)
+      (set->list (list->set lst)))
     
     ))

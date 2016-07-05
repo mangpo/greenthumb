@@ -328,7 +328,7 @@
 			  (pretty-display (exn-message e)))
 		    #f)]
 	    )
-	   (send simulator interpret program input)))
+	   (send simulator interpret program input output)))
 	(and program-out
 	     (let ([t2 (current-milliseconds)]
 		   [ret (correctness-cost output program-out constraint)]
@@ -362,7 +362,8 @@
               (send stat inc-validate)
               (define t1 (current-milliseconds))
               (set! ce (send validator counterexample 
-                             (vector-append prefix target postfix) (vector-append prefix program postfix)
+                             (vector-append prefix target postfix)
+                             (vector-append prefix program postfix)
                              constraint extra-info
                              #:assume assumption))
               (if ce 
@@ -379,7 +380,7 @@
                   (begin
                     (send stat inc-correct)
                     (when syn-mode (set! change-mode #t) (set! syn-mode #f))
-                                        ;(send stat inc-correct)
+                    ;;(send stat inc-correct)
                     ))
               
               (define t2 (current-milliseconds))

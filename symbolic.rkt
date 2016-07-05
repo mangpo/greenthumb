@@ -140,7 +140,8 @@
         (when debug (pretty-display "========== interpret spec"))
         (set! spec-state 
               (interpret-spec (vector-append hard-prefix spec hard-postfix)
-                              start-state assumption)))
+                              start-state assumption))
+        )
       
       (define (compare-spec-sketch)
         (when debug (pretty-display "=========== interpret sketch"))
@@ -165,7 +166,7 @@
             (pretty-display "Test simulate with symbolic instructions...")
             (send simulator interpret sketch start-state)
             (pretty-display "Passed!"))
-      
+
       (define model 
         (timeout
          time-limit
@@ -184,7 +185,7 @@
       
       (pretty-display ">>> superoptimize-output")
       (set! final-program (send machine clean-code final-program hard-prefix))
-      ;;(send printer print-struct final-program)
+      (send printer print-struct final-program)
       (send printer print-syntax (send printer decode final-program)) (newline)
       (pretty-display (format "limit cost = ~a" cost))
       (pretty-display (format "new cost = ~a" final-cost))
