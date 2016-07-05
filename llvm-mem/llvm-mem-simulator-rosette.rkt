@@ -1,15 +1,15 @@
 #lang s-exp rosette
 
 (require "../simulator-rosette.rkt" "../ops-rosette.rkt" "../inst.rkt")
-(provide llvm-demo-simulator-rosette%)
+(provide llvm-mem-simulator-rosette%)
 
-(define llvm-demo-simulator-rosette%
+(define llvm-mem-simulator-rosette%
   (class simulator-rosette%
     (super-new)
     (init-field machine)
     (override interpret performance-cost get-constructor)
 
-    (define (get-constructor) llvm-demo-simulator-rosette%)
+    (define (get-constructor) llvm-mem-simulator-rosette%)
 
     (define bit (get-field bitwidth machine))
     (define nop-id (get-field nop-id machine))

@@ -1,19 +1,19 @@
 #lang s-exp rosette
 
-(require "llvm-demo-validator.rkt" "llvm-demo-machine.rkt"
-         "llvm-demo-printer.rkt"
-         "llvm-demo-simulator-rosette.rkt" 
-         "llvm-demo-parser.rkt" "../inst.rkt")
+(require "llvm-mem-validator.rkt" "llvm-mem-machine.rkt"
+         "llvm-mem-printer.rkt"
+         "llvm-mem-simulator-rosette.rkt" 
+         "llvm-mem-parser.rkt" "../inst.rkt")
 
 (require rosette/solver/smt/z3)
 
 (current-solver (new z3%))
 
-(define parser (new llvm-demo-parser% [compress? #f]))
-(define machine (new llvm-demo-machine% [config 4] [bitwidth 32]))
-(define printer (new llvm-demo-printer% [machine machine]))
-(define simulator-rosette (new llvm-demo-simulator-rosette% [machine machine]))
-(define validator (new llvm-demo-validator% [machine machine] [simulator simulator-rosette]))
+(define parser (new llvm-mem-parser% [compress? #f]))
+(define machine (new llvm-mem-machine% [config 4] [bitwidth 32]))
+(define printer (new llvm-mem-printer% [machine machine]))
+(define simulator-rosette (new llvm-mem-simulator-rosette% [machine machine]))
+(define validator (new llvm-mem-validator% [machine machine] [simulator simulator-rosette]))
 
 (define code
 (send parser ir-from-string "

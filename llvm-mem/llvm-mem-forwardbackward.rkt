@@ -2,9 +2,9 @@
 
 (require "../forwardbackward.rkt")
 
-(provide llvm-demo-forwardbackward%)
+(provide llvm-mem-forwardbackward%)
 
-(define llvm-demo-forwardbackward%
+(define llvm-mem-forwardbackward%
   (class forwardbackward%
     (super-new)
     (inherit-field machine printer enum)

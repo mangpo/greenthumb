@@ -1,15 +1,15 @@
 #lang racket
 
 (require "../simulator-racket.rkt" "../ops-racket.rkt" "../inst.rkt")
-(provide llvm-demo-simulator-racket%)
+(provide llvm-mem-simulator-racket%)
 
-(define llvm-demo-simulator-racket%
+(define llvm-mem-simulator-racket%
   (class simulator-racket%
     (super-new)
     (init-field machine)
     (override interpret performance-cost get-constructor)
 
-    (define (get-constructor) llvm-demo-simulator-racket%)
+    (define (get-constructor) llvm-mem-simulator-racket%)
 
     (define bit (get-field bitwidth machine))
     (define nop-id (get-field nop-id machine))

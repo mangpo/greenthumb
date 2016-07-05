@@ -1,8 +1,8 @@
 #lang s-exp rosette
 
-(require "llvm-demo-parser.rkt" "llvm-demo-printer.rkt" "llvm-demo-machine.rkt"
-         "llvm-demo-simulator-rosette.rkt"
-         "llvm-demo-simulator-racket.rkt"
+(require "llvm-mem-parser.rkt" "llvm-mem-printer.rkt" "llvm-mem-machine.rkt"
+         "llvm-mem-simulator-rosette.rkt"
+         "llvm-mem-simulator-racket.rkt"
          "../memory-racket.rkt")
 
 ;; Step -1: familiar yourself with default inst
@@ -12,9 +12,9 @@
 
 ;; Step 1: Test parser and printer
 (pretty-display "Step 1: test parser and printer.")
-(define parser (new llvm-demo-parser%))
-(define machine (new llvm-demo-machine% [config 4]))
-(define printer (new llvm-demo-printer% [machine machine]))
+(define parser (new llvm-mem-parser%))
+(define machine (new llvm-mem-machine% [config 4]))
+(define printer (new llvm-mem-printer% [machine machine]))
 
 ;; clear 3 lowest bits.
 (define code
@@ -36,7 +36,7 @@ store i32 %1, i32* %2
 (define input-state (vector (vector 111 222 333 444)
                             (new memory-racket% [init #((222 . 2222))])
                             ))
-(define simulator-rosette (new llvm-demo-simulator-rosette% [machine machine]))
+(define simulator-rosette (new llvm-mem-simulator-rosette% [machine machine]))
 (define out (send simulator-rosette interpret encoded-code input-state))
 (newline)
 (define mem (vector-ref out 1))
@@ -55,7 +55,7 @@ store i32 %1, i32* %2
 #|
 ;; Step 4: duplicate rosette simulator to racket simulator
 (pretty-display "Step 6: interpret program using simulator writing in Racket.")
-(define simulator-racket (new llvm-demo-simulator-racket% [machine machine]))
+(define simulator-racket (new llvm-mem-simulator-racket% [machine machine]))
 (send simulator-racket interpret encoded-code input-state)
 
 |#

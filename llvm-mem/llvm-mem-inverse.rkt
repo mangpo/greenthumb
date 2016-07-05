@@ -2,9 +2,9 @@
 
 (require "../ops-racket.rkt" "../inst.rkt" "../inverse.rkt" "../enumerator.rkt")
 
-(provide llvm-demo-inverse%)
+(provide llvm-mem-inverse%)
 
-(define llvm-demo-inverse%
+(define llvm-mem-inverse%
   (class inverse%
     (super-new)
     (inherit-field machine simulator)

@@ -5,9 +5,9 @@
          parser-tools/yacc
 	 "../parser.rkt" "../inst.rkt")
 
-(provide llvm-demo-parser%)
+(provide llvm-mem-parser%)
 
-(define llvm-demo-parser%
+(define llvm-mem-parser%
   (class parser%
     (super-new)
     (inherit-field asm-parser asm-lexer)

@@ -3,9 +3,9 @@
 (require "../machine.rkt" "../enumerator.rkt" "../inst.rkt")
 (require racket/generator)
 
-(provide llvm-demo-enumerator%)
+(provide llvm-mem-enumerator%)
 
-(define llvm-demo-enumerator%
+(define llvm-mem-enumerator%
   (class enumerator%
     (super-new)
     (init-field machine printer)

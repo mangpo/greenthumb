@@ -2,9 +2,9 @@
 
 (require "../symbolic.rkt" "../inst.rkt")
 
-(provide llvm-demo-symbolic%)
+(provide llvm-mem-symbolic%)
 
-(define llvm-demo-symbolic%
+(define llvm-mem-symbolic%
   (class symbolic%
     (super-new)
     (inherit sym-op sym-arg)

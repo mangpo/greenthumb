@@ -3,9 +3,9 @@
 (require "../printer.rkt" 
          "../inst.rkt")
 
-(provide llvm-demo-printer%)
+(provide llvm-mem-printer%)
 
-(define llvm-demo-printer%
+(define llvm-mem-printer%
   (class printer%
     (super-new)
     (inherit-field machine)
@@ -140,9 +140,9 @@
     ;; output: vector of #t and #f.
     (define/public (encode-live x)
       (define live (make-vector (send machine get-config) #f))
-      (for ([v x])
+      (for ([v (vector-ref x 0)])
            (vector-set! live (hash-ref name2num (if (symbol? v) (symbol->string v) v)) #t))
-      (vector live #t))
+      (vector live (vector-ref x 1)))
 
     ;;;;;;;;;;;;;;;;;;;;; For cooperative search ;;;;;;;;;;;;;;;;;;
     
