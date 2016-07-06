@@ -9,10 +9,7 @@
     (init-field [size 20]
                 [init (make-vector size)]
                 [update (make-vector size)]
-                [ref #f]
-                )
-    ;; mode = `spec
-    ;; mode = `candidate
+                [ref #f])
     (public print load store create clone
             lookup-init lookup-update update-equal? correctness-cost)
 

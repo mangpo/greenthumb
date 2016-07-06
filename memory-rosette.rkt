@@ -13,10 +13,7 @@
                  (lambda ()
                    (define-symbolic* val number?)
                    val)]
-                [ref #f]
-                )
-    ;; mode = `spec
-    ;; mode = `candidate
+                [ref #f])
     (public print load store create clone
             lookup-init lookup-update update-equal?)
 
