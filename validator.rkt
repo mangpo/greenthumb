@@ -137,9 +137,14 @@
       (define input-random
         (for/list ([i m])
                   (generate-one-input 
-                   (lambda () (let ([rand (rand-func)])
-                                (if (>= rand (<< 1 (sub1 bit)))
-                                    (- rand (<< 1 bit))
+                   (lambda () (let ([rand (rand-func)]
+				    [half (arithmetic-shift                           
+					   (min 4294967087 (<< 1 random-input-bit))   
+					   -1)])
+				;; (if (>= rand (<< 1 (sub1 bit)))
+				;;     (- rand (<< 1 bit))
+				(if (>= rand half)
+				    (- half rand)
                                     rand))))))
       
       ;; Random in const list

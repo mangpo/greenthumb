@@ -50,7 +50,7 @@
     ;; Context-aware window decomposition size is set in xxx-symbolic.rkt and xxx-forwardbackward.rkt
     (define (window-size) 100)
     (define (get-config) config)
-    (define (adjust-config) config)
+    (define (adjust-config config) config)
     (define (get-memory-size) config)
     (define (get-opcode-id opcode) (vector-member opcode opcodes))
     (define (get-opcode-name id) (vector-ref opcodes id))
