@@ -21,7 +21,10 @@
                   (bitwise-ior mask masked)  
                   masked))]))
 
-;; This function is very memory expensive in Rosette
+;;;;;;;;;;;;;;;;;;;;; vector ;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Use vector-copy! instead of vector-copy.
+;; This function is very memory expensive in Rosette.
 (define (vector-copy! dest dest-start src 
                       [src-start 0] [src-end (vector-length src)])
   ;;(pretty-display `(vector-copy! ,src-start ,src-end ,(- src-end src-start)))
@@ -62,6 +65,25 @@
   ;(pretty-display `(vector-extract-ret ,vec))
   vec)
 
+;;;;;;;;;;;;;;;;;;;;; lookup table ;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Use these functions instead of hash.
+;;   lookup-table = make-hash
+;;   lt-ref       = hash-ref
+;;   lt-set!      = not supported
+(define-syntax-rule (lookup-table assoc) assoc)
+
+(define (lt-ref table key [default #f])
+  (define (loop pairs)
+    (if (empty? pairs)
+        default
+        (let ([kv (car pairs)])
+          (if (equal? key (car kv))
+              (cdr kv)
+              (loop (cdr pairs))))))
+  (loop table))
+
+;;;;;;;;;;;;;;;;;;;;; multiplication ;;;;;;;;;;;;;;;;;;;;;;;;
 (define (smmul u v bit)
   (define byte2 (quotient bit 2))
   (define low-mask (sub1 (arithmetic-shift 1 byte2)))

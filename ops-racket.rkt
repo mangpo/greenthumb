@@ -2,7 +2,6 @@
 
 (provide (all-defined-out))
 
-(define-syntax-rule (assert-return c message val) val)
 
 (define-syntax-rule (<< x y bit)
   (if (and (>= y 0) (< y bit))
@@ -28,6 +27,9 @@
         masked
         (bitwise-ior mask masked))))
 
+
+;;;;;;;;;;;;;;;;;;;;; assert ;;;;;;;;;;;;;;;;;;;;;;;;
+(define-syntax-rule (assert-return c message val) val)
 (define-syntax assert
   (syntax-rules ()
     ((assert x) 
@@ -43,6 +45,7 @@
 (define-syntax-rule (for*/all ([a b] ...) expr)
   (let* ([a b] ...) expr))
 
+;;;;;;;;;;;;;;;;;;;;; vector ;;;;;;;;;;;;;;;;;;;;;;;;
 ;; TODO: do we need this?
 (define (vector-copy-len vec start len)
   ;(pretty-display `(vector-copy ,start ,len))
@@ -66,7 +69,17 @@
        (vector-set! vec (+ pos i) (vector-ref b i)))
   ;(pretty-display `(vector-extract-ret ,vec))
   vec)
+
+;;;;;;;;;;;;;;;;;;;;; lookup table ;;;;;;;;;;;;;;;;;;;;;;;;
+(define-syntax-rule (lookup-table assoc)
+  (make-hash assoc))
+
+(define-syntax lt-ref
+  (syntax-rules ()
+    [(lt-ref table key) (hash-ref table key)]
+    [(lt-ref table key default) (hash-ref table key default)]))
        
+;;;;;;;;;;;;;;;;;;;;; multiplication ;;;;;;;;;;;;;;;;;;;;;;;;
 (define (smmul x y bit) 
   (finitize (arithmetic-shift (* x y) (- bit)) bit))
 

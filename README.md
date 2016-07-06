@@ -160,7 +160,10 @@ Now, we can start implementing our superoptimizer in the following order. The mo
    - method `info-from-file` of `llvm-parser%`
    - method `len-limit` of `llvm-symbolic%` and `llvm-forwardbackward%`
 
-Now, we can run our LLVM IR cooperative superoptimizer, similar to the way we run the ARM superoptimizer in the earlier section, using the generated `optimize.rkt`. Note that even if we do not implement all search techniques, for instance, we only implement `llvm-stochastic%`, we can still use `optimize.rkt` to run the stochastic search instaces in parallel, communicating to each other about the best program.
+Now, we can run our LLVM IR cooperative superoptimizer, similar to the way we run the ARM superoptimizer in the earlier section, using the generated `optimize.rkt`. Note that even if we do not implement all search techniques, for instance, we only implement `llvm-stochastic%`, we can still use `optimize.rkt` to run the stochastic search instaces in parallel, communicating to each other about the best program. 
+
+#### Caution
+GreenThumb relies on Rosette to verify correctness and perform symbolic search. Therefore, `simulator-rosette%` must be implemented in Rosette, which support most Racket operations but not all. For example, Rosette does not support any symbolic hash operation or some vector operations (e.g. vector-copy). If you wish to use some of these handy functions, take a look at provided functions in `ops-rosette.rkt`, which can be used instead of the original functions. We also provide the same functions but implemented more efficiently in `ops-racket.rkt`, which can be used in `simulator-racket%`.
 
 ## Reduce Memory Usage
 To reduce the memory usage and the overhead of Racket translating program to bytecode, we can precompile our superoptimizer application to bytecode by running in command line:
