@@ -8,9 +8,12 @@
    - Read Section 'Brief Instructions' in [Extending GreenThumb to New ISA](new-isa.md).
    - Skim through [Greenthumb: Superoptimizer Construction Framework (Tech Report)](http://www.eecs.berkeley.edu/Pubs/TechRpts/2016/EECS-2016-8.pdf). No need to try it out. Just read.
 
+This instruction will work you through how to add a new instruction to any superoptimizer built using GreenThumb. However, this documentation will use LLVM IR as a concrete example.
+
 <a name="Prerequisite"></a>
 ## Prerequisite Knowledge
 
+### LLVM
 #### Program State
 In our llvm-demo ISA, a program state is minimal. It only includes values of variables in the program (no memory). We represent a LLVM program state as:
 ```
@@ -24,7 +27,7 @@ represents a state of program with three variables. The first two variables (ID 
 
 In order to support memory instructions and distinguish flags (e.g. carry flag), we will need to extend this representation to include memory and flags.
 
-#### Live-out Information
+#### Liveness Information
 When checking the equivalence of two expressions, we need to specify which locations in the output program states that need to be equal. Essentially, we only care about the live parts of the output program state (live-out). For example, when optimize the following code:
 ```
 %1 = lshr i32 %in, 3
@@ -34,6 +37,32 @@ we do not care what the values of %in and %1 are at the end, but only care about
 ```
 (vector #f #f #t)
 ```
+
+### ARM
+#### Program State
+In ARM, a program state include registers, memory (for temporary variables), flag `z`, and special register fp (frame pointer).
+
+We represent an ARM program state as:
+```
+(progstate (vector r0 r1 ...) (vector m0 m1 ...) z fp)
+```
+where progstate is a struct. fp is used for accessing memory.
+
+We use flag z to represent most conditions as follows:
+```
+z = 0 | eq
+z = 1 | neq
+z = 2 | x < y && sign(x) == sign(y)
+z = 3 | x > y && sign(x) == sign(y)
+z = 4 | x < 0 && y >= 0
+z = 5 | y < 0 && x >= 0
+```
+
+tst instruction sets z to either 0 or 1. cmp instruction can set z to any value except 1.
+
+##### Liveness Information
+
+We do not use progstate to represent liveness information for ARM instruction. Instead, the liveness is represented as a pair of lists, where the first list contains live registers' IDs and the second list contains live memory locations. 
 
 <a name="Support"></a>
 ## How to Support More Instructions
@@ -48,9 +77,7 @@ Add `mul` to the list of `opcodes` in `llvm-demo-machine.rkt`. Search for `(set!
 #### 3. ASM Parser & Printer
 If the new instruction does not follow the default instruction format `opcode arg1, arg2, ...`, we have to modify the parser in `llvm-demo-parser.rkt` to parse the instruction, and the methods `encode-inst`, `decode-inst`, and `print-syntax-inst` in `llvm-demo-printer.rkt`. To support `mul`, we do not need to alter the parser and printer.
 
----------------------------------------------------
-
-#### 4. ASM Simulator
+#### 4. Simulator
 ##### Method interpret
 Modify the `interpret` method in `llvm-demo-simulator-rosette.rkt` and `llvm-demo-simulator-racket.rkt` to interpret the new instruction. To support `mul`, we need the case in the main conditional expression in `interpret`:
 ```
@@ -79,7 +106,7 @@ If we have to make many modifications to the simulator, it might be easier to on
 
 #### 5. Additional Changes for Superoptimizer
 
-In `llvm-demo-machine.rkt`, we need to modify the following.
+Once we have a simulator working properly, we need to modify a few more functions in `llvm-demo-machine.rkt` to enable a superoptimizer.
 
 ##### `classes`
 We must categorize the new instruction according to its arguments' type. Search for `(set! classes ...)`. `classes` is a vector of lists of opcodes. Each list of opcodes contains opcodes that have the same arguments' types. For example, `or xor add ...` are in the same list (class) because they take two arguments that are variables. To support `mul`, we put `mul` in the same class with `or xor add ...`. If the new instruction does not belong to any existing group, we have to create a new group for it. 
@@ -98,9 +125,9 @@ The method `analyze-args-inst` may add more values to `const-range`, `bit-range`
 If we create a **new argument type** in `get-arg-types`, we have to modify the method `analyze-args-inst`. The purpose of the method is to include arguments (e.g. registers, constans, etc.) appearing in the spec program into the collection of arguments our stochastic and enumerative superoptimizers should try. For example, currently the candidate programs that the stochastic superoptimizer creates only include registers, constants appearing in the spec program, and constants 0 and 1. This is controlled by `analyze-args-inst`. Note that the symbolic search does not use this method and always tries all possible arguments' values.
 
 ##### `update-live` & `update-live-backward`
-If we create a **new class** for the new instruction, we may have to modify the method `update-live`. Essentially, `update-live` should set all locations of the program state modified by a given instruction to #t (true). In the current implementation, for any instruction that is not 'nop', we mark that the output is live. Therefore, if we add a new instruction whose first argument is not an output variable, we will have to modify `update-live` to handle this instruction correctly.
+If we create a **new class** for the new instruction, we may have to modify the method `update-live`. Essentially, `update-live` should set all locations of the program state modified by a given instruction to be live (i.e. #t for llvm-demo). In the current implementation, for any instruction that is not 'nop', we mark that the output is live. Therefore, if we add a new instruction whose first argument is not an output variable, we will have to modify `update-live` to handle this instruction correctly.
 
-If we create a **new argument type** for variables (apart from 'var-i' and 'var-o'), we have to modify the method `update-live-backward`. If a new argument type is for constant, then we don't have to modify the function.
+If we create a **new argument type** that is not constant, we have to modify the method `update-live-backward`.
 
 ##### Testing the Superoptimizer
 
