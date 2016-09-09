@@ -9,8 +9,8 @@
          "llvm-demo-enumerator.rkt" "llvm-demo-inverse.rkt"
          )
 
-(define parser (new llvm-demo-parser% [compress? #t]))
-(define machine (new llvm-demo-machine% [config 3]))
+(define parser (new llvm-demo-parser% [compress? #t] [no-rename '(%out %11)]))
+(define machine (new llvm-demo-machine% [config 4]))
 (define printer (new llvm-demo-printer% [machine machine]))
 (define simulator-racket (new llvm-demo-simulator-racket% [machine machine]))
 (define simulator-rosette (new llvm-demo-simulator-rosette% [machine machine]))
@@ -65,7 +65,7 @@
 ? ? ? ?
 "))
 
-
+(send printer print-syntax code)
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send printer encode sketch))
 (define encoded-prefix (send printer encode prefix))
