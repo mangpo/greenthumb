@@ -40,15 +40,13 @@ we do not care what the values of %in and %1 are at the end, but only care about
 
 ### ARM
 #### Program State
-In ARM, a program state include registers, memory (for temporary variables), flag `z`, and special register fp (frame pointer).
+In ARM, a program state include registers, memory (for temporary variables), flag z, and special register fp (frame pointer).
 
 We represent an ARM program state as:
 ```
 (progstate (vector r0 r1 ...) (vector m0 m1 ...) z fp)
 ```
-where progstate is a struct. fp is used for accessing memory.
-
-We use flag z to represent most conditions as follows:
+where progstate is a struct. fp is used for accessing memory. We use flag z to represent most conditions as follows:
 ```
 z = 0 | eq
 z = 1 | neq
@@ -71,10 +69,10 @@ To support more instructions, we need to modify several files as we will explain
 #### 1. Program State
 We may need to add more fields in our program state representation, `progstate` (which is a vector) in `llvm-demo-machine.rkt` to support more instructions. For example, we may need fields to represent memory. To support `mul`, we do not need to alter `progstate`.
 
-#### 2. ASM Opcodes
+#### 2. Opcodes
 Add `mul` to the list of `opcodes` in `llvm-demo-machine.rkt`. Search for `(set! opcodes '#(...))`.
 
-#### 3. ASM Parser & Printer
+#### 3. Parser & Printer
 If the new instruction does not follow the default instruction format `opcode arg1, arg2, ...`, we have to modify the parser in `llvm-demo-parser.rkt` to parse the instruction, and the methods `encode-inst`, `decode-inst`, and `print-syntax-inst` in `llvm-demo-printer.rkt`. To support `mul`, we do not need to alter the parser and printer.
 
 #### 4. Simulator
@@ -83,7 +81,7 @@ Modify the `interpret` method in `llvm-demo-simulator-rosette.rkt` and `llvm-dem
 ```
 [(inst-eq `mul)   (rrr bvmul)]
 ```
-Function `rrr` has already been defined. If you compare function `rrr` and `rri`, you will notice the difference between using the third argument as variable and as constant; r stands for variable (or register), and i stands for constant.
+Function `rrr` has already been defined. If you compare function `rrr` and `rri`, you will notice the difference between using the third argument as a variable and as a constant; r stands for variable (or register), and i stands for constant.
 Next, define `bvmul` outside `interpret` function:
 ```
 (define bvmul (bvop *))
@@ -106,10 +104,10 @@ If we have to make many modifications to the simulator, it might be easier to on
 
 #### 5. Additional Changes for Superoptimizer
 
-Once we have a simulator working properly, we need to modify a few more functions in `llvm-demo-machine.rkt` to enable a superoptimizer.
+Once we have a simulator working properly, we need to modify a few more functions and definitions in `llvm-demo-machine.rkt` to enable a superoptimizer.
 
 ##### `classes`
-We must categorize the new instruction according to its arguments' type. Search for `(set! classes ...)`. `classes` is a vector of lists of opcodes. Each list of opcodes contains opcodes that have the same arguments' types. For example, `or xor add ...` are in the same list (class) because they take two arguments that are variables. To support `mul`, we put `mul` in the same class with `or xor add ...`. If the new instruction does not belong to any existing group, we have to create a new group for it. 
+We must categorize the new instruction according to its arguments' type. Search for `(set! classes ...)`. `classes` is a vector of lists of opcodes. Each list of opcodes contains opcodes that have the same arguments' types. For example, `or xor add ...` are in the same list (class) because they take two arguments that are variables. To support `mul`, we put `mul` in the same class with `or xor add ...`. If the new instruction does not belong to any existing class, we have to create a new class for it. 
 Note that our framework automatically associates class IDs according to the order.
 
 ##### `get-arg-types`
@@ -129,6 +127,9 @@ If we create a **new class** for the new instruction, we may have to modify the 
 
 If we create a **new argument type** that is not constant, we have to modify the method `update-live-backward`.
 
+#### 5. Additional Changes for Enumerative Search
+The enumerative search requires more efforts. If we add **new argument type**, we will need to modify method `generate-inst` to generate instructions in `llvm-demo-enumerator.rkt` and `interpret-inst` to interpret an instruction backward in `llvm-demo-inverse.rkt`. If you are at this stage, please contact `mangpo@eecs.berkeley.edu`. We are working on eliminating this step entirely if possible.
+
 ##### Testing the Superoptimizer
 
-Test if the symbolic, enumerative, and stochastic superoptimizers can synthesize the new instruction by using `test-search.rkt`. Set `code` to a program with only the new instruction and another dummy instruction (such as `addl 0`) to create an obviously inefficient program. Run each of the symbolic, enumerative, and stochastic search at a time. The symbolic search should return with an optimized program quickly. For the stochastic search, when it finds a better program, it should print 'NEW! best-correct-program'. If we don't see it printing such phase within a minute, something may be wrong. ***Enumerative search***
+Test if the symbolic, stochastic, and enumerative superoptimizers can synthesize the new instruction by using `test-search.rkt`. Set `code` to a program with only the new instruction and another dummy instruction (such as add 0) to create an obviously inefficient program. Run each of the symbolic, stochastic, and enumerative search at a time. For the stochastic search, make sure to provide the correct live-in information when testing. When the stochastic and enumerative search find a better program, they should print 'FOUND!!!' followed by the program. The symbolic and enumerative search should return with an optimized program quickly (for program with one instruction). For the stochastic search, we might have to wait a little longer. If we don't see it printing such phase within a minute, something may be wrong.

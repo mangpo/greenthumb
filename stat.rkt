@@ -107,7 +107,7 @@
 	    (define-values (cost-r len-r time-r id-r) (get-best-info dir))
             
 	    (when (or (not cost-r) (< cost cost-r))
-		(pretty-display "I AM THE BEST. Count me.")
+		(pretty-display "FOUND!!!")
 		(with-output-to-file #:exists 'append (format "~a/summary" dir)
 		  (thunk
 		   (pretty-display 

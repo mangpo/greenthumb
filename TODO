@@ -2,4 +2,4 @@
 
 3. No longer need validator:proper-machine-config if we use the new memory access support.
 4. Documentation for efficient memory access.
-5. Detailed documentation for adding instructions.
+5. Option to run hybrid without enumerative search.
