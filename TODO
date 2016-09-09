@@ -1,5 +1,13 @@
-1. Can potentially make memory-racket.rkt runs faster using different data structure.
+1. Memory object for backward search.
+2. Documentation for efficient memory access.
+3. Option to run hybrid without enumerative search.
+4. Don't require users to implement
+   - backward interpreter
+   - instruction enumerator
+   - update-liveness-bw
 
-3. No longer need validator:proper-machine-config if we use the new memory access support.
-4. Documentation for efficient memory access.
-5. Option to run hybrid without enumerative search.
+
+- Can potentially make memory-racket.rkt runs faster using different data structure.
+- No longer need validator:proper-machine-config if we use the new memory access support.
+  => Will memory object slowdown the interpreter?
+  => keep ARM & GA as is.

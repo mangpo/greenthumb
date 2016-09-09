@@ -136,7 +136,7 @@
             (inst op (vector out first-in)))]))
 
     ;; Convert liveness infomation to the same format as program state.
-    ;; x: a list of variables' names.
+    ;; x: #(a list of variables' names, live-mem)
     ;; output: vector of #t and #f.
     (define/public (encode-live x)
       (define live (make-vector (send machine get-config) #f))

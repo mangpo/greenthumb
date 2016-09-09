@@ -44,14 +44,14 @@ store i32 %in, i32* %1
 (define encoded-postfix (send printer encode postfix))
 
 ;; Step 1: use printer to convert liveout into progstate format
-(define constraint (send printer encode-live '()))
+(define constraint (send printer encode-live (vector '() #t)))
 
 ;; Step 2: create symbolic search
 (define symbolic (new llvm-mem-symbolic% [machine machine] [printer printer]
                       [parser parser]
                       [validator validator] [simulator simulator-rosette]))
 
-#;(send symbolic synthesize-window
+(send symbolic synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch
       encoded-prefix encoded-postfix
@@ -67,9 +67,9 @@ store i32 %in, i32* %1
                       [validator validator] [simulator simulator-rosette]
                       [syn-mode #t] ;; #t = synthesize, #f = optimize mode
                       ))
-(send stoch superoptimize encoded-code 
+#;(send stoch superoptimize encoded-code 
       constraint ;; constraint
-      (send printer encode-live '(%in %1)) ;; live-in
+      (send printer encode-live (vector '(%in %1) #t)) ;; live-in
       "./driver-0" 3600 #f)
 
 ;; Step 4: create enumerative search
