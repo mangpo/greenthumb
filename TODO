@@ -1,5 +1,5 @@
 1. Can potentially make memory-racket.rkt runs faster using different data structure.
-2. Clean up memory-racket & memory-rosette.
+
 3. No longer need validator:proper-machine-config if we use the new memory access support.
 4. Documentation for efficient memory access.
 5. Detailed documentation for adding instructions.

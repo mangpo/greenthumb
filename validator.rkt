@@ -31,7 +31,7 @@
     (define ninsts (vector-length (get-field opcodes machine)))
     (define start-time #f)
 
-    ;(current-solver (new z3%))
+    (current-solver (new z3%))
 
     ;; Default: no assumption
     (define (assume state assumption)
@@ -146,6 +146,7 @@
 				(if (>= rand half)
 				    (- half rand)
                                     rand))))))
+
       
       ;; Random in const list
       (define input-random-const
@@ -225,27 +226,18 @@
       (define program-state #f)
       
       (define (interpret-spec!)
-        ;;(pretty-display ">>> interpret spec")
-        (set! spec-state (interpret-spec spec start-state assumption))
-        ;;(pretty-display ">>> done interpret spec")
+        (set! spec-state
+              (if (procedure? spec)
+                  (spec start-state) ;; TODO: handle assumption
+                  (interpret-spec spec start-state assumption)))
         )
       
       (define (compare)
-        ;;(pretty-display ">>> interpret program")
         (set! program-state (send simulator interpret program start-state spec-state))
-        ;;(pretty-display ">>> done interpret program")
-        
-        ;; (pretty-display ">>>>>>>>>>> SPEC >>>>>>>>>>>>>")
-        ;; (display-state spec-state)
-        ;; (pretty-display ">>>>>>>>>>> PROG >>>>>>>>>>>>>")
-        ;; (display-state program-state)
-        
-        ;;(pretty-display "check output")
-        ;; (pretty-display constraint)
         (assert-state-eq spec-state program-state constraint)
-        ;;(pretty-display "done check output")
         )
 
+      ;; VERIFY
       (with-handlers* 
        ([exn:fail? 
          (lambda (e)
@@ -257,9 +249,6 @@
        (let ([model (verify #:assume (interpret-spec!) #:guarantee (compare))])
          (when debug (pretty-display "program-eq? DIFF"))
          (let ([state (evaluate-state start-state model)])
-           ;; (pretty-display model)
-           ;; (display-state state)
-           ;; (raise "done")
            (unsafe-clear-terms!)
            state)
          )))
@@ -370,7 +359,7 @@
 	 [(vector? x) (for/vector ([i x]) (inner i))]
 	 [(list? x) (for/vector ([i x]) (inner i))]
 	 [(pair? x) (cons (inner (car x)) (inner (cdr x)))]
-         [(is-a? x memory-rosette%) (send x create sol inner)] 
+         [(is-a? x memory-rosette%) (send x create-concrete inner)] 
 	 [else (eval x sol)]))
       (send machine vector->progstate
 	    (inner (send machine progstate->vector state))))

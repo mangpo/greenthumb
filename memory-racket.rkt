@@ -9,17 +9,21 @@
     (init-field [size 20]
                 [init (make-vector size)]
                 [update (make-vector size)]
+                ;; If this memory object is for interpreting specification program,
+                ;; don't initialize ref.
+                ;; Otherwise, initailize ref with memory object output from specification program.
                 [ref #f])
-    (public print load store create clone
-            lookup-init lookup-update update-equal? correctness-cost)
+    (public print load store clone update-equal? correctness-cost
+            ;; internal use only
+            lookup-init lookup-update 
+            )
 
     (define (print)
       (pretty-display (format "init: ~a" init))
       (pretty-display (format "update: ~a" update)))
-
-    (define (create sol eval)
-      (new memory-racket% [init (eval init)]))
       
+    ;; Clone a new symbolic memory object with the same init.
+    ;; Use this method to clone new memory for every program interpretation.
     (define (clone [ref #f])
       (new memory-racket% [ref ref] [init init]))
 

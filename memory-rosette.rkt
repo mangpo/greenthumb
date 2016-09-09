@@ -13,18 +13,25 @@
                  (lambda ()
                    (define-symbolic* val number?)
                    val)]
+                ;; If this memory object is for interpreting specification program,
+                ;; don't initialize ref.
+                ;; Otherwise, initailize ref with memory object output from specification program.
                 [ref #f])
-    (public print load store create clone
-            lookup-init lookup-update update-equal?)
+    (public print load store create-concrete clone update-equal?
+            ;; internal use only
+            lookup-init lookup-update 
+            )
 
     (define (print)
       (pretty-display (format "init: ~a" init))
       (pretty-display (format "update: ~a" update)))
-      
 
-    (define (create sol eval)
+    ;; Create concrete memory object by evaluating symbolic memory.
+    (define (create-concrete eval)
       (new memory-racket% [init (eval init)]))
-      
+
+    ;; Clone a new symbolic memory object with the same init.
+    ;; Use this method to clone new memory for every program interpretation.
     (define (clone [ref #f])
       (new memory-rosette% [ref ref] [init init]))
 
