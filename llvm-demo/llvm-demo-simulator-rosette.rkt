@@ -44,6 +44,8 @@
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
     (define (interpret program state [policy #f])
+      ;; Copy input program state 'state' to 'out'.
+      ;; We then modify 'out' to obtain 'output' state.
       (define out (vector-copy state))
 
       (define (interpret-step step)
@@ -55,18 +57,20 @@
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
           (define b (vector-ref args 2))
+          ;; get values of variables a & b from 'out' program state
           (define val (f (vector-ref out a) (vector-ref out b)))
           (vector-set! out d val))
         
-        ;; subi addi
+        ;; sub# add#
         (define (rri f)
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
           (define b (vector-ref args 2))
+          ;; b is constant not variable ID, so don't look up 'out' for b
           (define val (f (vector-ref out a) b))
           (vector-set! out d val))
         
-        ;; subi addi
+        ;; _sub _add
         (define (rir f)
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
