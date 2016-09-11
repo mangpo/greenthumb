@@ -1,6 +1,8 @@
-2. Documentation for efficient memory access.
-3. Option to run hybrid without enumerative search.
-4. Don't require users to implement
+1. Fix get-sym-vars.
+2. Get rid of llvm-demo. Rename llvm-mem to just llvm.
+3. Documentation for efficient memory access.
+4. Option to run hybrid without enumerative search.
+5. Don't require users to implement
    - backward interpreter
    - instruction enumerator
    - update-liveness-bw

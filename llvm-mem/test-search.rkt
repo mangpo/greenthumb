@@ -42,6 +42,9 @@
 store i32 %1, i32* %2
 "))
 
+;; Define search space of candidate programs.
+;; # of ?'s = # of instructions in a candidate program.
+;; ? represents one instruction.
 (define sketch
 (send parser ir-from-string "
 ? ? ?
