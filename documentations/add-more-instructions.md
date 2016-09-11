@@ -80,16 +80,16 @@ means r0 and r2 are live, and memory at location 1 (m1) is live.
 ## How to Support More Instructions
 To support more instructions, we need to modify several files as we will explain in this section.
 
-#### 1. Program State
+### 1. Program State
 We may need to add more fields in our program state representation, `progstate` (which is a vector) in `llvm-machine.rkt` to support more instructions. For example, we may need fields to represent flags. To support `mul`, we do not need to change `progstate`.
 
-#### 2. Opcodes
+### 2. Opcodes
 Add `mul` to the list of `opcodes` in `llvm-machine.rkt`. Search for `(set! opcodes '#(...))`.
 
-#### 3. Parser & Printer
+### 3. Parser & Printer
 If the new instruction does not follow the default instruction format `%var0 = opcode %var1, %var2, ...` or `store %var1, %var2`, we have to modify the parser in `llvm-parser.rkt` to parse the instruction, and the methods `encode-inst`, `decode-inst`, and `print-syntax-inst` in `llvm-printer.rkt`. To support `mul`, we do not need to alter the parser and printer.
 
-#### 4. Simulator
+### 4. Simulator
 ##### Method `interpret`
 Modify the `interpret` method in `llvm-simulator-rosette.rkt` and `llvm-simulator-racket.rkt` to interpret the new instruction. To support `mul`, we need the case in the main conditional expression in `interpret`:
 ```
@@ -116,7 +116,7 @@ Test if the simulator interpret the new instruction correctly by using `test-sim
 ##### Additional Notes
 If we have to make many modifications to the simulator, it might be easier to only modify `llvm-simulator-rosette.rkt`. Once it works correctly, copy the entire file `llve-demo-simulator-rosette.rkt` to `llvm-simulator-racket.rkt`, and replace **any appearance** of `rosette` with `racket`.
 
-#### 5. Additional Changes for Superoptimizer
+### 5. Additional Changes for Superoptimizer
 
 Once we have a simulator working properly, we need to modify a few more functions and definitions in `llvm-machine.rkt` to enable a superoptimizer.
 
@@ -141,7 +141,7 @@ If we create a **new class** for the new instruction, we may have to modify the 
 
 If we create a **new argument type** that is not a constant, we have to modify the method `update-live-backward` as well.
 
-#### 5. Additional Changes for Enumerative Search
+##### Additional Changes for Enumerative Search
 The enumerative search requires more efforts. If we add **new argument type**, we will need to modify method `generate-inst` to generate instructions in `llvm-enumerator.rkt` and method `interpret-inst` to interpret an instruction backward in `llvm-inverse.rkt`. If you are at this stage, please contact `mangpo@eecs.berkeley.edu`. We are working on eliminating this step entirely if possible.
 
 ##### Testing the Superoptimizer
