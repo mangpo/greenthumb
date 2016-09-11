@@ -82,7 +82,7 @@ Add `mul` to the list of `opcodes` in `llvm-machine.rkt`. Search for `(set! opco
 If the new instruction does not follow the default instruction format `opcode arg1, arg2, ...`, we have to modify the parser in `llvm-parser.rkt` to parse the instruction, and the methods `encode-inst`, `decode-inst`, and `print-syntax-inst` in `llvm-printer.rkt`. To support `mul`, we do not need to alter the parser and printer.
 
 #### 4. Simulator
-##### Method interpret
+##### Method `interpret`
 Modify the `interpret` method in `llvm-simulator-rosette.rkt` and `llvm-simulator-racket.rkt` to interpret the new instruction. To support `mul`, we need the case in the main conditional expression in `interpret`:
 ```
 [(inst-eq `mul)   (rrr bvmul)]
@@ -94,7 +94,7 @@ Next, define `bvmul` outside `interpret` function:
  ```
 Notice that `bvop` applies its argument lambda function to x and y, and then applies `finitize-bit` to the result. `(finitize-bit x)` calls `(finitize x bit)`, where the `finitize` function truncates overflowed `x` to `bit` bits and convert `x` to a signed number. Our convention is that every value in `progstate` has to be in the signed format (e.g. -1 instead of 2^32 - 1 for a 32-bit number). This is because we need the racket simulator to be consistent with the constraint solver we use which works with signed numbers.
 
-##### Method performance-cost
+##### Method `performance-cost`
 Currently, we have a very simple performance model. The performance cost of a program is equal the number of instructions in the program excluding `nop`. Modify this method for a more precise performance model.
 
 ##### Testing the Simulator
@@ -112,23 +112,23 @@ If we have to make many modifications to the simulator, it might be easier to on
 
 Once we have a simulator working properly, we need to modify a few more functions and definitions in `llvm-machine.rkt` to enable a superoptimizer.
 
-##### `classes`
+##### Field `classes`
 We must categorize the new instruction according to its arguments' type. Search for `(set! classes ...)`. `classes` is a vector of lists of opcodes. Each list of opcodes contains opcodes that have the same arguments' types. For example, `or xor add ...` are in the same list (class) because they take two arguments that are variables. To support `mul`, we put `mul` in the same class with `or xor add ...`. If the new instruction does not belong to any existing class, we have to create a new class for it. 
 Note that our framework automatically associates class IDs according to the order.
 
-##### `get-arg-types`
+##### Method `get-arg-types`
 If we create a **new class** for the new instruction, we have to modify the method `get-arg-types` to return arguments' types for the new class. 
 
-##### `get-arg-ranges`
+##### Method `get-arg-ranges`
 If we create a **new argument type** in `get-arg-types`, we have to modify the method `get-arg-ranges` to return values of arguments to try in the stochastic and enumerative search. For example, `add#` takes one output argument of type 'var-o' (output variable), one input argument of type 'var-i' (input variable) and another input argument of type 'const'. `get-arg-ranges` returns that an argument of type 'var-i' can take any value in `var-range` that is live-in; an argument of type 'var-o' can take any value in `var-range` that is live-out.
 An argument of type 'const' can take any value in `const-range`, which only includes a few values. In fact, the constant argument can take any 32-bit value, but we limit the stochastic and enumerative to try a few because they will take forever to synthesize any program if they try all 32-bit values.
 
 The method `analyze-args-inst` may add more values to `const-range`, `bit-range`, `var-range`, etc. after analyzing the input spec program.
 
-##### `analyze-args-inst`
+##### Method `analyze-args-inst`
 If we create a **new argument type** in `get-arg-types`, we have to modify the method `analyze-args-inst`. The purpose of the method is to include arguments (e.g. variables, constants, etc.) appearing in the spec program into the collection of arguments our stochastic and enumerative superoptimizers should try. For example, currently the candidate programs that the stochastic superoptimizer creates only include variables, constants appearing in the spec program, and some default constants. This is controlled by `analyze-args-inst`. Note that the symbolic search does not use this method and always tries all possible arguments' values.
 
-##### `update-live` & `update-live-backward`
+##### Method `update-live` & `update-live-backward`
 If we create a **new class** for the new instruction, we may have to modify the method `update-live`. Essentially, `update-live` should set all locations of the program state modified by a given instruction to be live (i.e. #t for llvm-demo). In the current implementation, for any instruction that is not 'nop' and 'store', we mark that the output is live. Therefore, if we add a new instruction whose first argument is not an output variable, we will have to modify `update-live` to handle this instruction correctly.
 
 If we create a **new argument type** that is not a constant, we have to modify the method `update-live-backward` as well.
@@ -138,6 +138,12 @@ The enumerative search requires more efforts. If we add **new argument type**, w
 
 ##### Testing the Superoptimizer
 
-Test if the symbolic, stochastic, and enumerative superoptimizers can synthesize the new instruction by using `test-search.rkt`. Set `code` to a program with only the new instruction and another dummy instruction (such as add 0) to create an obviously inefficient program. Run each of the symbolic, stochastic, and enumerative search at a time. For the stochastic search, make sure to provide the correct live-in information when testing. When the stochastic and enumerative search find a better program, they should print 'FOUND!!!' followed by the program. The symbolic and enumerative search should return with an optimized program quickly (for program with one instruction). For the stochastic search, we might have to wait a little longer. If we don't see it printing 'FOUND!!!' within a minute, something may be wrong.
+Test if the symbolic, stochastic, and enumerative superoptimizers can synthesize the new instruction by using `test-search.rkt`. Set `code` definition to a program with only the new instruction and another dummy instruction (such as add 0) to create an obviously inefficient program. Add or remove `?` in `sketch` definition to define how many instructions an output program may contain; one `?` represents one instructions.
 
-To test that the backward search of the enumerative search works properly, run the enumerative search again but on a larger program (four instructions) that can be optimized to three instructions. This is because the enumerative search only performs the backward search when it tries to synthesize programs with three instructions or more. Make sure to add `?` in `sketch` definition if an output program contains more instructions; `?` represents one instructions.
+Run each of the symbolic, stochastic, and enumerative search at a time.
+- For the stochastic search, make sure to provide the correct live-in information when testing.
+- When the stochastic and enumerative search find a better program, they should print `FOUND!!!` followed by the program.
+- The symbolic and enumerative search should return with an optimized program quickly (for program with one instruction).
+- For the stochastic search, we might have to wait a little longer. If we don't see it printing `FOUND!!!` within a minute, something may be wrong.
+
+To test that the backward search of the enumerative search works properly, run the enumerative search again but on a larger program (four instructions) that can be optimized to three instructions. This is because the enumerative search only performs the backward search when it tries to synthesize programs with three instructions or more. Make sure to add `?` in `sketch` definition if an output program contains more instructions.
