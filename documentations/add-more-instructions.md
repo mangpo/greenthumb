@@ -14,6 +14,9 @@ This instruction will walk you through how to add a new instruction to any super
 ## Prerequisite Knowledge
 
 ### LLVM
+#### Bits
+We define LLVM as a 32-bit architecture. That means each variable is 32-bit. This is defined at field `bitwidth` of `llvm-machine.rkt`. Search for `(set! bitwidth 32)`.
+
 #### Program State
 In our LLVM ISA, a program state is minimal. It only includes values of variables and memory in the program. We represent a LLVM program state as:
 ```
@@ -23,7 +26,7 @@ For example, the following concrete program state:
 ```
 (vector (vector 0 0 999) #(object:memory%))
 ```
-represents a state of program with three variables and unbounded memory. The first two variables (ID 0 and 1) are 0, and the third variable (ID 2) has value 999. Variables in a program we optimize are assigned to a unique ID starting from 0.
+represents a state of program with three variables and unbounded memory. The first two variables (ID 0 and 1) are 0, and the third variable (ID 2) has value 999. Variables in a program we optimize are assigned to unique IDs starting from 0.
 
 In order to support flags (e.g. carry flag), we will need to extend this representation to include them (i.e. add more entries in the vector).
 
@@ -41,14 +44,19 @@ we do not care what the values of %in and %1 are at the end, but only care about
 If live-out at memory field is set to #t, output memory of a spec program and a candidate program have to be equivalent. Their memory are equivalent if their entire memory are the same. Currently, we do not support checking equivalence on just some parts of memory if we use the provided memory object.
 
 ### ARM
+#### Bits
+We define ARM as a 32-bit architecture; each register is 32-bit.
+
 #### Program State
-In ARM, a program state include registers, memory (for temporary variables), flag z, and special register fp (frame pointer). Notice that unlike LLVM IR, we use a vector to represent memory for ARM.
+In ARM, a program state include registers, stack memory (for temporary variables), flag z, and special register fp (frame pointer). 
+Notice that unlike LLVM, we use a vector to represent stack memory for ARM.
+To support heap memory, we recommend using the provided memory object like in our LLVM superoptimizer.
 
 We represent an ARM program state as:
 ```
 (progstate (vector r0 r1 ...) (vector m0 m1 ...) z fp)
 ```
-where progstate is a struct. fp is used for accessing memory. We use a vector of 32-bit numbers to represent memory; m0 is a 32-bit chunk of memory. We use flag z to represent most conditions as follows:
+where `progstate` is a struct. `fp` is used for accessing memory. We use a vector of 32-bit numbers to represent memory; m0 is a 32-bit chunk of memory. We use flag `z` to represent most conditions as follows:
 ```
 z = 0 | eq
 z = 1 | neq
@@ -58,7 +66,7 @@ z = 4 | x < 0 && y >= 0
 z = 5 | y < 0 && x >= 0
 ```
 
-tst instruction sets z to either 0 or 1. cmp instruction can set z to any value except 1.
+`tst` instruction sets `z` to either 0 or 1. `cmp` instruction can set `z` to any value except 1.
 
 ##### Liveness Information
 
@@ -79,7 +87,7 @@ We may need to add more fields in our program state representation, `progstate` 
 Add `mul` to the list of `opcodes` in `llvm-machine.rkt`. Search for `(set! opcodes '#(...))`.
 
 #### 3. Parser & Printer
-If the new instruction does not follow the default instruction format `opcode arg1, arg2, ...`, we have to modify the parser in `llvm-parser.rkt` to parse the instruction, and the methods `encode-inst`, `decode-inst`, and `print-syntax-inst` in `llvm-printer.rkt`. To support `mul`, we do not need to alter the parser and printer.
+If the new instruction does not follow the default instruction format `%var0 = opcode %var1, %var2, ...` or `store %var1, %var2`, we have to modify the parser in `llvm-parser.rkt` to parse the instruction, and the methods `encode-inst`, `decode-inst`, and `print-syntax-inst` in `llvm-printer.rkt`. To support `mul`, we do not need to alter the parser and printer.
 
 #### 4. Simulator
 ##### Method `interpret`
@@ -92,7 +100,7 @@ Next, define `bvmul` outside `interpret` function:
 ```
 (define bvmul (bvop *))
  ```
-Notice that `bvop` applies its argument lambda function to x and y, and then applies `finitize-bit` to the result. `(finitize-bit x)` calls `(finitize x bit)`, where the `finitize` function truncates overflowed `x` to `bit` bits and convert `x` to a signed number. Our convention is that every value in `progstate` has to be in the signed format (e.g. -1 instead of 2^32 - 1 for a 32-bit number). This is because we need the racket simulator to be consistent with the constraint solver we use which works with signed numbers.
+Notice that `bvop` applies its argument lambda function to x and y, and then applies `finitize-bit` to the result. `(finitize-bit x)` calls `(finitize x bit)`, where the `finitize` function truncates overflowed `x` to `bit` bits and convert `x` to a signed number. Our convention is that every value in `progstate` has to be in the signed format (e.g. -1 instead of 2^32 - 1 for a 32-bit number). This is because we need the racket simulator to be consistent with the constraint solver we use, which works with signed numbers.
 
 ##### Method `performance-cost`
 Currently, we have a very simple performance model. The performance cost of a program is equal the number of instructions in the program excluding `nop`. Modify this method for a more precise performance model.
@@ -129,7 +137,7 @@ The method `analyze-args-inst` may add more values to `const-range`, `bit-range`
 If we create a **new argument type** in `get-arg-types`, we have to modify the method `analyze-args-inst`. The purpose of the method is to include arguments (e.g. variables, constants, etc.) appearing in the spec program into the collection of arguments our stochastic and enumerative superoptimizers should try. For example, currently the candidate programs that the stochastic superoptimizer creates only include variables, constants appearing in the spec program, and some default constants. This is controlled by `analyze-args-inst`. Note that the symbolic search does not use this method and always tries all possible arguments' values.
 
 ##### Method `update-live` & `update-live-backward`
-If we create a **new class** for the new instruction, we may have to modify the method `update-live`. Essentially, `update-live` should set all locations of the program state modified by a given instruction to be live (i.e. #t for llvm-demo). In the current implementation, for any instruction that is not 'nop' and 'store', we mark that the output is live. Therefore, if we add a new instruction whose first argument is not an output variable, we will have to modify `update-live` to handle this instruction correctly.
+If we create a **new class** for the new instruction, we may have to modify the method `update-live`. Essentially, `update-live` should set all locations of the program state modified by a given instruction to be live (i.e. `#t` for llvm). In the current implementation, for any instruction that is not `nop` and `store`, we mark that the output is live. Therefore, if we add a new instruction whose first argument is not an output variable, we will have to modify `update-live` to handle this instruction correctly.
 
 If we create a **new argument type** that is not a constant, we have to modify the method `update-live-backward` as well.
 
@@ -138,7 +146,7 @@ The enumerative search requires more efforts. If we add **new argument type**, w
 
 ##### Testing the Superoptimizer
 
-Test if the symbolic, stochastic, and enumerative superoptimizers can synthesize the new instruction by using `test-search.rkt`. Set `code` definition to a program with only the new instruction and another dummy instruction (such as add 0) to create an obviously inefficient program. Add or remove `?` in `sketch` definition to define how many instructions an output program may contain; one `?` represents one instructions.
+Test if the symbolic, stochastic, and enumerative superoptimizers can synthesize the new instruction by using `test-search.rkt`. Set `code` definition to a program with only the new instruction and another dummy instruction (such as add 0) to create an obviously inefficient program. Add or remove `?` in `sketch` definition to define how many instructions an output program may contain; one `?` represents one instruction.
 
 Run each of the symbolic, stochastic, and enumerative search at a time.
 - For the stochastic search, make sure to provide the correct live-in information when testing.

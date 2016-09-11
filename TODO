@@ -1,6 +1,5 @@
-1. Test with optimizer.rkt for all ISAs again.
-2. Reread doc on github.
 3. Documentation for efficient memory access.
+   - memory access operates in a granularity of # of bits defined
 4. Option to run hybrid without enumerative search.
 5. Don't require users to implement
    - backward interpreter

@@ -112,6 +112,10 @@
             [(equal? type `const)  const-range]
             [(equal? type `bit)    bit-range]))))
 
+    ;; instruction x: e.g. add v0, v1, v2
+    ;; livenss before execute inst (given live): (vector * #t #t)
+    ;; liveness after execute inst (output): (vector #t #t #t)
+    ;; v0 is live after executing inst, so set the first entry to #t.
     (define (update-live live x)
       (define op (inst-op x))
       (cond
@@ -124,6 +128,10 @@
         ]))
 
     ;; For enumerative search
+    ;; instruction x: e.g. add v0, v1, v2
+    ;; liveness *after* execute inst (given live): (vector #t * *)
+    ;; liveness *before* execute inst (output): (vector #f #t #t).
+    ;; v1 and v2 must be live-in. v0 is not live-in.
     (define (update-live-backward live x)
       (define new-live (vector-copy (vector-ref live 0)))
       (define opcode-name (vector-ref opcodes (inst-op x)))
