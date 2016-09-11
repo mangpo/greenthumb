@@ -11,7 +11,7 @@
   (class parser%
     (super-new)
     (inherit-field asm-parser asm-lexer)
-    (init-field [compress? #f])
+    (init-field [compress? #f] [no-rename (list)])
 
     (define-tokens a (VAR WORD NUM))
     (define-empty-tokens b (EOF EQ COMMA HOLE))
@@ -82,7 +82,7 @@
          ((instruction inst-list) (cons $1 $2)))
         
         (code
-         ((inst-list) (if compress? (rename (list->vector $1)) (list->vector $1))))
+         ((inst-list) (if compress? (rename (list->vector $1) no-rename) (list->vector $1))))
        )))
 
     (define/public (info-from-file file)
@@ -146,7 +146,7 @@
 
 (define all-names (set))      
 
-(define (rename inst-vec)
+(define (rename inst-vec no-rename)
   ;; Rename variable from old to new up to instruction at index.
   (define (rename-var old new index)
     (define def #f)
@@ -158,6 +158,19 @@
 		(when (equal? arg old)
 		      (vector-set! args arg-i new)
 		      (when (= arg-i 0) (set! def #t)))))))
+
+  ;; Check if arg is an input variable to the program.
+  (define (is-input? arg index)
+    (define def #f)
+    (for ([i index] #:break def)
+         (let* ([my-inst (vector-ref inst-vec i)]
+                [args (inst-args my-inst)])
+           (when (equal? arg (vector-ref args 0))
+                 (set! def #t))))
+    (not def))
+
+  (define (exclude? arg)
+    (or (member arg no-rename) (member (string->symbol arg) no-rename)))
   
   (define len (vector-length inst-vec))
   (define names (list))
@@ -180,16 +193,18 @@
 		    [(set-member? all-names arg)
 		     (set! names (remove arg names))])))
 
-	    ;; rename
+	    ;; rename intermediates
             (for ([i (vector-length args)])
                  (let ([arg (vector-ref args i)])
                    (cond
-                    [(or (= i 0)
-			 (not (equal? (substring arg 0 1) "%"))
-                         (set-member? all-names arg)
+                    [(or (= i 0) ;; output of this inst
+			 (not (equal? (substring arg 0 1) "%")) ;; constant
+                         (set-member? all-names arg) ;; name is in the set
                          ;;(use-after arg i)
+                         (is-input? arg index) ;; input to the program
+                         (exclude? arg) ;; in no-rename list
                          )
-                     (void)]
+                     (void)] ;; don't rename
                     
                     [(empty? names)
                      (set! all-names (set-add all-names arg))]
@@ -200,7 +215,3 @@
           )))
 
   inst-vec)
-                
-                           
-                    
-                    

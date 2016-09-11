@@ -266,6 +266,9 @@
       (define live-list (list))
       (define (collect-sym pred x)
         (cond
+         [(is-a? x memory-rosette%) ;; TODO: treat all memory update to be live.
+          (define update (filter pair? (vector->list (get-field update x))))
+          (set! live-list (append (map car update) (map cdr update) live-list))]
          [(boolean? pred)
           ;; (pretty-display `(collect-sym ,pred ,x))
           (when pred (set! live-list (cons x live-list))
@@ -277,8 +280,6 @@
          [(pair? x)
           (collect-sym (car pred) (car x))
           (collect-sym (cdr pred) (cdr x))]
-         [(is-a? x memory-rosette%) ;; TODO: treat all memory update to be live.
-          (set! live-list (append (vector->list (get-field store x)) live-list))]
          [else
           (for ([p pred] [i x]) (collect-sym p i))]))
 
@@ -380,8 +381,10 @@
 	  (inner (car x)) (inner (cdr x))]
          [(is-a? x memory-rosette%)
           (inner (get-field init x))]
-	 [else (add x)]))
+	 [else
+          (add x)]))
       (inner (send machine progstate->vector state))
-      (set->list (list->set lst)))
+      (set->list (list->set lst)) ;; TODO: fix error here
+      )
     
     ))

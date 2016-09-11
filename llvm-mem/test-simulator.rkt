@@ -5,13 +5,11 @@
          "llvm-mem-simulator-racket.rkt"
          "../memory-racket.rkt")
 
-;; Step -1: familiar yourself with default inst
-
-;; Step 0: set up bitwidth for Rosette
+;; Phase 0: Set up bitwidth for Rosette
 (current-bitwidth 32)
 
-;; Step 1: Test parser and printer
-(pretty-display "Step 1: test parser and printer.")
+;; Phase A: Test machine, parser, printer (step 1 & 2)
+(pretty-display "Phase A: test machine, parser, and printer.")
 (define parser (new llvm-mem-parser%))
 (define machine (new llvm-mem-machine% [config 4]))
 (define printer (new llvm-mem-printer% [machine machine]))
@@ -31,17 +29,19 @@ store i32 %1, i32* %2
 (send printer print-struct encoded-code)
 (newline)
 
-;; Step 2: Test concrete simulator
-(pretty-display "Step 2: interpret program using simulator writing in Rosette.")
+;; Phase B: Interpret concrete program with concrete inputs (step 3)
+(pretty-display "Phase B: interpret program using simulator writing in Rosette.")
 (define input-state (vector (vector 111 222 333 444)
-                            (new memory-racket% [init #((222 . 2222))])
+                            (new memory-racket% [init (make-hash '((222 . 2222)))])
                             ))
 (define simulator-rosette (new llvm-mem-simulator-rosette% [machine machine]))
 (define out (send simulator-rosette interpret encoded-code input-state))
 (newline)
 (define mem (vector-ref out 1))
+(send mem print)
 
-;; Step 3: interpret concrete program with symbolic inputs
+;; Phase C: Interpret concrete program with symbolic inputs
+(pretty-display "Phase C: interpret concrete program with symbolic inputs.")
 (pretty-display "Step 5: interpret concrete program with symbolic inputs.")
 (define (sym-input)
   (define-symbolic* in number?)
@@ -53,8 +53,8 @@ store i32 %1, i32* %2
 (define mem-sym (vector-ref out-sym 1))
 
 #|
-;; Step 4: duplicate rosette simulator to racket simulator
-(pretty-display "Step 6: interpret program using simulator writing in Racket.")
+;; Phase D: Duplicate rosette simulator to racket simulator
+(pretty-display "Phase D: interpret program using simulator writing in Racket.")
 (define simulator-racket (new llvm-mem-simulator-racket% [machine machine]))
 (send simulator-racket interpret encoded-code input-state)
 

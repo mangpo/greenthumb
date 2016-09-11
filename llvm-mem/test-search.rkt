@@ -10,7 +10,7 @@
          )
 
 (define parser (new llvm-mem-parser% [compress? #f]))
-(define machine (new llvm-mem-machine% [config 3]))
+(define machine (new llvm-mem-machine% [config 4]))
 (define printer (new llvm-mem-printer% [machine machine]))
 (define simulator-racket (new llvm-mem-simulator-racket% [machine machine]))
 (define simulator-rosette (new llvm-mem-simulator-rosette% [machine machine]))
@@ -25,16 +25,26 @@
 (send parser ir-from-string "
 "))
 
-;; clearing 3 lowest bits
+;; TODO: error
+#;(define code
+(send parser ir-from-string "
+%in = load i32, i32* %1
+%out = load i32, i32* %2
+%in = add i32 %in, 0
+%out = add i32 %in, %out
+"))
+
 (define code
 (send parser ir-from-string "
-%in = add i32 %in, 0
-store i32 %in, i32* %1
-")) ;;%out = load i32, i32* %in
+%1 = load i32, i32* %2
+%1 = add i32 %1, 0
+%1 = add i32 %1, 1
+store i32 %1, i32* %2
+"))
 
 (define sketch
 (send parser ir-from-string "
-?
+? ? ?
 "))
 
 
@@ -42,6 +52,8 @@ store i32 %in, i32* %1
 (define encoded-sketch (send printer encode sketch))
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))
+
+(send machine analyze-args encoded-prefix encoded-code encoded-postfix #f #f)
 
 ;; Step 1: use printer to convert liveout into progstate format
 (define constraint (send printer encode-live (vector '() #t)))
@@ -51,7 +63,7 @@ store i32 %in, i32* %1
                       [parser parser]
                       [validator validator] [simulator simulator-rosette]))
 
-(send symbolic synthesize-window
+#;(send symbolic synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch
       encoded-prefix encoded-postfix
@@ -79,7 +91,7 @@ store i32 %in, i32* %1
                       [inverse% llvm-mem-inverse%]
                       [enumerator% llvm-mem-enumerator%]
                       [syn-mode `linear]))
-#;(send backward synthesize-window
+(send backward synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch => start from searching from length 1, number => only search for that length
       encoded-prefix encoded-postfix

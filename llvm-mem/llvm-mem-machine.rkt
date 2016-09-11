@@ -137,5 +137,37 @@
             [(equal? type `var-i) (vector-set! new-live arg #t)]))
       (vector new-live (vector-ref live 1)))
 
+    
+    ;; Analyze input code and update operands' ranges.
+    (define/override (analyze-args prefix code postfix live-in-list live-out
+                          #:only-const [only-const #f] #:vreg [vreg 0])
+      (define const-add (vector->list const-range))
+      (define bit-add (vector->list bit-range))
+      (for ([x (vector-append prefix code postfix)])
+           (let ([ans (analyze-args-inst x)])
+             (set! const-add (append const-add (first ans)))
+             (set! bit-add (append bit-add (second ans)))))
+
+      (set! const-range (list->vector (set->list (list->set const-add))))
+      (set! bit-range (list->vector (set->list (list->set bit-add))))
+      (pretty-display `(const-range ,const-range))
+      (pretty-display `(bit-range ,bit-range))
+      )
+
+    (define (analyze-args-inst x)
+      (define opcode (vector-ref opcodes (inst-op x)))
+      (define args (inst-args x))
+      (define const-add (list))
+      (define bit-add (list))
+      (for ([arg args]
+	    [type (get-arg-types opcode)])
+           (cond
+            [(equal? type `const) (set! const-add (cons arg const-add))]
+            [(equal? type `bit) (set! bit-add (cons arg bit-add))]))
+      (list const-add bit-add))
+
+    (define (merge-vector-list-unique vec l)
+      (list->vector (set->list (list->set (append (vector->list vec) l)))))
+
     ))
       

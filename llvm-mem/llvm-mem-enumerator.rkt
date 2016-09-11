@@ -37,7 +37,7 @@
       (define mode (cond [no-args `no-args] [else `basic]))
 
       (define opcode-pool (get-field opcode-pool machine))
-      ;; (define inst-choice '(and#))
+      ;; (define inst-choice '(and# add# store))
       ;; (define opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
 
       (define iterator

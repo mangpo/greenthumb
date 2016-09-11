@@ -28,7 +28,7 @@
 
     ;; Create concrete memory object by evaluating symbolic memory.
     (define (create-concrete eval)
-      (new memory-racket% [init (eval init)]))
+      (new memory-racket% [init (make-hash (filter pair? (vector->list (eval init))))]))
 
     ;; Clone a new symbolic memory object with the same init.
     ;; Use this method to clone new memory for every program interpretation.
@@ -123,25 +123,25 @@
 
     ))
 
-#|
-(define mem (new memory-rosette%))
-(send mem load 9)
-(send mem load 6)
-(send mem store 2 222)
-(send mem store 9 999)
-(send mem load 9)
-(send mem store 9 0)
-(send mem load 9)
-(send mem print)
+(define (test)
+  (define mem (new memory-rosette%))
+  (send mem load 9)
+  (send mem load 6)
+  (send mem store 2 222)
+  (send mem store 9 999)
+  (send mem load 9)
+  (send mem store 9 0)
+  (send mem load 9)
+  (send mem print)
+  
+  (define mem2 (send mem clone mem))
+  (send mem2 load 9)
+  (send mem2 load 6)
+  (send mem2 store 2 222)
+  (send mem2 store 9 999)
+  (send mem2 load 9)
+  (send mem2 store 9 0)
+  (send mem2 load 9)
+  (send mem2 print))
 
-(define mem2 (send mem clone mem))
-(send mem2 load 9)
-(send mem2 load 6)
-(send mem2 store 2 222)
-(send mem2 store 9 999)
-(send mem2 load 9)
-(send mem2 store 9 0)
-(send mem2 load 9)
-(send mem2 print)
-|#
     
