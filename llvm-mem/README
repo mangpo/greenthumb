@@ -1,1 +1,0 @@
-Enumerative search doesn't work in llvm-mem because I haven't modified it to work with the new memory access support.

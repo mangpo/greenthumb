@@ -1,15 +1,15 @@
-#lang racket
+#lang s-exp rosette
 
-(require "../simulator-racket.rkt" "../ops-racket.rkt" "../inst.rkt")
-(provide llvm-mem-simulator-racket%)
+(require "../simulator-rosette.rkt" "../ops-rosette.rkt" "../inst.rkt")
+(provide llvm-simulator-rosette%)
 
-(define llvm-mem-simulator-racket%
-  (class simulator-racket%
+(define llvm-simulator-rosette%
+  (class simulator-rosette%
     (super-new)
     (init-field machine)
     (override interpret performance-cost get-constructor)
 
-    (define (get-constructor) llvm-mem-simulator-racket%)
+    (define (get-constructor) llvm-simulator-rosette%)
 
     (define bit (get-field bitwidth machine))
     (define nop-id (get-field nop-id machine))
@@ -45,8 +45,8 @@
     ;; state: initial progstate
     (define (interpret program state [ref #f])
       (define out (vector-copy (vector-ref state 0)))
-      (define mem (send (vector-ref state 1) clone
-                        (and ref (vector-ref ref 1))))
+      (define mem (vector-ref state 1))
+      (set! mem (and mem (send mem clone (and ref (vector-ref ref 1)))))
 
       (define (interpret-step step)
         (define op (inst-op step))
@@ -149,9 +149,9 @@
       (vector out mem)
       )
 
-    (define (performance-cost code)
+    (define (performance-cost program)
       (define cost 0)
-      (for ([x code])
+      (for ([x program])
 	   (unless (= (inst-op x) nop-id) (set! cost (add1 cost))))
       cost)
     

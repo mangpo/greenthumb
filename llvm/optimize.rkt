@@ -1,6 +1,6 @@
 #lang racket
 
-(require "llvm-demo-parser.rkt"
+(require "llvm-parser.rkt"
          "main.rkt")
 
 (define size (make-parameter #f))
@@ -52,7 +52,7 @@
    ; return the argument as a filename to compile
    filename))
 
-(define parser (new llvm-demo-parser%))
+(define parser (new llvm-parser%))
 (define-values (live-out live-in) (send parser info-from-file (string-append file-to-optimize ".info")))
 (define code (send parser ir-from-file file-to-optimize))
 

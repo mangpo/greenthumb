@@ -616,7 +616,7 @@
           (send inverse gen-inverse-behavior my-inst)
           (gen-inverse-behaviors iterator)
           ))
-      
+
       (gen-inverse-behaviors (send enum generate-inst #f #f #f #f 
 				   #:no-args #t))
 
@@ -1118,7 +1118,7 @@
 			     [in-vec (send inverse interpret-inst my-inst out-vec old-liveout)]
                              ;;[t1 (current-milliseconds)]
                              )
-			;; (pretty-display `(test-live ,test ,my-liveout ,in-vec))
+			;;(pretty-display `(test-live ,test ,old-liveout ,out-vec ,in-vec))
 			(when (and in-vec (not (empty? in-vec)))
 			      (class-insert-bw! current my-liveout test 
 						in-vec (concat-progs inst-id progs)))
@@ -1179,19 +1179,19 @@
          
          (define keys (hash-keys classes))
          (define keys-bw (hash-keys (vector-ref classes-bw step-bw)))
-         ;; (for ([key keys])
-         ;;      (pretty-display `(key ,(entry-live key) ,(entry-flag key))))
          (set! keys (sort-live keys))
          (set! keys-bw (sort-live-bw keys-bw))
-
-         ;; (pretty-display `(bw ,(vector-ref classes-bw 0)))
+         (when debug
+               (for ([key keys])
+                    (pretty-display `(key ,(entry-live key) ,(entry-flag key))))
+               (pretty-display `(keys-bw ,step-bw ,keys-bw)))
          
          (define order 0)
          ;; Search
          (define ttt (current-milliseconds))
          (for* ([key1 keys]
                 [live2 keys-bw])
-               ;; (pretty-display `(search ,key1 ,pair2))
+               ;;(pretty-display `(search ,key1 ,live2))
                (let* ([my-hash2 (hash-ref (vector-ref classes-bw step-bw) live2)]
                       [pass (for/and ([i ntests]) (vector-ref my-hash2 i))])
                  (when

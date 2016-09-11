@@ -1,15 +1,15 @@
 #lang racket
 
 (require "../simulator-racket.rkt" "../ops-racket.rkt" "../inst.rkt")
-(provide llvm-demo-simulator-racket%)
+(provide llvm-simulator-racket%)
 
-(define llvm-demo-simulator-racket%
+(define llvm-simulator-racket%
   (class simulator-racket%
     (super-new)
     (init-field machine)
     (override interpret performance-cost get-constructor)
 
-    (define (get-constructor) llvm-demo-simulator-racket%)
+    (define (get-constructor) llvm-simulator-racket%)
 
     (define bit (get-field bitwidth machine))
     (define nop-id (get-field nop-id machine))
@@ -43,8 +43,10 @@
     
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
-    (define (interpret program state [policy #f])
-      (define out (vector-copy state))
+    (define (interpret program state [ref #f])
+      (define out (vector-copy (vector-ref state 0)))
+      (define mem (vector-ref state 1))
+      (set! mem (and mem (send mem clone (and ref (vector-ref ref 1)))))
 
       (define (interpret-step step)
         (define op (inst-op step))
@@ -55,20 +57,18 @@
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
           (define b (vector-ref args 2))
-          ;; get values of variables a & b from 'out' program state
           (define val (f (vector-ref out a) (vector-ref out b)))
           (vector-set! out d val))
         
-        ;; sub# add#
+        ;; subi addi
         (define (rri f)
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
           (define b (vector-ref args 2))
-          ;; b is constant not variable ID, so don't look up 'out' for b
           (define val (f (vector-ref out a) b))
           (vector-set! out d val))
         
-        ;; _sub _add
+        ;; subi addi
         (define (rir f)
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
@@ -82,6 +82,16 @@
           (define a (vector-ref args 1))
           (define val (f (vector-ref out a)))
           (vector-set! out d val))
+
+        (define (load)
+          (define d (vector-ref args 0))
+          (define a (vector-ref args 1))
+          (vector-set! out d (send mem load (vector-ref out a))))
+
+        (define (store)
+          (define val (vector-ref args 0))
+          (define addr (vector-ref args 1))
+          (send mem store (vector-ref out addr) (vector-ref out val))) 
       
         (define-syntax inst-eq
           (syntax-rules ()
@@ -128,12 +138,15 @@
          
          [(inst-eq `ctlz)  (rr clz)]
 
+         [(inst-eq `store) (store)]
+         [(inst-eq `load)  (load)]
+
          [else (assert #f (format "simulator: undefine instruction ~a" op))]))
       
       (for ([x program])
            (interpret-step x))
 
-      out
+      (vector out mem)
       )
 
     (define (performance-cost code)

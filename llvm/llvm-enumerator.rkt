@@ -3,9 +3,9 @@
 (require "../machine.rkt" "../enumerator.rkt" "../inst.rkt")
 (require racket/generator)
 
-(provide llvm-demo-enumerator%)
+(provide llvm-enumerator%)
 
-(define llvm-demo-enumerator%
+(define llvm-enumerator%
   (class enumerator%
     (super-new)
     (init-field machine printer)
@@ -37,7 +37,7 @@
       (define mode (cond [no-args `no-args] [else `basic]))
 
       (define opcode-pool (get-field opcode-pool machine))
-      ;; (define inst-choice '(and#))
+      ;; (define inst-choice '(add# _lshr ctlz))
       ;; (define opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
 
       (define iterator

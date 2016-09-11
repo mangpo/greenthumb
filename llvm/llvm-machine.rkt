@@ -2,9 +2,9 @@
 
 (require "../machine.rkt" "../inst.rkt" "../memory-rosette.rkt")
 
-(provide llvm-mem-machine% (all-defined-out))
+(provide llvm-machine% (all-defined-out))
 
-(define llvm-mem-machine%
+(define llvm-machine%
   (class machine%
     (super-new)
     (inherit-field bitwidth random-input-bits config
@@ -18,7 +18,7 @@
 	      update-live update-live-backward
               )
 
-    (define (get-constructor) llvm-mem-machine%)
+    (define (get-constructor) llvm-machine%)
     
     (unless bitwidth (set! bitwidth 32))
     (set! random-input-bits bitwidth)

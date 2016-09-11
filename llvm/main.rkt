@@ -1,12 +1,12 @@
 #lang racket
 
 (require "../parallel-driver.rkt" "../inst.rkt"
-         "llvm-demo-parser.rkt" "llvm-demo-machine.rkt" 
-         "llvm-demo-printer.rkt" 
+         "llvm-parser.rkt" "llvm-machine.rkt" 
+         "llvm-printer.rkt" 
 	 ;; simulator, validator
-	 "llvm-demo-simulator-racket.rkt" 
-	 "llvm-demo-simulator-rosette.rkt"
-         "llvm-demo-validator.rkt")
+	 "llvm-simulator-racket.rkt" 
+	 "llvm-simulator-rosette.rkt"
+         "llvm-validator.rkt")
 
 (provide optimize)
 
@@ -19,12 +19,12 @@
                   #:window [window #f]
                   #:input-file [input-file #f])
   
-  (define parser (new llvm-demo-parser%))
-  (define machine (new llvm-demo-machine%))
-  (define printer (new llvm-demo-printer% [machine machine]))
-  (define simulator (new llvm-demo-simulator-rosette% [machine machine]))
-  (define validator (new llvm-demo-validator% [machine machine] [simulator simulator]))
-  (define parallel (new parallel-driver% [isa "llvm-demo"] [parser parser] [machine machine] 
+  (define parser (new llvm-parser%))
+  (define machine (new llvm-machine%))
+  (define printer (new llvm-printer% [machine machine]))
+  (define simulator (new llvm-simulator-rosette% [machine machine]))
+  (define validator (new llvm-validator% [machine machine] [simulator simulator]))
+  (define parallel (new parallel-driver% [isa "llvm"] [parser parser] [machine machine] 
                         [printer printer] [validator validator]
                         [search-type search-type] [mode mode]
                         [window window]))

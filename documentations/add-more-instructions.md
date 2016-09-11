@@ -8,7 +8,7 @@
    - Read Section 'Brief Instructions' in [Extending GreenThumb to New ISA](new-isa.md).
    - Skim through [Greenthumb: Superoptimizer Construction Framework (Tech Report)](http://www.eecs.berkeley.edu/Pubs/TechRpts/2016/EECS-2016-8.pdf). No need to try it out. Just read.
 
-This instruction will work you through how to add a new instruction to any superoptimizer built using GreenThumb. However, this documentation will use LLVM IR, which corresponds to directory `llvm` in this repo, as a concrete example. 
+This instruction will walk you through how to add a new instruction to any superoptimizer built using GreenThumb. However, this documentation will use LLVM IR, which corresponds to directory `llvm` in this repo, as a concrete example. 
 
 <a name="Prerequisite"></a>
 ## Prerequisite Knowledge

@@ -2,9 +2,9 @@
 
 (require "../compress.rkt" "../inst.rkt")
 
-(provide llvm-mem-compress%)
+(provide llvm-compress%)
 
-(define llvm-mem-compress%
+(define llvm-compress%
   (class compress%
     (super-new)
     (inherit-field machine)

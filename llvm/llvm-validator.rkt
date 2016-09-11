@@ -1,13 +1,13 @@
 #lang s-exp rosette
 
 (require "../validator.rkt")
-(provide llvm-mem-validator%)
+(provide llvm-validator%)
 
-(define llvm-mem-validator%
+(define llvm-validator%
   (class validator%
     (super-new)
     (override get-constructor)
 
-    (define (get-constructor) llvm-mem-validator%)
+    (define (get-constructor) llvm-validator%)
 
     ))

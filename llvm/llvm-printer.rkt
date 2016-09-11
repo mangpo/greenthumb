@@ -3,9 +3,9 @@
 (require "../printer.rkt" 
          "../inst.rkt")
 
-(provide llvm-mem-printer%)
+(provide llvm-printer%)
 
-(define llvm-mem-printer%
+(define llvm-printer%
   (class printer%
     (super-new)
     (inherit-field machine)

@@ -1,5 +1,5 @@
-1. Fix get-sym-vars.
-2. Get rid of llvm-demo. Rename llvm-mem to just llvm.
+1. Test with optimizer.rkt for all ISAs again.
+2. Reread doc on github.
 3. Documentation for efficient memory access.
 4. Option to run hybrid without enumerative search.
 5. Don't require users to implement

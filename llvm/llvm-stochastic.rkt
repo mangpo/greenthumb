@@ -1,9 +1,9 @@
 #lang racket
 
 (require "../stochastic.rkt")
-(provide llvm-mem-stochastic%)
+(provide llvm-stochastic%)
 
-(define llvm-mem-stochastic%
+(define llvm-stochastic%
   (class stochastic%
     (super-new)
     (inherit pop-count32 correctness-cost-base)

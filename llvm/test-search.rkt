@@ -1,20 +1,20 @@
 #lang s-exp rosette
 
 (require "../inst.rkt"
-         "llvm-mem-parser.rkt" "llvm-mem-machine.rkt" "llvm-mem-printer.rkt"
-         "llvm-mem-simulator-rosette.rkt" "llvm-mem-simulator-racket.rkt"
-         "llvm-mem-validator.rkt"
-         "llvm-mem-symbolic.rkt" "llvm-mem-stochastic.rkt"
-         "llvm-mem-forwardbackward.rkt"
-         "llvm-mem-enumerator.rkt" "llvm-mem-inverse.rkt"
+         "llvm-parser.rkt" "llvm-machine.rkt" "llvm-printer.rkt"
+         "llvm-simulator-rosette.rkt" "llvm-simulator-racket.rkt"
+         "llvm-validator.rkt"
+         "llvm-symbolic.rkt" "llvm-stochastic.rkt"
+         "llvm-forwardbackward.rkt"
+         "llvm-enumerator.rkt" "llvm-inverse.rkt"
          )
 
-(define parser (new llvm-mem-parser% [compress? #f]))
-(define machine (new llvm-mem-machine% [config 4]))
-(define printer (new llvm-mem-printer% [machine machine]))
-(define simulator-racket (new llvm-mem-simulator-racket% [machine machine]))
-(define simulator-rosette (new llvm-mem-simulator-rosette% [machine machine]))
-(define validator (new llvm-mem-validator% [machine machine] [simulator simulator-rosette]))
+(define parser (new llvm-parser% [compress? #t]))
+(define machine (new llvm-machine% [config 4]))
+(define printer (new llvm-printer% [machine machine]))
+(define simulator-racket (new llvm-simulator-racket% [machine machine]))
+(define simulator-rosette (new llvm-simulator-rosette% [machine machine]))
+(define validator (new llvm-validator% [machine machine] [simulator simulator-rosette]))
 
 
 (define prefix 
@@ -42,12 +42,28 @@
 store i32 %1, i32* %2
 "))
 
+#;(define code
+(send parser ir-from-string "
+  %1 = add nsw i32 %in, -1
+  %2 = ashr i32 %1, 1
+  %3 = or i32 %2, %1
+  %4 = ashr i32 %3, 2
+  %5 = or i32 %4, %3
+  %6 = ashr i32 %5, 4
+  %7 = or i32 %6, %5
+  %8 = ashr i32 %7, 8
+  %9 = or i32 %8, %7
+  %10 = ashr i32 %9, 16
+  %11 = or i32 %10, %9
+  %out = add nsw i32 %11, 1
+"))
+
 ;; Define search space of candidate programs.
 ;; # of ?'s = # of instructions in a candidate program.
 ;; ? represents one instruction.
 (define sketch
 (send parser ir-from-string "
-? ? ?
+? ? ? ?
 "))
 
 
@@ -62,7 +78,7 @@ store i32 %1, i32* %2
 (define constraint (send printer encode-live (vector '() #t)))
 
 ;; Step 2: create symbolic search
-(define symbolic (new llvm-mem-symbolic% [machine machine] [printer printer]
+(define symbolic (new llvm-symbolic% [machine machine] [printer printer]
                       [parser parser]
                       [validator validator] [simulator simulator-rosette]))
 
@@ -77,7 +93,7 @@ store i32 %1, i32* %2
       )
 
 ;; Step 3: create stochastic search
-(define stoch (new llvm-mem-stochastic% [machine machine] [printer printer]
+(define stoch (new llvm-stochastic% [machine machine] [printer printer]
                       [parser parser]
                       [validator validator] [simulator simulator-rosette]
                       [syn-mode #t] ;; #t = synthesize, #f = optimize mode
@@ -88,11 +104,11 @@ store i32 %1, i32* %2
       "./driver-0" 3600 #f)
 
 ;; Step 4: create enumerative search
-(define backward (new llvm-mem-forwardbackward% [machine machine] 
+(define backward (new llvm-forwardbackward% [machine machine] 
                       [printer printer] [parser parser] 
                       [validator validator] [simulator simulator-racket]
-                      [inverse% llvm-mem-inverse%]
-                      [enumerator% llvm-mem-enumerator%]
+                      [inverse% llvm-inverse%]
+                      [enumerator% llvm-enumerator%]
                       [syn-mode `linear]))
 (send backward synthesize-window
       encoded-code ;; spec

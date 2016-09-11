@@ -384,7 +384,7 @@
 	 [else
           (add x)]))
       (inner (send machine progstate->vector state))
-      (set->list (list->set lst)) ;; TODO: fix error here
+      (symbolics lst)
       )
     
     ))

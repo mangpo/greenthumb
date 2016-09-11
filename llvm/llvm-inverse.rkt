@@ -2,9 +2,9 @@
 
 (require "../ops-racket.rkt" "../inst.rkt" "../inverse.rkt" "../enumerator.rkt")
 
-(provide llvm-mem-inverse%)
+(provide llvm-inverse%)
 
-(define llvm-mem-inverse%
+(define llvm-inverse%
   (class inverse%
     (super-new)
     (inherit-field machine simulator)
@@ -47,7 +47,6 @@
                          (send simulator interpret
                                (vector my-inst)
                                (vector (list->vector in-res) #f)))])
-                   
                    (when 
                     out-state
                     (define in-list-filtered (filter number? in-res))
@@ -57,7 +56,7 @@
                     (hash-insert-to-list behavior-bw key2 in-list-filtered))))
             
             (define-values (key1 vars-in var-out) (uid-inst-in-out my-inst))
-            ;;(pretty-display `(behavior-bw ,behavior-bw))
+            ;;(pretty-display `(behavior-bw ,key1 ,behavior-bw))
             (hash-set! behaviors-bw key1 behavior-bw))
       )
     
@@ -165,9 +164,12 @@
              (when (and l (not (= i var-out)))
                    (vector-set! state-vars-base i (vector-ref state-vars i))))
 
+        ;;(pretty-display `(lookup-bw ,key1 ,vars-in ,key2 ,state-vars-base))
         (define mapping (hash-ref behaviors-bw key1))
-        (for/list ([new-state-vars (lookup-bw mapping vars-in key2 state-vars-base)])
-                  (vector new-state-vars state-mem))
+        (define ret (lookup-bw mapping vars-in key2 state-vars-base))
+        (and ret
+             (for/list ([new-state-vars ret])
+                       (vector new-state-vars state-mem)))
         ])
       )
 
