@@ -177,5 +177,35 @@
     (define (merge-vector-list-unique vec l)
       (list->vector (set->list (list->set (append (vector->list vec) l)))))
 
+    ;; For building behavior-bw
+    (define/public (get-inst-key my-inst) ?)
+    (define/public (get-progstate-ins-types my-inst) ?)
+    (define/public (get-progstate-ins-vals my-inst state) ?)
+    (define/public (get-progstate-outs-types my-inst) ?)
+    (define/public (get-progstate-outs-vals my-inst state) ?)
+
+    ;; For building table & inverse interpret
+    ;; Update if the entry in the state = val or the entry is #f.
+    (define/public (update-progstate-ins my-inst vals state) ?)
+    (define/public (update-progstate-ins-store my-inst addr val state) ?)
+    (define/public (update-progstate-ins-load my-inst addr state) ?)
+
+    (define/public (is-arithmetic-inst my-inst)
+      (define opcode-name (vector-ref opcodes (inst-op my-inst)))
+      (define class-id (get-class-id opcode-name))
+      (and (not (equal? opcode-name `load))
+           (not (equal? opcode-name `store))))
+
+    (define/public (kill-outs x state)
+      (define new-state (vector-copy (vector-ref state 0)))
+      (define opcode-name (vector-ref opcodes (inst-op x)))
+      (define args (inst-args x))
+      (define args-type (get-arg-types opcode-name))
+      (for ([arg args]
+            [type args-type])
+           (cond
+            [(equal? type `var-o) (vector-set! new-state arg #f)]))
+      (vector new-state (vector-ref state 1)))
+
     ))
       
