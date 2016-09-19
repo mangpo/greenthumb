@@ -351,19 +351,25 @@
 
     ;; Evaluate symbolic progstate to concrete progstate based on solution 'sol'.
     (define (evaluate-state state sol)
+      ;;(pretty-display `(sol ,sol))
       (define-syntax-rule (eval x model)
         (let ([ans (evaluate x model)])
-          (if (term? ans) 0 ans)))
+          ;;(pretty-display `(eval ,x ,ans))
+          ans))
 
+      (define-syntax-rule (concretize x)
+        (if (term? x) 0 x))
+      
       (define (inner x)
-	(cond
-	 [(vector? x) (for/vector ([i x]) (inner i))]
-	 [(list? x) (for/vector ([i x]) (inner i))]
-	 [(pair? x) (cons (inner (car x)) (inner (cdr x)))]
-         [(is-a? x memory-rosette%) (send x create-concrete inner)] 
-	 [else (eval x sol)]))
+        (cond
+         [(vector? x) (for/vector ([i x]) (inner i))]
+         [(list? x) (for/vector ([i x]) (inner i))]
+         [(pair? x) (cons (inner (car x)) (inner (cdr x)))]
+         [(is-a? x memory-rosette%) (send x create-concrete (lambda (x) (inner (eval x sol))))] 
+         [else (concretize x)]))
       (send machine vector->progstate
-	    (inner (send machine progstate->vector state))))
+            (inner (eval (send machine progstate->vector state) sol)))
+      )
 
     ;; Get all symbolic variables in state.
     ;; state: progstate format

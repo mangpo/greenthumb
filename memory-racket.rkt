@@ -4,7 +4,7 @@
 (provide memory-racket%)
 
 (define memory-racket%
-  (class* object% (equal<%>)
+  (class* object% (equal<%> printable<%>)
     (super-new)
     (init-field [init (make-hash)]
                 [update (make-hash)]
@@ -23,6 +23,15 @@
     (define (print)
       (pretty-display (format "init: ~a" init))
       (pretty-display (format "update: ~a" update)))
+
+    (define/public (custom-print port depth)
+      (print `(memory% init: ,init update: ,update) port))
+
+    (define/public (custom-write port)
+      (write `(memory% init: ,init update: ,update) port))
+
+    (define/public (custom-display port)
+      (display `(memory% init: ,init update: ,update) port))
 
     (define/public (equal-to? other recur)
       (equal? update (get-field update other)))

@@ -178,17 +178,106 @@
       (list->vector (set->list (list->set (append (vector->list vec) l)))))
 
     ;; For building behavior-bw
-    (define/public (get-inst-key my-inst) ?)
-    (define/public (get-progstate-ins-types my-inst) ?)
-    (define/public (get-progstate-ins-vals my-inst state) ?)
-    (define/public (get-progstate-outs-types my-inst) ?)
-    (define/public (get-progstate-outs-vals my-inst state) ?)
+    (define/public (get-inst-key my-inst)
+      (define opcode (inst-op my-inst))
+      (define opcode-name (vector-ref opcodes opcode))
+      (cons
+       opcode
+       (filter (lambda (x) x)
+               (for/list ([arg (inst-args my-inst)]
+                          [type (get-arg-types opcode-name)])
+                         (and (not (member type '(var-i var-o))) arg)))))
+    
+    (define/public (get-progstate-ins-types my-inst)
+      (define opcode (inst-op my-inst))
+      (define opcode-name (vector-ref opcodes opcode))
+      (cond
+       [(equal? opcode-name `load) (list `var-i `mem)]
+       [(equal? opcode-name `store) (list `var-i `var-i)]
+       [else
+        (filter (lambda (x) x)
+                (for/list ([type (get-arg-types opcode-name)])
+                          (and (member type '(var-i)) type)))]))
+      
+    (define/public (get-progstate-ins-vals my-inst state)
+      (define opcode (inst-op my-inst))
+      (define opcode-name (vector-ref opcodes opcode))
+      (define args (inst-args my-inst))
+      (define vars (vector-ref state 0))
+      (define mem (vector-ref state 1))
+      (cond
+       [(equal? opcode-name `load)
+        (list (vector-ref vars (vector-ref args 1)) mem)]
+       [(equal? opcode-name `store)
+        (list (vector-ref vars (vector-ref args 0)) (vector-ref vars (vector-ref args 1)))]
+       [else
+        (filter (lambda (x) x)
+                (for/list ([type (get-arg-types opcode-name)]
+                           [arg args])
+                          (and (member type '(var-i))
+                               (vector-ref vars arg))))]))
+                               
+    
+    (define/public (get-progstate-outs-types my-inst)
+      (define opcode (inst-op my-inst))
+      (define opcode-name (vector-ref opcodes opcode))
+      (cond
+       [(equal? opcode-name `load) (list `var-o)]
+       [(equal? opcode-name `store) (list `mem)]
+       [else
+        (filter (lambda (x) x)
+                (for/list ([type (get-arg-types opcode-name)])
+                          (and (member type '(var-o)) type)))]))
+    
+    (define/public (get-progstate-outs-vals my-inst state)
+      (define opcode (inst-op my-inst))
+      (define opcode-name (vector-ref opcodes opcode))
+      (define args (inst-args my-inst))
+      (define vars (vector-ref state 0))
+      (define mem (vector-ref state 1))
+      (cond
+       [(equal? opcode-name `load)
+        (list (vector-ref vars (vector-ref args 0)))]
+       [(equal? opcode-name `store)
+        (list mem)]
+       [else
+        (filter (lambda (x) x)
+                (for/list ([type (get-arg-types opcode-name)]
+                           [arg args])
+                          (and (member type '(var-o))
+                               (vector-ref vars arg))))]))
 
     ;; For building table & inverse interpret
     ;; Update if the entry in the state = val or the entry is #f.
-    (define/public (update-progstate-ins my-inst vals state) ?)
-    (define/public (update-progstate-ins-store my-inst addr val state) ?)
-    (define/public (update-progstate-ins-load my-inst addr state) ?)
+    (define/public (update-progstate-ins my-inst vals state)
+      (define opcode (inst-op my-inst))
+      (define opcode-name (vector-ref opcodes opcode))
+      (define args (inst-args my-inst))
+      (define vars (vector-copy (vector-ref state 0)))
+      (define mem (vector-ref state 1))
+      (define pass #t)
+      (for ([type (get-arg-types opcode-name)]
+            [arg args]
+            #:break (not pass))
+           (when (member type '(var-i))
+                 (let ([current-val (vector-ref vars arg)])
+                   (cond
+                    [(or (not current-val)
+                         (equal? current-val (car vals)))
+                     (vector-set! vars arg (car vals))
+                     (set! vals (cdr vals))]
+                    [else (set! pass #f)]))))
+      (and pass (vector vars mem)))
+      
+    (define/public (update-progstate-ins-store my-inst addr val state)
+      (define new-state (update-progstate-ins my-inst (list val addr) state))
+      (and new-state
+           (let ([new-mem (send (vector-ref new-state 1) clone-all)])
+             (send new-mem del addr)
+             (vector (vector-ref new-state 0) new-mem))))
+      
+    (define/public (update-progstate-ins-load my-inst addr state)
+      (update-progstate-ins my-inst (list addr) state))
 
     (define/public (is-arithmetic-inst my-inst)
       (define opcode-name (vector-ref opcodes (inst-op my-inst)))
