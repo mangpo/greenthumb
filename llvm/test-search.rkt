@@ -25,6 +25,12 @@
 (send parser ir-from-string "
 "))
 
+#;(define code
+(send parser ir-from-string "
+%in = add i32 %in, 0
+store i32 %in, i32* %1
+"))
+
 (define code
 (send parser ir-from-string "
 %out = load i32, i32* %1

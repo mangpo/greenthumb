@@ -30,7 +30,6 @@
     
     (define nop-id (get-field nop-id machine))
     (define opcodes (get-field opcodes machine))
-    (define classes (get-field classes machine))
   
     (define (print-mutation-info)
       (for ([op opcodes])
