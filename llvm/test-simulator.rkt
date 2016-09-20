@@ -37,12 +37,10 @@ store i32 %1, i32* %2
 (define simulator-rosette (new llvm-simulator-rosette% [machine machine]))
 (define out (send simulator-rosette interpret encoded-code input-state))
 (newline)
-(define mem (vector-ref out 1))
-(send mem print)
+(send machine display-state out)
 
 ;; Phase C: Interpret concrete program with symbolic inputs
 (pretty-display "Phase C: interpret concrete program with symbolic inputs.")
-(pretty-display "Step 5: interpret concrete program with symbolic inputs.")
 (define (sym-input)
   (define-symbolic* in number?)
   in)
@@ -50,7 +48,7 @@ store i32 %1, i32* %2
 (define input-state-sym (send machine get-state sym-input))
 (define out-sym (send simulator-rosette interpret encoded-code input-state-sym))
 (newline)
-(define mem-sym (vector-ref out-sym 1))
+(send machine display-state out-sym)
 
 #|
 ;; Phase D: Duplicate rosette simulator to racket simulator

@@ -156,7 +156,7 @@
       (define my-live-in live-in)
       (for ([i index])
            (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
-      (define ranges (send machine get-arg-ranges opcode-name entry my-live-in))
+      (define ranges (send machine get-arg-ranges opcode-id entry my-live-in))
       (cond
        [(> (vector-length ranges) 0)
         (define args (vector-copy (inst-args entry)))
@@ -213,15 +213,14 @@
     ;; live-in: compact format
     (define (random-instruction live-in [opcode-id (random-from-list (get-field opcode-pool machine))])
       (when debug (pretty-display `(random-instruction ,opcode-id)))
-      (define opcode-name (vector-ref opcodes opcode-id))
-      (define args (random-args-from-op opcode-name live-in))
+      (define args (random-args-from-op opcode-id live-in))
       (if args
           (inst opcode-id args)
           (random-instruction live-in)))
     
     ;; Create random operands from opcode.
-    (define (random-args-from-op opcode-name live-in)
-      (define ranges (send machine get-arg-ranges opcode-name #f live-in))
+    (define (random-args-from-op opcode-id live-in)
+      (define ranges (send machine get-arg-ranges opcode-id #f live-in))
       (when debug (pretty-display (format " --> ranges ~a" ranges)))
       (define pass (for/and ([range ranges]) (> (vector-length range) 0)))
       (and pass

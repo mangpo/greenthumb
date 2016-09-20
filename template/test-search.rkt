@@ -42,6 +42,8 @@ code here
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))
 
+(send machine reset-arg-ranges)
+(send machine analyze-args encoded-prefix encoded-code encoded-postfix #f #f)
 
 ;; Phase 0: create constriant (live-out)
 (define constraint ?)

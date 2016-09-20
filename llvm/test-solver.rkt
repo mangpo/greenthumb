@@ -32,7 +32,7 @@
 
 (define ex 
   (send validator counterexample encoded-code encoded-sketch 
-        (send printer encode-live '(%out))))
+        (send printer encode-live (vector '(%out) #t))))
 
 (pretty-display "Counterexample:")
 (if ex 

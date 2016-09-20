@@ -169,7 +169,7 @@
     ;; live-in: compact format
     (define (random-instruction live-in [opcode-id (random-from-list (get-field opcode-pool machine))])
       (define opcode-name (vector-ref opcodes opcode-id))
-      (define args (random-args-from-op opcode-name live-in))
+      (define args (random-args-from-op opcode-id live-in))
       (cond
        [args
         (define shf? (and (member opcode-name inst-with-shf) (< (random) 0.3)))

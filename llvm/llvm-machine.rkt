@@ -7,14 +7,14 @@
 (define llvm-machine%
   (class machine%
     (super-new)
-    (inherit-field bitwidth random-input-bits config
-                   opcodes nop-id
-                   ;; required fileds for stochastic and enumerative only
-		   classes)
+    (inherit-field bitwidth random-input-bits config)
     (inherit reset-arg-ranges 
              define-instruction-class finalize-machine-description
-             define-arg-progstate-type define-progstate-type define-arg-type)
-    (override get-constructor set-config get-state update-progstate-ins-store)
+             define-arg-progstate-type define-progstate-type define-arg-type
+             update-progstate-ins)
+    (override get-constructor set-config
+              get-state clone-state
+              update-progstate-ins-store)
 
     (define (get-constructor) llvm-machine%)
     
@@ -24,8 +24,7 @@
     (when config (set-config config))
     
     (define (set-config x) 
-      (set! config x) 
-      (reset-arg-ranges))
+      (set! config x))
 
     ;; Generate program state from function init.
     ;; Our program state is a vector storing values of variables.
@@ -57,8 +56,17 @@
     (define-instruction-class 'nop '(nop))
 
     (define-instruction-class
+     'rrr-commute
+     '(and or xor add)
+     #:args '(var var var)
+     #:ins '(1 2)
+     #:outs '(0)
+     #:commute '(1 . 2)
+     )
+
+    (define-instruction-class
      'rrr
-     '(and or xor add sub shl lshr ashr)
+     '(sub shl lshr ashr)
      #:args '(var var var)
      #:ins '(1 2)
      #:outs '(0))
@@ -93,7 +101,7 @@
      #:ins '(2)
      #:outs '(0))
 
-    (add-instruction-class
+    (define-instruction-class
      'rr
      '(ctlz)
      #:args '(var var)
@@ -104,7 +112,7 @@
      'load
      '(load)
      #:args '(var var)
-     #:ins '(1 mem)
+     #:ins (list 1 (get-memory-type))
      #:outs '(0))
 
     (define-instruction-class
@@ -112,7 +120,7 @@
      '(store)
      #:args '(var var)
      #:ins '(0 1)
-     #:outs '(mem))
+     #:outs (list (get-memory-type)))
 
     (finalize-machine-description)
 

@@ -179,6 +179,7 @@
         )
       
       (when debug (pretty-display ">>> done synthesize"))
+      (pretty-display `(model ,model))
       (define final-program (evaluate-program sketch model))
       (when debug (pretty-display ">>> done evaluate program"))
       (define final-cost (evaluate sketch-cost model))

@@ -1,6 +1,6 @@
 #lang racket
 
-(require "inst.rkt")
+(require "inst.rkt" "machine.rkt" "enumerator.rkt" "ops-racket.rkt")
 (provide inverse% hash-insert-to-list)
 
 (define-syntax-rule (hash-insert-to-list table key val)
@@ -13,53 +13,94 @@
   (class object%
     (super-new)
     (init-field machine simulator)
-    (abstract gen-inverse-behavior interpret-inst)
-    (public uid-inst-in-out lookup-bw)
+    (public gen-inverse-behavior interpret-inst)
     
-    (define opcodes (get-field opcodes machine))
+    ;; Reduced-bit
+    (define bit (get-field bitwidth machine))
+    (define val-range
+      (for/vector ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
 
-    ;; Return unique representation for
-    ;;  i) instruction including opcode and constant arguments (IDs list)
-    ;; and extract IDs of
-    ;;  ii) input arguments (IDs list)
-    ;;  iii) output arguments (IDs list)
-    (define (uid-inst-in-out x)
-      (define opcode (inst-op x))
-      (define args (inst-args x))
-      (define inst-type (list opcode))
+    ;; Inverse tables for all instructions.
+    (define behaviors-bw (make-hash))
 
-      (define in (list))
-      (define out (list))
-      
-      (for ([arg args]
-	    [type (send machine get-arg-types (vector-ref opcodes opcode))])
-	   (cond
-	    [(member type '(reg-o var-o)) (set! out (cons arg out))]
-	    [(member type '(reg-i var-i)) (set! in (cons arg in))]
-	    [(member type '(reg-io var-io))
-             (set! in (cons arg in)) (set! out (cons arg out))]
-	    [else (set! inst-type (cons arg inst-type))]))
+    ;; Return a list of valid abstract values given a program state type.
+    (define (get-val-range type) val-range)
+    
+    ;; Generate inverse table behavior for my-inst.
+    (define (gen-inverse-behavior my-inst)
+      (when
+       (send machine is-arithmetic-inst my-inst)
+       ;; Inverse table behavior
+       (define behavior-bw (make-hash))
+       (define state (send machine get-state (lambda () #f)))
+       (define ins-range-list
+         (for/list ([type (send machine get-progstate-ins-types my-inst)])
+                   (get-val-range type)))
 
-      (values (reverse inst-type) (reverse in) out))
+       (for ([in-vals (all-combination-list ins-range-list)])
+            (let* ([in-state (send machine update-progstate-ins my-inst in-vals state)]
+                   [out-state (with-handlers*
+                               ([exn? (lambda (e) #f)])
+                               (send simulator interpret (vector my-inst) in-state))])
+              (when out-state
+                    (define out-vals (send machine get-progstate-outs-vals my-inst out-state))
+                    (hash-insert-to-list behavior-bw out-vals in-vals))))
 
-    (define (lookup-bw mapping in out-vals state-base)
-      (define ret (and (hash-has-key? mapping out-vals) (list)))
+       (hash-set! behaviors-bw (send machine get-inst-key my-inst) behavior-bw)))
+    
+    
+    ;; Inverse interpret my-inst using the pre-computed 'behaviors-bw'.
+    ;; my-inst: instruction
+    ;; state-vec: progstate in vector/list/pair format
+    ;; old-liveout: liveout info
+    ;; output: a list of progstates in vector/list/pair format
+    (define (interpret-inst my-inst state old-liveout)
+      (define args (inst-args my-inst))
+      (define ins-types (send machine get-progstate-ins-types my-inst))
+      (define outs-types (send machine get-progstate-outs-types my-inst))
 
-      (when ret
-	    (define vars-in-val-list (hash-ref mapping out-vals))
-	    (for ([vars-in-val vars-in-val-list])
-		 (let ([new-state (vector-copy state-base)]
-		       [pass #t])
-		   (for ([r in]
-			 [v vars-in-val] #:break (not pass))
-			(cond
-			 [(vector-ref new-state r)
-			  (unless (= v (vector-ref new-state r))
-				  (set! pass #f))]
-			 [else (vector-set! new-state r v)]))
-		   (when pass (set! ret (cons new-state ret))))))
+      (cond
+       [(not (member (get-memory-type) (append ins-types outs-types)))
+        (define key (send machine get-inst-key my-inst))
+        (define out-vals (send machine get-progstate-outs-vals my-inst state))
+        ;;(pretty-display `(key ,key ,out-vals))
+        (define state-base (send machine kill-outs my-inst state)) ;; TODO: do we have to use old-liveout?
 
-      ret)
-      
+        (define mapping (hash-ref behaviors-bw key))
+        (define in-vals-list (and (hash-has-key? mapping out-vals) (hash-ref mapping out-vals)))
+        (and in-vals-list
+             (for/list ([in-vals in-vals-list])
+                       (send machine update-progstate-ins my-inst in-vals state-base)))]
+
+       [(and (= (length outs-types) 1) (= (length ins-types) 2)
+             (member (get-memory-type) ins-types)) ;; load
+        (define out-val (car (send machine get-progstate-outs-vals my-inst state)))
+        (define in-vals (send machine get-progstate-ins-vals my-inst state))
+        (define mem #f)
+        (for ([in in-vals]
+              [type ins-types])
+          (when (equal? type (get-memory-type))
+            (set! mem in)))
+        (filter
+         (lambda (x) x)
+         (for/list ([actual-addr (send mem get-addr-with-val out-val)])
+                   (send machine update-progstate-ins-load my-inst actual-addr state)))
+        ]
+
+       [(and (= (length outs-types) 1) (equal? (get-memory-type) (car outs-types))) ;; store
+        (define mem (car (send machine get-progstate-outs-vals my-inst state)))
+        (define addr-var-list (send mem get-update-addr-val))
+        (filter
+         (lambda (x) x)
+         (for/list ([addr-val addr-var-list])
+                   (let* ([addr (car addr-val)]
+                          [val (cdr addr-val)]
+                          [new-state (send machine update-progstate-ins-store my-inst addr val state)])
+                     (and new-state
+                          (send machine update-progstate-del-mem addr new-state)))))
+        ]
+
+       [else (raise "interpret-inst-backward")] ;; TODO
+       ))
     
     ))

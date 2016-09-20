@@ -58,9 +58,9 @@
     ;; Return a copy of a given instruction x,
     ;; but replacing each constant c in the instruction x with (change c).
     (define (change-inst x change)
-      (define opcode-name (send machine get-opcode-name (inst-op x)))
+      (define opcode-id (inst-op x))
       (define args (inst-args x))
-      (define types (send machine get-arg-types opcode-name))
+      (define types (send machine get-arg-types opcode-id))
       
       (define new-args
         (for/vector
@@ -79,9 +79,8 @@
     ;; this method has to return all possible unique copies of x.
     (define (change-inst-list x change)
       (define op (inst-op x))
-      (define opcode-name (send machine get-opcode-name op))
       (define args (inst-args x))
-      (define types (send machine get-arg-types opcode-name))
+      (define types (send machine get-arg-types op))
       
       (define new-args
         (for/list

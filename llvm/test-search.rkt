@@ -25,6 +25,12 @@
 (send parser ir-from-string "
 "))
 
+(define code
+(send parser ir-from-string "
+%out = load i32, i32* %1
+%out = add i32 %out, 0
+"))
+
 #;(define code
 (send parser ir-from-string "
 %in = load i32, i32* %1
@@ -41,7 +47,7 @@
 store i32 %1, i32* %2
 "))
 
-(define code
+#;(define code
 (send parser ir-from-string "
   %1 = add nsw i32 %in, -1
   %2 = ashr i32 %1, 1
@@ -62,7 +68,7 @@ store i32 %1, i32* %2
 ;; ? represents one instruction.
 (define sketch
 (send parser ir-from-string "
-? ? ? ?
+?
 "))
 
 
@@ -71,6 +77,7 @@ store i32 %1, i32* %2
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))
 
+(send machine reset-arg-ranges)
 (send machine analyze-args encoded-prefix encoded-code encoded-postfix #f #f)
 
 ;; Step 1: use printer to convert liveout into progstate format
@@ -81,7 +88,7 @@ store i32 %1, i32* %2
                       [parser parser]
                       [validator validator] [simulator simulator-rosette]))
 
-#;(send symbolic synthesize-window
+(send symbolic synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch
       encoded-prefix encoded-postfix
@@ -109,7 +116,7 @@ store i32 %1, i32* %2
                       [inverse% llvm-inverse%]
                       [enumerator% llvm-enumerator%]
                       [syn-mode `linear]))
-(send backward synthesize-window
+#;(send backward synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch => start from searching from length 1, number => only search for that length
       encoded-prefix encoded-postfix
