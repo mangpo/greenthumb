@@ -52,6 +52,7 @@
       (set! live-in (send machine get-live-list this-live-in))
       (send machine analyze-args (vector) spec (vector) live-in constraint)
       (send machine analyze-opcode (vector) spec (vector))
+      (send machine update-classes-pool)
       ;; Generate testcases
       (when debug 
             (pretty-display ">>> Phase 0: print mutation info")

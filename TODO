@@ -1,11 +1,32 @@
+(get-arg-type) & (get-arg-ranges) take opcode-id not opcode-name
+(is-arithmetic-instruction
+
+1. Don't require users to implement
+   - backward interpreter
+   - update-liveness-bw
+
+2. Don't require users to implement
+   - instruction enumerator
+   - enumerator: commutative list
+   - reduce-precesion
+   - (get-val-range) in llvm-inverse
+
+Test on:
+- llvm
+- preston
+- GA
+- ARM
+
+Implement:
+machine
+- define-arg-progstate-type, define-arg-type, define-progstate-type
+- define-instruction-class
+
+
 3. Documentation for efficient memory access.
    - memory access operates in a granularity of # of bits defined
 4. Option to run hybrid without enumerative search.
-5. Don't require users to implement
-   - backward interpreter
-   - instruction enumerator
-   - update-liveness-bw
-   - enumerator: commutative list
+
 
 
 - No longer need validator:proper-machine-config if we use the new memory access support.

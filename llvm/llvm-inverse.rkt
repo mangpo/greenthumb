@@ -98,8 +98,10 @@
          (lambda (x) x)
          (for/list ([addr-val addr-var-list])
                    (let* ([addr (car addr-val)]
-                          [val (cdr addr-val)])
-                     (send machine update-progstate-ins-store my-inst addr val state))))
+                          [val (cdr addr-val)]
+                          [new-state (send machine update-progstate-ins-store my-inst addr val state)])
+                     (and new-state
+                          (update-progstate-del-mem addr new-state)))))
         ]
 
        [else (raise "interpret-inst-backward")] ;; TODO

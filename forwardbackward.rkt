@@ -439,6 +439,7 @@
       (set! start-time (current-seconds))
       (send machine reset-opcode-pool)
       (send machine analyze-opcode prefix spec postfix)
+      (send machine update-classes-pool)
       (define init
         (car (send validator
                    generate-input-states 1 (vector-append prefix spec postfix)
