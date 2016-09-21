@@ -3,7 +3,7 @@
 (require "inst.rkt")
 (provide debug machine% get-memory-type)
 
-(define debug #t)
+(define debug #f)
 
 (define (get-memory-type) 'mem%)
 
@@ -41,7 +41,7 @@
 	    analyze-opcode analyze-args 
             reset-opcode-pool 
             reset-arg-ranges
-            get-arg-ranges get-arg-types
+            get-arg-ranges get-arg-types get-class-opcodes
             get-constructor
             
             ;; ISA description
@@ -187,9 +187,13 @@
     (define (update-classes-pool)
       (for ([class classes-info])
            (set-instclass-pool!
+            class
             (filter
              (lambda (opcode-id) (member opcode-id opcode-pool))
              (instclass-opcodes class)))))
+
+    (define (get-class-opcodes opcode-id)
+      (instclass-pool (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id))))
     
     ;; Return types of operands given opcode-name.
     (define (get-arg-types opcode-id)
@@ -220,11 +224,12 @@
 
       ;; non-argument inputs have to be live
       (define pass #t)
-      (for ([in ins])
-           (unless (number? in)
-                   (let ([argtype-info (hash-ref argtypes-info in)])
-                     (unless ((argtype-get argtype-info) live-in)
-                             (set! pass #f)))))
+      (when live-in
+            (for ([in ins])
+                 (unless (number? in)
+                         (let ([argtype-info (hash-ref argtypes-info in)])
+                           (unless ((argtype-get argtype-info) live-in)
+                                   (set! pass #f))))))
 
       (if (equal? mode `basic)
           (for/vector
@@ -264,14 +269,15 @@
     (define (update-live live my-inst)
       (define new-live (clone-state live))
       (define opcode-id (inst-op my-inst))
+      (define args (inst-args my-inst))
       (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
       (define types (instclass-args class))
       (define outs (instclass-outs class))
 
-      (for ([type types] [id (in-naturals)])
+      (for ([type types] [id (in-naturals)] [arg args])
            (when (member id outs)
                  (let ([argtype-info (hash-ref argtypes-info type)])
-                   ((argtype-set argtype-info) new-live id #t))))
+                   ((argtype-set argtype-info) new-live arg #t))))
 
       (for ([out outs])
            (when (hash-has-key? argtypes-info out)
@@ -288,16 +294,17 @@
     (define (update-live-backward live my-inst)
       (define new-live (clone-state live))
       (define opcode-id (inst-op my-inst))
+      (define args (inst-args my-inst))
       (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
       (define types (instclass-args class))
       (define ins (instclass-ins class))
       (define outs (instclass-outs class))
 
       ;; kill outs first
-      (for ([type types] [id (in-naturals)])
+      (for ([type types] [id (in-naturals)] [arg args])
            (when (member id outs)
                  (let ([argtype-info (hash-ref argtypes-info type)])
-                   ((argtype-set argtype-info) new-live id #f))))
+                   ((argtype-set argtype-info) new-live arg #f))))
       (for ([out outs])
            (when (and (not (member out (list (get-memory-type))))
                       (hash-has-key? argtypes-info out))
@@ -305,15 +312,15 @@
                    ((argtype-set argtype-info) new-live #f))))
       
       ;; add live
-      (for ([type types] [id (in-naturals)])
+      (for ([type types] [id (in-naturals)] [arg args])
            (when (member id ins)
                  (let ([argtype-info (hash-ref argtypes-info type)])
-                   ((argtype-set argtype-info) new-live id #t))))
+                   ((argtype-set argtype-info) new-live arg #t))))
       (for ([out outs])
            (when (hash-has-key? argtypes-info ins)
                  (let ([argtype-info (hash-ref argtypes-info out)])
                    ((argtype-set argtype-info) new-live #t))))
-      )
+      new-live)
 
     ;; Analyze input code and update operands' ranges.
     (define (analyze-args prefix code postfix live-in-list live-out
@@ -331,7 +338,7 @@
            (let* ([argtype-info (hash-ref argtypes-info type)]
                   [vals ((argtype-validfunc argtype-info) config)])
              (unless (member arg vals)
-                     (set-argtype-valid! (cons arg vals)))))
+                     (set-argtype-valid! argtype-info (cons arg vals)))))
       )
     
     ;; For building behavior-bw
@@ -363,54 +370,58 @@
 
       (for/list ([out outs]) (if (number? out) (vector-ref types out) out)))
       
+    (define-syntax-rule (get-progstate-at state locs types args)
+      (for/list
+       ([loc locs])
+       (if (number? loc)
+           (let ([argtype-info (hash-ref argtypes-info (vector-ref types loc))])
+             ((argtype-get argtype-info) state (vector-ref args loc)))
+           (let ([argtype-info (hash-ref argtypes-info loc)])
+             ((argtype-get argtype-info) state)))))
+    
     (define (get-progstate-ins-vals my-inst state)
       (define opcode-id (inst-op my-inst))
+      (define args (inst-args my-inst))
       (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
       (define ins (instclass-ins class))
       (define types (instclass-args class))
-
-      (for/list ([in ins]
-                 [type types])
-                (let ([argtype-info (hash-ref argtypes-info type)])
-                  (if (number? in)
-                      ((argtype-get argtype-info) state type in)
-                      ((argtype-get argtype-info) state type)))))
+      (get-progstate-at state ins types args))
       
     (define (get-progstate-outs-vals my-inst state)
       (define opcode-id (inst-op my-inst))
+      (define args (inst-args my-inst))
       (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
       (define outs (instclass-outs class))
       (define types (instclass-args class))
-
-      (for/list ([out outs]
-                 [type types])
-                (let ([argtype-info (hash-ref argtypes-info type)])
-                  (if (number? out)
-                      ((argtype-get argtype-info) state out)
-                      ((argtype-get argtype-info) state)))))
+      (get-progstate-at state outs types args))
 
     ;; For building table & inverse interpret
     ;; Update if the entry in the state = val or the entry is #f.
     (define (update-progstate-ins my-inst vals state)
       (define new-state (clone-state state))
       (define opcode-id (inst-op my-inst))
+      (define args (inst-args my-inst))
       (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
       (define ins (instclass-ins class))
       (define types (instclass-args class))
       (define pass #t)
 
-      (for/list ([in ins] [val vals] [type types] #:break (not pass))
-                (let* ([argtype-info (hash-ref argtypes-info type)]
-                       [current-val 
-                        (if (number? in)
-                            ((argtype-get argtype-info) new-state in)
-                            ((argtype-get argtype-info) new-state))])
-                  (if (or (not current-val)
-                          (equal? current-val val))
-                      (if (number? in)
-                          ((argtype-set argtype-info) new-state in val)
-                          ((argtype-set argtype-info) new-state val))
-                      (set! pass #f))))
+      (for/list
+       ([in ins] [val vals] #:break (not pass))
+       (cond
+        [(number? in)
+         (define argtype-info (hash-ref argtypes-info (vector-ref types in)))
+         (define current-val ((argtype-get argtype-info) new-state (vector-ref args in)))
+         (if (or (not current-val) (equal? current-val val))
+             ((argtype-set argtype-info) new-state (vector-ref args in) val)
+             (set! pass #f))]
+
+        [else
+         (define argtype-info (hash-ref argtypes-info in))
+         (define current-val ((argtype-get argtype-info) new-state))
+         (if (or (not current-val) (equal? current-val val))
+             ((argtype-set argtype-info) new-state val)
+             (set! pass #f))]))
       (and pass new-state))
       
     (define (update-progstate-ins-load my-inst addr state)
@@ -427,17 +438,19 @@
     (define (kill-outs my-inst state)
       (define new-state (clone-state state))
       (define opcode-id (inst-op my-inst))
+      (define args (inst-args my-inst))
       (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
       (define outs (instclass-outs class))
       (define types (instclass-args class))
 
-      (for/list ([out outs]
-                 [type types])
-                (let ([argtype-info (hash-ref argtypes-info type)])
-                  (when (not (member out (list (get-memory-type))))
-                        (if (number? out)
-                            ((argtype-set argtype-info) state out #f)
-                            ((argtype-set argtype-info) state #f)))))
+      (for/list
+       ([out outs])
+       (unless (member out (list (get-memory-type)))
+               (if (number? out)
+                   (let ([argtype-info (hash-ref argtypes-info (vector-ref types out))])
+                     ((argtype-set argtype-info) new-state (vector-ref args out) #f))
+                   (let ([argtype-info (hash-ref argtypes-info out)])
+                     ((argtype-set argtype-info) new-state #f)))))
       new-state)
 
     ;; Return #t if args of a given opcode is cannonical.

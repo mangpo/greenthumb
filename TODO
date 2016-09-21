@@ -6,6 +6,7 @@ Test on:
   = (get-arg-type) & (get-arg-ranges) take opcode-id not opcode-name
 
 3. Revisit
+   - (get-mutation) in stochastic
    - (reduce-precesion) in forwardbackward
    - (get-flag) in enumerator
 

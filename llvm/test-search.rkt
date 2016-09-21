@@ -31,7 +31,7 @@
 store i32 %in, i32* %1
 "))
 
-(define code
+#;(define code
 (send parser ir-from-string "
 %out = load i32, i32* %1
 %out = add i32 %out, 0
@@ -53,7 +53,7 @@ store i32 %in, i32* %1
 store i32 %1, i32* %2
 "))
 
-#;(define code
+(define code
 (send parser ir-from-string "
   %1 = add nsw i32 %in, -1
   %2 = ashr i32 %1, 1
@@ -74,7 +74,7 @@ store i32 %1, i32* %2
 ;; ? represents one instruction.
 (define sketch
 (send parser ir-from-string "
-?
+? ? ? ?
 "))
 
 
@@ -94,7 +94,7 @@ store i32 %1, i32* %2
                       [parser parser]
                       [validator validator] [simulator simulator-rosette]))
 
-(send symbolic synthesize-window
+#;(send symbolic synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch
       encoded-prefix encoded-postfix
@@ -112,7 +112,7 @@ store i32 %1, i32* %2
                       ))
 #;(send stoch superoptimize encoded-code 
       constraint ;; constraint
-      (send printer encode-live (vector '(%in %1) #t)) ;; live-in
+      (send printer encode-live (vector '(%2) #t)) ;; live-in
       "./driver-0" 3600 #f)
 
 ;; Step 4: create enumerative search
@@ -122,7 +122,7 @@ store i32 %1, i32* %2
                       [inverse% llvm-inverse%]
                       [enumerator% llvm-enumerator%]
                       [syn-mode `linear]))
-#;(send backward synthesize-window
+(send backward synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch => start from searching from length 1, number => only search for that length
       encoded-prefix encoded-postfix

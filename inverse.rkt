@@ -28,8 +28,10 @@
     
     ;; Generate inverse table behavior for my-inst.
     (define (gen-inverse-behavior my-inst)
+      (define ins-types (send machine get-progstate-ins-types my-inst))
+      (define outs-types (send machine get-progstate-outs-types my-inst))
       (when
-       (send machine is-arithmetic-inst my-inst)
+       (not (member (get-memory-type) (append ins-types outs-types)))
        ;; Inverse table behavior
        (define behavior-bw (make-hash))
        (define state (send machine get-state (lambda () #f)))

@@ -4,7 +4,7 @@
 (provide memory-rosette%)
 
 (define memory-rosette%
-  (class object%
+  (class* object% (printable<%>)
     (super-new)
     (init-field [size 20]
                 [init (make-vector size)]
@@ -17,15 +17,20 @@
                 ;; don't initialize ref.
                 ;; Otherwise, initailize ref with memory object output from specification program.
                 [ref #f])
-    (public print load store create-concrete clone update-equal?
+    (public load store create-concrete clone update-equal?
             ;; internal use only
             lookup-init lookup-update 
             )
 
-    (define (print)
-      (pretty-display (format "init: ~a" init))
-      (pretty-display (format "update: ~a" update)))
+    (define/public (custom-print port depth)
+      (print `(memory% init: ,init update: ,update) port depth))
 
+    (define/public (custom-write port)
+      (write `(memory% init: ,init update: ,update) port))
+
+    (define/public (custom-display port)
+      (display `(memory% init: ,init update: ,update) port))
+    
     ;; Create concrete memory object by evaluating symbolic memory.
     (define (create-concrete eval)
       (new memory-racket% [init (make-hash (filter pair? (vector->list (eval init))))]))
@@ -133,6 +138,7 @@
   (send mem store 9 0)
   (send mem load 9)
   (send mem print)
+  (pretty-display `(mem ,mem))
   
   (define mem2 (send mem clone mem))
   (send mem2 load 9)
@@ -142,6 +148,6 @@
   (send mem2 load 9)
   (send mem2 store 9 0)
   (send mem2 load 9)
-  (send mem2 print))
+  (pretty-display `(mem2 ,mem2)))
 
     

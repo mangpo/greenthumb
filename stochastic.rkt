@@ -129,8 +129,7 @@
     (define (mutate-opcode index entry p)
       (define opcode-id (inst-op entry))
       (define opcode-name (vector-ref opcodes opcode-id))
-      (define class-id (send machine get-class-id opcode-name))
-      (define class (and class-id (vector-ref (get-field classes-filtered machine) class-id)))
+      (define class (send machine get-class-opcodes opcode-id))
       (when debug
             (pretty-display (format " >> mutate opcode"))
             (pretty-display (format " --> org = ~a ~a" opcode-name opcode-id))
@@ -179,7 +178,7 @@
           (when debug
                 (pretty-display (format " --> org = ~a ~a" opcode-name args))
                 (pretty-display (format " --> choices = ~a" (vector-ref ranges change)))
-                (pretty-display (format " --> new = [~a]->~a)" change new-val)))
+                (pretty-display (format " --> new = [~a]->~a" change new-val)))
           (vector-set! args change new-val)
           (vector-set! new-p index (inst-copy-with-args entry args))
           (send stat inc-propose `operand)

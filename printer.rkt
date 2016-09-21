@@ -13,15 +13,20 @@
             print-syntax print-syntax-inst
             compress-reg-space decompress-reg-space
             config-from-string-ir set-config-string
-            output-constraint-string output-assume-string)
+            output-constraint-string output-assume-string
+            print-encode-info)
     ;; Required methods to be intialized when extended. See arm/arm-printer.rkt.
     (abstract encode-inst decode-inst)
 
     (define (encode code)
-      (traverse code inst? encode-inst))
+      (define ret (traverse code inst? encode-inst))
+      (print-encode-info)
+      ret)
 
     (define (decode code)
       (traverse code inst? decode-inst))
+
+    (define (print-encode-info) (void))
 
     (define (print-struct-inst x [indent ""])
       (pretty-display (format "~a(inst ~a ~a)" 

@@ -9,7 +9,7 @@
   (class printer%
     (super-new)
     (inherit-field machine)
-    (override encode-inst decode-inst print-syntax-inst
+    (override encode-inst decode-inst print-syntax-inst print-encode-info
               ;; Required method for cooperative search
               config-from-string-ir output-constraint-string)
 
@@ -41,6 +41,9 @@
     (define name2num (make-hash))
     (define num2name (make-vector 100))
     (define n 0)
+
+    (define (print-encode-info)
+      (pretty-display (format "Encode info (name->num): ~a" name2num)))
 
     (define-syntax-rule (char1=% x) (equal? (substring x 0 1) "%"))
 				  

@@ -12,7 +12,7 @@
                 ;; don't initialize ref.
                 ;; Otherwise, initailize ref with memory object output from specification program.
                 [ref #f])
-    (public print load store clone update-equal? correctness-cost
+    (public load store clone update-equal? correctness-cost
             ;; for backward interpret
             clone-all del lookup-update
             get-update-addr-val get-update-addr-with-val get-addr-with-val
@@ -20,12 +20,8 @@
             lookup-init
             )
 
-    (define (print)
-      (pretty-display (format "init: ~a" init))
-      (pretty-display (format "update: ~a" update)))
-
     (define/public (custom-print port depth)
-      (print `(memory% init: ,init update: ,update) port))
+      (print `(memory% init: ,init update: ,update) port depth))
 
     (define/public (custom-write port)
       (write `(memory% init: ,init update: ,update) port))
@@ -146,7 +142,7 @@
   (send mem load 9)
   (send mem store 9 0)
   (send mem load 9)
-  (send mem print)
+  (pretty-display `(mem ,mem))
 
   (define mem2 (send mem clone mem))
   (send mem2 load 9)
@@ -156,7 +152,7 @@
   (send mem2 load 9)
   (send mem2 store 9 0)
   (send mem2 load 9)
-  (send mem2 print))
+  (pretty-display `(mem2 ,mem2)))
 
 (define (test2)
   ;; test correctness-cost
