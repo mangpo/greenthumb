@@ -1,7 +1,8 @@
 #lang s-exp rosette
 
-(require "inst.rkt" "machine.rkt" "decomposer.rkt")
+(require "inst.rkt" "machine.rkt" "decomposer.rkt" "validator.rkt")
 (require rosette/solver/kodkod/kodkod)
+(require rosette/solver/smt/z3)
 
 (provide symbolic%)
 
@@ -36,11 +37,6 @@
       (define res (send simulator interpret spec start-state))
       ;;(pretty-display "done interpret spec")
       res
-      )
-    
-    (define (sym-input)
-      (define-symbolic* input number?)
-      input
       )
 
     ;; Superoptimize program

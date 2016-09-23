@@ -10,10 +10,10 @@
     (inherit-field bitwidth random-input-bits config)
     (inherit reset-arg-ranges 
              define-instruction-class finalize-machine-description
-             define-arg-progstate-type define-progstate-type define-arg-type
-             update-progstate-ins)
-    (override get-constructor set-config
-              get-state clone-state
+             define-progstate-type define-arg-type
+             update-progstate-ins kill-outs)
+    (override get-constructor set-config progstate-structure 
+              update-progstate-ins-load
               update-progstate-ins-store)
 
     (define (get-constructor) llvm-machine%)
@@ -26,21 +26,14 @@
     (define (set-config x) 
       (set! config x))
 
-    ;; Generate program state from function init.
-    ;; Our program state is a vector storing values of variables.
-    (define (get-state init [extra #f])
-      (vector
-       (for/vector ([i config]) (init))
-       (new memory-rosette% [get-fresh-val init])))
+    ;;;;;;;;;;;;;;;;;;;;; program state ;;;;;;;;;;;;;;;;;;;;;;;;
 
-    ;; Deep clone program state exept memory object.
-    (define (clone-state state)
-      (vector
-       (vector-copy (vector-ref state 0))
-       (vector-ref state 1)))
+    (define (progstate-structure)
+      (vector (for/vector ([i config]) 'var)
+              (get-memory-type)))
 
-    (define-arg-progstate-type
-      'var (lambda (config) (range config))
+    (define-progstate-type
+      'var 
       #:get (lambda (state arg) (vector-ref (vector-ref state 0) arg))
       #:set (lambda (state arg val) (vector-set! (vector-ref state 0) arg val)))
 
@@ -49,10 +42,11 @@
       #:get (lambda (state) (vector-ref state 1))
       #:set (lambda (state val) (vector-set! state 1 val)))
 
+    ;;;;;;;;;;;;;;;;;;;;; instruction classes ;;;;;;;;;;;;;;;;;;;;;;;;
+    (define-arg-type 'var (lambda (config) (range config)))
     (define-arg-type 'const (lambda (config) '(0 1 -1 -2 -8)))
     (define-arg-type 'bit (lambda (config) '(0 1)))
-
-    ;;;;;;;;;;;;;;;;;;;;; instruction classes ;;;;;;;;;;;;;;;;;;;;;;;;
+    
     (define-instruction-class 'nop '(nop))
 
     (define-instruction-class
@@ -123,6 +117,11 @@
      #:outs (list (get-memory-type)))
 
     (finalize-machine-description)
+
+    ;; Inform about the order of argument for load instruction
+    (define (update-progstate-ins-load my-inst addr state)
+      (define state-base (kill-outs my-inst state))
+      (update-progstate-ins my-inst (list addr) state-base))
 
     ;; Inform about the order of argument for store instruction
     (define (update-progstate-ins-store my-inst addr val state)

@@ -360,12 +360,16 @@
               (if (= x -2)
                   (list -2 -8)
                   (list x))))
-        
-        (cond
-         [(= arg bit) (finalize bit-precise)]
-         [(= arg (sub1 bit)) (finalize (sub1 bit-precise))]
-         [(= arg (/ bit 2)) (finalize (/ bit-precise 2))]
-         [else (finalize arg)]))
+        (define ret
+          (cond
+           [(= arg bit) (finalize bit-precise)]
+           [(= arg (sub1 bit)) (finalize (sub1 bit-precise))]
+           [(= arg (/ bit 2)) (finalize (/ bit-precise 2))]
+           [else (finalize arg)]))
+
+        (if (member arg ret)
+            ret
+            (cons arg ret)))
 
       (define ret (list))
       (define (recurse lst final)
@@ -438,7 +442,6 @@
       (set! start-time (current-seconds))
       (send machine reset-opcode-pool)
       (send machine analyze-opcode prefix spec postfix)
-      (send machine update-classes-pool)
       (define init
         (car (send validator
                    generate-input-states 1 (vector-append prefix spec postfix)
@@ -511,7 +514,7 @@
       (let ([tmp (reduce-precision spec)])
         (set! spec (car tmp))
         (set! abst2precise (cdr tmp)))
-      (when info
+      (when debug
             (pretty-display `(try-cmp ,try-cmp))
             (pretty-display `(abst2precise ,abst2precise)))
       
@@ -543,8 +546,7 @@
       (for ([x prefix])
            (set! live1-list-alt (send machine update-live live1-list-alt x)))
       
-      (send machine analyze-args prefix spec postfix
-            live1-list-alt live2 #:vreg 0)
+      (send machine analyze-args prefix spec postfix live1-list-alt live2)
 
       ;; Convert live2 after analyze-args to filter some live-out regs
       ;; that do not involve in here.
@@ -1010,7 +1012,8 @@
          my-inst
          (when debug
                (send printer print-syntax-inst (send printer decode-inst my-inst))
-               (pretty-display my-liveout))
+               ;;(pretty-display my-liveout)
+               )
 
          (define (recurse x states2-vec level)
            (define ce-out-level (vector-ref ce-out level))
@@ -1034,9 +1037,11 @@
                                                      ce-out-level)))
                                         )
                                        ])
+                                  ;;(pretty-display `(tmp ,(prescreen my-inst state-vec) ,tmp))
                                   (when (list? val) (hash-set! cache state-vec tmp))
                                   tmp))
                             ])
+                      ;;(pretty-display `(level ,level ,(if out "Y" "-")))
                       (when out (recurse val (cons out states2-vec) (add1 level)))))))
          
          (recurse my-hash (list) 0)
@@ -1079,7 +1084,9 @@
                                 [flag (hash-keys (vector-ref my-hash 0))]
                                 [iterator (send enum generate-inst 
                                                 #f live-list #f flag
-                                               #:try-cmp try-cmp)])
+                                                #:try-cmp try-cmp
+                                                #:step-fw (add1 step-fw)
+                                                #:step-bw (sub1 step-bw))])
                            ;; (pretty-display `(live ,live-list 
                            ;;                        ,(hash-count (vector-ref my-hash test))
                            ;;                        ,(hash-count (car (hash-values (vector-ref my-hash test))))))
@@ -1104,7 +1111,7 @@
 	  (when my-inst
                 (when debug
                       (send printer print-syntax-inst (send printer decode-inst my-inst))
-                      (pretty-display `(live ,my-liveout)))
+                      )
                 (define inst-id (inst->id my-inst))
                 ;; (define t-interpret 0)
                 ;; (define t-hash 0)
@@ -1118,8 +1125,8 @@
 			     [in-vec (send inverse interpret-inst my-inst out-vec old-liveout)]
                              ;;[t1 (current-milliseconds)]
                              )
-			;;(pretty-display `(test-live ,test ,old-liveout ,out-vec ,in-vec))
 			(when (and in-vec (not (empty? in-vec)))
+                              ;;(pretty-display `(live-bw ,my-liveout))
 			      (class-insert-bw! current my-liveout test 
 						in-vec (concat-progs inst-id progs)))
                         ;; (let ([t2 (current-milliseconds)])
@@ -1203,7 +1210,9 @@
                          [iterator
                           (send enum generate-inst 
                                 live1 live2 flag1 flag2
-                                #:try-cmp try-cmp)])
+                                #:try-cmp try-cmp
+                                #:step-fw step-fw
+                                #:step-bw step-bw)])
                     (pretty-display `(refine ,order ,live1 ,flag1 ,live2 ,(- (current-seconds) start-time)))
                     ;;(pretty-display `(hash ,(vector-ref my-hash2 0) ,(vector-ref my-hash2 1)))
                     ;; (when (and (equal? live1 '(0 1)) (equal? live2 '()))
@@ -1242,7 +1251,9 @@
                             [my-hash (cdr pair)]
                             [iterator (send enum generate-inst 
                                             live-list #f flag #f
-                                            #:try-cmp try-cmp)])
+                                            #:try-cmp try-cmp
+                                            #:step-fw (sub1 step-fw)
+                                            #:step-bw (add1 step-bw))])
                        (pretty-display `(live ,live-list ,flag ,(- (current-seconds) start-time)))
                        (build-hash my-hash iterator)))
                 (set! prev-classes (copy classes))

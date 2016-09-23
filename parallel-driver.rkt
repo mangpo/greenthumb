@@ -65,11 +65,13 @@
             (format "(file \"~a/~a\")" srcpath (required-module file)))
           (define required-files
             (string-join
-             (map req '(parser machine printer
-                               simulator-racket simulator-rosette
-                               validator
-                               stochastic symbolic forwardbackward
-                               enumerator inverse))))
+             (map req (append '(parser machine printer
+                                       simulator-racket simulator-rosette
+                                       validator)
+                              (match search-type
+                               [`stoch '(stochastic)]
+                               [`solver '(symbolic)]
+                               [`enum '(forwardbackward enumerator inverse)])))))
           (with-output-to-file 
               #:exists 'truncate (format "~a-~a.rkt" path id)
               (thunk
@@ -171,12 +173,12 @@
         (define cores-stoch
           (cond
            [(equal? search-type `stoch) cores]
-           [(equal? search-type `hybrid) (min 3 (floor (* (/ 2 6) cores)))]
+           [(equal? search-type `hybrid) (min 3 (floor (* (/ 2 6) cores)))] ;;(min 3 (floor (* (/ 2 6) cores)))]
            [else 0]))
         (define cores-enum
           (cond
            [(equal? search-type `enum) cores]
-           [(equal? search-type `hybrid) (floor (* (/ 3 6) cores))]
+           [(equal? search-type `hybrid) (floor (* (/ 2 6) cores))] ;;(floor (* (/ 3 6) cores))]
            [else 0]
            ))
         (define cores-solver 
@@ -203,15 +205,18 @@
 
         (define processes-stoch
           (if (equal? search-type `hybrid)
-              ;; (let ([n 3])
-              ;;   (append (for/list ([id n]) 
-              ;;                     (create-and-run id `opt `stoch))
-              ;;           (for/list ([id (- cores-stoch n)]) 
-              ;;                     (create-and-run (+ n id) `syn `stoch))))
-              (begin
-                (when (> cores-stoch 0)
-                      (pretty-display (format "ID ~a-~a: stoch (optimize)" 0 (sub1 cores-stoch))))
-                (for/list ([id cores-stoch]) (create-and-run id `opt `stoch)))
+              (let ([n (min 3 cores-stoch)])
+                (pretty-display (format "ID ~a-~a: stoch (optimize)" 0 (sub1 n)))
+                (when (> cores-stoch n)
+                      (pretty-display (format "ID ~a-~a: stoch (synthesize)" n  (sub1 cores-stoch))))
+                (append (for/list ([id n]) 
+                                  (create-and-run id `opt `stoch))
+                        (for/list ([id (- cores-stoch n)]) 
+                                  (create-and-run (+ n id) `syn `stoch))))
+              ;; (begin
+              ;;   (when (> cores-stoch 0)
+              ;;         (pretty-display (format "ID ~a-~a: stoch (optimize)" 0 (sub1 cores-stoch))))
+              ;;   (for/list ([id cores-stoch]) (create-and-run id `opt `stoch)))
               (for/list ([id cores-stoch]) (create-and-run id mode `stoch))))
 
         (define processes-solver
@@ -246,9 +251,9 @@
           (cond
            [(or (equal? search-type `hybrid)
                 (and (equal? search-type `enum) (equal? mode `partial)))
-            (define n1 1)
+            (define n1 (min 1 cores-enum))
             (define n2 (floor (* (/ 8 16) cores-enum)))
-            (define n3 1)
+            (define n3 (min 1 cores-enum))
             (define n4 (if (< (+ n1 n2 n3) cores-enum) (ceiling (* (/ 2 16) cores-enum)) 0))
             (define n5 (if (< (+ n1 n2 n3 n4) cores-enum) (ceiling (* (/ 1 16) cores-enum)) 0))
             (set! n3 (- cores-enum n1 n2 n4 n5))
@@ -297,7 +302,7 @@
            ([exn:break? (lambda (e) (kill-all) (sleep 5))])
            (update-stats)
            (kill-all)))
-	
+
         ;; STEP 2: wait until timeout or optimal program is found.
         (result)
 

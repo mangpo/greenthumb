@@ -6,10 +6,15 @@
 
 (provide validator% sym-input)
 
-(define (sym-input)
-  (define-symbolic* input number?)
-  input
-  )
+;; min & max are inclusive.
+(define (sym-input #:min [min #f] #:max [max #f] #:const [const #f])
+  (cond
+   [const const]
+   [else
+    (define-symbolic* input number?)
+    (when min (assert (>= input min)))
+    (when max (assert (<= input max)))
+    input]))
 
 (define validator%
   (class object%
@@ -354,6 +359,15 @@
 
     ;; Evaluate symbolic progstate to concrete progstate based on solution 'sol'.
     (define (evaluate-state state sol)
+      (define sol-list (solution->list sol))
+      (define sol-hash (make-hash sol-list))
+      (define sym-vars (get-sym-vars state))
+
+      (for ([var sym-vars])
+           (unless (hash-has-key? sol-hash var)
+                   (set! sol-list (cons (cons var 0) sol-list))))
+      (set! sol (sat (make-immutable-hash sol-list)))
+      
       ;;(pretty-display `(sol ,sol))
       (define-syntax-rule (eval x model)
         (let ([ans (evaluate x model)])

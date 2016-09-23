@@ -73,12 +73,18 @@
     ;; Only enumerate const and not variables, but make sure to assign
     ;; different IDs for the variables.
     (define (generate-inst live-in live-out flag-in flag-out
-                           #:no-args [no-args #f] #:try-cmp [try-cmp #f])
+                           #:no-args [no-args #f] #:try-cmp [try-cmp #f]
+                           #:step-fw [step-fw #f] #:step-bw [step-bw #f])
 
       (define mode (cond [no-args `no-args] [else `basic]))
 
-      (define opcode-pool (get-field opcode-pool machine))
-      ;; (define inst-choice '(add# _lshr ctlz))
+      (define opcode-pool
+        (cond
+         [(and step-fw step-bw)
+          ;;(pretty-display `(gen-pos ,step-fw ,(+ step-fw step-bw 1)))
+          (send machine get-valid-opcode-pool step-fw (+ step-fw step-bw 1) live-in)]
+         [else (get-field opcode-pool machine)]))
+      ;; (define inst-choice '(eta aaim ld dte))
       ;; (define opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
 
       (define iterator
@@ -111,10 +117,10 @@
               (unless 
                (equal? opcode-id (get-field nop-id machine))
                (let* ([arg-ranges 
-                       (vector->list 
-                        (send machine get-arg-ranges opcode-id #f live-in 
-                              #:live-out live-out #:mode mode))])
-                 (enumerate opcode-id arg-ranges)
+                       (send machine get-arg-ranges opcode-id #f live-in 
+                             #:live-out live-out #:mode mode)])
+                 (when arg-ranges
+                       (enumerate opcode-id (vector->list arg-ranges)))
                  )))
          (yield (list #f #f #f))))
       iterator)

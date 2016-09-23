@@ -102,6 +102,7 @@
     
     (define (set-config-string x)
       (cond
+       [(boolean? x) (format "~a" x)]
        [(number? x) (number->string x)]
        [(or (list? x) (vector? x))
         (string-join

@@ -12,7 +12,7 @@
             mutate-opcode mutate-operand mutate-swap
             mutate-operand-specific mutate-other
             random-instruction print-mutation-info
-	    random-args-from-op pop-count32 correctness-cost-base)
+	    random-args-from-op pop-count32 pop-count64 correctness-cost-base correctness-one-many)
     (abstract correctness-cost)
               
 ;;;;;;;;;;;;;;;;;;;;; Parameters ;;;;;;;;;;;;;;;;;;;
@@ -32,8 +32,10 @@
     (define opcodes (get-field opcodes machine))
   
     (define (print-mutation-info)
-      (for ([op opcodes])
-           (pretty-display `(opcode ,op ,(get-mutations op)))))
+      (for ([op opcodes]
+            [id (in-naturals)])
+           (pretty-display `(opcode ,op ,(get-mutations id))))
+      )
   
 ;;;;;;;;;;;;;;;;;;;;; Functions ;;;;;;;;;;;;;;;;;;
     (define (inst-copy-with-op x op) (struct-copy inst x [op op]))
@@ -48,15 +50,17 @@
                            #:start-prog [start #f])
       (send machine reset-opcode-pool)
       (send machine reset-arg-ranges)
+      
       (set! live-in (send machine get-live-list this-live-in))
+      (for ([x prefix])
+           (set! live-in (send machine update-live live-in x)))
+      
       (send machine analyze-args (vector) spec (vector) live-in constraint)
       (send machine analyze-opcode (vector) spec (vector))
-      (send machine update-classes-pool)
       ;; Generate testcases
-      (when debug 
+      (when debug
             (pretty-display ">>> Phase 0: print mutation info")
             (print-mutation-info)
-            ;;(raise "done")
             (pretty-display ">>> Phase 1: generate input states")
             (if input-file
                 (pretty-display ">>> Inputs from file")
@@ -100,7 +104,7 @@
             (pretty-display (format "Create ~a random instructions" n)))
       (define my-live-in live-in)
       (for/vector ([i n]) 
-        (let ([x (random-instruction my-live-in)])
+        (let ([x (random-instruction i n my-live-in)])
           (when debug (pretty-display (format "inst #~a: ~a" i (inst-op x))))
           (set! my-live-in (send machine update-live my-live-in x)) ;; TODO
           x)))
@@ -113,23 +117,45 @@
       (define new-p (vector-copy p))
       (define index2 (random-from-list-ex (range (vector-length p)) index))
       
+
+      (define index-min (min index index2))
+      (define index-max (max index index2))
+      (define n (vector-length p))
+      (define my-live-in live-in)
+      (for ([i index-min])
+           (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
+      (define valid-opcode-pool (send machine get-valid-opcode-pool index-min n my-live-in))
+
       (when debug
             (pretty-display " >> mutate swap")
-            (pretty-display (format " --> swap = ~a" index2)))
-
-      (vector-set! new-p index (vector-ref new-p index2))
-      (vector-set! new-p index2 entry)
-      (send stat inc-propose `swap)
-      new-p)
+            (pretty-display (format " --> swap = ~a" index2))
+            (pretty-display (format " --> valid = ~a in ~a"
+                                    (vector-ref opcodes (inst-op (vector-ref p index-max)))
+                                    (map (lambda (x) (vector-ref opcodes x)) valid-opcode-pool))))
+      (cond
+       [(member (inst-op (vector-ref p index-max)) valid-opcode-pool)
+        (vector-set! new-p index (vector-ref new-p index2))
+        (vector-set! new-p index2 entry)
+        (send stat inc-propose `swap)
+        new-p]
+       [else (mutate p)]))
 
     ;; Mutate opcode.
     ;; index: index to be mutated
     ;; entry: instruction at index in p
     ;; p: entire program
     (define (mutate-opcode index entry p)
+      (define n (vector-length p))
+      (define my-live-in live-in)
+      (for ([i index])
+           (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
+      (define valid-opcode-pool (send machine get-valid-opcode-pool index n my-live-in))
+      
       (define opcode-id (inst-op entry))
       (define opcode-name (vector-ref opcodes opcode-id))
-      (define class (send machine get-class-opcodes opcode-id))
+      (define class (filter
+                     (lambda (x) (member x valid-opcode-pool))
+                     (send machine get-class-opcodes opcode-id)))
       (when debug
             (pretty-display (format " >> mutate opcode"))
             (pretty-display (format " --> org = ~a ~a" opcode-name opcode-id))
@@ -156,7 +182,7 @@
            (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
       (define ranges (send machine get-arg-ranges opcode-id entry my-live-in))
       (cond
-       [(> (vector-length ranges) 0)
+       [(and ranges (> (vector-length ranges) 0))
         (define args (vector-copy (inst-args entry)))
         (define okay-indexes (list))
         (for ([range ranges]
@@ -192,35 +218,47 @@
       (define new-p (vector-copy p))
       (define opcode-id (inst-op entry))
       (define opcode-name (vector-ref opcodes opcode-id))
+      (define n (vector-length p))
+      (define my-live-in live-in)
+      (for ([i index])
+           (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
       (define new-opcode-id
         (if (and (not (equal? opcode-id nop-id)) (< (random) nop-mass))
             (begin (send stat inc-propose `nop) 
                    nop-id)
-            (begin (send stat inc-propose `inst) 
-		   (random-from-list (get-field opcode-pool machine)))))
+            (begin (send stat inc-propose `inst)
+                   (when debug
+                         (pretty-display
+                          (format " --> choices = ~a"
+                                  (map (lambda (x) (vector-ref opcodes x))
+                                       (send machine get-valid-opcode-pool index n my-live-in)))))
+		   (random-from-list (send machine get-valid-opcode-pool
+                                           index n my-live-in
+                                           )))))
       (when debug
             (pretty-display (format " >> mutate instruction ~a" (vector-ref opcodes new-opcode-id))))
-      (define my-live-in live-in)
-      (for ([i index])
-           (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
-      (define new-entry (random-instruction my-live-in new-opcode-id))
+      (define new-entry (random-instruction index n my-live-in new-opcode-id))
       (vector-set! new-p index new-entry)
       new-p)
     
     ;; Create a new instruction with operands that are live (in live-in) and with opcode-id if specified.
     ;; live-in: compact format
-    (define (random-instruction live-in [opcode-id (random-from-list (get-field opcode-pool machine))])
+    (define (random-instruction
+             index n live-in
+             [opcode-id (random-from-list (send machine get-valid-opcode-pool index n live-in))])
+      ;;(pretty-display `(pool ,(map (lambda (x) (vector-ref opcodes x))
+      ;;                             (send machine get-valid-opcode-pool index n live-in))))
       (when debug (pretty-display `(random-instruction ,opcode-id)))
       (define args (random-args-from-op opcode-id live-in))
       (if args
           (inst opcode-id args)
-          (random-instruction live-in)))
+          (random-instruction index n live-in)))
     
     ;; Create random operands from opcode.
     (define (random-args-from-op opcode-id live-in)
       (define ranges (send machine get-arg-ranges opcode-id #f live-in))
       (when debug (pretty-display (format " --> ranges ~a" ranges)))
-      (define pass (for/and ([range ranges]) (> (vector-length range) 0)))
+      (define pass (and ranges (for/and ([range ranges]) (> (vector-length range) 0))))
       (and pass
            (for/vector ([i (vector-length ranges)])
                        (random-from-vec (vector-ref ranges i)))))
@@ -231,16 +269,19 @@
     (define (mutate-other index entry p stat type)
       (raise "mutate-other: unimplemented"))
 
-    (define (get-mutations opcode-name)
+    (define (get-mutations opcode-id)
+      (define arg-types (send machine get-arg-types opcode-id))
       (define mutations '(instruction swap))
-      (unless (equal? opcode-name `nop)
-              (set! mutations (cons `opcode mutations))
-              (set! mutations (cons `operand mutations)))
+      (when (> (vector-length arg-types) 0)
+            (set! mutations (cons 'operand mutations)))
+      (when (> (length (send machine get-class-opcodes opcode-id)) 1)
+            (set! mutations (cons 'opcode mutations)))
+
       mutations)
 
     ;; Get a list of valid mutations given an opcode.
-    (define (get-mutate-type opcode-name)
-      (define mutations (get-mutations opcode-name))
+    (define (get-mutate-type opcode-id)
+      (define mutations (get-mutations opcode-id))
       
       (when debug (pretty-display `(mutations ,mutations)))
       (define sum 0)
@@ -264,7 +305,7 @@
       (define entry (vector-ref p index))
       (define opcode-id (inst-op entry))
       (define opcode-name (vector-ref opcodes opcode-id))
-      (define type (get-mutate-type opcode-name))
+      (define type (get-mutate-type opcode-id))
       (when debug 
             (pretty-display 
              (format " >> mutate = ~a, index = ~a" type index)))
@@ -392,6 +433,10 @@
               (when (< total-cost (get-field best-cost stat))
                     (send stat update-best program total-cost)
                     )
+              ;; (when (= correct 0)
+              ;;       (pretty-display "FOUND! correct-program (may not be better)")
+              ;;       (pretty-display "output:")
+              ;;       (send printer print-syntax (send printer decode program)))
               (when (and (= correct 0) (= total-cost (get-field best-correct-cost stat)))
                     (send stat update-best-correct-program program))
               (when (and (= correct 0) (< total-cost (get-field best-correct-cost stat)))
@@ -443,7 +488,6 @@
                       (send printer encode
                             (send parser ir-from-file 
                                   (format "~a/best.s" (get-field dir stat)))))
-		;; (send machine analyze-args (vector) current (vector) #:only-const #t)
                 (set! current-cost best-cost)
                 ]
               ))
@@ -453,11 +497,11 @@
         (send stat mutate (- t2 t1))
         (when debug
               (pretty-display (format "================ Current (syn=~a) =================" syn-mode))
-              (send printer print-struct current)
+              (send printer print-struct (send printer decode current))
               ;; (define cost (cost-all-inputs current (arithmetic-shift 1 32)))
               ;; (pretty-display (format "actual cost: ~a" cost))
               (pretty-display (format "================ Propose (syn=~a) =================" syn-mode))
-              (send printer print-struct proposal)
+              (send printer print-struct (send printer decode proposal))
               )
         (define n-inputs (length inputs))
         (define okay-cost (accept-cost current-cost))
@@ -525,6 +569,18 @@
       (set! a (+ a (arithmetic-shift a -16)))
       (bitwise-and a #x3f))
 
+    (define (pop-count64 a)
+      (set! a (- a (bitwise-and (arithmetic-shift a -1) #x5555555555555555)))
+      ;;(pretty-display a)
+      (set! a (+ (bitwise-and a #x3333333333333333)
+                 (bitwise-and (arithmetic-shift a -2) #x3333333333333333)))
+      ;;(pretty-display a)
+      (set! a (bitwise-and (+ a (arithmetic-shift a -4)) #x0f0f0f0f0f0f0f0f))
+      (set! a (+ a (arithmetic-shift a -8)))
+      (set! a (+ a (arithmetic-shift a -16)))
+      (set! a (+ a (arithmetic-shift a -32)))
+      (bitwise-and a #x7f))
+
     ;; Helper function to calculate correctness cost.
     ;; state1, state2, constraint are vectors of the same length,
     ;; delta is a function that calculate the cost between two numbers.
@@ -546,8 +602,27 @@
                            (set! best-cost this-cost)
                            (set! best-j j))))
               (set! correctness (+ correctness best-cost))
+              ;; mis-aligned penalty = 1
               (unless (= best-j i) (set! correctness (add1 correctness))))))
       correctness)
-      
+
+    ;; Helper function for computing correctness cost of a specific entry.
+    ;; live: Is this entry live? #t = live
+    ;; expect: expected value of the entry
+    ;; this-val: actual value of the entry
+    ;; other-vals: actual values of other entries nearby
+    ;;             (using one move instruction to get to the entry of interest)
+    ;; delta: lambda function computing correctness cost of given two values.
+    (define (correctness-one-many live expect this-val other-vals delta)
+      (cond
+       [live
+        (define best-cost (delta expect this-val))
+        (define penalty 1)
+        (for ([v other-vals])
+             (let ([cost (+ (delta expect v) penalty)])
+               (when (< cost best-cost)
+                     (set! best-cost cost))))
+        best-cost]
+       [else 0]))
 
     ))

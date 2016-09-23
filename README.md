@@ -1,7 +1,7 @@
 # Greenthumb: Superoptimizer Construction Framework
 
 GreenThumb is an extensible framework for constructing superoptimizers. It is designed to be easily extended to a new target ISA using inheritance. GreenThumb is implemented in Racket.
-The top level directory contains ISA-independent files, which implement the superclasses to be extended. We have built superoptimizers for ARM, GreenArrays GA144 (GA), and a small subset of LLVM IR. Directories `arm`, `GA`, and `llvm-demo` contain ISA-sepcific files for ARM, GA, and LLVM IR respectively.
+The top level directory contains ISA-independent files, which implement the superclasses to be extended. We have built superoptimizers for ARM, GreenArrays GA144 (GA), and a small subset of LLVM IR. Directories `arm`, `GA`, and `llvm-demo` contain ISA-specific files for ARM, GA, and LLVM IR respectively.
 
 ## References
 
@@ -35,7 +35,7 @@ For example, we will walk through how one can run the ARM supertoptimizer.
 0
 0,1
 ```
-The first line indicates live-out registers, and the second line indicates live-in regsiters. In this example, a live-out register is R0, and live-in registers are R0 and R1. Note that currently the tool only supports R registers.
+The first line indicates live-out registers, and the second line indicates live-in registers. In this example, a live-out register is R0, and live-in registers are R0 and R1. Note that currently the tool only supports R registers.
 
 ### Run
 
@@ -46,9 +46,9 @@ racket optimize.rkt <search-type> <search-mode> -c <number-of-search-instances> 
   -t <time-limit-in-sec> <file_to_optimize>
 ```
 
-- `<search-type>` can be `--stoch` (stochastic search), `--solver` (symbolic search), `--enum` (enumerative search) or `--hybrid` (cooperative search).
-- When using `--solver` or `--enum`, `<search-mode>` is either 
-  - `-l` or `--linear`: optimizing by reducting cost decementally,
+- `<search-type>` can be `--stoch` (stochastic search), `--sym` (symbolic search), `--enum` (enumerative search) or `--hybrid` (cooperative search).
+- When using `--sym` or `--enum`, `<search-mode>` is either 
+  - `-l` or `--linear`: optimizing by reducing cost incrementally,
   - `-b` or `--binary`: optimizing by binary searching on the cost, or
   - `-p` or `--partial`: optimizing by synthesizing small parts of the given code using context-aware window decomposition. Option `--partial` is recommended.
 - When using `--stoch`, `<search-mode>` is either 
@@ -117,6 +117,7 @@ accept-count:        0.047734  << rate of accepting mutated programs
 accept-higher-count: 0.000457  << rate of accepting mutated programs with higher cost
 
 // This second part summarizes the charateristics of the best program found so far.
+// This section only appears if the superoptimizer found better program(s).
 =============== SUMMARY ===============
 cost:	3            << cost of the best program found so far
 len:	3            << length of the best program found so far

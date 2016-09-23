@@ -1,3 +1,7 @@
+- state type
+- get-valid-opcode-pool
+- update ins load
+
 Test on:
 - llvm
 - preston
@@ -5,21 +9,34 @@ Test on:
 - ARM
   = (get-arg-type) & (get-arg-ranges) take opcode-id not opcode-name
 
-3. Revisit
-   - (get-mutation) in stochastic
+1. Revisit
+   - template/test-simulator.rkt include validator.rkt for sym-input
    - (reduce-precesion) in forwardbackward
    - (get-flag) in enumerator
+   - get rid of "extra" in get-state, proper-machine-config
+   - change "public" to "protected"
+   - (get-state [extra #f])
+   - progstate->vector
+   - do we need to extend enumerator, inverse, etc. at all?
 
-
-3. May need to override these functions
+2. May need to override these functions
    - (reduce-precesion) in forwardbackward
-   - (get-val-range) in -inverse
-3. Documentation for efficient memory access.
-   - memory access operates in a granularity of # of bits defined
-4. Option to run hybrid without enumerative search.
-
+   - (get-val-range) in inverse
+3. Documentation 
+   - efficient memory access. memory access operates in a granularity of # of bits defined
+   - bit, const => reduce bitwidth
+   - update-progstate-ins-load -store
+4. Increase precision in enum
+   - synthesize constrants
+   - in reduced-bitwidth domain: try all 4-bit constants
+   - e.g. Preston load1
 
 
 - No longer need validator:proper-machine-config if we use the new memory access support.
   => Will memory object slowdown the interpreter?
   => keep ARM & GA as is.
+
+Profile:
+preston/program/ex1 on kaopad
+stoch -s: 6, 20, 2, 4*, 1
+

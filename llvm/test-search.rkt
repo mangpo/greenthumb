@@ -45,7 +45,7 @@ store i32 %in, i32* %1
 %out = add i32 %in, %out
 "))
 
-#;(define code
+(define code
 (send parser ir-from-string "
 %1 = load i32, i32* %2
 %1 = add i32 %1, 0
@@ -53,7 +53,7 @@ store i32 %in, i32* %1
 store i32 %1, i32* %2
 "))
 
-(define code
+#;(define code
 (send parser ir-from-string "
   %1 = add nsw i32 %in, -1
   %2 = ashr i32 %1, 1
@@ -87,7 +87,7 @@ store i32 %1, i32* %2
 (send machine analyze-args encoded-prefix encoded-code encoded-postfix #f #f)
 
 ;; Step 1: use printer to convert liveout into progstate format
-(define constraint (send printer encode-live (vector '(%out) #t)))
+(define constraint (send printer encode-live (vector '() #t)))
 
 ;; Step 2: create symbolic search
 (define symbolic (new llvm-symbolic% [machine machine] [printer printer]

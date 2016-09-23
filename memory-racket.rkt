@@ -72,6 +72,7 @@
       (map car (filter (lambda (x) (= (cdr x) val)) (hash->list update))))
 
     (define (get-addr-with-val val)
+      (pretty-display `(val ,val))
       (append
        (map car (filter (lambda (x) (= (cdr x) val)) (hash->list update)))
        (map car (filter (lambda (x)
