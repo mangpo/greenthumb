@@ -27,10 +27,10 @@
 		(assert (and (<= item (cdr assumption)) (>= item 0)))])
 	      ))
 
-      (define (check-reg progstate-x)
+      (define-syntax-rule (check-reg progstate-x)
 	(check (progstate-x state) (progstate-x constraint)))
       
-      (define (check-stack progstate-x)
+      (define-syntax-rule (check-stack progstate-x)
 	(when (progstate-x constraint)
 	      (for ([i (in-range 8)])
 		   (check (get-stack (progstate-x state) i)
@@ -61,7 +61,7 @@
     	(when (term? x)
     	      (set! lst (cons x lst))))
 
-      (define (add-var progstate-x)
+      (define-syntax-rule (add-var progstate-x)
     	(add (progstate-x state)))
 
       (define (add-vector body)
@@ -105,7 +105,7 @@
 
     
     (define (assert-state-eq state1 state2 constraint)
-      (define (check-reg progstate-x)
+      (define-syntax-rule (check-reg progstate-x)
 	(when (progstate-x constraint)
 	      ;;(pretty-display `(check-reg ,(equal? (progstate-x state1) (progstate-x state2))))
 	      (assert (equal? (progstate-x state1) (progstate-x state2)) `progstate-x)))

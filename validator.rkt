@@ -1,6 +1,6 @@
 #lang s-exp rosette
 
-(require  "inst.rkt" "machine.rkt" "memory-rosette.rkt")
+(require  "inst.rkt" "machine.rkt" "memory-rosette.rkt" "queue-rosette.rkt")
 
 (require rosette/solver/smt/z3)
 
@@ -276,6 +276,9 @@
           (define update (filter pair? (vector->list (get-field update x))))
           (set! live-list (append (map car init) (map cdr init) live-list))
           (set! live-list (append (map car update) (map cdr update) live-list))]
+         [(is-a? x queue-rosette%)
+          (define queue (vector->list (get-field queue x)))
+          (set! live-list (append queue live-list))]
          [(boolean? pred)
           ;; (pretty-display `(collect-sym ,pred ,x))
           (when pred (set! live-list (cons x live-list))

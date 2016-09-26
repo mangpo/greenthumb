@@ -11,7 +11,7 @@
                 ;; If this memory object is for interpreting specification program,
                 ;; don't initialize ref.
                 ;; Otherwise, initailize ref with memory object output from specification program.
-                [ref #f])
+                [ref #f]) ;; TODO: do we ever use ref?
     (public load store clone update-equal? correctness-cost
             ;; for backward interpret
             clone-all del lookup-update

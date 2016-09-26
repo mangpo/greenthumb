@@ -24,6 +24,7 @@
     (define RIGHT (get-field RIGHT machine))
     (define IO (get-field IO machine))
 
+    #|
     ;; Creates a policy that determines what kind of communication is allowed 
     ;; during interpretation.  The policy is a procedure that takes as input a 
     ;; comm pair and the current comm list.  If the policy allows 
@@ -45,16 +46,16 @@
 			 (assert (equal? (third p) (third limit-p)) `comm-read-write)
 			 (cons limit-p c)))))])) ; can return (cons p c) here, but this is more efficient. 
 					; it is correct because we assert that p == limit-p.
-
+|#
 
     ;; Interpret a given program from a given state.
     ;; code
     ;; state: initial progstate
     ;; policy: a procedure that enforces a communication policy (see the definition of comm-policy above)
-    (define (interpret code state [policy #f])
-      (set! policy (if policy
-		       (comm-policy at-most policy)
-		       (comm-policy all)))
+    (define (interpret code state [ref #f])
+      ;; (set! policy (if policy
+      ;;   	       (comm-policy at-most policy)
+      ;;   	       (comm-policy all)))
       
       (define a (progstate-a state))
       (define b (progstate-b state))
@@ -65,10 +66,13 @@
       (define data-body (vector-copy (stack-body (progstate-data state))))
       (define return-sp (stack-sp (progstate-return state)))
       (define return-body (vector-copy (stack-body (progstate-return state))))
-      (define memory (vector-copy (progstate-memory state)))
+      (define memory (send (progstate-memory state)
+                           clone (and ref (progstate-memory ref))))
       
-      (define recv (progstate-recv state))
-      (define comm (progstate-comm state))
+      (define recv (send (progstate-recv state)
+                         clone (and ref (progstate-recv ref))))
+      (define comm (send (progstate-comm state)
+                         clone (and ref (progstate-comm ref))))
 
       ;; Pushes a value to the given stack's body.
       (define-syntax-rule (push-stack! x-sp x-body value)
@@ -113,10 +117,9 @@
       (define (read-memory addr)
         (define ret #f)
 	(define (read port)
-	  (let ([val (car recv)])
-	    (set! comm (policy (list val port 0) comm))
-	    (set! recv (cdr recv))
-	    val))
+          (let ([val (send recv pop)])
+            (send comm push (list val port 0))
+            val))
 	(cond
 	 [(equal? addr UP)    (set! ret (read UP))]
 	 [(equal? addr DOWN)  (set! ret (read DOWN))]
@@ -124,7 +127,7 @@
 	 [(equal? addr RIGHT) (set! ret (read RIGHT))]
 	 [(equal? addr IO)    (set! ret (read IO))]
 	 [else 
-          (set! ret (vector-ref memory addr))])
+          (send memory load addr)])
         ret)
       
       ;; Write to the given memeory address or communication
@@ -133,15 +136,15 @@
       (define (set-memory! addr val)
 	(when debug (pretty-display `(set-memory! ,addr ,val)))
 	(define (write port)
-          (set! comm (policy (list val port 1) comm)))
+          (send comm push (list val port 1)))
 	(cond
 	 [(equal? addr UP)    (write UP)]
 	 [(equal? addr DOWN)  (write DOWN)]
 	 [(equal? addr LEFT)  (write LEFT)]
 	 [(equal? addr RIGHT) (write RIGHT)]
 	 [(equal? addr IO)    (write IO)]
-	 [else 
-	  (vector-set! memory addr val)]))
+	 [else
+          (send memory store addr val)]))
 
       (define (clip x) (finitize x bit))
 

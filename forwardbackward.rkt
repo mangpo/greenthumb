@@ -109,6 +109,7 @@
                     (mask-in s l))]
        [(pair? state)
         (cons (mask-in (car state) (car live)) (mask-in (cdr state) (cdr live)))]
+       [(or (is-a? state memory-racket%) (is-a? state queue-racket%)) state]
        [else (and live state)]))
 
     (define (get-live-mask state)
@@ -1103,7 +1104,7 @@
 	  (define my-liveout (third inst-liveout-vreg))
 
 	  ;; (define my-inst 
-	  ;;   (vector-ref (send printer encode 
+	  ;;   (vector-ef (send printer encode 
 	  ;; 		    (send parser ir-from-string "add r1, r0, r2"))
 	  ;; 	      0))
 	  ;; (define my-liveout (cons (list 0 2) (list)))

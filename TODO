@@ -1,21 +1,64 @@
-- state type
-- get-valid-opcode-pool
-- update ins load
+OPTION 1:
+- circular stack
+- use progstate
+- override hash, don't use progstate<->vector
+- don't use (progstate-structure)
+- implement (get-state) & (clone-state), state-eq?, get-live-in, etc.
+
+OPTION 2:
+- circular stack
+- use progstate
+- use progstate<->vector
+- don't use (progstate-structure)
+- implement get-state, clone-state, evaluate-state
+
+OPTION 3: ***
+- circular stack
+- use (progstate-structure)
+- use progstate->vector
+
+OPTION 4:
+- normal stack
+
+----------------------
+Action
+1. check super class methods for memory/queue
+
+Questions
+- get rid of "extra" in get-state, proper-machine-config => using queue for recv
+- get rid of get-live-list
+- when not constrain mem, but do use mem
+- GA: (progstate-structure) using vector
+  = get-state, clone-state, evaluate-state**
+- GA: (get) & (set)
+  = update-live, update-live-backward [only works of progstate matches vector at those fields] (partially)
+  = inverse [override]
+  = (get-arg-ranges)** uses arg & (get-valid-opcode)** users ins
+
+  = (get-live-in)
+  = (mask-in state-vec) may work
+- get rid of prescreen in forwardbackward (use get-valid-opcode-pool instead).
+- progstate-vector conversion OR no conversion
+- get rid of flag? ARM uses flag to prune search space in enumerator
+  = user should be able to filter valid opcodes using flag-in/flag-out, but not by implementing (generate-inst)*
+  = make connection between (get-flag) and this new prunnign function
+
+- (get-arg-type) & (get-arg-ranges) take opcode-id not opcode-name
+- ref in memory-racket
 
 Test on:
 - llvm
 - preston
 - GA
 - ARM
-  = (get-arg-type) & (get-arg-ranges) take opcode-id not opcode-name
 
 1. Revisit
+   - get rid of "extra" in get-state, proper-machine-config
+   - do we need (combine-live)  in forwardbackward?
    - template/test-simulator.rkt include validator.rkt for sym-input
    - (reduce-precesion) in forwardbackward
    - (get-flag) in enumerator
-   - get rid of "extra" in get-state, proper-machine-config
    - change "public" to "protected"
-   - (get-state [extra #f])
    - progstate->vector
    - do we need to extend enumerator, inverse, etc. at all?
 
@@ -26,6 +69,10 @@ Test on:
    - efficient memory access. memory access operates in a granularity of # of bits defined
    - bit, const => reduce bitwidth
    - update-progstate-ins-load -store
+   - want stact, contact me
+   - say that (get) & (set) is used for update-live, update-live-backward, and inverse
+     (get-arg-ranges) & (get-valid-opcode)
+   - #:try-cmp? in enumerator, (try-cmp?) in forwardbackward
 4. Increase precision in enum
    - synthesize constrants
    - in reduced-bitwidth domain: try all 4-bit constants

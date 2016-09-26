@@ -6,13 +6,14 @@
 (define memory-rosette%
   (class* object% (printable<%>)
     (super-new)
-    (init-field [size 20]
+    (init-field get-fresh-val
+                [size 20]
                 [init (make-vector size)]
                 [update (make-vector size)]
-                [get-fresh-val
-                 (lambda ()
-                   (define-symbolic* val number?)
-                   val)]
+                ;; [get-fresh-val
+                ;;  (lambda ()
+                ;;    (define-symbolic* val number?)
+                ;;    val)]
                 ;; If this memory object is for interpreting specification program,
                 ;; don't initialize ref.
                 ;; Otherwise, initailize ref with memory object output from specification program.
@@ -38,7 +39,7 @@
     ;; Clone a new symbolic memory object with the same init.
     ;; Use this method to clone new memory for every program interpretation.
     (define (clone [ref #f])
-      (new memory-rosette% [ref ref] [init init]))
+      (new memory-rosette% [ref ref] [init init] [get-fresh-val get-fresh-val]))
 
     (define (update-equal? other)
       (for/and ([pair update] #:break (not (pair? pair)))
@@ -92,7 +93,7 @@
     ;;;;;;;;;;;;;;;;;;;; load ;;;;;;;;;;;;;;;;;;;;
     
     (define (load-spec addr)
-      ;;(pretty-display `(load-spec ,init ,(lookup init addr)))
+      ;;(pretty-display `(load-spec ,addr ,init ,update))
       (or (lookup update addr)
           (lookup init addr)
           (init-new-val addr)))

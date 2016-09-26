@@ -4,12 +4,12 @@
          "GA-simulator-racket.rkt")
 
 (define parser (new GA-parser%))
-(define machine (new GA-machine% [config 4]))
+(define machine (new GA-machine% [config #f]))
 (define printer (new GA-printer% [machine machine]))
 (define simulator-racket (new GA-simulator-racket% [machine machine]))
 
 (define code (send parser ir-from-string 
-                   "dup push or and pop or"))
+                   "up b! !b up b! @b"))
 (define encoded-code (send printer encode code))
 (send printer print-struct encoded-code)
 
@@ -20,7 +20,10 @@
 ;  (send simulator-racket interpret encoded-code input))
 ;(send machine display-state output)
 
-(define input (default-state machine 0 (thunk 0) [s 0] [t 0]))
+(define input (send machine get-state
+                    (lambda (#:min [min #f] #:max [max #f] #:const [const #f])
+                      (if const const (random 10)))))
+(send machine display-state input)
 (send machine display-state 
       (send simulator-racket interpret encoded-code input))
 

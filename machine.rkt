@@ -1,11 +1,12 @@
 #lang racket
 
-(require "inst.rkt" "memory-racket.rkt" "memory-rosette.rkt")
+(require "inst.rkt" "memory-rosette.rkt" "queue-rosette.rkt")
 (provide (all-defined-out))
 
 (define debug #f)
 
 (define (get-memory-type) 'mem%)
+(define (get-queue-type) 'queue%)
 (struct instclass (opcodes pool args ins outs commute) #:mutable)
 (struct argtype (validfunc valid) #:mutable)
 (struct statetype (get set min max const))
@@ -158,6 +159,7 @@
       (define (inner x)
         (cond
          [(equal? x (get-memory-type)) (new memory-rosette% [get-fresh-val init])]
+         [(equal? x (get-queue-type)) (new queue-rosette% [get-fresh-val init])]
          [(symbol? x)
           (define info (hash-ref statetypes-info x))
           (init #:min (statetype-min info) #:max (statetype-max info) #:const (statetype-const info))]

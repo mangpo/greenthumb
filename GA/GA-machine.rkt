@@ -4,15 +4,53 @@
 
 (provide GA-machine% (all-defined-out))
 
-(struct syninfo   (memsize recv indexmap))
-(struct blockinfo (cnstr recv))
-(struct labelinfo (data return simple))
+;; (struct syninfo   (memsize recv indexmap))
+;; (struct blockinfo (cnstr recv))
+;; (struct labelinfo (data return simple))
 
-(struct progstate (a b r s t data return memory recv comm) 
-        #:mutable #:transparent)
+;;;;;;;;;;;;;; PROGSTATE ;;;;;;;;;;;;;;;;;;
+;; (struct progstate (a b r s t data return memory recv comm) 
+;;         #:mutable #:transparent)
+
+(define-syntax-rule
+  (progstate a b r s t data return memory recv comm)
+  (vector a b r s t data return memory recv comm))
+
+(define-syntax-rule (progstate-a x) (vector-ref x 0))
+(define-syntax-rule (progstate-b x) (vector-ref x 1))
+(define-syntax-rule (progstate-r x) (vector-ref x 2))
+(define-syntax-rule (progstate-s x) (vector-ref x 3))
+(define-syntax-rule (progstate-t x) (vector-ref x 4))
+(define-syntax-rule (progstate-data x)   (vector-ref x 5))
+(define-syntax-rule (progstate-return x) (vector-ref x 6))
+(define-syntax-rule (progstate-memory x) (vector-ref x 7))
+(define-syntax-rule (progstate-recv x)   (vector-ref x 8))
+(define-syntax-rule (progstate-comm x)   (vector-ref x 9))
+
+(define-syntax-rule (set-progstate-a! x v) (vector-set! x 0 v))
+(define-syntax-rule (set-progstate-b! x v) (vector-set! x 1 v))
+(define-syntax-rule (set-progstate-r! x v) (vector-set! x 2 v))
+(define-syntax-rule (set-progstate-s! x v) (vector-set! x 3 v))
+(define-syntax-rule (set-progstate-t! x v) (vector-set! x 4 v))
+(define-syntax-rule (set-progstate-data! x v)   (vector-set! x 5 v))
+(define-syntax-rule (set-progstate-return! x v) (vector-set! x 6 v))
+(define-syntax-rule (set-progstate-memory! x v) (vector-set! x 7 v))
+(define-syntax-rule (set-progstate-recv! x v)   (vector-set! x 8 v))
+(define-syntax-rule (set-progstate-comm! x v)   (vector-set! x 9 v))
 
 ;;;;;;;;;;;;;; STACK ;;;;;;;;;;;;;;;;;;
-(struct stack (sp body))
+;; (struct stack (sp body))
+
+(define-syntax-rule (stack sp body) (vector sp body))
+(define-syntax-rule (stack? x)
+  (and (pair? x)
+       (or (number? (car x)) (boolean? x))
+       (vector? (cdr x))))
+
+(define-syntax-rule (stack-sp x) (vector-ref x 0))
+(define-syntax-rule (stack-body x) (vector-ref x 1))
+(define-syntax-rule (set-stack-sp! x v) (vector-set! x 0 v))
+(define-syntax-rule (set-stack-body! x v) (vector-set! x 1 v))
 
 ;;; Print a circular stack:
 (define (display-stack x)
@@ -24,15 +62,13 @@
                                               (modulo- (- (stack-sp x) i) 8)))))
       (display (format " ~a" x))))
 
-;;;;;;;;;;;;;; END STACK ;;;;;;;;;;;;;;;;
-
 (define-syntax-rule (build-vector n init)
   (let ([vec (make-vector n)])
     (for ([i (in-range n)])
 	 (vector-set! vec i (init)))
     vec))
 
-(define-syntax default-state
+#;(define-syntax default-state
   (syntax-rules ()
     ((default-state machine recv-n init)
      (progstate (init) (init) (init) (init) (init)
@@ -68,7 +104,7 @@
 ;;; #f #f #f #f #f #f #t #f #f #f)'. If you want to constrain
 ;;; everything *except* the given fields, start with the except
 ;;; keyword: `(constrain except t)' constrains everything but t. 
-(define-syntax constraint
+#;(define-syntax constraint
   (syntax-rules (except data return none)
 
     ((constraint (return val1) (data val2) var ...)  
@@ -94,7 +130,7 @@
     ((constraint var ...)        (struct-copy progstate constraint-none [var #t] ...))
     ))
 
-(define (constrain-stack machine precond [state (default-state machine)])
+#;(define (constrain-stack machine precond [state (default-state machine)])
   (when (list? precond)
     (for ([assume precond]
           [i (reverse (range (length precond)))])
@@ -113,20 +149,21 @@
 (define GA-machine%
   (class machine%
     (super-new)
-    (inherit-field bitwidth random-input-bits config opcodes nop-id classes)
-    (override set-config adjust-config finalize-config get-memory-size
-              get-state display-state 
-	      no-assumption
+    (inherit-field bitwidth random-input-bits config opcodes)
+    (override set-config 
+              display-state 
               parse-state-text
               progstate->vector vector->progstate
-	      analyze-args reset-arg-ranges
-              get-constructor)
+              get-constructor progstate-structure)
     (init-field [const-range #f]
                 [UP #x145] ;325
                 [DOWN #x115] ;277
                 [LEFT #x175] ;373
                 [RIGHT #x1d5] ;469
                 [IO #x15d])
+    (inherit define-instruction-class
+             define-progstate-type define-arg-type
+             finalize-machine-description)
 
     (public stack->vector)
 
@@ -137,18 +174,6 @@
 	    (if (= bitwidth 18)
 		(set! random-input-bits 16)
 		(set! random-input-bits (sub1 bitwidth))))
-    (set! opcodes '#(nop @p @+ @b @ !+ !b ! +* 2* 
-			 2/ - + and or drop dup pop over a 
-			 push b! a!))
-    (set! nop-id 0)
-
-    ;; Instruction classes
-    (set! classes 
-          (vector '(@+ @b @) 
-		  '(!+ !b !)
-		  '(+* 2* 2/ -)
-		  '(+ and or drop push b! a!) 
-		  '(dup pop over a)))
 
     (when (= bitwidth 4)
           (set! UP -3)
@@ -156,51 +181,37 @@
           (set! LEFT -5)
           (set! RIGHT -6)
           (set! IO -7))
-
-    (define nmems (if config config 1))
-    (reset-arg-ranges)
     
-    (define/public (get-nmems) nmems)
+    (when config (set-config config))
+    (define (set-config config-init) (set! config config-init))
 
-    (define (set-config info)
-      (set! nmems info) (set! config info) (reset-arg-ranges))
-    (define (adjust-config info) (* 2 info))
-    (define (finalize-config info) (add1 info))
-    (define (get-memory-size info) info)
 
     (define/public (output-constraint lst [extra-data 0] [extra-return 0])
       (define a #f) 
       (define b #f) 
-      (define memory (make-vector nmems #f))
+      (define memory #f)
       (define data extra-data)
       (define return extra-return)
       (for ([i lst])
 	   (cond
 	    [(equal? i 'a)      (set! a #t)]
 	    [(equal? i 'b)      (set! b #t)]
-	    [(equal? i 'memory) (set! memory (make-vector nmems #t))]
+	    [(equal? i 'memory) (set! memory #t)]
 	    [(and (pair? i) (equal? (car i) 'data))   (set! data (+ data (cdr i)))]
 	    [(and (pair? i) (equal? (car i) 'return)) (set! return (+ return (cdr i)))]
 	    [else (raise (format "create-constraint: unimplemented for ~a" i))]))
-      (struct-copy progstate constraint-none [a a] [b b] [memory memory]
-		   [t (>= data 1)] [s (>= data 2)]
-                   [data (if (> (- data 2) 0) (- data 2) 0)]
-		   [r (>= return 1)]
-                   [return (if (> (- return 1) 0) (- return 1) 0)]))
+      (progstate a b (>= return 1) (>= data 2) (>= data 1)
+                 (if (> (- data 2) 0) (- data 2) 0)
+                 (if (> (- return 1) 0) (- return 1) 0)
+                 memory #t #t))
 
-    (define (constraint-all)
-      (progstate #t #t #t #t #t 8 8 (make-vector nmems #t) #f #t))
-
-    (define (get-state init recv-n) ;; TODO: track all get-state
-      (default-state this recv-n init))
-      
     (define (display-state state)
       (pretty-display (format "a:~a b:~a"
 			      (progstate-a state) (progstate-b state)))
       (display-data state)
       (display-return state)
-      (display-memory state)
-      (display-comm state)
+      (pretty-display (progstate-memory state))
+      (pretty-display (progstate-comm state))
       (newline)
       )
 
@@ -215,22 +226,6 @@
       (display (format "|r> ~a" (progstate-r state)))
       (display-stack (progstate-return state))
       (newline))
-
-    ;; Print the memory:
-    (define (display-memory state)
-      (define memory (progstate-memory state))
-      (display "mem: ")
-      (when memory
-            (for ([i (in-range 0 (vector-length memory))])
-                 (display (format "~a " (vector-ref memory i)))))
-      (newline))
-
-    ;; Print comm info.
-    (define (display-comm state)
-      (display "recv: ")
-      (pretty-display (progstate-recv state))
-      (display "comm: ")
-      (pretty-display (progstate-comm state)))
     
     (define (get-stack stack i)
       (define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
@@ -284,44 +279,6 @@
                       (vector-ref x 8)
                       (vector-ref x 9))))
 
-    ;; (define (display-state-text pair)
-    ;;   (display (format "~a," (car pair)))
-    ;;   (define state (cdr pair))
-    ;;   (define a (progstate-a state))
-    ;;   (define b (progstate-b state))
-    ;;   (define r (progstate-r state))
-    ;;   (define s (progstate-s state))
-    ;;   (define t (progstate-t state))
-    ;;   (define data (progstate-data state))
-    ;;   (define return (progstate-return state))
-    ;;   (define memory (progstate-memory state))
-    ;;   (define recv (progstate-recv state))
-    ;;   (define comm (progstate-comm state))
-
-    ;;   (display (format "~a,~a,~a,~a,~a," a b r s t))
-    ;;   ;; data
-    ;;   (display (format "~a;" (stack-sp data)))
-    ;;   (display (string-join (map number->string (vector->list (stack-body data)))))
-    ;;   (display ",")
-    ;;   ;; return
-    ;;   (display (format "~a;" (stack-sp return)))
-    ;;   (display (string-join (map number->string (vector->list (stack-body return)))))
-    ;;   (display ",")
-    ;;   ;; memory
-    ;;   (display "")
-    ;;   (display (string-join (map number->string (vector->list memory))))
-    ;;   (display ",")
-    ;;   ;; recv
-    ;;   (display (string-join (map number->string recv)))
-    ;;   (display ",")
-    ;;   ;; comm
-    ;;   (display (string-join 
-    ;;             (map (lambda (x) 
-    ;;                    (format "~a ~a ~a" (first x) (second x) (third x)))
-    ;;                  comm)
-    ;;             ";"))
-    ;;   (pretty-display ","))
-
     (define (parse-state-text str)
       (define tokens (list->vector (string-split str ",")))
       (define-syntax-rule (to-number index) (string->number (vector-ref tokens index)))
@@ -344,22 +301,103 @@
       (define comm (map (lambda (x) (map string->number (string-split x))) raw-comm))
       (cons (equal? (vector-ref tokens 0) "#t")
             (progstate a b r s t data return memory recv comm)))
-
-    (define (no-assumption)
-      (default-state this))
     
-    (define (analyze-args prefix code postfix live1 live2 #:vreg [vreg 0])
-      (define constants (list))
-      (for ([x (vector-append prefix code postfix)])
-           (when (equal? (vector-ref opcodes (inst-op x)) `@p)
-                 (set! constants (cons (inst-args x) constants))))
-      (set! const-range
-            (list->vector
-             (set->list (set-union (list->set (vector->list const-range)) 
-                                   (list->set constants)))))
-      (pretty-display `(const-range ,const-range)))
+    ;;;;;;;;;;;;;;;;;;;;; program state ;;;;;;;;;;;;;;;;;;;;;;;;
 
-    (define (reset-arg-ranges) (set! const-range (vector 0 1)))
+    (define-syntax define-progstate-type-one
+      (syntax-rules (min max const)
+        ((define-progstate-type-one name get set!)
+         (define-progstate-type name
+           #:get (lambda (state) (get state))
+           #:set (lambda (state val) (set! state val))))
+        
+        ((define-progstate-type-one name get set! [min min-v] [max max-v])
+         (define-progstate-type name
+           #:get (lambda (state) (get state))
+           #:set (lambda (state val) (set! state val))
+           #:min min-v #:max max-v))
+        
+        ((define-progstate-type-one name get set! [const const-v])
+         (define-progstate-type name
+           #:get (lambda (state) (get state))
+           #:set (lambda (state val) (set! state val))
+           #:const const-v))))
+
+    (define (progstate-structure)
+      (progstate 'a 'b 'r 's 't
+                 (stack 'p-data   (for/vector ([i 8]) 'data))
+                 (stack 'p-return (for/vector ([i 8]) 'return))
+                 (get-memory-type)
+                 (get-queue-type)
+                 (get-queue-type))) ;; TODO: queue type in 2 entries
+    
+    (define-progstate-type-one 'a progstate-a set-progstate-a!)
+    (define-progstate-type-one 'b progstate-b set-progstate-b!)
+    (define-progstate-type-one 'r progstate-r set-progstate-r!)
+    (define-progstate-type-one 's progstate-s set-progstate-s!)
+    (define-progstate-type-one 't progstate-t set-progstate-t!)
+    (define-progstate-type-one (get-memory-type) progstate-memory set-progstate-memory!)
+
+    (define-progstate-type 'p-data
+      #:get (lambda (state) (stack-sp (progstate-data state)))
+      #:set (lambda (state val) (set-stack-sp! (progstate-data state) val))
+      #:const 7)
+    (define-progstate-type 'data
+      #:get (lambda (state arg) (get-stack (progstate-data state)) arg)
+      #:set (lambda (state arg val) (raise "Not implemented")))
+
+    (define-progstate-type 'p-return
+      #:get (lambda (state) (stack-sp (progstate-return state)))
+      #:set (lambda (state val) (set-stack-sp! (progstate-return state) val))
+      #:const 7)
+    (define-progstate-type 'return
+      #:get (lambda (state arg) (get-stack (progstate-return state)) arg)
+      #:set (lambda (state arg val) (raise "Not implemented")))
+      
+    ;;;;;;;;;;;;;;;;;;;;; instruction classes ;;;;;;;;;;;;;;;;;;;;;;;;
+    
+    (set! opcodes '#(nop @p @+ @b @ !+ !b ! +* 2* 
+			 2/ - + and or drop dup pop over a 
+			 push b! a!))
+    
+    (define-arg-type 'const (lambda (config) '(0 1 -1)))
+    
+    (define-instruction-class 'nop '(nop))
+    (define-instruction-class '@p '(@p)
+      #:args '(const) #:ins '(0) #:outs '()) ;; don't bother dealing with data & return stack here.
+    (define-instruction-class 'read-a '(@ @+)
+      #:args '() #:ins (list 'a (get-memory-type)) #:outs '(a))
+    (define-instruction-class 'read-b '(@b)
+      #:args '() #:ins (list 'b (get-memory-type)) #:outs '())
+    (define-instruction-class 'write-a '(! !+)
+      #:args '() #:ins '(a) #:outs (list (get-memory-type) 'a))
+    (define-instruction-class 'write-b '(!b)
+      #:args '() #:ins '(b) #:outs (list (get-memory-type)))
+    (define-instruction-class 'ast '(+*)
+      #:args '() #:ins '(a s t) #:outs '(a))
+    (define-instruction-class 't-only '(2* 2/ - dup over push)
+      #:args '() #:ins '(t) #:outs '())
+    (define-instruction-class 'st-only '(+ and or)
+      #:args '() #:ins '(s t) #:outs '())
+    (define-instruction-class 'none '(pop)
+      #:args '() #:ins '(r) #:outs '())
+    (define-instruction-class 'none '(drop)
+      #:args '() #:ins '() #:outs '()) ;; TODO: how to make dup dup or legal??
+    (define-instruction-class 'a '(a)
+      #:args '() #:ins '(a) #:outs '())
+    (define-instruction-class 'a! '(a!)
+      #:args '() #:ins '() #:outs '(a))
+    (define-instruction-class 'b! '(b!)
+      #:args '() #:ins '() #:outs '(b))
 	    
+    (finalize-machine-description)
+
+    ;; Inform about the order of argument for load instruction
+    (define/override (update-progstate-ins-load my-inst addr state)
+      (raise "update-progstate-ins-load: should be called"))
+
+    ;; Inform about the order of argument for store instruction
+    (define/override (update-progstate-ins-store my-inst addr val state)
+      (raise "update-progstate-ins-load: should be called"))
 
     ))
