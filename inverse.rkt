@@ -1,6 +1,6 @@
 #lang racket
 
-(require "inst.rkt" "machine.rkt" "enumerator.rkt" "ops-racket.rkt" "memory-racket.rkt")
+(require "inst.rkt" "machine.rkt" "enumerator.rkt" "ops-racket.rkt" "memory-racket.rkt" "special.rkt")
 (provide inverse% hash-insert-to-list)
 
 (define-syntax-rule (hash-insert-to-list table key val)

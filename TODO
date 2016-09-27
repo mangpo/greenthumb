@@ -22,7 +22,7 @@ OPTION 4:
 
 ----------------------
 Action
-1. check super class methods for memory/queue
+- GA: partial generate-inst
 
 Questions
 - get rid of "extra" in get-state, proper-machine-config => using queue for recv
@@ -35,7 +35,6 @@ Questions
   = inverse [override]
   = (get-arg-ranges)** uses arg & (get-valid-opcode)** users ins
 
-  = (get-live-in)
   = (mask-in state-vec) may work
 - get rid of prescreen in forwardbackward (use get-valid-opcode-pool instead).
 - progstate-vector conversion OR no conversion

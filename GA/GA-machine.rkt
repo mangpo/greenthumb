@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../inst.rkt" "../machine.rkt" "../ops-racket.rkt")
+(require "../inst.rkt" "../machine.rkt" "../ops-racket.rkt" "../special.rkt")
 
 (provide GA-machine% (all-defined-out))
 
@@ -43,9 +43,9 @@
 
 (define-syntax-rule (stack sp body) (vector sp body))
 (define-syntax-rule (stack? x)
-  (and (pair? x)
-       (or (number? (car x)) (boolean? x))
-       (vector? (cdr x))))
+  (and (vector? x) (= 2 (vector-length x))
+       (or (number? (vector-ref x 0)) (boolean? (vector-ref x 0)))
+       (vector? (vector-ref x 1))))
 
 (define-syntax-rule (stack-sp x) (vector-ref x 0))
 (define-syntax-rule (stack-body x) (vector-ref x 1))
@@ -54,13 +54,13 @@
 
 ;;; Print a circular stack:
 (define (display-stack x)
-  (define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
-  ;; (pretty-display (format " ~a" stack)))
-  (if (stack? x)
-      (for [(i (in-range 0 8))]
-           (display (format " ~a" (vector-ref (stack-body x)
-                                              (modulo- (- (stack-sp x) i) 8)))))
-      (display (format " ~a" x))))
+  (display (format " ~a" x)))
+  ;; (define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
+  ;; (if (stack? x)
+  ;;     (for [(i (in-range 0 8))]
+  ;;          (display (format " ~a" (vector-ref (stack-body x)
+  ;;                                             (modulo- (- (stack-sp x) i) 8)))))
+  ;;     (display (format " ~a" x)))
 
 (define-syntax-rule (build-vector n init)
   (let ([vec (make-vector n)])
@@ -104,7 +104,7 @@
 ;;; #f #f #f #f #f #f #t #f #f #f)'. If you want to constrain
 ;;; everything *except* the given fields, start with the except
 ;;; keyword: `(constrain except t)' constrains everything but t. 
-#;(define-syntax constraint
+(define-syntax constraint
   (syntax-rules (except data return none)
 
     ((constraint (return val1) (data val2) var ...)  
@@ -154,7 +154,8 @@
               display-state 
               parse-state-text
               progstate->vector vector->progstate
-              get-constructor progstate-structure)
+              get-constructor progstate-structure
+              )
     (init-field [const-range #f]
                 [UP #x145] ;325
                 [DOWN #x115] ;277
@@ -328,8 +329,8 @@
                  (stack 'p-data   (for/vector ([i 8]) 'data))
                  (stack 'p-return (for/vector ([i 8]) 'return))
                  (get-memory-type)
-                 (get-queue-type)
-                 (get-queue-type))) ;; TODO: queue type in 2 entries
+                 (get-queue-in-type)
+                 (get-queue-out-type)))
     
     (define-progstate-type-one 'a progstate-a set-progstate-a!)
     (define-progstate-type-one 'b progstate-b set-progstate-b!)
@@ -337,6 +338,8 @@
     (define-progstate-type-one 's progstate-s set-progstate-s!)
     (define-progstate-type-one 't progstate-t set-progstate-t!)
     (define-progstate-type-one (get-memory-type) progstate-memory set-progstate-memory!)
+    (define-progstate-type-one (get-queue-in-type) progstate-recv set-progstate-recv!)
+    (define-progstate-type-one (get-queue-out-type) progstate-comm set-progstate-comm!)
 
     (define-progstate-type 'p-data
       #:get (lambda (state) (stack-sp (progstate-data state)))
@@ -365,14 +368,10 @@
     (define-instruction-class 'nop '(nop))
     (define-instruction-class '@p '(@p)
       #:args '(const) #:ins '(0) #:outs '()) ;; don't bother dealing with data & return stack here.
-    (define-instruction-class 'read-a '(@ @+)
-      #:args '() #:ins (list 'a (get-memory-type)) #:outs '(a))
-    (define-instruction-class 'read-b '(@b)
-      #:args '() #:ins (list 'b (get-memory-type)) #:outs '())
-    (define-instruction-class 'write-a '(! !+)
-      #:args '() #:ins '(a) #:outs (list (get-memory-type) 'a))
-    (define-instruction-class 'write-b '(!b)
-      #:args '() #:ins '(b) #:outs (list (get-memory-type)))
+    (define-instruction-class 'read-a '(@ @+ ! !+)
+      #:args '() #:ins '(a) #:outs '(a))
+    (define-instruction-class 'read-b '(@b !b)
+      #:args '() #:ins '(b) #:outs '())
     (define-instruction-class 'ast '(+*)
       #:args '() #:ins '(a s t) #:outs '(a))
     (define-instruction-class 't-only '(2* 2/ - dup over push)
@@ -399,5 +398,94 @@
     ;; Inform about the order of argument for store instruction
     (define/override (update-progstate-ins-store my-inst addr val state)
       (raise "update-progstate-ins-load: should be called"))
+
+    (define (dec-live-data live)
+      (cond
+       [(> (progstate-data live) 0)
+        (set-progstate-data! live (sub1 (progstate-data live)))
+        live]
+       [(progstate-s live)
+        (set-progstate-s! live #f)
+        live]
+       [(progstate-t live)
+        (set-progstate-t! live #f)
+        live]
+       [else #f]))
+
+    (define (dec-live-return live)
+      (cond
+       [(> (progstate-return live) 0)
+        (set-progstate-return! live (sub1 (progstate-return live)))
+        live]
+       [(progstate-r live)
+        (set-progstate-r! live #f)
+        live]
+       [else #f]))
+
+    (define (inc-live-data live)
+      (cond
+       [(> (progstate-data live) 0)
+        (set-progstate-data! live (add1 (progstate-data live)))
+        live]
+       [(progstate-s live)
+        (set-progstate-data! live 1)
+        live]
+       [(progstate-t live)
+        (set-progstate-s! live #t)
+        live]
+       [else 
+        (set-progstate-t! live #t)
+        live]))
+
+    (define (inc-live-return live)
+      (cond
+       [(> (progstate-return live) 0)
+        (set-progstate-return! live (add1 (progstate-return live)))
+        live]
+       [(progstate-r live)
+        (set-progstate-return! live 1)
+        live]
+       [else 
+        (set-progstate-r! live #t)
+        live]))
+
+    (define/override (update-live live my-inst)
+      (define new-live (super update-live live my-inst))
+      (define opcode-id (inst-op my-inst))
+      (define opcode-name (vector-ref opcodes opcode-id))
+
+      (and new-live
+           (cond
+            [(member opcode-name '(nop 2* 2/ - +*)) new-live]
+            [(member opcode-name '(+ and or ! !+ !b drop a! b!))
+             (dec-live-data new-live)]
+            [(member opcode-name '(@p @ @+ @b a dup over))
+             (inc-live-data new-live)]
+            [(member opcode-name '(push))
+             (define inter (dec-live-data new-live))
+             (and inter (inc-live-return inter))]
+            [(member opcode-name '(pop))
+             (define inter (inc-live-data new-live))
+             (and inter (dec-live-return inter))])))
+
+    (define/override (update-live-backward live my-inst)
+      (define new-live (super update-live-backward live my-inst))
+      (define opcode-id (inst-op my-inst))
+      (define opcode-name (vector-ref opcodes opcode-id))
+
+      (and new-live
+           (cond
+            [(member opcode-name '(nop 2* 2/ - +*)) new-live]
+            [(member opcode-name '(+ and or ! !+ !b drop a! b!))
+             (inc-live-data new-live)]
+            [(member opcode-name '(@p @ @+ @b a dup over))
+             (dec-live-data new-live)]
+            [(member opcode-name '(push))
+             (define inter (inc-live-data new-live))
+             (and inter (dec-live-return inter))]
+            [(member opcode-name '(pop))
+             (define inter (dec-live-data new-live))
+             (and inter (inc-live-return inter))])))
+      
 
     ))

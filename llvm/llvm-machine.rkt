@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../machine.rkt" "../inst.rkt" "../memory-rosette.rkt")
+(require "../machine.rkt" "../inst.rkt" "../special.rkt")
 
 (provide llvm-machine% (all-defined-out))
 

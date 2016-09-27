@@ -1,10 +1,10 @@
 #lang racket
 
-(require "ops-racket.rkt")
+(require "special.rkt" "ops-racket.rkt")
 (provide memory-racket%)
 
 (define memory-racket%
-  (class* object% (equal<%> printable<%>)
+  (class* special% (equal<%> printable<%>)
     (super-new)
     (init-field [init (make-hash)]
                 [update (make-hash)]
@@ -12,7 +12,7 @@
                 ;; don't initialize ref.
                 ;; Otherwise, initailize ref with memory object output from specification program.
                 [ref #f]) ;; TODO: do we ever use ref?
-    (public load store clone update-equal? correctness-cost
+    (public load store clone correctness-cost
             ;; for backward interpret
             clone-all del lookup-update
             get-update-addr-val get-update-addr-with-val get-addr-with-val
@@ -30,7 +30,8 @@
       (display `(memory% init: ,init update: ,update) port))
 
     (define/public (equal-to? other recur)
-      (equal? update (get-field update other)))
+      (and (is-a? other memory-racket%)
+           (equal? update (get-field update other))))
 
     (define/public (equal-hash-code-of hash-code)
       (hash-code update))
@@ -48,8 +49,6 @@
     (define (clone-all [ref #f])
       (new memory-racket% [ref ref] [init init]
            [update (make-hash (hash->list update))]))
-
-    (define (update-equal? other) (equal? update (get-field update other)))
 
     (define (correctness-cost other diff-cost bit)
       (define cost 0)

@@ -1,12 +1,9 @@
 #lang racket
 
-(require "inst.rkt" "memory-rosette.rkt" "queue-rosette.rkt")
+(require "inst.rkt" "memory-rosette.rkt" "queue-rosette.rkt" "special.rkt")
 (provide (all-defined-out))
 
 (define debug #f)
-
-(define (get-memory-type) 'mem%)
-(define (get-queue-type) 'queue%)
 (struct instclass (opcodes pool args ins outs commute) #:mutable)
 (struct argtype (validfunc valid) #:mutable)
 (struct statetype (get set min max const))
@@ -159,7 +156,8 @@
       (define (inner x)
         (cond
          [(equal? x (get-memory-type)) (new memory-rosette% [get-fresh-val init])]
-         [(equal? x (get-queue-type)) (new queue-rosette% [get-fresh-val init])]
+         [(equal? x (get-queue-in-type)) (new queue-in-rosette% [get-fresh-val init])]
+         [(equal? x (get-queue-out-type)) (new queue-out-rosette% [get-fresh-val init])]
          [(symbol? x)
           (define info (hash-ref statetypes-info x))
           (init #:min (statetype-min info) #:max (statetype-max info) #:const (statetype-const info))]
@@ -387,7 +385,7 @@
                  (let ([info (hash-ref statetypes-info type)])
                    ((statetype-set info) new-live arg #f))))
       (for ([out outs])
-           (when (and (not (member out (list (get-memory-type))))
+           (when (and (not (special-type? out))
                       (hash-has-key? statetypes-info out))
                  (let ([info (hash-ref statetypes-info out)])
                    ((statetype-set info) new-live #f))))
@@ -411,14 +409,17 @@
     (define (analyze-args-inst my-inst)
       (define opcode-id (inst-op my-inst))
       (define args (inst-args my-inst))
-      (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
-      (define types (instclass-args class))
-      
-      (for ([type types] [arg args])
-           (let* ([argtype-info (hash-ref argtypes-info type)]
-                  [vals (argtype-valid argtype-info)])
-             (unless (member arg vals)
-                     (set-argtype-valid! argtype-info (cons arg vals)))))
+
+      (when
+       args
+       (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
+       (define types (instclass-args class))
+       
+       (for ([type types] [arg args])
+            (let* ([argtype-info (hash-ref argtypes-info type)]
+                   [vals (argtype-valid argtype-info)])
+              (unless (member arg vals)
+                      (set-argtype-valid! argtype-info (cons arg vals))))))
       )
     
     ;; For building behavior-bw
@@ -522,17 +523,16 @@
 
       (for/list
        ([out outs])
-       (unless (member out (list (get-memory-type)))
-               (cond
-                [(number? out)
-                 (let ([info (hash-ref statetypes-info (vector-ref types out))])
-                   ((statetype-set info) new-state (vector-ref args out) #f))]
+       (cond
+        [(number? out)
+         (let ([info (hash-ref statetypes-info (vector-ref types out))])
+           ((statetype-set info) new-state (vector-ref args out) #f))]
 
-                [(equal? out (get-memory-type)) (void)]
-                
-                [else
-                 (let ([info (hash-ref statetypes-info out)])
-                   ((statetype-set info) new-state #f))])))
+        [(special-type? out) (void)]
+        
+        [else
+         (let ([info (hash-ref statetypes-info out)])
+           ((statetype-set info) new-state #f))]))
       new-state)
 
     ;; Return #t if args of a given opcode is cannonical.

@@ -8,7 +8,7 @@
 (define GA-enumerator%
   (class enumerator%
     (super-new)
-    (init-field machine printer)
+    (inherit-field machine printer)
     (override get-flag generate-inst)
     
     (define opcodes (get-field opcodes machine))
@@ -19,7 +19,8 @@
 
     (define-syntax-rule (min-list x) (foldl min (car x) (cdr x)))
     (define-syntax-rule (max-list x) (foldl max (car x) (cdr x)))
-    
+
+    ;; TODO:
     ;; Since we don't use live-in and live-out to prune the search space here, we just return #f for both of them.
     (define (generate-inst 
              live-in live-out flag-in flag-out

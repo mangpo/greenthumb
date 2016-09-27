@@ -8,7 +8,8 @@
 
 (define GA-inverse%
   (class inverse%
-    (super-new)
+         (super-new)
+         #|
     (inherit-field machine simulator)
     (override gen-inverse-behavior interpret-inst)
     
@@ -16,7 +17,6 @@
     (define opcodes (get-field opcodes machine))
     (define val-range
       (for/list ([v (arithmetic-shift 1 bit)]) (finitize v bit)))
-    (define nmems (send machine get-nmems))
     
     (define behaviors-bw (make-hash))
     
@@ -31,49 +31,57 @@
     (define (gen-inverse-behavior my-inst)
       (define opcode-id (inst-op my-inst))
       (define opcode-name (vector-ref opcodes opcode-id))
+      (define (init #:min [min #f] #:max [max #f] #:const [const #f])
+        (if const const 0))
 
       (define behavior-bw (make-hash))
       (cond
        [(member opcode-name '(2* 2/ -))
         (for ([v val-range])
-             (let* ([state (default-state machine 0 (thunk 0) [t v])]
-                    [out-state 
-                     (with-handlers*
-                      ([exn? (lambda (e) #f)])
-                      (send simulator interpret (vector my-inst) state))]
-                    [out-v (and out-state (progstate-t out-state))])
-               (when out-v
-                     (hash-insert-to-list behavior-bw out-v v))))]
+             (let ([state (send machine get-state init)])
+               (set-progstate-t! state v)
+               (let* ([out-state 
+                       (with-handlers*
+                        ([exn? (lambda (e) #f)])
+                        (send simulator interpret (vector my-inst) state))]
+                      [out-v (and out-state (progstate-t out-state))])
+                 (when out-v
+                       (hash-insert-to-list behavior-bw out-v v)))))]
 
 
        [(member opcode-name '(+ and or))
         (for* ([v1 val-range]
                [v2 val-range])
-              (let* ([state (default-state machine 0 (thunk 0) [t v1] [s v2])]
-                     [out-state 
-                      (with-handlers*
-                       ([exn? (lambda (e) #f)])
-                       (send simulator interpret (vector my-inst) state))]
-                     [out-v (and out-state (progstate-t out-state))])
-                (when out-v
-                      (hash-insert-to-list behavior-bw out-v (list v1 v2)))))]
+              (let ([state (send machine get-state init)])
+                (set-progstate-t! state v1)
+                (set-progstate-s! state v2)
+                (let* ([out-state 
+                        (with-handlers*
+                         ([exn? (lambda (e) #f)])
+                         (send simulator interpret (vector my-inst) state))]
+                       [out-v (and out-state (progstate-t out-state))])
+                  (when out-v
+                        (hash-insert-to-list behavior-bw out-v (list v1 v2))))))]
 
        [(member opcode-name '(+*))
         (for* ([v1 val-range]
                [v2 val-range]
                [a val-range])
-              (let* ([state (default-state machine 0 (thunk 0) [t v1] [s v2] [a a])]
-                     [out-state 
-                      (with-handlers*
-                       ([exn? (lambda (e) #f)])
-                       (send simulator interpret (vector my-inst) state))]
-                     [key (and out-state
-                               (list (progstate-t out-state)
-                                     (progstate-s out-state)
-                                     (progstate-a out-state)))])
-                (when key
-                      (for ([key (get-all-keys key)])
-                           (hash-insert-to-list behavior-bw key (list v1 v2 a))))))]
+              (let ([state (send machine get-state init)])
+                (set-progstate-t! state v1)
+                (set-progstate-s! state v2)
+                (set-progstate-a! state a)
+                (let* ([out-state 
+                        (with-handlers*
+                         ([exn? (lambda (e) #f)])
+                         (send simulator interpret (vector my-inst) state))]
+                       [key (and out-state
+                                 (list (progstate-t out-state)
+                                       (progstate-s out-state)
+                                       (progstate-a out-state)))])
+                  (when key
+                        (for ([key (get-all-keys key)])
+                             (hash-insert-to-list behavior-bw key (list v1 v2 a)))))))]
        )
 
       (hash-set! behaviors-bw opcode-id behavior-bw))
@@ -325,7 +333,7 @@
        [else (assert #f (format "invalid instruction ~a" inst))])
 
       out-list)
-
+|#
     ))
 
 #|

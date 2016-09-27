@@ -1,30 +1,34 @@
 #lang racket
 
-(require "ops-racket.rkt")
-(provide queue-racket%)
+(require "special.rkt" "ops-racket.rkt")
+(provide queue-in-racket% queue-out-racket%)
 
-(define queue-racket%
-  (class* object% (equal<%> printable<%>)
+(define queue-in-racket%
+  (class* special% (equal<%> printable<%>)
     (super-new)
     (init-field [size 20]
-                [queue (make-vector size)]
+                [queue (make-vector size #f)]
                 [index 0]
                 [ref #f])
 
-    (public push pop push-inverse pop-inverse
+    (public pop pop-inverse
             clone correctness-cost)
+    
+    (define (filter-queue)
+      (filter (lambda (x) (not (equal? x #f))) (vector->list queue)))
 
     (define/public (custom-print port depth)
-      (print `(queue% content: ,(vector-copy queue 0 index)) port depth))
+      (print `(queue-in% content: ,(filter-queue) index: ,index) port depth))
 
     (define/public (custom-write port)
-      (write `(queue% content: ,(vector-copy queue 0 index)) port))
+      (write `(queue-in% content: ,(filter-queue) index: ,index) port))
 
     (define/public (custom-display port)
-      (display `(queue% content: ,(vector-copy queue 0 index)) port))
-
+      (display `(queue-in% content: ,(filter-queue) index: ,index) port))
+    
     (define/public (equal-to? other recur)
-      (equal? index (get-field index other)))
+      (and (is-a? other queue-in-racket%)
+           (equal? index (get-field index other))))
 
     (define/public (equal-hash-code-of hash-code)
       (hash-code index))
@@ -33,7 +37,7 @@
       (hash-code index))
 
     (define (clone [ref #f])
-      (new queue-racket% [ref ref] [queue queue] [index index]))
+      (new queue-in-racket% [ref ref] [queue queue] [index index]))
 
     (define (pop)
       (define val (vector-ref queue index))
@@ -45,11 +49,64 @@
       (set! index (sub1 index))
       (define val-ref (vector-ref queue index))
       (assert (equal? val val-ref) "pop-inverse: different val"))
+    
+    (define (correctness-cost other diff-cost bit)
+      (* bit (abs (- (get-field index other) index))))
+    
+    ))
+
+(define queue-out-racket%
+  (class* special% (equal<%> printable<%>)
+    (super-new)
+    (init-field [size 20]
+                [queue (make-vector size)]
+                [index 0]
+                [ref #f])
+
+    (public push push-inverse
+            clone correctness-cost)
+
+
+    (define/public (get-at index) (vector-ref queue index))
+    
+    (define (filter-queue)
+      (filter (lambda (x) (not (equal? x #f))) (vector->list queue)))
+
+    (define/public (custom-print port depth)
+      (print `(queue-out% content: ,(filter-queue) index: ,index) port depth))
+
+    (define/public (custom-write port)
+      (write `(queue-out% content: ,(filter-queue) index: ,index) port))
+
+    (define/public (custom-display port)
+      (display `(queue-out% content: ,(filter-queue) index: ,index) port))
+
+    (define/public (equal-to? other recur)
+      (and (is-a? other queue-out-racket%)
+           (equal? index (get-field index other))
+           (equal? queue (get-field queue other))))
+
+    (define/public (equal-hash-code-of hash-code)
+      (+ (* (hash-code index) 17) (hash-code queue)))
+
+    (define/public (equal-secondary-hash-code-of hash-code)
+      (+ (* (hash-code index) 43) (hash-code queue)))
+
+    (define (clone [ref #f])
+      (new queue-out-racket% [ref ref] [queue (vector-copy queue)] [index index]))
+
+    (define (push-spec val)
+      (vector-set! queue index val)
+      (set! index (add1 index)))
+
+    (define (push-cand val)
+      (define val-ref (send ref get-at index))
+      (assert (equal? val val-ref) "push-cand: push different val")
+      (vector-set! queue index val)
+      (set! index (add1 index)))
 
     (define (push val)
-      (define val-ref (vector-ref queue index))
-      (assert (equal? val val-ref) "push different val")
-      (set! index (add1 index)))
+      (if ref (push-spec) (push-cand)))
 
     (define (push-inverse)
       (set! index (sub1 index))
@@ -60,50 +117,9 @@
     
     ))
 
-;; (define queue-out-racket%
-;;   (class* object% (equal<%> printable<%>)
-;;     (super-new)
-;;     (init-field [size 20]
-;;                 [queue (make-vector size)]
-;;                 [index 0]
-;;                 [ref #f])
-
-;;     (public push clone correctness-cost)
-
-;;     (define/public (custom-print port depth)
-;;       (print `(queue-out% content: ,queue index: ,index) port depth))
-
-;;     (define/public (custom-write port)
-;;       (write `(queue-out% content: ,queue index: ,index) port))
-
-;;     (define/public (custom-display port)
-;;       (display `(queue-out% content: ,queue index: ,index) port))
-    
-;;     (define/public (equal-to? other recur)
-;;       (equal? index (get-field index other)))
-
-;;     (define/public (equal-hash-code-of hash-code)
-;;       (hash-code index))
-
-;;     (define/public (equal-secondary-hash-code-of hash-code)
-;;       (hash-code index))
-    
-;;     (define (clone [ref #f])
-;;       (new queue-out-racket% [ref ref] [queue queue] [index index]))
-
-;;     (define (push val)
-;;       (define val-ref (vector-ref queue index))
-;;       (assert (not (equal? val-ref #f)))
-;;       (assert (equal? val val-ref))
-;;       (set! index (add1 index)))
-
-;;     (define (correctness-cost other diff-cost bit)
-;;       (* bit (abs (- (get-field index other) index))))
-
-;;     ))
 
 (define (test1)
-  (define q-init (new queue-racket% [queue (vector 1 2 #f #f)] [index 0]))
+  (define q-init (new queue-in-racket% [queue (vector 1 2 #f #f)] [index 0]))
 
   (define q1 (send q-init clone))
   (pretty-display `(pop ,(send q1 pop)))
@@ -113,7 +129,7 @@
   )
 
 (define (test2)
-  (define q-init (new queue-racket% [queue (vector 1 2 #f #f)] [index 0]))
+  (define q-init (new queue-out-racket% [queue (vector 1 2 #f #f)] [index 0]))
 
   (define q2 (send q-init clone))
   (send q2 push 1)

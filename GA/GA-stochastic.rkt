@@ -15,8 +15,7 @@
     (inherit-field machine stat mutate-dist nop-mass)
     (inherit pop-count32)
     (override correctness-cost 
-	      get-mutations mutate-operand mutate-other
-              random-instruction)
+	      mutate-other)
 
     (set! mutate-dist 
       #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1) (rotate . 1)))
@@ -24,12 +23,11 @@
 
     (define bit (get-field bitwidth machine))
     (define opcodes (get-field opcodes machine))
-    (define nmems (send machine get-nmems))
 
-    (define (get-mutations opcode-name)
-      (if (equal? opcode-name `@p) 
-	  '(operand swap instruction rotate)
-	  '(opcode swap instruction rotate)))
+    ;; (define (get-mutations opcode-name)
+    ;;   (if (equal? opcode-name `@p) 
+    ;;       '(operand swap instruction rotate)
+    ;;       '(opcode swap instruction rotate)))
 
 
     (define (mutate-other index entry p type)
@@ -43,19 +41,19 @@
                      (vector-copy p (add1 index))
                      (vector entry)))
 
-    (define (mutate-operand index entry p)
-      (send stat inc-propose `operand)
-      (define opcode-id (inst-op entry))
-      (define arg (inst-args entry))
-      (define new-p (vector-copy p))
-      (vector-set! new-p index 
-		   (inst opcode-id (random-from-vec-ex (get-field const-range machine) arg)))
-      new-p)
+    ;; (define (mutate-operand index entry p)
+    ;;   (send stat inc-propose `operand)
+    ;;   (define opcode-id (inst-op entry))
+    ;;   (define arg (inst-args entry))
+    ;;   (define new-p (vector-copy p))
+    ;;   (vector-set! new-p index 
+    ;;     	   (inst opcode-id (random-from-vec-ex (get-field const-range machine) arg)))
+    ;;   new-p)
     
-    (define (random-instruction live-in [opcode-id (random (vector-length opcodes))])
-      (define opcode-name (vector-ref opcodes opcode-id))
-      (define arg (and (equal? opcode-name `@p) (random-from-vec (get-field const-range machine))))
-      (inst opcode-id arg))
+    ;; (define (random-instruction live-in [opcode-id (random (vector-length opcodes))])
+    ;;   (define opcode-name (vector-ref opcodes opcode-id))
+    ;;   (define arg (and (equal? opcode-name `@p) (random-from-vec (get-field const-range machine))))
+    ;;   (inst opcode-id arg))
 
     ;; state1: reference
     ;; state2: check
@@ -73,7 +71,7 @@
 
       (define-syntax-rule (accum x) (set! correctness (+ correctness x)))
 
-      (define (check-reg progstate-x)
+      (define-syntax-rule (check-reg progstate-x)
 	(when (progstate-x constraint)
               (accum
                (min
@@ -121,36 +119,38 @@
 	(let ([mem1 (progstate-memory state1)]
 	      [mem2 (progstate-memory state2)]
 	      [mem-const (progstate-memory constraint)])
-          (unless (vector? mem-const)
-                  (set! mem-const
-                        (make-vector (send machine get-nmems) mem-const)))
-          (for ([i (send machine get-nmems)])
-               (when (vector-ref mem-const i)
-                     (accum
-                       (min
-                        (diff-cost (vector-ref mem1 i) (vector-ref mem2 i))
-                        (+ 1 (diff-cost (vector-ref mem1 i) (progstate-t state2))
-                           (if (or (= i (progstate-a state2)) (= i (progstate-b state2)))
-                               0 1)))
-                       )))))
+          (when mem-const (send mem1 correstness-cost mem2 diff-cost))))
+          ;; (unless (vector? mem-const)
+          ;;         (set! mem-const
+          ;;               (make-vector (send machine get-nmems) mem-const)))
+          ;; (for ([i (send machine get-nmems)])
+          ;;      (when (vector-ref mem-const i)
+          ;;            (accum
+          ;;              (min
+          ;;               (diff-cost (vector-ref mem1 i) (vector-ref mem2 i))
+          ;;               (+ 1 (diff-cost (vector-ref mem1 i) (progstate-t state2))
+          ;;                  (if (or (= i (progstate-a state2)) (= i (progstate-b state2)))
+          ;;                      0 1)))
+          ;;              )))))
       
       (define-syntax-rule (check-comm)
 	(when (progstate-comm constraint)
-	      (let ([comm1-len (length (progstate-comm state1))]
-		    [comm2-len (length (progstate-comm state2))])
-		(for ([i1 (progstate-comm state1)]
-		      [i2 (progstate-comm state2)])
-		     (accum (diff-cost (first i1) (first i2)))
-		     (unless (= (second i1) (second i2))
-			     (accum 1))
-		     (unless (= (third i1) (third i2))
-			     (accum 1)))
-                (when (> comm1-len comm2-len)
-                      (for ([i1 (drop (progstate-comm state1) comm2-len)])
-                           (accum bit)))
-                (when (> comm2-len comm1-len)
-                      (for ([i2 (drop (progstate-comm state2) comm1-len)])
-                           (accum 1))))))
+	      (let ([comm1 (progstate-comm state1)]
+		    [comm2 (progstate-comm state2)])
+                (send comm1 correctness-cost comm2 diff-cost))))
+		;; (for ([i1 (progstate-comm state1)]
+		;;       [i2 (progstate-comm state2)])
+		;;      (accum (diff-cost (first i1) (first i2)))
+		;;      (unless (= (second i1) (second i2))
+		;; 	     (accum 1))
+		;;      (unless (= (third i1) (third i2))
+		;; 	     (accum 1)))
+                ;; (when (> comm1-len comm2-len)
+                ;;       (for ([i1 (drop (progstate-comm state1) comm2-len)])
+                ;;            (accum bit)))
+                ;; (when (> comm2-len comm1-len)
+                ;;       (for ([i2 (drop (progstate-comm state2) comm1-len)])
+                ;;            (accum 1))))))
       
       (check-reg progstate-a)
       (check-reg progstate-b)

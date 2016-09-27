@@ -1,6 +1,6 @@
 #lang s-exp rosette
 
-(require  "inst.rkt" "machine.rkt" "memory-rosette.rkt" "queue-rosette.rkt")
+(require  "inst.rkt" "machine.rkt" "memory-rosette.rkt" "queue-rosette.rkt" "special.rkt")
 
 (require rosette/solver/smt/z3)
 
@@ -276,9 +276,11 @@
           (define update (filter pair? (vector->list (get-field update x))))
           (set! live-list (append (map car init) (map cdr init) live-list))
           (set! live-list (append (map car update) (map cdr update) live-list))]
-         [(is-a? x queue-rosette%)
+         [(is-a? x queue-in-rosette%) (void)]
+         [(is-a? x queue-out-rosette%)
           (define queue (vector->list (get-field queue x)))
-          (set! live-list (append queue live-list))]
+          (define index (get-field index x))
+          (set! live-list (cons index (append queue live-list)))]
          [(boolean? pred)
           ;; (pretty-display `(collect-sym ,pred ,x))
           (when pred (set! live-list (cons x live-list))
@@ -335,8 +337,8 @@
     (define (assert-state-eq state1 state2 pred)
       (define (inner state1 state2 pred)
 	(cond
-         [(and pred (is-a? state1 memory-rosette%))
-          (assert (send state1 update-equal? state2))]
+         [(and pred (special-type? state1))
+          (assert (equal? state1 state2))]
 	 [(equal? pred #t)
           (for*/all ([i state2])
                     (assert (equal? state1 i)))
@@ -355,6 +357,9 @@
 		    [s2 state2])
 		   (inner s1 s2 i))])
 	)
+      ;; (pretty-display `(eq ,(send machine progstate->vector state1)
+      ;;                      ,(send machine progstate->vector state2)
+      ;;                      ,(send machine progstate->vector pred)))
       (inner (send machine progstate->vector state1)
 	     (send machine progstate->vector state2)
 	     (send machine progstate->vector pred))
@@ -370,8 +375,8 @@
            (unless (hash-has-key? sol-hash var)
                    (set! sol-list (cons (cons var 0) sol-list))))
       (set! sol (sat (make-immutable-hash sol-list)))
-      
       ;;(pretty-display `(sol ,sol))
+      
       (define-syntax-rule (eval x model)
         (let ([ans (evaluate x model)])
           ;;(pretty-display `(eval ,x ,ans))
@@ -381,14 +386,18 @@
         (if (term? x) 0 x))
       
       (define (inner x)
+        ;;(pretty-display `(inner ,x))
         (cond
          [(vector? x) (for/vector ([i x]) (inner i))]
          [(list? x) (for/vector ([i x]) (inner i))]
          [(pair? x) (cons (inner (car x)) (inner (cdr x)))]
-         [(is-a? x memory-rosette%) (send x create-concrete (lambda (x) (inner (eval x sol))))] 
+         [(is-a? x special%)
+          (send x create-concrete (lambda (x) (inner (eval x sol))))]
          [else (concretize x)]))
-      (send machine vector->progstate
-            (inner (eval (send machine progstate->vector state) sol)))
+      (define ret
+        (inner (eval state sol)))
+      ;;(pretty-display `(ret ,ret))
+      ret
       )
 
     ;; Get all symbolic variables in state.
@@ -405,10 +414,10 @@
 	  (for ([i x]) (inner i))]
 	 [(pair? x)
 	  (inner (car x)) (inner (cdr x))]
-         [(is-a? x memory-rosette%)
-          (inner (get-field init x))]
-	 [else
-          (add x)]))
+         [(is-a? x memory-rosette%)    (inner (get-field init x))]
+         [(is-a? x queue-in-rosette%)  (inner (get-field init x))]
+         [(is-a? x queue-out-rosette%) (inner (get-field queue x))]
+	 [else (add x)]))
       (inner (send machine progstate->vector state))
       (set->list (list->set (symbolics lst)))
       )

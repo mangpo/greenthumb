@@ -11,24 +11,24 @@
 
 (define code
 (send parser ir-from-string 
-      "drop pop a 3 b! !b 0 b! !b 3 b! @b 325 b! !b 0 b! @b 2* 2* 325 b! @b 3 and + "))
+      "325 325 325 b! @b"))
 
 (define sketch (send parser ir-from-string 
-      "drop pop a 3 b! !b 0 b! !b 3 b! @b 325 b! !b 0 b! @b 2* 2* 325 b! @b 3 and + "))
+      "0 0"))
 
 (define encoded-code (send printer encode code))
-(define encoded-sketch (send validator encode-sym sketch))
+(define encoded-sketch (send printer encode sketch))
 
 (define ce
   (send validator counterexample encoded-code encoded-sketch 
-        (constraint s t)
-        1
+        (send machine output-constraint '() 1 0)
+        #f
         ;#:assume (constrain-stack 
         ;          machine '((<= . 7) (<= . 7) (<= . 7)))
         ))
 
 (if ce
-    (send machine display-state ce)
+    (pretty-display `(ce ,ce))
     (pretty-display "No counterexample."))
 ;(send machine display-state (send simulator-rosette interpret encoded-code ce))
 ;(send machine display-state (send simulator-rosette interpret encoded-sketch ce))

@@ -1,6 +1,8 @@
 #lang racket
 
-(require "inst.rkt" "decomposer.rkt" "ops-racket.rkt" "enumerator.rkt")
+(require "inst.rkt" "decomposer.rkt" "ops-racket.rkt" "enumerator.rkt"
+         "special.rkt"
+         "memory-racket.rkt" "queue-racket.rkt")
 (require racket/generator)
 
 (provide forwardbackward% entry-live entry-flag)
@@ -109,7 +111,7 @@
                     (mask-in s l))]
        [(pair? state)
         (cons (mask-in (car state) (car live)) (mask-in (cdr state) (cdr live)))]
-       [(or (is-a? state memory-racket%) (is-a? state queue-racket%)) state]
+       [(is-a? state special%) state]
        [else (and live state)]))
 
     (define (get-live-mask state)
