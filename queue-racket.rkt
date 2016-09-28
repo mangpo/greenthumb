@@ -12,11 +12,13 @@
                 [ref #f])
 
     (public pop pop-inverse
-            clone correctness-cost)
+            clone clone-all correctness-cost)
     
     (define (filter-queue)
       (filter (lambda (x) (not (equal? x #f))) (vector->list queue)))
 
+    (define/public (relevant-queue) (vector-copy queue 0 index))
+    
     (define/public (custom-print port depth)
       (print `(queue-in% content: ,(filter-queue) index: ,index) port depth))
 
@@ -28,15 +30,19 @@
     
     (define/public (equal-to? other recur)
       (and (is-a? other queue-in-racket%)
-           (equal? index (get-field index other))))
+           (equal? (relevant-queue) (send other relevant-queue))
+           ))
 
     (define/public (equal-hash-code-of hash-code)
-      (hash-code index))
+      (hash-code (relevant-queue)))
 
     (define/public (equal-secondary-hash-code-of hash-code)
-      (hash-code index))
+      (hash-code (relevant-queue)))
 
     (define (clone [ref #f])
+      (new queue-in-racket% [ref ref] [queue queue] [index index]))
+
+    (define (clone-all [ref #f])
       (new queue-in-racket% [ref ref] [queue queue] [index index]))
 
     (define (pop)
@@ -48,7 +54,7 @@
     (define (pop-inverse val)
       (set! index (sub1 index))
       (define val-ref (vector-ref queue index))
-      (assert (equal? val val-ref) "pop-inverse: different val"))
+      (equal? val val-ref))
     
     (define (correctness-cost other diff-cost bit)
       (* bit (abs (- (get-field index other) index))))
@@ -64,13 +70,14 @@
                 [ref #f])
 
     (public push push-inverse
-            clone correctness-cost)
-
+            clone clone-all correctness-cost)
 
     (define/public (get-at index) (vector-ref queue index))
     
     (define (filter-queue)
       (filter (lambda (x) (not (equal? x #f))) (vector->list queue)))
+
+    (define/public (relevant-queue) (vector-copy queue 0 index))
 
     (define/public (custom-print port depth)
       (print `(queue-out% content: ,(filter-queue) index: ,index) port depth))
@@ -83,16 +90,19 @@
 
     (define/public (equal-to? other recur)
       (and (is-a? other queue-out-racket%)
-           (equal? index (get-field index other))
-           (equal? queue (get-field queue other))))
+           (equal? (relevant-queue) (send other relevant-queue))
+           ))
 
     (define/public (equal-hash-code-of hash-code)
-      (+ (* (hash-code index) 17) (hash-code queue)))
+      (hash-code (relevant-queue)))
 
     (define/public (equal-secondary-hash-code-of hash-code)
-      (+ (* (hash-code index) 43) (hash-code queue)))
+      (hash-code (relevant-queue)))
 
     (define (clone [ref #f])
+      (new queue-out-racket% [ref ref] [queue (vector-copy queue)] [index index]))
+
+    (define (clone-all [ref #f])
       (new queue-out-racket% [ref ref] [queue (vector-copy queue)] [index index]))
 
     (define (push-spec val)

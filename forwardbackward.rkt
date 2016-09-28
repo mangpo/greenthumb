@@ -101,6 +101,14 @@
     (define (reduce-precision-assume x) x)
     (define (mask-in state live #:keep-flag [keep #t])
       (cond
+       [(and (list? state) (number? live))
+        (for/list ([s state]
+                   [l (in-naturals)])
+                  (and (< l live) s))]
+       [(and (vector? state) (number? live))
+        (for/vector ([s state]
+                     [l (in-naturals)])
+                    (and (< l live) s))]
        [(list? state)
         (for/list ([s state]
                    [l live])
@@ -120,6 +128,7 @@
        [(vector? state) (for/vector ([s state]) (get-live-mask s))]
        [(pair? state)
         (cons (get-live-mask (car state)) (get-live-mask (cdr state)))]
+       [(is-a? state special%) #t]
        [else (number? state)]))
 
     (define c-behaviors 0)
@@ -591,6 +600,7 @@
       (define ce-count-extra ntests)
 
       (define ce-in-final (list))
+      (define ce-out-final (list))
       (define ce-out-vec-final (list))
 
       (for ([test ntests]
@@ -632,11 +642,13 @@
         (define
           pass
           (for/and ([input ce-in-final]
+                    [output ce-out-final]
                     [output-vec ce-out-vec-final])
                    (let* ([my-output 
 			   (with-handlers*
 			    ([exn? (lambda (e) #f)])
-			    (send simulator interpret (vector-append p postfix-precise) input))]
+			    (send simulator interpret (vector-append p postfix-precise)
+                                  input output))]
 			  [my-output-vec
 			   (and my-output (send machine progstate->vector my-output))])
                      (and my-output (send machine state-eq? output-vec my-output-vec live3-vec)))))
@@ -662,6 +674,7 @@
                      (send machine display-state ce-input)
                      (pretty-display `(ce-out-vec ,ce-output-vec)))
                (set! ce-in-final (cons ce-input ce-in-final))
+               (set! ce-out-final (cons ce-output ce-out-vec-final))
                (set! ce-out-vec-final (cons ce-output-vec ce-out-vec-final))
                )
              (let ([final-cost
@@ -759,11 +772,12 @@
              (or (not cost) (< (send simulator-abst performance-cost p) cost))
              (for/and ([i (reverse (range my-ce-count ce-count-extra))])
                       (let* ([input (vector-ref ce-in i)]
+                             [output (vector-ref ce-out i)]
                              [output-vec (vector-ref ce-out-vec i)]
                              [my-output 
                               (with-handlers*
                                ([exn? (lambda (e) #f)])
-                               (send simulator-abst interpret p input))]
+                               (send simulator-abst interpret p input output))]
                              [my-output-vec (and my-output (send machine progstate->vector my-output))])
                         (and my-output
                              (send machine state-eq? output-vec my-output-vec live2-vec))))))
@@ -819,7 +833,7 @@
 	     (vector-set! cache i (make-hash)))
 
         (define (outer my-classes candidates level)
-	  ;; (when (= 1 (inst-op my-inst))
+	  ;; (when (= 18 (inst-op my-inst))
 	  ;; 	(pretty-display `(outer ,level ,candidates)))
 	  (define my-classes-bw-level (vector-ref my-classes-bw level))
 	  (define cache-level (vector-ref cache level))
@@ -886,10 +900,13 @@
             (define t1 (current-milliseconds))
             (set! t-intersect (+ t-intersect (- t1 t0)))
             (set! c-intersect (add1 c-intersect))
-	    ;; (when (= 1 (inst-op my-inst))
-	    ;; 	  (pretty-display `(inner ,level ,(length inters-fw))))
+	    ;; (when (= 18 (inst-op my-inst))
+            ;;       (pretty-display `(inner ,level ,(length inters-fw)))
+            ;;       )
 
             (for ([inter inters-fw])
+                 ;; (when (= 18 (inst-op my-inst))
+                 ;;       (pretty-display `(inter ,inter)))
               (let ([t0 (current-milliseconds)]
 		    [out-vec #f])
 
@@ -906,6 +923,10 @@
                                         ce-out-level)))]
                            [s2 (current-milliseconds)]
                            )
+                      ;; (when (= 1 (inst-op my-inst))
+                      ;;       (pretty-display `(out ,out))
+                      ;;       (pretty-display `(out2 ,(send machine progstate->vector out))))
+                            
 		      (set! out-vec (and out (mask-in (send machine progstate->vector out) my-live2)))
                       (set! t-interpret-0 (+ t-interpret-0 (- s2 s1)))
                       (set! c-interpret-0 (add1 c-interpret-0))
@@ -916,7 +937,8 @@
 		  (set! c-interpret (add1 c-interpret))
                   )
 
-		;; (pretty-display `(out-vec ,out-vec))
+                ;; (when (= 18 (inst-op my-inst))
+                ;;       (pretty-display `(out-vec ,out-vec)))
 
 		(when 
 		 out-vec
@@ -935,6 +957,10 @@
 			   (let* ([t0 (current-milliseconds)]
 				  [live-mask (car pair)]
 				  [classes (cdr pair)]
+                                  ;; [_ (when (= 18 (inst-op my-inst))
+                                  ;;          (pretty-display `(live-mask ,live-mask))
+                                  ;;          (pretty-display `(KEYS ,(hash-keys classes)))
+                                  ;;          )]
 				  [out-vec-masked 
 				   (if (or (and try-cmp (not (equal? live-mask my-live2)))
                                            (not my-live2))
@@ -943,6 +969,9 @@
 				  [t1 (current-milliseconds)]
 				  [has-key (and out-vec-masked
                                                 (hash-has-key? classes out-vec-masked))]
+                                  ;; [_ (when (= 18 (inst-op my-inst))
+                                  ;;          (pretty-display `(out-vec-maked ,out-vec-masked))
+                                  ;;          (pretty-display `(has-key ,has-key)))]
 				  [progs-set (and has-key (hash-ref classes out-vec-masked))]
 				  [t2 (current-milliseconds)]
 				  [new-candidates
@@ -961,6 +990,8 @@
 			     
 			     (when
 			      (and new-candidates (not (empty? new-candidates)))
+                              ;; (when (= 18 (inst-op my-inst))
+                              ;;       (pretty-display `(pass!!! ,(= 1 (- ce-count level)))))
 			      (if (= 1 (- ce-count level))
 				  (begin
 				    ;;(pretty-display `(check-eqv-leaf ,level ,ce-count))
@@ -1057,8 +1088,8 @@
         (for ([i test] #:break same)
              (when (equal? my-ce-out-vec (vector-ref ce-out-vec i))
                    (set! same i)))
-	;; (newline)
-	;; (pretty-display `(build-hash-bw-all ,test ,same))
+	(newline)
+	(pretty-display `(build-hash-bw-all ,test ,same))
         (when (= (vector-ref classes-bw-expand 0) test)
               (vector-set! classes-bw-expand 0 (add1 test))
               (class-init-bw! (vector-ref classes-bw 0)
@@ -1078,7 +1109,7 @@
                   (let ([prev (vector-ref classes-bw step)]
                         [current (vector-ref classes-bw (add1 step))])
                     ;; (newline)
-                    ;; (pretty-display `(step-test ,step ,test))
+                    (pretty-display `(step-test ,step ,test))
                     (set! c-behaviors-bw 0)
                     (set! c-progs-bw 0)
                     (for ([pair (hash->list prev)])
@@ -1090,9 +1121,9 @@
                                                 #:try-cmp try-cmp
                                                 #:step-fw (add1 step-fw)
                                                 #:step-bw (sub1 step-bw))])
-                           ;; (pretty-display `(live ,live-list 
-                           ;;                        ,(hash-count (vector-ref my-hash test))
-                           ;;                        ,(hash-count (car (hash-values (vector-ref my-hash test))))))
+                           (pretty-display `(live ,live-list 
+                                                  ,(hash-count (vector-ref my-hash test))
+                                                  ,(hash-count (car (hash-values (vector-ref my-hash test))))))
                            (build-hash-bw test current live-list my-hash iterator)
                            ))
                     (pretty-display `(behavior-bw ,test ,step ,c-behaviors-bw ,c-progs-bw ,(- (current-seconds) start-time)))))))
@@ -1125,11 +1156,16 @@
 		      (let* ([out-vec (car pair)]
 			     [progs (cdr pair)]
                              ;;[t0 (current-milliseconds)]
-			     [in-vec (send inverse interpret-inst my-inst out-vec old-liveout)]
+                             ;;[_ (pretty-display `(out-vec-before ,out-vec))]
+			     [in-vec
+                              ;; (with-handlers*
+                              ;;  ([exn? (lambda (e) #f)])
+                               (send inverse interpret-inst my-inst out-vec old-liveout)]
+                             ;;[_ (pretty-display `(out-vec-after ,out-vec))]
                              ;;[t1 (current-milliseconds)]
                              )
 			(when (and in-vec (not (empty? in-vec)))
-                              ;;(pretty-display `(live-bw ,my-liveout))
+                              ;; (pretty-display `(in-vec ,in-vec))
 			      (class-insert-bw! current my-liveout test 
 						in-vec (concat-progs inst-id progs)))
                         ;; (let ([t2 (current-milliseconds)])

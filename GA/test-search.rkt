@@ -17,23 +17,21 @@
 
 (define prefix 
 (send parser ir-from-string "
-drop pop a
 "))
 
 (define postfix
 (send parser ir-from-string "
-3 and +
 "))
 
 (define code
 (send parser ir-from-string "
-3 325 b! a! !b 2* 2* 325 b! @b
+dup drop left a! !+ @
 "))
 
 
 (define sketch
 (send parser ir-from-string "
-? ? ? ? ? ?
+? ? ? ?
 "))
 ;[drop pop a ] 325 9 2/ b! a! ! !b @b 2* 2* 325 b! @b 3  [and + ]
 ; drop pop a ] 3 325 b! a! !b 2* 2* 325 b! @b 3 [and +
@@ -47,7 +45,7 @@ drop pop a
 
 ;; Phase 0: create constraint (live-out)
 (define livein (send machine output-constraint '(a) 4 1))
-(define constraint (send machine output-constraint '() 1 0))
+(define constraint (send machine output-constraint '(a) 1 0))
 
 (send machine analyze-opcode encoded-prefix encoded-code encoded-postfix)
 (send machine reset-arg-ranges)
@@ -75,7 +73,7 @@ drop pop a
                       [validator validator] [simulator simulator-racket]
                       [syn-mode #t] ;; #t = synthesize, #f = optimize mode
                       ))
-(send stoch superoptimize encoded-code 
+#;(send stoch superoptimize encoded-code 
       constraint ;; live-out
       livein
       "./driver-0" 
@@ -91,7 +89,7 @@ drop pop a
                       [inverse% GA-inverse%]
                       [enumerator% GA-enumerator%]
                       [syn-mode `linear]))
-#;(send backward synthesize-window
+(send backward synthesize-window
       encoded-code
       encoded-sketch
       encoded-prefix encoded-postfix

@@ -146,7 +146,9 @@
     
     (define (analyze-opcode prefix code postfix)
       (set! opcode-pool (range (vector-length opcodes)))
-      (update-classes-pool))
+      (update-classes-pool)
+      (pretty-display `(analyze-opcode ,opcode-pool))
+      )
 
     (define (reset-opcode-pool) (void))
 
@@ -195,7 +197,7 @@
                 (instclass-opcodes class)
                 (list)))))]
        
-       [else (list)]))
+       [else opcode-pool]))
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; instruction & arg class ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -357,10 +359,11 @@
         (define types (instclass-args class))
         (define outs (instclass-outs class))
 
-        (for ([type types] [id (in-naturals)] [arg args])
-             (when (member id outs)
-                   (let ([info (hash-ref statetypes-info type)])
-                     ((statetype-set info) new-live arg #t))))
+        (when args
+              (for ([type types] [id (in-naturals)] [arg args])
+                   (when (member id outs)
+                         (let ([info (hash-ref statetypes-info type)])
+                           ((statetype-set info) new-live arg #t)))))
 
         (for ([out outs])
              (when (hash-has-key? statetypes-info out)
@@ -378,35 +381,39 @@
     ;; liveness *before* execute inst (output): (vector #f #t #t).
     ;; v1 and v2 must be live-in. v0 is not live-in.
     (define (update-live-backward live my-inst)
-      (define new-live (clone-state live))
-      (define opcode-id (inst-op my-inst))
-      (define args (inst-args my-inst))
-      (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
-      (define types (instclass-args class))
-      (define ins (instclass-ins class))
-      (define outs (instclass-outs class))
+      (cond
+       [live
+        (define new-live (clone-state live))
+        (define opcode-id (inst-op my-inst))
+        (define args (inst-args my-inst))
+        (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
+        (define types (instclass-args class))
+        (define ins (instclass-ins class))
+        (define outs (instclass-outs class))
 
-      ;; kill outs first
-      (for ([type types] [id (in-naturals)] [arg args])
-           (when (member id outs)
-                 (let ([info (hash-ref statetypes-info type)])
-                   ((statetype-set info) new-live arg #f))))
-      (for ([out outs])
-           (when (and (not (special-type? out))
-                      (hash-has-key? statetypes-info out))
-                 (let ([info (hash-ref statetypes-info out)])
-                   ((statetype-set info) new-live #f))))
-      
-      ;; add live
-      (for ([type types] [id (in-naturals)] [arg args])
-           (when (member id ins)
-                 (let ([info (hash-ref statetypes-info type)])
-                   ((statetype-set info) new-live arg #t))))
-      (for ([in ins])
-           (when (hash-has-key? statetypes-info in)
-                 (let ([info (hash-ref statetypes-info in)])
-                   ((statetype-set info) new-live #t))))
-      new-live)
+        (when args
+              ;; kill outs first
+              (for ([type types] [id (in-naturals)] [arg args])
+                   (when (member id outs)
+                         (let ([info (hash-ref statetypes-info type)])
+                           ((statetype-set info) new-live arg #f)))))
+        (for ([out outs])
+             (when (and (not (special-type? out))
+                        (hash-has-key? statetypes-info out))
+                   (let ([info (hash-ref statetypes-info out)])
+                     ((statetype-set info) new-live #f))))
+        (when args
+              ;; add live
+              (for ([type types] [id (in-naturals)] [arg args])
+                   (when (member id ins)
+                         (let ([info (hash-ref statetypes-info type)])
+                           ((statetype-set info) new-live arg #t)))))
+        (for ([in ins])
+             (when (hash-has-key? statetypes-info in)
+                   (let ([info (hash-ref statetypes-info in)])
+                     ((statetype-set info) new-live #t))))
+        new-live]
+       [else live]))
 
     ;; Analyze input code and update operands' ranges.
     (define (analyze-args prefix code postfix live-in-list live-out)

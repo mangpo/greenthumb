@@ -9,7 +9,6 @@
 (define GA-inverse%
   (class inverse%
          (super-new)
-         #|
     (inherit-field machine simulator)
     (override gen-inverse-behavior interpret-inst)
     
@@ -110,15 +109,14 @@
       (define data-body (vector-copy (stack-body (progstate-data state))))
       (define return-sp (stack-sp (progstate-return state)))
       (define return-body (vector-copy (stack-body (progstate-return state))))
-      (define memory (vector-copy (progstate-memory state)))
+      (define memory (progstate-memory state))
       (define recv (progstate-recv state))
       (define comm (progstate-comm state))
       
-      (define nmems (vector-length memory))
-      
       (define opcode-id (inst-op my-inst))
       (define opcode-name (vector-ref opcodes opcode-id))
-      (define const (inst-args my-inst))
+      (define args (inst-args my-inst))
+      (define const (and args (> (vector-length args) 0) (vector-ref args 0)))
       
       (define out-list (list))
 
@@ -175,7 +173,7 @@
               (snapshot)))
       
       ;; Mutate comm and rev
-      (define (memeq? addr val)
+      #;(define (memeq? addr val)
 	(define (read port)
           (define ret
             (and (not (empty? comm))
@@ -197,7 +195,7 @@
             (= tmp val))]        
 	 [else #f]))
 
-      (define (read-memory-rm addr)
+      #;(define (read-memory-rm addr)
 	(define (read port)
           (define ret
             (and (not (empty? comm))
@@ -220,33 +218,111 @@
             tmp)]
          [else #f]))
 
+      ;; load inverse
       (define-syntax-rule (memeq-pop! a f)
         (when t
-              (if a
-                  (begin
-                    (set! a (f a))
-                    (when (memeq? a t) (pop!) (snapshot)))
-                  (let ([t-org t]
-                        [mem-copy (vector-copy memory)])
-                    (pop!)
-                    (for ([v (append (range nmems) (list UP DOWN LEFT RIGHT IO))])
-                         (set! memory (vector-copy mem-copy))
-                         (set! a v)
-                         (when (memeq? a t-org) (snapshot)))))))
+          (let ([t-org t])
+            (pop!)
+            (cond
+              [a
+               (set! a (f a))
+               (cond
+                [(member a (list UP DOWN LEFT RIGHT IO))
+                 (when (> (get-field index comm) 0)
+                       (set! comm (send comm clone-all))
+                       (define token (send comm push-inverse))
+                       (define val (first token))
+                       (define port (second token))
+                       (define type (third token))
+                       
+                       (when (and (= t-org val) (= type 0) (= a port)
+                                  (> (get-field index recv) 0))
+                             (set! recv (send recv clone-all))
+                             (when (send recv pop-inverse val)
+                                   (snapshot))))
+                 ]
+                [else
+                 (for ([actual-addr (send memory get-addr-with-val t-org)])
+                      (when (= a actual-addr)
+                            (snapshot)))
+                 ])
+               
+               ]
+              
+              [else
+               (for ([actual-addr (send memory get-addr-with-val t-org)])
+                    (set! a actual-addr)
+                    (snapshot))
+               
+               (when (> (get-field index comm) 0)
+                     (set! comm (send comm clone-all))
+                     (define token (send comm push-inverse))
+                     (define val (first token))
+                     (define port (second token))
+                     (define type (third token))
+                     
+                     (when (and (= t-org val) (= type 0)
+                                (> (get-field index recv) 0))
+                           (set! recv (send recv clone-all))
+                           (when (send recv pop-inverse val)
+                                 (set! a port)
+                                 (snapshot))))]
+              ))))
 
+      ;; store inverse
       (define-syntax-rule (mem-to-stack-rm a f)
-        (if a
-            (begin
-              (set! a (f a))
-              (let ([val (read-memory-rm a)])
-                (when val (push! val) (snapshot))))
-            (let ([mem-copy (vector-copy memory)])
-              (push! #f)
-              (for ([v (append (range nmems) (list UP DOWN LEFT RIGHT IO))])
-                   (set! memory (vector-copy mem-copy))
-                   (set! a v)
-                   (let ([val (read-memory-rm a)])
-                     (when val (set! t val) (snapshot)))))))
+        (cond
+          [a
+           (push! #f)
+           (set! a (f a))
+           (cond
+             [(member a (list UP DOWN LEFT RIGHT IO))
+              (when (> (get-field index comm) 0)
+                    (set! comm (send comm clone-all))
+                    (define token (send comm push-inverse))
+                    (define val (first token))
+                    (define port (second token))
+                    (define type (third token))
+                    
+                    (when (and (= type 1) (= a port))
+                          (set! t val)
+                          (snapshot)))]
+             [else
+              (for/list ([addr-val (send memory get-update-addr-val)])
+                (let* ([addr (car addr-val)]
+                       [val (cdr addr-val)])
+                  (when (= a addr)
+                    (set! memory (send (progstate-memory state) clone-all))
+                    (send memory del addr)
+                    (set! t val)
+                    (snapshot))))
+              ])
+           
+           ]
+
+          [else
+           (push! #f)
+           (for/list ([addr-val (send memory get-update-addr-val)])
+             (let* ([addr (car addr-val)]
+                    [val (cdr addr-val)])
+               (set! memory (send (progstate-memory state) clone-all))
+               (send memory del addr)
+               (set! a addr)
+               (set! t val)
+               (snapshot)))
+
+           (when (> (get-field index comm) 0)
+                 (set! memory (progstate-memory state))
+                 (set! comm (send comm clone-all))
+                 (define token (send comm push-inverse))
+                 (define val (first token))
+                 (define port (second token))
+                 (define type (third token))
+                 
+                 (when (= type 1)
+                       (set! a port)
+                       (set! t val)
+                       (snapshot)))]))
 
       (define (t-t)
         (define behavior (hash-ref behaviors-bw opcode-id))
@@ -333,7 +409,6 @@
        [else (assert #f (format "invalid instruction ~a" inst))])
 
       out-list)
-|#
     ))
 
 #|
