@@ -54,6 +54,8 @@
       (set! live-in (send machine get-live-list this-live-in))
       (for ([x prefix])
            (set! live-in (send machine update-live live-in x)))
+      (unless live-in
+              (raise "stochastic: live-in at spec cannot be #f"))
       
       (send machine analyze-args (vector) spec (vector) live-in constraint)
       (send machine analyze-opcode (vector) spec (vector))
@@ -66,6 +68,7 @@
                 (pretty-display ">>> Inputs from file")
                 (pretty-display ">>> Auto generate"))
             )
+      (send printer print-struct spec)
       (define inits 
         (if input-file
             (map cdr (send machine get-states-from-file input-file))
@@ -105,7 +108,7 @@
       (define my-live-in live-in)
       (for/vector ([i n]) 
         (let ([x (random-instruction i n my-live-in)])
-          (when debug (pretty-display (format "inst #~a: ~a" i (inst-op x))))
+          (when debug (pretty-display (format "inst #~a: ~a" i (vector-ref opcodes (inst-op x)))))
           (set! my-live-in (send machine update-live my-live-in x)) ;; TODO
           x)))
       
@@ -180,7 +183,7 @@
       (define my-live-in live-in)
       (for ([i index])
            (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
-      (define ranges (send machine get-arg-ranges opcode-id entry my-live-in))
+      (define ranges (and my-live-in (send machine get-arg-ranges opcode-id entry my-live-in)))
       (cond
        [(and ranges (> (vector-length ranges) 0))
         (define args (vector-copy (inst-args entry)))
@@ -222,19 +225,25 @@
       (define my-live-in live-in)
       (for ([i index])
            (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
+      
       (define new-opcode-id
-        (if (and (not (equal? opcode-id nop-id)) (< (random) nop-mass))
-            (begin (send stat inc-propose `nop) 
-                   nop-id)
-            (begin (send stat inc-propose `inst)
-                   (when debug
-                         (pretty-display
-                          (format " --> choices = ~a"
-                                  (map (lambda (x) (vector-ref opcodes x))
-                                       (send machine get-valid-opcode-pool index n my-live-in)))))
-		   (random-from-list (send machine get-valid-opcode-pool
-                                           index n my-live-in
-                                           )))))
+        (cond
+         [(and (not (equal? opcode-id nop-id)) (< (random) nop-mass))
+          (send stat inc-propose `nop)
+          nop-id]
+
+         [else
+          (define valid-opcodes (send machine get-valid-opcode-pool index n my-live-in))
+          (when (empty? valid-opcodes)
+                (when debug (pretty-display " --> choices = (reset)"))
+                (set! valid-opcodes (get-field opcode-pool machine)))
+          (when debug
+                (pretty-display
+                 (format " --> choices = ~a"
+                         (map (lambda (x) (vector-ref opcodes x)) valid-opcodes))))
+          (send stat inc-propose `inst)
+          (random-from-list valid-opcodes)]))
+      
       (when debug
             (pretty-display (format " >> mutate instruction ~a" (vector-ref opcodes new-opcode-id))))
       (define new-entry (random-instruction index n my-live-in new-opcode-id))
@@ -246,8 +255,9 @@
     (define (random-instruction
              index n live-in
              [opcode-id (random-from-list (send machine get-valid-opcode-pool index n live-in))])
-      ;;(pretty-display `(pool ,(map (lambda (x) (vector-ref opcodes x))
-      ;;                             (send machine get-valid-opcode-pool index n live-in))))
+      (when debug
+            (pretty-display `(pool ,(map (lambda (x) (vector-ref opcodes x))
+                                         (send machine get-valid-opcode-pool index n live-in)))))
       (when debug (pretty-display `(random-instruction ,opcode-id)))
       (define args (random-args-from-op opcode-id live-in))
       (if args

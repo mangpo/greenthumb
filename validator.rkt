@@ -120,7 +120,7 @@
                     (when debug (pretty-display "no more!")))
                 (raise e)))])
        (loop))
-
+      
       (define const-range 
 	;; (- (arithmetic-shift 1 (sub1 random-input-bit)))
 	(for/vector ([i (sub1 random-input-bit)]) (arithmetic-shift 1 i)))
@@ -279,8 +279,7 @@
          [(is-a? x queue-in-rosette%) (void)]
          [(is-a? x queue-out-rosette%)
           (define queue (vector->list (get-field queue x)))
-          (define index (get-field index x))
-          (set! live-list (cons index (append queue live-list)))]
+          (set! live-list (append queue live-list))]
          [(boolean? pred)
           ;; (pretty-display `(collect-sym ,pred ,x))
           (when pred (set! live-list (cons x live-list))

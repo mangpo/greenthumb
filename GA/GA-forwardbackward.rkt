@@ -42,18 +42,17 @@
     (define (change-inst x change)
       (define opcode-id (inst-op x))
       (define opcode-name (send machine get-opcode-name opcode-id))
-      (define arg (inst-args x))
       (if (equal? opcode-name `@p)
-          (inst opcode-id (change arg))
+          (inst opcode-id (vector-map change (inst-args x)))
           x))
 
     (define (change-inst-list x change)
       (define opcode-id (inst-op x))
       (define opcode-name (send machine get-opcode-name opcode-id))
-      (define arg (inst-args x))
 
       (if (equal? opcode-name `@p)
-          (for/list ([new-arg (change arg)]) (inst opcode-id new-arg))
+          (let ([arg (vector-ref (inst-args x) 0)])
+            (for/list ([new-arg (change arg)]) (inst opcode-id (vector new-arg))))
           (list x)))
     
     (define (reduce-precision prog)

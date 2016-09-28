@@ -179,21 +179,23 @@
       (inner state))
 
     (define (get-valid-opcode-pool index n live-in)
-      (flatten
-       (for/list
-        ([class classes-info])
-        (let ([pass #t])
-          ;; check that all its inputs are live
-          (when
-           live-in
-           (for ([in (instclass-ins class)] #:break (not pass))
-                (unless (number? in)
-                        (let ([info (hash-ref statetypes-info in)])
-                          (unless ((statetype-get info) live-in)
-                                  (set! pass #f))))))
-          (if pass
-              (instclass-opcodes class)
-              (list))))))
+      (cond
+       [live-in
+        (flatten
+         (for/list
+          ([class classes-info])
+          (let ([pass #t])
+            ;; check that all its inputs are live
+            (for ([in (instclass-ins class)] #:break (not pass))
+                 (unless (number? in)
+                         (let ([info (hash-ref statetypes-info in)])
+                           (unless ((statetype-get info) live-in)
+                                   (set! pass #f)))))
+            (if pass
+                (instclass-opcodes class)
+                (list)))))]
+       
+       [else (list)]))
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; instruction & arg class ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -346,23 +348,28 @@
     ;; liveness after execute inst (output): (vector #t #t #t)
     ;; v0 is live after executing inst, so set the first entry to #t.
     (define (update-live live my-inst)
-      (define new-live (clone-state live))
-      (define opcode-id (inst-op my-inst))
-      (define args (inst-args my-inst))
-      (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
-      (define types (instclass-args class))
-      (define outs (instclass-outs class))
+      (cond
+       [live
+        (define new-live (clone-state live))
+        (define opcode-id (inst-op my-inst))
+        (define args (inst-args my-inst))
+        (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
+        (define types (instclass-args class))
+        (define outs (instclass-outs class))
 
-      (for ([type types] [id (in-naturals)] [arg args])
-           (when (member id outs)
-                 (let ([info (hash-ref statetypes-info type)])
-                   ((statetype-set info) new-live arg #t))))
+        (for ([type types] [id (in-naturals)] [arg args])
+             (when (member id outs)
+                   (let ([info (hash-ref statetypes-info type)])
+                     ((statetype-set info) new-live arg #t))))
 
-      (for ([out outs])
-           (when (hash-has-key? statetypes-info out)
-                 (let ([info (hash-ref statetypes-info out)])
-                   ((statetype-set info) new-live #t))))
-      new-live)
+        (for ([out outs])
+             (when (hash-has-key? statetypes-info out)
+                   (let ([info (hash-ref statetypes-info out)])
+                     ((statetype-set info) new-live #t))))
+        new-live]
+
+       [else live])
+      )
 
     
     ;; For enumerative search
@@ -404,7 +411,14 @@
     ;; Analyze input code and update operands' ranges.
     (define (analyze-args prefix code postfix live-in-list live-out)
       (for ([x (vector-append prefix code postfix)])
-           (analyze-args-inst x)))
+           (analyze-args-inst x))
+
+      (pretty-display `(analyze-args, argtypes-info))
+      (for ([pair (hash->list argtypes-info)])
+           (let ([name (car pair)]
+                 [info (cdr pair)])
+             (pretty-display `(ARG ,name ,(argtype-valid info)))))
+      )
 
     (define (analyze-args-inst my-inst)
       (define opcode-id (inst-op my-inst))

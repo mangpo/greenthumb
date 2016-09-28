@@ -185,7 +185,8 @@
 
       (define (interpret-step inst-const)
 	(define inst (inst-op inst-const))
-	(define const (inst-args inst-const))
+        (define args (inst-args inst-const))
+	(define const (and args (> (vector-length args) 0) (vector-ref args 0)))
 	(when debug (pretty-display `(interpret-step ,inst ,const)))
 	(define-syntax-rule (inst-eq x) (equal? x (vector-ref opcodes inst)))
 	(cond

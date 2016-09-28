@@ -13,6 +13,6 @@
     (define (len-limit) 8)
     (define (window-size) 14)
     
-    (define (gen-sym-inst)  (inst (sym-op) (sym-arg)))
+    (define (gen-sym-inst)  (inst (sym-op) (vector (sym-arg))))
 
     ))

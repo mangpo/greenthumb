@@ -359,29 +359,21 @@
       
     ;;;;;;;;;;;;;;;;;;;;; instruction classes ;;;;;;;;;;;;;;;;;;;;;;;;
     
-    (set! opcodes '#(nop @p @+ @b @ !+ !b ! +* 2* 
-			 2/ - + and or drop dup pop over a 
-			 push b! a!))
+    ;; (set! opcodes '#(nop @p @+ @b @ !+ !b ! +* 2* 
+    ;;     		 2/ - + and or drop dup pop over a 
+    ;;     		 push b! a!))
     
     (define-arg-type 'const (lambda (config) '(0 1 -1)))
     
     (define-instruction-class 'nop '(nop))
     (define-instruction-class '@p '(@p)
       #:args '(const) #:ins '(0) #:outs '()) ;; don't bother dealing with data & return stack here.
-    (define-instruction-class 'read-a '(@ @+ ! !+)
+    (define-instruction-class 'read-a '(@ @+ ! !+ +*)
       #:args '() #:ins '(a) #:outs '(a))
     (define-instruction-class 'read-b '(@b !b)
       #:args '() #:ins '(b) #:outs '())
-    (define-instruction-class 'ast '(+*)
-      #:args '() #:ins '(a s t) #:outs '(a))
-    (define-instruction-class 't-only '(2* 2/ - dup over push)
-      #:args '() #:ins '(t) #:outs '())
-    (define-instruction-class 'st-only '(+ and or)
-      #:args '() #:ins '(s t) #:outs '())
-    (define-instruction-class 'none '(pop)
-      #:args '() #:ins '(r) #:outs '())
-    (define-instruction-class 'none '(drop)
-      #:args '() #:ins '() #:outs '()) ;; TODO: how to make dup dup or legal??
+    (define-instruction-class 't-only '(2* 2/ - + and or drop dup over push pop)
+      #:args '() #:ins '() #:outs '())
     (define-instruction-class 'a '(a)
       #:args '() #:ins '(a) #:outs '())
     (define-instruction-class 'a! '(a!)
@@ -410,7 +402,8 @@
        [(progstate-t live)
         (set-progstate-t! live #f)
         live]
-       [else #f]))
+       [else live] ;; don't worry about it
+       ))
 
     (define (dec-live-return live)
       (cond
@@ -420,7 +413,8 @@
        [(progstate-r live)
         (set-progstate-r! live #f)
         live]
-       [else #f]))
+       [else live] ;; don't worry about it
+       ))
 
     (define (inc-live-data live)
       (cond
@@ -454,6 +448,7 @@
       (define opcode-id (inst-op my-inst))
       (define opcode-name (vector-ref opcodes opcode-id))
 
+      (define ret
       (and new-live
            (cond
             [(member opcode-name '(nop 2* 2/ - +*)) new-live]
@@ -467,6 +462,10 @@
             [(member opcode-name '(pop))
              (define inter (inc-live-data new-live))
              (and inter (dec-live-return inter))])))
+      
+      ;;(pretty-display `(update-live ,ret))
+      ret
+      ) ;; TODO: may still need prescreen since update-live is not precise anymore
 
     (define/override (update-live-backward live my-inst)
       (define new-live (super update-live-backward live my-inst))

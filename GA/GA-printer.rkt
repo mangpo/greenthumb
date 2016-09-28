@@ -27,12 +27,13 @@
 	  (inst (send machine get-opcode-id (string->symbol (inst-op x)))
 		(and arg
 		     (if (string->number arg)
-			 (string->number arg)
-			 (hash-ref encode-port-dict arg))))
+			 (vector (string->number arg))
+			 (vector (hash-ref encode-port-dict arg)))))
 	  x))
 
     (define (decode-inst x)
-      (define arg (inst-args x))
+      (define args (inst-args x))
+      (define arg (and args (> (vector-length args) 0) (vector-ref args 0)))
       (inst (symbol->string (send machine get-opcode-name (inst-op x)))
 	    (and (number? arg) (number->string arg))))
 

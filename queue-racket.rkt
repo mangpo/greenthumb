@@ -106,7 +106,7 @@
       (set! index (add1 index)))
 
     (define (push val)
-      (if ref (push-spec) (push-cand)))
+      (if ref (push-cand val) (push-spec val)))
 
     (define (push-inverse)
       (set! index (sub1 index))

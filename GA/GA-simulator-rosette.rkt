@@ -184,7 +184,8 @@
 
       (define (interpret-step inst-const)
 	(define inst (inst-op inst-const))
-	(define const (inst-args inst-const))
+        (define args (inst-args inst-const))
+	(define const (and args (> (vector-length args) 0) (vector-ref args 0)))
 	(when debug (pretty-display `(interpret-step ,inst ,const)))
 	(define-syntax-rule (inst-eq x) (equal? x (vector-ref opcodes inst)))
 	(cond
@@ -216,6 +217,7 @@
 	 [(inst-eq `b!)   (set! b (pop!))]
 	 [(inst-eq `a!)   (set! a (pop!))]
 	 [else (assert #f (format "invalid instruction ~a" inst))])
+        ;;(pretty-display `(interpret-done))
 	 )
 
       (define (interpret-struct x)
@@ -261,7 +263,6 @@
 	 ))
       
       (interpret-struct code)
-
       (progstate a b r s t 
 		  (stack data-sp data-body)
 		  (stack return-sp return-body)

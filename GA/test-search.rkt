@@ -59,7 +59,7 @@ drop pop a
                       [printer printer] [parser parser]
                       [validator validator] [simulator simulator-rosette]))
 
-(send symbolic synthesize-window
+#;(send symbolic synthesize-window
       encoded-code
       encoded-sketch
       encoded-prefix encoded-postfix
@@ -72,10 +72,10 @@ drop pop a
 ;; Phase B: create stochastic search (step 5)
 (define stoch (new GA-stochastic% [machine machine]
                       [printer printer] [parser parser]
-                      [validator validator] [simulator simulator-rosette]
+                      [validator validator] [simulator simulator-racket]
                       [syn-mode #t] ;; #t = synthesize, #f = optimize mode
                       ))
-#;(send stoch superoptimize encoded-code 
+(send stoch superoptimize encoded-code 
       constraint ;; live-out
       livein
       "./driver-0" 

@@ -15,7 +15,7 @@
     (inherit-field machine stat mutate-dist nop-mass)
     (inherit pop-count32)
     (override correctness-cost 
-	      mutate-other)
+	      get-mutations mutate-other)
 
     (set! mutate-dist 
       #hash((opcode . 1) (operand . 1) (swap . 1) (instruction . 1) (rotate . 1)))
@@ -24,11 +24,9 @@
     (define bit (get-field bitwidth machine))
     (define opcodes (get-field opcodes machine))
 
-    ;; (define (get-mutations opcode-name)
-    ;;   (if (equal? opcode-name `@p) 
-    ;;       '(operand swap instruction rotate)
-    ;;       '(opcode swap instruction rotate)))
-
+    (define (get-mutations opcode-id)
+      (define mutations (super get-mutations opcode-id))
+      (cons 'rotate mutations))
 
     (define (mutate-other index entry p type)
       (cond
@@ -119,7 +117,7 @@
 	(let ([mem1 (progstate-memory state1)]
 	      [mem2 (progstate-memory state2)]
 	      [mem-const (progstate-memory constraint)])
-          (when mem-const (send mem1 correstness-cost mem2 diff-cost))))
+          (when mem-const (send mem1 correstness-cost mem2 diff-cost bit))))
           ;; (unless (vector? mem-const)
           ;;         (set! mem-const
           ;;               (make-vector (send machine get-nmems) mem-const)))
@@ -137,7 +135,7 @@
 	(when (progstate-comm constraint)
 	      (let ([comm1 (progstate-comm state1)]
 		    [comm2 (progstate-comm state2)])
-                (send comm1 correctness-cost comm2 diff-cost))))
+                (send comm1 correctness-cost comm2 diff-cost bit))))
 		;; (for ([i1 (progstate-comm state1)]
 		;;       [i2 (progstate-comm state2)])
 		;;      (accum (diff-cost (first i1) (first i2)))
