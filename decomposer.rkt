@@ -23,7 +23,7 @@
     ;; The cooperative search tries L, 2L, 3L, 4L
     (define (window-size) (* 2 (len-limit)))
 
-    (define (superoptimize spec constraint live-in name time-limit size [extra #f]
+    (define (superoptimize spec constraint live-in name time-limit size
                            #:prefix [prefix (vector)] #:postfix [postfix (vector)]
 			   #:assume [assumption (send machine no-assumption)]
 			   #:input-file [input-file #f]
@@ -35,7 +35,7 @@
        (cond
 	[(equal? syn-mode `binary) 
          ;; Try to synthesize up to size (len-limit)
-	 (superoptimize-binary spec constraint time-limit size extra
+	 (superoptimize-binary spec constraint time-limit size
                                #:hard-prefix prefix #:hard-postfix postfix
 			       #:assume assumption)]
 
@@ -43,27 +43,26 @@
          ;; Try to synthesize up to size (len-limit)
 	 (superoptimize-linear spec constraint time-limit
                                (if size size (min (vector-length spec) (len-limit)))
-                               extra
                                #:hard-prefix prefix #:hard-postfix postfix
 			       #:assume assumption)]
 
 	[(equal? syn-mode `partial1)
-	 (superoptimize-partial-random spec constraint 60 (/ 1 2) size extra
+	 (superoptimize-partial-random spec constraint 60 (/ 1 2) size
                                        #:hard-prefix prefix #:hard-postfix postfix
                                        #:assume assumption)]
 
 	[(equal? syn-mode `partial2)
-	 (superoptimize-partial-random spec constraint 60 1 size extra
+	 (superoptimize-partial-random spec constraint 60 1 size 
                                        #:hard-prefix prefix #:hard-postfix postfix
                                        #:assume assumption)]
 
 	[(equal? syn-mode `partial3)
-	 (superoptimize-partial-random spec constraint 90 (/ 3 2) size extra
+	 (superoptimize-partial-random spec constraint 90 (/ 3 2) size 
                                        #:hard-prefix prefix #:hard-postfix postfix
                                        #:assume assumption)]
 
 	[(equal? syn-mode `partial4)
-	 (superoptimize-partial-random spec constraint 90 2 size extra
+	 (superoptimize-partial-random spec constraint 90 2 size 
                                        #:hard-prefix prefix #:hard-postfix postfix
                                        #:assume assumption)]
         )
@@ -73,7 +72,7 @@
 
     ;; Optimize the cost using binary search on the number of holes.
     ;; spec: non-encoded program
-    (define (superoptimize-binary spec constraint time-limit size [extra #f]
+    (define (superoptimize-binary spec constraint time-limit size 
 				  #:lower-bound [lower-bound 0]
                                   #:assume [assumption (send machine no-assumption)]
                                   #:prefix [prefix (vector)] #:postfix [postfix (vector)]
@@ -120,7 +119,7 @@
                )])
 	   ;; TODO: args: spec sketch prefix postfix
            (synthesize-window spec sketch prefix postfix 
-			      constraint extra cost time-limit
+			      constraint cost time-limit
 			      #:hard-prefix hard-prefix #:hard-postfix hard-postfix
 			      #:assume assumption)))
 
@@ -155,7 +154,7 @@
 
     ;; Optimize the cost by reducing upperbound cost until no solution is found.
     ;; spec: non-encoded program
-    (define (superoptimize-linear spec constraint time-limit size [extra #f]
+    (define (superoptimize-linear spec constraint time-limit size
 			   #:assume [assumption (send machine no-assumption)]
                            #:prefix [prefix (vector)] #:postfix [postfix (vector)]
                            #:hard-prefix [hard-prefix (vector)] #:hard-postfix [hard-postfix (vector)])
@@ -182,7 +181,7 @@
         (set! t (current-seconds))
 	(define-values (out-program out-cost) 
 	  (synthesize-window spec sketch prefix postfix
-			     constraint extra cost time-limit
+			     constraint cost time-limit
 			     #:hard-prefix hard-prefix #:hard-postfix hard-postfix
 			     #:assume assumption))
         (pretty-display `(time ,(- (current-seconds) t)))
@@ -205,7 +204,6 @@
 	       (or final-program
                    (superoptimize-linear spec constraint time-limit
                                          (add1 size)
-                                         extra
                                          #:prefix prefix #:postfix postfix
                                          #:hard-prefix hard-prefix
                                          #:hard-postfix hard-postfix
@@ -220,7 +218,7 @@
 
     ;; Fixed then sliding window
     (define (superoptimize-partial-pattern 
-             spec constraint time-limit size [extra #f]
+             spec constraint time-limit size 
              #:hard-prefix [hard-prefix (vector)]
              #:hard-postfix [hard-postfix (vector)]
              #:assume [assumption (send machine no-assumption)])
@@ -229,7 +227,7 @@
 	(newline)
 	(pretty-display "Phase 1: fixed window")
         (define program1
-          (fixed-window hard-prefix hard-postfix spec constraint 60 extra assumption 
+          (fixed-window hard-prefix hard-postfix spec constraint 60 assumption 
                         (window-size) (len-limit)))
         (check-global spec #f)
 	;;(define program1 spec)
@@ -240,7 +238,7 @@
 				  timeout w))
 	  (define program2
 	    (sliding-window hard-prefix hard-postfix program1 
-                            constraint timeout extra assumption w))
+                            constraint timeout assumption w))
 	  (check-global spec program2)
 	  (loop (* 2 timeout) (floor (* (/ 5 4) w))))
 	(loop time-limit (window-size))
@@ -251,7 +249,7 @@
          (lambda (e)
 	   (superoptimize-partial-pattern 
             (exn:restart-program e)
-            constraint time-limit size extra 
+            constraint time-limit size 
             #:hard-prefix hard-prefix #:hard-postfix hard-postfix
             #:assume assumption))])
        (inner))
@@ -259,7 +257,7 @@
 
     ;; Larger sliding window with more timeout.
     (define (superoptimize-partial-pattern-slow
-             spec constraint time-limit size [extra #f]
+             spec constraint time-limit size 
              #:hard-prefix [hard-prefix (vector)]
              #:hard-postfix [hard-postfix (vector)]
              #:assume [assumption (send machine no-assumption)])
@@ -270,7 +268,7 @@
                                 timeout w))
         (define program
           (sliding-window hard-prefix hard-postfix spec
-                          constraint timeout extra assumption w 
+                          constraint timeout assumption w 
 			  #:restart #t #:lower-bound (add1 (len-limit))))
         (check-global spec program)
         (loop (* 2 timeout) (max (add1 w) (floor (* (/ 5 4) w)))))
@@ -280,7 +278,7 @@
          (lambda (e)
 	   (superoptimize-partial-pattern-slow
             (exn:restart-program e)
-            constraint time-limit size extra 
+            constraint time-limit size 
             #:hard-prefix hard-prefix #:hard-postfix hard-postfix
             #:assume assumption))])
        (loop time-limit (max (add1 (window-size)) (floor (* (/ 5 4) (window-size))))))
@@ -288,7 +286,7 @@
     
     ;; Random window
     (define (superoptimize-partial-random 
-             spec constraint time-limit scale size [extra #f]
+             spec constraint time-limit scale size 
              #:hard-prefix [hard-prefix (vector)]
              #:hard-postfix [hard-postfix (vector)]
              #:assume [assumption (send machine no-assumption)])
@@ -301,7 +299,7 @@
         (define-values (new-seq pos)
           (adjustable-window-at hard-prefix hard-postfix 
                              prefix after-prefix
-                             constraint timeout extra assumption w))
+                             constraint timeout assumption w))
         (define output 
           (if new-seq
               (vector-append prefix new-seq (vector-copy after-prefix pos))
@@ -321,7 +319,7 @@
          (lambda (e)
            (superoptimize-partial-random 
             (exn:restart-program e)
-            constraint time-limit scale size extra 
+            constraint time-limit scale size 
             #:hard-prefix hard-prefix #:hard-postfix hard-postfix
             #:assume assumption))])
        (inner (floor (* scale (window-size))) time-limit
@@ -347,7 +345,7 @@
           (raise (exn:restart "restart" (current-continuation-marks) best-program)))))
     
     ;; Fixed window
-    (define (fixed-window hard-prefix hard-postfix spec constraint time-limit extra assume
+    (define (fixed-window hard-prefix hard-postfix spec constraint time-limit assume
                           window size-limit)
       (define len (vector-length spec))
       (define output (vector))
@@ -358,7 +356,7 @@
                   [seq (vector-copy spec start end)]
                   [new-seq
                    (superoptimize-linear 
-                    seq constraint time-limit size-limit extra #:assume assume
+                    seq constraint time-limit size-limit #:assume assume
                     #:hard-prefix hard-prefix #:hard-postfix hard-postfix
                     #:prefix output
                     #:postfix (vector-copy spec end len))])
@@ -372,7 +370,7 @@
                    [prefix (vector-copy output 0 (max 0 (- out-len window)))]
                    [new-seq
                     (superoptimize-linear 
-                     seq constraint time-limit size-limit extra #:assume assume
+                     seq constraint time-limit size-limit #:assume assume
                      #:hard-prefix hard-prefix #:hard-postfix hard-postfix
                      #:prefix prefix)])
              (if (or (equal? new-seq #f) (equal? new-seq "timeout"))
@@ -383,7 +381,7 @@
 
     ;; Adjustable-size window. Shrink when timeout.
     (define (adjustable-window-at hard-prefix hard-postfix prefix code 
-                               constraint time-limit extra assume window
+                               constraint time-limit assume window
 			       #:lower-bound [lower-bound 0]
                                #:restart [restart #f])
       (define spec (vector-append prefix code))
@@ -391,7 +389,7 @@
       (define (inner pos-to)
         (define out-program
           (superoptimize-binary 
-           (vector-take code pos-to) constraint time-limit #f extra #:assume assume
+           (vector-take code pos-to) constraint time-limit #f #:assume assume
            #:hard-prefix hard-prefix #:hard-postfix hard-postfix
            #:prefix prefix
            #:postfix (vector-drop code pos-to)
@@ -413,7 +411,7 @@
 
     ;; Base sliding window
     (define (sliding-window hard-prefix hard-postfix spec 
-			    constraint time-limit extra assume window 
+			    constraint time-limit assume window 
 			    #:restart [restart #f]
 			    #:lower-bound [lower-bound 0])
       (define output (vector))
@@ -422,7 +420,7 @@
           (define-values 
             (out-program next-pos)
             (adjustable-window-at hard-prefix hard-postfix output code 
-			       constraint time-limit extra assume window
+			       constraint time-limit assume window
                                #:restart restart #:lower-bound lower-bound
                                ))
 	  (cond

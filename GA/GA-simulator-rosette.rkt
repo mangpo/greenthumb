@@ -127,7 +127,7 @@
 	 [(equal? addr RIGHT) (set! ret (read RIGHT))]
 	 [(equal? addr IO)    (set! ret (read IO))]
 	 [else 
-          (send memory load addr)])
+          (set! ret (send memory load addr))])
         ret)
       
       ;; Write to the given memeory address or communication
@@ -186,7 +186,7 @@
 	(define inst (inst-op inst-const))
         (define args (inst-args inst-const))
 	(define const (and args (> (vector-length args) 0) (vector-ref args 0)))
-	(when debug (pretty-display `(interpret-step ,inst ,const)))
+	;;(when debug (pretty-display `(interpret-step ,(vector-ref opcodes inst) ,const)))
 	(define-syntax-rule (inst-eq x) (equal? x (vector-ref opcodes inst)))
 	(cond
 	 [(inst-eq `@p)   (push! const)]
@@ -217,7 +217,7 @@
 	 [(inst-eq `b!)   (set! b (pop!))]
 	 [(inst-eq `a!)   (set! a (pop!))]
 	 [else (assert #f (format "invalid instruction ~a" inst))])
-        ;;(pretty-display `(interpret-done))
+        ;;(pretty-display `(step ,t ,s ,data-body))
 	 )
 
       (define (interpret-struct x)

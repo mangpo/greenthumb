@@ -4,7 +4,7 @@
 (provide memory-rosette%)
 
 (define memory-rosette%
-  (class* special% (printable<%>)
+  (class* special% (equal<%> printable<%>)
     (super-new)
     (init-field get-fresh-val
                 [size 20]
@@ -38,6 +38,16 @@
     (define/public (custom-display port)
       (display `(memory% init: ,init update: ,update size: ,(cal-size update)) port))
 
+    (define/public (equal-to? other recur)
+      (and (is-a? other memory-rosette%)
+           (equal? update (get-field update other))))
+
+    (define/public (equal-hash-code-of hash-code)
+      (hash-code update))
+
+    (define/public (equal-secondary-hash-code-of hash-code)
+      (hash-code update))
+      
     ;; Create concrete memory object by evaluating symbolic memory.
     (define (create-concrete eval)
       (new memory-racket% [init (make-hash (filter pair? (vector->list (eval init))))]))

@@ -99,7 +99,6 @@ store i32 %1, i32* %2
       encoded-sketch ;; sketch
       encoded-prefix encoded-postfix
       constraint ;; live-out
-      #f ;; extra parameter (not use in llvm)
       #f ;; upperbound cost, #f = no upperbound
       3600 ;; time limit in seconds
       )
@@ -113,7 +112,7 @@ store i32 %1, i32* %2
 #;(send stoch superoptimize encoded-code 
       constraint ;; constraint
       (send printer encode-live (vector '(%2) #t)) ;; live-in
-      "./driver-0" 3600 #f)
+      "./driver-0" 3600)
 
 ;; Step 4: create enumerative search
 (define backward (new llvm-forwardbackward% [machine machine] 
@@ -127,7 +126,6 @@ store i32 %1, i32* %2
       encoded-sketch ;; sketch => start from searching from length 1, number => only search for that length
       encoded-prefix encoded-postfix
       constraint ;; live-out
-      #f ;; extra parameter (not use in llvm)
       #f ;; upperbound cost, #f = no upperbound
       3600 ;; time limit in seconds
       )

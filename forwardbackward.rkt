@@ -27,9 +27,9 @@
             change-inst change-inst-list
             mask-in get-live-mask inst->vector)
     
-    (define debug #f)
-    (define verbo #f)
-    (define info #f)
+    (define debug #t)
+    (define verbo #t)
+    (define info #t)
     (define ce-limit 100)
 
     ;; Actual bitwidth
@@ -119,7 +119,8 @@
                     (mask-in s l))]
        [(pair? state)
         (cons (mask-in (car state) (car live)) (mask-in (cdr state) (cdr live)))]
-       [(is-a? state special%) state]
+       [(is-a? state special%)
+        (if live state (send state clone))]
        [else (and live state)]))
 
     (define (get-live-mask state)
@@ -420,7 +421,7 @@
     (define start-time #f)
     
     ;;;;;;;;;;;;;;;;;;;;;;; Main functions ;;;;;;;;;;;;;;;;;;;;;;
-    (define (superoptimize-binary spec constraint time-limit size [extra #f]
+    (define (superoptimize-binary spec constraint time-limit size 
 				  #:lower-bound [lower-bound 0]
                                   #:assume [assumption (send machine no-assumption)]
                                   #:prefix [prefix (vector)] #:postfix [postfix (vector)]
@@ -428,25 +429,24 @@
                                   #:hard-postfix [hard-postfix (vector)]
                                   )
       (superoptimizer-common spec prefix postfix constraint time-limit size
-                             extra assumption))
+                             assumption))
 
-    (define (superoptimize-linear spec constraint time-limit size [extra #f]
+    (define (superoptimize-linear spec constraint time-limit size
 			   #:assume [assumption (send machine no-assumption)]
                            #:prefix [prefix (vector)] #:postfix [postfix (vector)]
                            #:hard-prefix [hard-prefix (vector)]
                            #:hard-postfix [hard-postfix (vector)])
       (superoptimizer-common spec prefix postfix constraint time-limit size
-                             extra assumption))
+                             assumption))
 
-    (define (superoptimizer-common spec prefix postfix constraint time-limit size
-                                   extra assumption)
+    (define (superoptimizer-common spec prefix postfix constraint time-limit size assumption)
       (define sketch (make-vector (vector-length spec)))
 
-      (synthesize-window spec sketch prefix postfix constraint extra
+      (synthesize-window spec sketch prefix postfix constraint 
                          (send simulator performance-cost spec) time-limit
                          #:assume assumption))
 
-    (define (synthesize-window spec sketch prefix postfix constraint extra 
+    (define (synthesize-window spec sketch prefix postfix constraint  
 			       [cost #f] [time-limit 3600]
 			       #:hard-prefix [hard-prefix (vector)] 
 			       #:hard-postfix [hard-postfix (vector)]
@@ -457,12 +457,12 @@
       (define init
         (car (send validator
                    generate-input-states 1 (vector-append prefix spec postfix)
-                   assumption extra #:db #t)))
+                   assumption #:db #t)))
       (define state2
         (send simulator interpret
               (vector-append prefix spec) init))
       (define live2
-        (send validator get-live-in postfix constraint extra))
+        (send validator get-live-in postfix constraint))
       (define try-cmp-status (try-cmp? spec state2 live2))
       (when info (pretty-display `(status ,try-cmp-status)))
 
@@ -474,7 +474,7 @@
         (define iterator
           (generator
            ()
-           (synthesize spec sketch prefix postfix constraint extra cost
+           (synthesize spec sketch prefix postfix constraint cost
                        assumption x time-limit)))
         
         (define (loop best-p)
@@ -504,9 +504,8 @@
       out-program
       )
 
-    (define (synthesize spec sketch prefix postfix constraint extra cost
-                        assumption
-                        try-cmp time-limit)
+    (define (synthesize spec sketch prefix postfix constraint cost
+                        assumption try-cmp time-limit)
       (collect-garbage)
       (define size-from sketch)
       (define size-to sketch)
@@ -548,10 +547,10 @@
       (pretty-display "]")
 
       (define live3-vec (send machine progstate->vector constraint))
-      (define live2 (send validator-abst get-live-in postfix constraint extra))
+      (define live2 (send validator-abst get-live-in postfix constraint))
       (define live2-vec (send machine progstate->vector live2))
-      (define live1 (send validator-abst get-live-in (vector-append spec postfix) constraint extra))
-      (define live0 (send validator-abst get-live-in (vector-append prefix spec postfix) constraint extra))
+      (define live1 (send validator-abst get-live-in (vector-append spec postfix) constraint))
+      (define live0 (send validator-abst get-live-in (vector-append prefix spec postfix) constraint))
       (define live0-list (send machine get-live-list live0))
 
       (define live1-list-alt live0-list)
@@ -574,7 +573,7 @@
       (define ntests 2)
       (define inits
         (send validator-abst generate-input-states ntests (vector-append prefix spec postfix)
-              assumption extra #:db #t))
+              assumption #:db #t))
       (define states1 
 	(map (lambda (x) (send simulator-abst interpret prefix x)) inits))
       (define states2
@@ -604,8 +603,12 @@
       (define ce-out-vec-final (list))
 
       (for ([test ntests]
+            [state1 states1]
+            [state1-vec states1-vec]
             [state2 states2]
 	    [state2-vec states2-vec])
+           (vector-set! ce-in test state1)
+	   (vector-set! ce-in-vec test state1-vec)
            (vector-set! ce-out test state2)
 	   (vector-set! ce-out-vec test state2-vec))
 
@@ -660,7 +663,7 @@
          (define ce (send validator counterexample 
                           (vector-append prefix-precise spec-precise postfix-precise)
                           final-program
-                          constraint extra #:assume assumption))
+                          constraint #:assume assumption))
 
          (if ce
              (let* ([ce-input
@@ -726,7 +729,7 @@
             (define ce (send validator-abst counterexample 
                              (vector-append prefix spec postfix)
                              (vector-append prefix p postfix)
-                             constraint extra #:assume assumption))
+                             constraint #:assume assumption))
 
             (if ce
                 (let* ([ce-input (send simulator-abst interpret prefix ce)]
@@ -1121,15 +1124,16 @@
                                                 #:try-cmp try-cmp
                                                 #:step-fw (add1 step-fw)
                                                 #:step-bw (sub1 step-bw))])
-                           (pretty-display `(live ,live-list 
-                                                  ,(hash-count (vector-ref my-hash test))
-                                                  ,(hash-count (car (hash-values (vector-ref my-hash test))))))
+                           ;; (pretty-display `(live ,live-list 
+                           ;;                        ,(hash-count (vector-ref my-hash test))
+                           ;;                        ,(hash-count (car (hash-values (vector-ref my-hash test))))))
                            (build-hash-bw test current live-list my-hash iterator)
                            ))
                     (pretty-display `(behavior-bw ,test ,step ,c-behaviors-bw ,c-progs-bw ,(- (current-seconds) start-time)))))))
         )
 
       (define (build-hash-bw test current old-liveout my-hash iterator)
+        (define my-ce-out-vec (vector-ref ce-out-vec test))
 	(define my-hash-test (vector-ref my-hash test))
 	(define (inner)
 	  (define inst-liveout-vreg (iterator))
@@ -1160,7 +1164,7 @@
 			     [in-vec
                               ;; (with-handlers*
                               ;;  ([exn? (lambda (e) #f)])
-                               (send inverse interpret-inst my-inst out-vec old-liveout)]
+                               (send inverse interpret-inst my-inst out-vec old-liveout my-ce-out-vec)]
                              ;;[_ (pretty-display `(out-vec-after ,out-vec))]
                              ;;[t1 (current-milliseconds)]
                              )

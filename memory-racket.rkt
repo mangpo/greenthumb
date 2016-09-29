@@ -15,7 +15,7 @@
     (public load store clone correctness-cost
             ;; for backward interpret
             clone-all del lookup-update
-            get-update-addr-val get-update-addr-with-val get-addr-with-val
+            get-update-addr-val get-update-addr-with-val get-addr-with-val get-available-addr
             ;; internal use only
             lookup-init
             )
@@ -78,7 +78,11 @@
                           (and (= (cdr x) val)
                                (not (hash-has-key? update (car x)))))
                         (hash->list init)))))
-    
+
+    (define (get-available-addr ref)
+      (remove*
+       (hash-keys update)
+       (hash-keys (get-field update ref))))
 
     ;;;;;;;;;;;;;;;;;;;; lookup & update ;;;;;;;;;;;;;;;;;;;;
     (define (lookup storage addr)

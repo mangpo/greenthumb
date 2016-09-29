@@ -42,7 +42,7 @@
     (define (inst-copy-with-args x args) (struct-copy inst x [args args]))
 
     (define (superoptimize spec constraint this-live-in
-                           name time-limit size [extra-info #f]
+                           name time-limit size 
                            #:prefix [prefix (vector)]
                            #:postfix [postfix (vector)]
                            #:assume [assumption (send machine no-assumption)]
@@ -72,8 +72,7 @@
       (define inits 
         (if input-file
             (map cdr (send machine get-states-from-file input-file))
-            (send validator generate-input-states ntests (vector-append prefix spec postfix)
-                  assumption extra-info)))
+            (send validator generate-input-states ntests (vector-append prefix spec postfix) assumption)))
 
       (define inputs (map (lambda (x) (send simulator interpret prefix x)) inits))
         
@@ -99,8 +98,8 @@
                   [syn-mode (get-sketch)]
                   [else spec])
                  inputs outputs 
-		 (send validator get-live-in postfix constraint extra-info)
-		 assumption time-limit extra-info))
+		 (send validator get-live-in postfix constraint)
+		 assumption time-limit))
           
     (define (random-insts n)
       (when debug 
@@ -328,7 +327,7 @@
        [else                       (mutate-other index entry p type)]))
       
     ;; MCMC sampling process.
-    (define (mcmc-main prefix postfix target init inputs outputs constraint assumption time-limit extra-info)
+    (define (mcmc-main prefix postfix target init inputs outputs constraint assumption time-limit)
       (pretty-display ">>> start MCMC sampling")
       (pretty-display ">>> Phase 3: stochastic search")
       (pretty-display "start-program:")
@@ -413,8 +412,7 @@
               (set! ce (send validator counterexample 
                              (vector-append prefix target postfix)
                              (vector-append prefix program postfix)
-                             constraint extra-info
-                             #:assume assumption))
+                             constraint #:assume assumption))
               (if ce 
                   (begin
                     (set! correct 1)

@@ -46,7 +46,7 @@
     
     (define (output-assume-string x)
       (if x
-          (format "(constrain-stack machine '~a)" x)
+          (format "(send machine constrain-stack '~a)" x)
           #f))
     (define (output-constraint-string live-out)
       ;; live-out is something like '((data . 0) (return . 1) memory a)

@@ -97,7 +97,7 @@
                (and (= c 1) (third key))))
        1))
                
-    (define (interpret-inst my-inst state-vec old-liveout)
+    (define (interpret-inst my-inst state-vec old-liveout [ref #f])
       (define state (send machine vector->progstate state-vec))
       (define a (progstate-a state))
       (define b (progstate-b state))
@@ -245,6 +245,16 @@
                  (for ([actual-addr (send memory get-addr-with-val t-org)])
                       (when (= a actual-addr)
                             (snapshot)))
+
+                 (when
+                  ref
+                  (define mem-ref (progstate-memory ref))
+                  (for ([actual-addr (send memory get-available-addr mem-ref)])
+                       (when (= a actual-addr)
+                             (set! memory (send (progstate-memory state) clone-all))
+                             (send memory store actual-addr t-org)
+                             (snapshot))))
+                                     
                  ])
                
                ]
@@ -253,6 +263,15 @@
                (for ([actual-addr (send memory get-addr-with-val t-org)])
                     (set! a actual-addr)
                     (snapshot))
+
+               (when
+                ref
+                (define mem-ref (progstate-memory ref))
+                (for ([actual-addr (send memory get-available-addr mem-ref)])
+                     (set! a actual-addr)
+                     (set! memory (send (progstate-memory state) clone-all))
+                     (send memory store actual-addr t-org)
+                     (snapshot)))
                
                (when (> (get-field index comm) 0)
                      (set! comm (send comm clone-all))

@@ -1,32 +1,13 @@
-OPTION 1:
-- circular stack
-- use progstate
-- override hash, don't use progstate<->vector
-- don't use (progstate-structure)
-- implement (get-state) & (clone-state), state-eq?, get-live-in, etc.
-
-OPTION 2:
-- circular stack
-- use progstate
-- use progstate<->vector
-- don't use (progstate-structure)
-- implement get-state, clone-state, evaluate-state
-
-OPTION 3: ***
-- circular stack
-- use (progstate-structure)
-- use progstate->vector
-
-OPTION 4:
-- normal stack
-
-----------------------
-Action
 - GA: partial generate-inst
+- extra: get-state, get-state-liveness, proper-machine-config, gererate-input-states, counterexample, get-live-in
+- don't mask-in forward
+- do we need get-state-liveness?
+- get rid of proper-machine-config
+- inverse: interpret-inst is for vector. why??? BIG TODO
 
 Questions
 - get rid of "extra" in get-state, proper-machine-config => using queue for recv
-- get rid of get-live-list
+- get rid of get-live-list (use progstatet->vector?)
 - when not constrain mem, but do use mem
 - GA: (progstate-structure) using vector
   = get-state, clone-state, evaluate-state**

@@ -11,18 +11,17 @@
 
 (define code
 (send parser ir-from-string 
-      "325 325 325 b! @b"))
+      "dup drop up a! @ !"))
 
 (define sketch (send parser ir-from-string 
-      "0 0"))
+      "up a! @ !"))
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send printer encode sketch))
 
 (define ce
   (send validator counterexample encoded-code encoded-sketch 
-        (send machine output-constraint '() 1 0)
-        #f
+        (send machine output-constraint '((data . 2) memory))
         ;#:assume (constrain-stack 
         ;          machine '((<= . 7) (<= . 7) (<= . 7)))
         ))

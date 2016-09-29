@@ -26,7 +26,7 @@
     
     ;; Optimize code
     (define (optimize-inner code-org live-out-org live-in-org rootdir cores time-limit prog-size 
-                            assume extra-info input-file start-prog)
+                            assume input-file start-prog)
       (pretty-display (format "SEACH TYPE: ~a size=~a" search-type prog-size))
       ;;(define path (format "~a/driver" dir))
       (system (format "rm -r ~a" rootdir))
@@ -47,7 +47,7 @@
       (send printer print-syntax code)
       ;; machine-info from compress-reg-space is only accurate for reg but not memory. This will adjust the rest of the machine info.
       (set! machine-info (send validator proper-machine-config 
-			       (send printer encode code) machine-info extra-info))
+			       (send printer encode code) machine-info))
       (pretty-display (format ">>> machine-info: ~a" machine-info))
       (pretty-display (format ">>> live-in: ~a" live-in))
       (pretty-display (format ">>> live-out: ~a" live-out))
@@ -123,10 +123,10 @@
                      (pretty-display (format "(define encoded-start-code (send printer encode start-code))"))
                      )
                (pretty-display 
-                (format "(send search superoptimize encoded-code ~a ~a \"~a-~a\" ~a ~a ~a #:assume ~a #:input-file ~a #:start-prog ~a #:prefix encoded-prefix #:postfix encoded-postfix)" 
+                (format "(send search superoptimize encoded-code ~a ~a \"~a-~a\" ~a ~a #:assume ~a #:input-file ~a #:start-prog ~a #:prefix encoded-prefix #:postfix encoded-postfix)" 
                         (send printer output-constraint-string live-out)
                         (send printer output-constraint-string live-in)
-                        path id time-limit prog-size extra-info
+                        path id time-limit prog-size 
                         (send printer output-assume-string assume)
                         (if input-file (string-append "\"" input-file "\"") #f)
                         (if start-prog "encoded-start-code" #f)
@@ -371,7 +371,6 @@
 
     (define (optimize code-org live-out live-in
                       #:assume [assume #f]
-                      #:extra-info [extra-info #f]
                       #:dir [dir "output"] 
                       #:cores [cores 8]
                       #:time-limit [time-limit 3600]
@@ -380,7 +379,7 @@
                       #:start-prog [start-prog #f])
 
       (if (> (vector-length code-org) 0)
-          (optimize-inner code-org live-out live-in dir cores time-limit size assume extra-info input-file start-prog)
+          (optimize-inner code-org live-out live-in dir cores time-limit size assume input-file start-prog)
           code-org))
 
     ))

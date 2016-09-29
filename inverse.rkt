@@ -77,7 +77,7 @@
     ;; state-vec: progstate in vector/list/pair format
     ;; old-liveout: liveout info
     ;; output: a list of progstates in vector/list/pair format
-    (define (interpret-inst my-inst state old-liveout)
+    (define (interpret-inst my-inst state old-liveout [ref #f])
       (define args (inst-args my-inst))
       (define ins-types (send machine get-progstate-ins-types my-inst))
       (define outs-types (send machine get-progstate-outs-types my-inst))
@@ -102,10 +102,31 @@
         (define mem (findf (lambda (x) (is-a? x memory-racket%)) in-vals))
         (cond
          [(and out-val mem)
-          (filter
-           (lambda (x) x)
-           (for/list ([actual-addr (send mem get-addr-with-val out-val)])
-                     (send machine update-progstate-ins-load my-inst actual-addr state)))]
+          (define
+            ret
+            (filter
+             (lambda (x) x)
+             (for/list ([actual-addr (send mem get-addr-with-val out-val)])
+                       (send machine update-progstate-ins-load my-inst actual-addr mem state))))
+
+          (when
+           ref
+           (define in-vals-ref (send machine get-progstate-ins-vals my-inst ref))
+           (define mem-ref (and ref (findf (lambda (x) (is-a? x memory-racket%)) in-vals-ref)))
+           (set! ret
+                 (append
+                  ret
+                  (filter
+                   (lambda (x) x)
+                   (for/list ([actual-addr (send mem get-available-addr mem-ref)])
+                             (let* ([new-mem (send mem clone-all)]
+                                    [new-state (send machine update-progstate-ins-load
+                                                     my-inst actual-addr new-mem state)])
+                               (send new-mem store actual-addr out-val)
+                               new-state))))))
+          
+          ret
+          ]
          [else #f])
         ]
 

@@ -57,14 +57,16 @@
     ;; Adjust machine config. Specifially, increase memory size if necessary.
     ;; encoded concrete code
     ;; config: machine config
-    (define (proper-machine-config encoded-code config [extra #f])
+    (define (proper-machine-config encoded-code config)
       (pretty-display `(config ,config))
       (define (solve-until-valid config)
+        (pretty-display `(solve ,config))
         (send machine set-config config)
         (clear-asserts)
 	(current-bitwidth bit)
-        (define state (send machine get-state sym-input extra))
-	;;(send simulator interpret encoded-code state)
+        (define state (send machine get-state sym-input))
+        (pretty-display `(state ,state))
+	(send simulator interpret encoded-code state)
 
         (with-handlers* 
          ([exn:fail? 
@@ -199,11 +201,11 @@
 
     ;; Generate input states.
     (define (generate-input-states 
-             n spec assumption [extra #f]
+             n spec assumption
              #:rand-func 
              [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))]
              #:db [db #f])
-      (define start-state (send machine get-state sym-input extra))
+      (define start-state (send machine get-state sym-input))
       (define-values (sym-vars sltns)
         (generate-inputs-inner n spec start-state assumption 
                                #:rand-func rand-func
@@ -212,7 +214,7 @@
 
     ;; Returns a counterexample if spec and program are different.
     ;; Otherwise, returns false.
-    (define (counterexample spec program constraint [extra #f]
+    (define (counterexample spec program constraint
                             #:assume [assumption (send machine no-assumption)])
       ;;(pretty-display (format "solver = ~a" (current-solver)))
       (when (and debug printer)
@@ -222,11 +224,12 @@
 	    (pretty-display `(program))
 	    (send printer print-syntax (send printer decode program))
 	    (pretty-display `(constraint ,constraint))
+	    (pretty-display `(assumption ,assumption))
 	    )
       
       (clear-asserts)
       (current-bitwidth bit)
-      (define start-state (send machine get-state sym-input extra))
+      (define start-state (send machine get-state sym-input))
       (define spec-state #f)
       (define program-state #f)
       
@@ -261,8 +264,8 @@
     ;; Return live-in in progstate format.
     ;; live-out: progstate format
     ;; extra: extra information
-    (define (get-live-in code live-out extra)
-      (define in-state (send machine get-state-liveness sym-input extra))
+    (define (get-live-in code live-out)
+      (define in-state (send machine get-state-liveness sym-input))
       (define out-state (interpret code in-state))
       (define vec-live-out (send machine progstate->vector live-out))
       (define vec-input (send machine progstate->vector in-state))
@@ -335,6 +338,8 @@
     ;; state1, state2, & pred: progstate format
     (define (assert-state-eq state1 state2 pred)
       (define (inner state1 state2 pred)
+        ;; (pretty-display `(assert-eq ,pred))
+        ;; (when (equal? pred #t) (pretty-display `(state ,state1 ,state2)))
 	(cond
          [(and pred (special-type? state1))
           (assert (equal? state1 state2))]

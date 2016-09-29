@@ -25,7 +25,7 @@
 
 (define code
 (send parser ir-from-string "
-dup drop left a! !+ @
+dup drop up a! @ !
 "))
 
 
@@ -33,6 +33,9 @@ dup drop left a! !+ @
 (send parser ir-from-string "
 ? ? ? ?
 "))
+; okay: dup drop up a! @ @
+; bug: dup drop a! @+ !
+; okay; dup drop a! @+ @
 ;[drop pop a ] 325 9 2/ b! a! ! !b @b 2* 2* 325 b! @b 3  [and + ]
 ; drop pop a ] 3 325 b! a! !b 2* 2* 325 b! @b 3 [and +
 ; drop pop a 325 a! ! ] 2* 2* @+ 3 and +
@@ -45,7 +48,8 @@ dup drop left a! !+ @
 
 ;; Phase 0: create constraint (live-out)
 (define livein (send machine output-constraint '(a) 4 1))
-(define constraint (send machine output-constraint '(a) 1 0))
+(define constraint (send machine output-constraint '((data . 2) memory)))
+;;(define precond (send machine constrain-stack '((<= . 65535))));; (<= . 65535)))); (<= . 65535))))
 
 (send machine analyze-opcode encoded-prefix encoded-code encoded-postfix)
 (send machine reset-arg-ranges)
@@ -57,12 +61,11 @@ dup drop left a! !+ @
                       [printer printer] [parser parser]
                       [validator validator] [simulator simulator-rosette]))
 
-#;(send symbolic synthesize-window
+(send symbolic synthesize-window
       encoded-code
       encoded-sketch
       encoded-prefix encoded-postfix
       constraint ;; live-out
-      #f ;; extra parameter (not use most of the time)
       #f ;; upperbound cost, #f = no upperbound
       3600 ;; time limit in seconds
       )
@@ -78,7 +81,6 @@ dup drop left a! !+ @
       livein
       "./driver-0" 
       3600 ;; time limit in seconds
-      #f   ;; extra parameter (not use most of the time)
       )
 
 
@@ -89,12 +91,11 @@ dup drop left a! !+ @
                       [inverse% GA-inverse%]
                       [enumerator% GA-enumerator%]
                       [syn-mode `linear]))
-(send backward synthesize-window
+#;(send backward synthesize-window
       encoded-code
       encoded-sketch
       encoded-prefix encoded-postfix
       constraint ;; live-out
-      #f ;; extra parameter (not use most of the time)
       #f ;; upperbound cost, #f = no upperbound
       3600 ;; time limit in seconds
       )

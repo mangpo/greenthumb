@@ -12,9 +12,9 @@
 (define validator (new GA-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
 
 (define code1 (send parser ir-from-string 
-                   "325 325 325 b! @b"))
+                   "dup drop up a! @ !"))
 (define code2 (send parser ir-from-string 
-                   "325 b! @b"))
+                   "up a! @ !"))
 (define encoded-code1 (send printer encode code1))
 (define encoded-code2 (send printer encode code2))
 

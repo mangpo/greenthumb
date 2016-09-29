@@ -91,7 +91,7 @@
     
     ((default-state machine)
      (default-state machine 0 (lambda () 0)))
-    ))
+))
 
 ;;; The empty constraint. Pretty useless.
 (define constraint-none (progstate #f #f #f #f #f 0 0 #f #f #t))
@@ -104,31 +104,31 @@
 ;;; #f #f #f #f #f #f #t #f #f #f)'. If you want to constrain
 ;;; everything *except* the given fields, start with the except
 ;;; keyword: `(constrain except t)' constrains everything but t. 
-(define-syntax constraint
-  (syntax-rules (except data return none)
+;; (define-syntax constraint
+;;   (syntax-rules (except data return none)
 
-    ((constraint (return val1) (data val2) var ...)  
-     (struct-copy progstate constraint-none [return val1] [data val2] [var #t] ...))
-    ((constraint (data val2) (return val1) var ...)  
-     (struct-copy progstate constraint-none [return val1] [data val2] [var #t] ...))
+;;     ((constraint (return val1) (data val2) var ...)  
+;;      (struct-copy progstate constraint-none [return val1] [data val2] [var #t] ...))
+;;     ((constraint (data val2) (return val1) var ...)  
+;;      (struct-copy progstate constraint-none [return val1] [data val2] [var #t] ...))
 
-    ((constraint (return val1) (data val2))
-     (struct-copy progstate constraint-none [return val1] [data val2]))
-    ((constraint (data val2) (return val1))
-     (struct-copy progstate constraint-none [return val1] [data val2]))
+;;     ((constraint (return val1) (data val2))
+;;      (struct-copy progstate constraint-none [return val1] [data val2]))
+;;     ((constraint (data val2) (return val1))
+;;      (struct-copy progstate constraint-none [return val1] [data val2]))
 
-    ((constraint (data val) var ...)  
-     (struct-copy progstate constraint-none [data val] [var #t] ...))
-    ((constraint (data val))  
-     (struct-copy progstate constraint-none [data val]))
-    ((constraint (return val) var ...)  
-     (struct-copy progstate constraint-none [return val] [var #t] ...))
-    ((constraint (return val))  
-     (struct-copy progstate constraint-none [return val]))
+;;     ((constraint (data val) var ...)  
+;;      (struct-copy progstate constraint-none [data val] [var #t] ...))
+;;     ((constraint (data val))  
+;;      (struct-copy progstate constraint-none [data val]))
+;;     ((constraint (return val) var ...)  
+;;      (struct-copy progstate constraint-none [return val] [var #t] ...))
+;;     ((constraint (return val))  
+;;      (struct-copy progstate constraint-none [return val]))
 
-    ((constraint except var ...) (struct-copy progstate constraint-all  [var #f] ...))
-    ((constraint var ...)        (struct-copy progstate constraint-none [var #t] ...))
-    ))
+;;     ((constraint except var ...) (struct-copy progstate constraint-all  [var #f] ...))
+;;     ((constraint var ...)        (struct-copy progstate constraint-none [var #t] ...))
+;;     ))
 
 #;(define (constrain-stack machine precond [state (default-state machine)])
   (when (list? precond)
@@ -144,7 +144,8 @@
        [(and assume (<= i 10))
 	(raise "A small function cannot have more than 10 parameters.")]
        )))
-  state)
+state)
+
 
 (define GA-machine%
   (class machine%
@@ -164,7 +165,7 @@
                 [IO #x15d])
     (inherit define-instruction-class
              define-progstate-type define-arg-type
-             finalize-machine-description)
+             finalize-machine-description get-state)
 
     (public stack->vector)
 
@@ -212,6 +213,7 @@
       (display-data state)
       (display-return state)
       (pretty-display (progstate-memory state))
+      (pretty-display (progstate-recv state))
       (pretty-display (progstate-comm state))
       (newline)
       )
@@ -231,6 +233,10 @@
     (define (get-stack stack i)
       (define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
       (vector-ref (stack-body stack) (modulo- (- (stack-sp stack) i) 8)))
+    
+    (define (set-stack! stack i v)
+      (define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
+      (vector-set! (stack-body stack) (modulo- (- (stack-sp stack) i) 8) v))
 
     ;; (define (stack->vector x)
     ;;   (if (stack? x)
@@ -302,6 +308,23 @@
       (define comm (map (lambda (x) (map string->number (string-split x))) raw-comm))
       (cons (equal? (vector-ref tokens 0) "#t")
             (progstate a b r s t data return memory recv comm)))
+
+    
+    (define/public (constrain-stack precond)
+      (define state (get-state (lambda (#:min [min #f] #:max [max #f] #:const [const #f]) const)))
+      (when (list? precond)
+            (for ([assume precond]
+                  [i (reverse (range (length precond)))])
+                 (cond
+                  [(and assume (= i 0)) (set-progstate-t! state assume)]
+                  [(and assume (= i 1)) (set-progstate-s! state assume)]
+                  [(and assume (< i 10))
+                   (set-stack! (progstate-data state) (- i 2) assume)]
+
+                  [(and assume (<= i 10))
+                   (raise "A small function cannot have more than 10 parameters.")]
+                  )))
+      state)
     
     ;;;;;;;;;;;;;;;;;;;;; program state ;;;;;;;;;;;;;;;;;;;;;;;;
 

@@ -3,7 +3,7 @@
 (require "inst.rkt" "memory-rosette.rkt" "queue-rosette.rkt" "special.rkt")
 (provide (all-defined-out))
 
-(define debug #f)
+(define debug #t)
 (struct instclass (opcodes pool args ins outs commute) #:mutable)
 (struct argtype (validfunc valid) #:mutable)
 (struct statetype (get set min max const))
@@ -82,12 +82,12 @@
     (define (get-opcode-id opcode) (vector-member opcode opcodes))
     (define (get-opcode-name id) (vector-ref opcodes id))
     (define (no-assumption) #f)
-    (define (get-state-liveness f extra) (get-state f extra))
+    (define (get-state-liveness f) (get-state f))
     (define (display-state x) (pretty-display x))
 
     (define (finalize-config info) info)
     (define (config-exceed-limit? info)
-      (> (get-memory-size info) 100))
+      (> (get-memory-size) 100))
 
     (define (progstate->vector x) x)
     (define (vector->progstate x) x)
@@ -152,7 +152,7 @@
 
     (define (reset-opcode-pool) (void))
 
-    (define (get-state init [extra #f])
+    (define (get-state init)
       (define progstate (progstate-structure))
 
       (define (inner x)

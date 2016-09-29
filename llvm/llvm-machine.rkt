@@ -119,9 +119,9 @@
     (finalize-machine-description)
 
     ;; Inform about the order of argument for load instruction
-    (define (update-progstate-ins-load my-inst addr state)
+    (define (update-progstate-ins-load my-inst addr mem state)
       (define state-base (kill-outs my-inst state))
-      (update-progstate-ins my-inst (list addr) state-base))
+      (update-progstate-ins my-inst (list addr mem) state-base))
 
     ;; Inform about the order of argument for store instruction
     (define (update-progstate-ins-store my-inst addr val state)

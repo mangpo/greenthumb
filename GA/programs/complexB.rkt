@@ -8,5 +8,5 @@
 (optimize (send parser ast-from-string
                 "drop 3 and + push drop pop dup 0 b! @b")
           '((data . 2))
-          #t #f 0 #:cores 4 #:time-limit 3600 #:size 7
+          #t #f #:cores 4 #:time-limit 3600 #:size 7
           #:input-file "data-iii2/inputs")
