@@ -84,7 +84,7 @@
           ;;(pretty-display `(gen-pos ,step-fw ,(+ step-fw step-bw 1)))
           (send machine get-valid-opcode-pool step-fw (+ step-fw step-bw 1) live-in)]
          [else (get-field opcode-pool machine)]))
-      ;; (define inst-choice '(or))
+      ;; (define inst-choice '(!+ @))
       ;; (define opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
 
       ;;(pretty-display `(generate-inst ,opcode-pool))

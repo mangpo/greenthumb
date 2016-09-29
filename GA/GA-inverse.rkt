@@ -220,73 +220,76 @@
 
       ;; load inverse
       (define-syntax-rule (memeq-pop! a f)
-        (when t
-          (let ([t-org t])
-            (pop!)
+        (let ([t-org t])
+          (pop!)
+          (cond
+           [a
+            (set! a (f a))
             (cond
-              [a
-               (set! a (f a))
-               (cond
-                [(member a (list UP DOWN LEFT RIGHT IO))
-                 (when (> (get-field index comm) 0)
-                       (set! comm (send comm clone-all))
-                       (define token (send comm push-inverse))
-                       (define val (first token))
-                       (define port (second token))
-                       (define type (third token))
-                       
-                       (when (and (= t-org val) (= type 0) (= a port)
-                                  (> (get-field index recv) 0))
-                             (set! recv (send recv clone-all))
-                             (when (send recv pop-inverse val)
-                                   (snapshot))))
-                 ]
-                [else
-                 (for ([actual-addr (send memory get-addr-with-val t-org)])
-                      (when (= a actual-addr)
-                            (snapshot)))
+             [(member a (list UP DOWN LEFT RIGHT IO))
+              (when (> (get-field index comm) 0)
+                    (set! comm (send comm clone)) ;; all clone-all
+                    (define token (send comm push-inverse))
+                    (define val (first token))
+                    (define port (second token))
+                    (define type (third token))
+                    
+                    (when (and (or (not t-org) (= t-org val))
+                               (= type 0) (= a port)
+                               (> (get-field index recv) 0))
+                          (set! recv (send recv clone))
+                          (when (send recv pop-inverse val)
+                                (snapshot))))
+              ]
+             [t-org
+              (for ([actual-addr (send memory get-addr-with-val t-org)])
+                   (when (= a actual-addr)
+                         (snapshot)))
 
-                 (when
-                  ref
-                  (define mem-ref (progstate-memory ref))
-                  (for ([actual-addr (send memory get-available-addr mem-ref)])
-                       (when (= a actual-addr)
-                             (set! memory (send (progstate-memory state) clone-all))
-                             (send memory store actual-addr t-org)
-                             (snapshot))))
-                                     
-                 ])
-               
-               ]
+              (when
+               ref
+               (define mem-ref (progstate-memory ref))
+               (for ([actual-addr (send memory get-available-addr mem-ref)])
+                    (when (= a actual-addr)
+                          (set! memory (send (progstate-memory state) clone))
+                          (send memory store actual-addr t-org)
+                          (snapshot))))
               
-              [else
-               (for ([actual-addr (send memory get-addr-with-val t-org)])
-                    (set! a actual-addr)
-                    (snapshot))
+              ])
+            
+            ]
+           
+           [else
+            (when
+             t-org
+             (for ([actual-addr (send memory get-addr-with-val t-org)])
+                  (set! a actual-addr)
+                  (snapshot))
 
-               (when
-                ref
-                (define mem-ref (progstate-memory ref))
-                (for ([actual-addr (send memory get-available-addr mem-ref)])
-                     (set! a actual-addr)
-                     (set! memory (send (progstate-memory state) clone-all))
-                     (send memory store actual-addr t-org)
-                     (snapshot)))
-               
-               (when (> (get-field index comm) 0)
-                     (set! comm (send comm clone-all))
-                     (define token (send comm push-inverse))
-                     (define val (first token))
-                     (define port (second token))
-                     (define type (third token))
-                     
-                     (when (and (= t-org val) (= type 0)
-                                (> (get-field index recv) 0))
-                           (set! recv (send recv clone-all))
-                           (when (send recv pop-inverse val)
-                                 (set! a port)
-                                 (snapshot))))]
-              ))))
+             (when
+              ref
+              (define mem-ref (progstate-memory ref))
+              (for ([actual-addr (send memory get-available-addr mem-ref)])
+                   (set! a actual-addr)
+                   (set! memory (send (progstate-memory state) clone))
+                   (send memory store actual-addr t-org)
+                   (snapshot))))
+            
+            (when (> (get-field index comm) 0)
+                  (set! comm (send comm clone))
+                  (define token (send comm push-inverse))
+                  (define val (first token))
+                  (define port (second token))
+                  (define type (third token))
+                  
+                  (when (and (or (not t-org) (= t-org val))
+                             (= type 0)
+                             (> (get-field index recv) 0))
+                        (set! recv (send recv clone))
+                        (when (send recv pop-inverse val)
+                              (set! a port)
+                              (snapshot))))]
+           )))
 
       ;; store inverse
       (define-syntax-rule (mem-to-stack-rm a f)
@@ -297,7 +300,7 @@
            (cond
              [(member a (list UP DOWN LEFT RIGHT IO))
               (when (> (get-field index comm) 0)
-                    (set! comm (send comm clone-all))
+                    (set! comm (send comm clone))
                     (define token (send comm push-inverse))
                     (define val (first token))
                     (define port (second token))
@@ -311,7 +314,7 @@
                 (let* ([addr (car addr-val)]
                        [val (cdr addr-val)])
                   (when (= a addr)
-                    (set! memory (send (progstate-memory state) clone-all))
+                    (set! memory (send (progstate-memory state) clone))
                     (send memory del addr)
                     (set! t val)
                     (snapshot))))
@@ -324,7 +327,7 @@
            (for/list ([addr-val (send memory get-update-addr-val)])
              (let* ([addr (car addr-val)]
                     [val (cdr addr-val)])
-               (set! memory (send (progstate-memory state) clone-all))
+               (set! memory (send (progstate-memory state) clone))
                (send memory del addr)
                (set! a addr)
                (set! t val)
@@ -332,7 +335,7 @@
 
            (when (> (get-field index comm) 0)
                  (set! memory (progstate-memory state))
-                 (set! comm (send comm clone-all))
+                 (set! comm (send comm clone))
                  (define token (send comm push-inverse))
                  (define val (first token))
                  (define port (second token))

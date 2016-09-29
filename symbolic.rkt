@@ -138,7 +138,7 @@
         (set! spec-state 
               (interpret-spec (vector-append hard-prefix spec hard-postfix)
                               start-state assumption))
-        (pretty-display `(interpret-spec ,spec-state))
+        ;;(pretty-display `(interpret-spec ,spec-state))
         )
       
       (define (compare-spec-sketch)
@@ -148,7 +148,7 @@
         (set! sketch-state 
               (send simulator interpret (vector-append hard-prefix sketch hard-postfix)
                     start-state spec-state))
-        (pretty-display `(interpret-spec ,sketch-state))
+        ;;(pretty-display `(interpret-spec ,sketch-state))
         (when debug (pretty-display "check output"))
         ;; (set! spec-cost (send simulator performance-cost spec))
         (set! sketch-cost (send simulator performance-cost sketch))

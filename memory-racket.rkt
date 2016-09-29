@@ -14,8 +14,9 @@
                 [ref #f]) ;; TODO: do we ever use ref?
     (public load store clone correctness-cost
             ;; for backward interpret
-            clone-all del lookup-update
+            del lookup-update
             get-update-addr-val get-update-addr-with-val get-addr-with-val get-available-addr
+            get-live-mask
             ;; internal use only
             lookup-init
             )
@@ -42,13 +43,17 @@
     ;; Clone a new memory object with the same init.
     ;; Use this method to clone new memory for every program interpretation.
     (define (clone [ref #f])
-      (new memory-racket% [ref ref] [init init]))
-      
-    ;; Clone a new memory object with the same update.
-    ;; Use this method to clone new memory for every inverse program interpretation.
-    (define (clone-all [ref #f])
       (new memory-racket% [ref ref] [init init]
            [update (make-hash (hash->list update))]))
+      
+    ;; ;; Clone a new memory object with the same update.
+    ;; ;; Use this method to clone new memory for every inverse program interpretation.
+    ;; (define (clone-all [ref #f])
+    ;;   (new memory-racket% [ref ref] [init init]
+    ;;        [update (make-hash (hash->list update))]))
+    
+    (define/public (clone-init)
+      (new memory-racket% [ref ref] [init init]))
 
     (define (correctness-cost other diff-cost bit)
       (define cost 0)
@@ -62,6 +67,8 @@
                                (diff-cost val other-val)
                                bit)))))
       cost)
+
+    (define (get-live-mask) (> (hash-count update) 0))
 
     ;;;;;;;;;;;;;;;;;;;; get addr & val ;;;;;;;;;;;;;;;;;;;;;
     (define (get-update-addr-val)

@@ -3,7 +3,7 @@
 (require "inst.rkt" "memory-rosette.rkt" "queue-rosette.rkt" "special.rkt")
 (provide (all-defined-out))
 
-(define debug #t)
+(define debug #f)
 (struct instclass (opcodes pool args ins outs commute) #:mutable)
 (struct argtype (validfunc valid) #:mutable)
 (struct statetype (get set min max const))
@@ -529,7 +529,7 @@
     (define (update-progstate-del-mem addr new-state)
       (let* ([mem-type (hash-ref statetypes-info (get-memory-type))]
              [mem ((statetype-get mem-type) new-state)]
-             [new-mem (send mem clone-all)])
+             [new-mem (send mem clone)]) ;;clone-all
         (send new-mem del addr)
         ((statetype-set mem-type) new-state new-mem)
         new-state))

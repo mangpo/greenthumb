@@ -55,7 +55,8 @@
     ;; Clone a new symbolic memory object with the same init.
     ;; Use this method to clone new memory for every program interpretation.
     (define (clone [ref #f])
-      (new memory-rosette% [ref ref] [init init] [get-fresh-val get-fresh-val]))
+      (new memory-rosette% [ref ref] [init init] [update (vector-copy update)]
+           [get-fresh-val get-fresh-val]))
 
     (define (init-new-val addr)
       (define (loop index)

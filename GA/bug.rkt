@@ -30,11 +30,11 @@ dup drop up a! @ !
 (define constraint (send machine output-constraint '((data . 2) memory a)))
 
 ;; Synthesize
-;;(send symbolic synthesize-from-sketch encoded-code sketch constraint)
+(send symbolic synthesize-from-sketch encoded-code sketch constraint)
 
 ;; Verify
 (define code2 (send parser ir-from-string 
-"226 325 a! push ")) ;; output from synthesize
+"up a! @ !")) ;; output from synthesize
 (define encoded-code2 (send printer encode code2))
 
 #;(define ce

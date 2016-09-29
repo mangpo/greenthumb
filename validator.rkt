@@ -329,6 +329,7 @@
                 (extract-live (cdr pred) (cdr x)))]
          [(list? x)
           (for/list ([i x] [p pred]) (extract-live p i))]
+         [(is-a? x special%) #t]
          [else pred]
          ))
 
@@ -341,8 +342,14 @@
         ;; (pretty-display `(assert-eq ,pred))
         ;; (when (equal? pred #t) (pretty-display `(state ,state1 ,state2)))
 	(cond
-         [(and pred (special-type? state1))
-          (assert (equal? state1 state2))]
+         ;; [(and pred (special-type? state1))
+         ;;  (assert (equal? state1 state2))]
+         [(and pred (is-a? state1 memory-rosette%))
+          (assert (equal? (get-field update state1) (get-field update state2)))]
+         
+         [(and pred (or (is-a? state1 queue-in-rosette%) (is-a? state1 queue-out-rosette%)))
+          (assert (equal? (get-field queue state1) (get-field queue state2)))]
+         
 	 [(equal? pred #t)
           (for*/all ([i state2])
                     (assert (equal? state1 i)))

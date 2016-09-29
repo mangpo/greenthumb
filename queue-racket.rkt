@@ -12,7 +12,7 @@
                 [ref #f])
 
     (public pop pop-inverse
-            clone clone-all correctness-cost)
+            clone correctness-cost get-live-mask)
     
     (define (filter-queue)
       (filter (lambda (x) (not (equal? x #f))) (vector->list queue)))
@@ -42,8 +42,8 @@
     (define (clone [ref #f])
       (new queue-in-racket% [ref ref] [queue queue] [index index]))
 
-    (define (clone-all [ref #f])
-      (new queue-in-racket% [ref ref] [queue queue] [index index]))
+    ;; (define (clone-all [ref #f])
+    ;;   (new queue-in-racket% [ref ref] [queue queue] [index index]))
 
     (define (pop)
       (define val (vector-ref queue index))
@@ -58,6 +58,8 @@
     
     (define (correctness-cost other diff-cost bit)
       (* bit (abs (- (get-field index other) index))))
+
+    (define (get-live-mask) #t)
     
     ))
 
@@ -70,7 +72,7 @@
                 [ref #f])
 
     (public push push-inverse
-            clone clone-all correctness-cost)
+            clone correctness-cost get-live-mask)
 
     (define/public (get-at index) (vector-ref queue index))
     
@@ -102,8 +104,8 @@
     (define (clone [ref #f])
       (new queue-out-racket% [ref ref] [queue (vector-copy queue)] [index index]))
 
-    (define (clone-all [ref #f])
-      (new queue-out-racket% [ref ref] [queue (vector-copy queue)] [index index]))
+    ;; (define (clone-all [ref #f])
+    ;;   (new queue-out-racket% [ref ref] [queue (vector-copy queue)] [index index]))
 
     (define (push-spec val)
       (vector-set! queue index val)
@@ -124,6 +126,8 @@
     
     (define (correctness-cost other diff-cost bit)
       (* bit (abs (- (get-field index other) index))))
+    
+    (define (get-live-mask) #t)
     
     ))
 

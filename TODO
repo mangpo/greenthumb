@@ -1,11 +1,12 @@
+- GA: using live => equivalence classes in different groups
 - GA: partial generate-inst
 - extra: get-state, get-state-liveness, proper-machine-config, gererate-input-states, counterexample, get-live-in
 - don't mask-in forward
 - do we need get-state-liveness?
 - get rid of proper-machine-config
 - inverse: interpret-inst is for vector. why??? BIG TODO
+- avoid vector-copy (mem & queue clone) in interpret for enumerative search
 
-Questions
 - get rid of "extra" in get-state, proper-machine-config => using queue for recv
 - get rid of get-live-list (use progstatet->vector?)
 - when not constrain mem, but do use mem

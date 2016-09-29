@@ -119,7 +119,7 @@
                   (filter
                    (lambda (x) x)
                    (for/list ([actual-addr (send mem get-available-addr mem-ref)])
-                             (let* ([new-mem (send mem clone-all)]
+                             (let* ([new-mem (send mem clone)] ;;clone-all
                                     [new-state (send machine update-progstate-ins-load
                                                      my-inst actual-addr new-mem state)])
                                (send new-mem store actual-addr out-val)

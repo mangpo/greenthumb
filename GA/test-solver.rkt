@@ -11,19 +11,19 @@
 
 (define code
 (send parser ir-from-string 
-      "dup drop up a! @ !"))
+      "0 a! push !+ !+ pop dup 1 b! @b and over 65535 or 0 b! @b and over - and + push drop pop"))
 
 (define sketch (send parser ir-from-string 
-      "up a! @ !"))
+      "a! over or dup a and or nop or"))
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send printer encode sketch))
 
 (define ce
   (send validator counterexample encoded-code encoded-sketch 
-        (send machine output-constraint '((data . 2) memory))
-        ;#:assume (constrain-stack 
-        ;          machine '((<= . 7) (<= . 7) (<= . 7)))
+        (send machine output-constraint '((data . 2)))
+        #:assume (send machine constrain-stack 
+                       '((<= . 65535) (<= . 65535) (<= . 65535)))
         ))
 
 (if ce

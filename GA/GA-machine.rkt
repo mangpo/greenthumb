@@ -387,14 +387,22 @@ state)
     ;;     		 push b! a!))
     
     (define-arg-type 'const (lambda (config) '(0 1 -1)))
-    
+
+    ;; Use this information to update liveness for everything except data & return stacks.
+    ;; Therefore, exclue anything related to those stacks including r, s, and t.
     (define-instruction-class 'nop '(nop))
     (define-instruction-class '@p '(@p)
       #:args '(const) #:ins '(0) #:outs '()) ;; don't bother dealing with data & return stack here.
-    (define-instruction-class 'read-a '(@ @+ ! !+ +*)
+    (define-instruction-class 'read-a '(@ @+)
+      #:args '() #:ins (list 'a (get-memory-type)) #:outs '(a))
+    (define-instruction-class 'read-a '(! !+)
+      #:args '() #:ins '(a) #:outs (list 'a (get-memory-type)))
+    (define-instruction-class 'read-a '(+*)
       #:args '() #:ins '(a) #:outs '(a))
-    (define-instruction-class 'read-b '(@b !b)
-      #:args '() #:ins '(b) #:outs '())
+    (define-instruction-class 'read-b '(@b)
+      #:args '() #:ins (list 'b (get-memory-type)) #:outs '())
+    (define-instruction-class 'read-b '(!b)
+      #:args '() #:ins '(b) #:outs (list (get-memory-type)))
     (define-instruction-class 't-only '(2* 2/ - + and or drop dup over push pop)
       #:args '() #:ins '() #:outs '())
     (define-instruction-class 'a '(a)

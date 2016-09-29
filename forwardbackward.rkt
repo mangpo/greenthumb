@@ -27,9 +27,9 @@
             change-inst change-inst-list
             mask-in get-live-mask inst->vector)
     
-    (define debug #t)
-    (define verbo #t)
-    (define info #t)
+    (define debug #f)
+    (define verbo #f)
+    (define info #f)
     (define ce-limit 100)
 
     ;; Actual bitwidth
@@ -119,8 +119,9 @@
                     (mask-in s l))]
        [(pair? state)
         (cons (mask-in (car state) (car live)) (mask-in (cdr state) (cdr live)))]
-       [(is-a? state special%)
-        (if live state (send state clone))]
+       [(is-a? state memory-racket%)
+        (if live state (send state clone-init))]
+       [(is-a? state special%) state]
        [else (and live state)]))
 
     (define (get-live-mask state)
@@ -129,7 +130,7 @@
        [(vector? state) (for/vector ([s state]) (get-live-mask s))]
        [(pair? state)
         (cons (get-live-mask (car state)) (get-live-mask (cdr state)))]
-       [(is-a? state special%) #t]
+       [(is-a? state special%) (send state get-live-mask)]
        [else (number? state)]))
 
     (define c-behaviors 0)
@@ -903,13 +904,11 @@
             (define t1 (current-milliseconds))
             (set! t-intersect (+ t-intersect (- t1 t0)))
             (set! c-intersect (add1 c-intersect))
-	    ;; (when (= 18 (inst-op my-inst))
+	    ;; (when (= 19 (inst-op my-inst))
             ;;       (pretty-display `(inner ,level ,(length inters-fw)))
             ;;       )
 
             (for ([inter inters-fw])
-                 ;; (when (= 18 (inst-op my-inst))
-                 ;;       (pretty-display `(inter ,inter)))
               (let ([t0 (current-milliseconds)]
 		    [out-vec #f])
 
@@ -926,7 +925,8 @@
                                         ce-out-level)))]
                            [s2 (current-milliseconds)]
                            )
-                      ;; (when (= 1 (inst-op my-inst))
+                      ;; (when (= 19 (inst-op my-inst))
+                      ;;       (pretty-display `(inter ,inter))
                       ;;       (pretty-display `(out ,out))
                       ;;       (pretty-display `(out2 ,(send machine progstate->vector out))))
                             
@@ -940,7 +940,8 @@
 		  (set! c-interpret (add1 c-interpret))
                   )
 
-                ;; (when (= 18 (inst-op my-inst))
+                ;; (when (= 19 (inst-op my-inst))
+                ;;       (pretty-display `(my-live2 ,my-live2))
                 ;;       (pretty-display `(out-vec ,out-vec)))
 
 		(when 
@@ -960,7 +961,7 @@
 			   (let* ([t0 (current-milliseconds)]
 				  [live-mask (car pair)]
 				  [classes (cdr pair)]
-                                  ;; [_ (when (= 18 (inst-op my-inst))
+                                  ;; [_ (when (= 19 (inst-op my-inst))
                                   ;;          (pretty-display `(live-mask ,live-mask))
                                   ;;          (pretty-display `(KEYS ,(hash-keys classes)))
                                   ;;          )]
@@ -972,7 +973,7 @@
 				  [t1 (current-milliseconds)]
 				  [has-key (and out-vec-masked
                                                 (hash-has-key? classes out-vec-masked))]
-                                  ;; [_ (when (= 18 (inst-op my-inst))
+                                  ;; [_ (when (= 19 (inst-op my-inst))
                                   ;;          (pretty-display `(out-vec-maked ,out-vec-masked))
                                   ;;          (pretty-display `(has-key ,has-key)))]
 				  [progs-set (and has-key (hash-ref classes out-vec-masked))]
@@ -993,7 +994,7 @@
 			     
 			     (when
 			      (and new-candidates (not (empty? new-candidates)))
-                              ;; (when (= 18 (inst-op my-inst))
+                              ;; (when (= 19 (inst-op my-inst))
                               ;;       (pretty-display `(pass!!! ,(= 1 (- ce-count level)))))
 			      (if (= 1 (- ce-count level))
 				  (begin
@@ -1118,18 +1119,20 @@
                     (for ([pair (hash->list prev)])
                          (let* ([live-list (car pair)]
                                 [my-hash (cdr pair)]
-                                [flag (hash-keys (vector-ref my-hash 0))]
-                                [iterator (send enum generate-inst 
-                                                #f live-list #f flag
-                                                #:try-cmp try-cmp
-                                                #:step-fw (add1 step-fw)
-                                                #:step-bw (sub1 step-bw))])
-                           ;; (pretty-display `(live ,live-list 
-                           ;;                        ,(hash-count (vector-ref my-hash test))
-                           ;;                        ,(hash-count (car (hash-values (vector-ref my-hash test))))))
-                           (build-hash-bw test current live-list my-hash iterator)
-                           ))
-                    (pretty-display `(behavior-bw ,test ,step ,c-behaviors-bw ,c-progs-bw ,(- (current-seconds) start-time)))))))
+                                [rep (findf (lambda (x) x) (vector->list my-hash))])
+                           (when rep
+                                 (define flag (hash-keys rep))
+                                 (define iterator (send enum generate-inst 
+                                                        #f live-list #f flag
+                                                        #:try-cmp try-cmp
+                                                        #:step-fw (add1 step-fw)
+                                                        #:step-bw (sub1 step-bw)))
+                                 ;; (pretty-display `(live ,live-list 
+                                 ;;                        ,(hash-count (vector-ref my-hash test))
+                                 ;;                        ,(hash-count (car (hash-values (vector-ref my-hash test))))))
+                                 (build-hash-bw test current live-list my-hash iterator)
+                                 )))
+                    (pretty-display `(behavior-bw ,step ,test ,c-behaviors-bw ,c-progs-bw ,(- (current-seconds) start-time)))))))
         )
 
       (define (build-hash-bw test current old-liveout my-hash iterator)
@@ -1149,6 +1152,7 @@
 	  (when my-inst
                 (when debug
                       (send printer print-syntax-inst (send printer decode-inst my-inst))
+                      ;;(pretty-display `(my-hash-test ,(hash-count my-hash-test)))
                       )
                 (define inst-id (inst->id my-inst))
                 ;; (define t-interpret 0)
@@ -1169,7 +1173,7 @@
                              ;;[t1 (current-milliseconds)]
                              )
 			(when (and in-vec (not (empty? in-vec)))
-                              ;; (pretty-display `(in-vec ,in-vec))
+                              ;;(pretty-display `(in-vec ,in-vec))
 			      (class-insert-bw! current my-liveout test 
 						in-vec (concat-progs inst-id progs)))
                         ;; (let ([t2 (current-milliseconds)])
@@ -1182,7 +1186,7 @@
                 ;; (pretty-display `(time ,t-interpret ,t-hash ,c))
 		(inner)
 		))
-	(inner))
+	(and my-hash-test (inner)))
 
 
       (define middle 0)
