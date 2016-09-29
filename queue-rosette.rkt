@@ -7,7 +7,7 @@
   (class* special% (equal<%> printable<%>)
     (super-new)
     (init-field get-fresh-val
-                [size 20]
+                [size 4]
                 [init (make-vector size #f)]
                 [queue (make-vector size #f)]
                 [ref #f])
@@ -73,7 +73,7 @@
     (super-new)
     (init-field get-fresh-val
                 [ref #f]
-                [size 20]
+                [size 4]
                 [queue (make-vector size #f)])
 
     (public push create-concrete clone)

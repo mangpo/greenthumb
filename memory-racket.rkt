@@ -53,7 +53,10 @@
     ;;        [update (make-hash (hash->list update))]))
     
     (define/public (clone-init)
-      (new memory-racket% [ref ref] [init init]))
+      ;;(new memory-racket% [ref ref] [init init]))
+      (if (hash-empty? update)
+          this
+          (new memory-racket% [ref ref] [init init])))
 
     (define (correctness-cost other diff-cost bit)
       (define cost 0)
@@ -213,3 +216,16 @@
   (test2)
   (test3)
   (test4))
+
+(define (test-performance)
+  (define q (new memory-racket%))
+  (for/list ([i 1000000])
+    (send q clone-init)))
+
+#|
+(define t1 (current-milliseconds))
+(define ans (test-performance))
+(define t2 (current-milliseconds))
+(- t2 t1)
+|#
+

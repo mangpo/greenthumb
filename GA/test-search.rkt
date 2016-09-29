@@ -25,13 +25,13 @@
 
 (define code
 (send parser ir-from-string "
-0 a! !+ !+ push pop dup 1 b! @b and over 65535 or 0 b! @b and over - and + push drop pop
+up a! !+ !
 "))
 
 
 (define sketch
 (send parser ir-from-string "
-? ? ? ? ? ?
+? ? ?
 "))
 ; bug dup drop up a! @ !
 ; bug: dup drop a! @+ !
@@ -47,8 +47,8 @@
 
 ;; Phase 0: create constraint (live-out)
 (define livein (send machine output-constraint '(a) 4 1))
-(define constraint (send machine output-constraint '((data . 2))))
-(define precond (send machine constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
+(define constraint (send machine output-constraint '((data . 0))))
+;;(define precond (send machine constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
 
 (send machine analyze-opcode encoded-prefix encoded-code encoded-postfix)
 (send machine reset-arg-ranges)
@@ -97,7 +97,7 @@
       constraint ;; live-out
       #f ;; upperbound cost, #f = no upperbound
       3600 ;; time limit in seconds
-      #:assume precond
+      ;;#:assume precond
       )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -66,13 +66,17 @@
       (define data-body (vector-copy (stack-body (progstate-data state))))
       (define return-sp (stack-sp (progstate-return state)))
       (define return-body (vector-copy (stack-body (progstate-return state))))
-      (define memory (send (progstate-memory state)
-                           clone (and ref (progstate-memory ref))))
+      (define memory #f)
+      (define recv #f)
+      (define comm #f)
       
-      (define recv (send (progstate-recv state)
-                         clone (and ref (progstate-recv ref))))
-      (define comm (send (progstate-comm state)
-                         clone (and ref (progstate-comm ref))))
+      ;; (define memory (send (progstate-memory state)
+      ;;                      clone (and ref (progstate-memory ref))))
+      
+      ;; (define recv (send (progstate-recv state)
+      ;;                    clone (and ref (progstate-recv ref))))
+      ;; (define comm (send (progstate-comm state)
+      ;;                    clone (and ref (progstate-comm ref))))
 
       ;; Pushes a value to the given stack's body.
       (define-syntax-rule (push-stack! x-sp x-body value)
@@ -117,6 +121,9 @@
       (define (read-memory addr)
         (define ret #f)
 	(define (read port)
+          (unless comm
+                  (set! comm (send (progstate-comm state) clone (and ref (progstate-comm ref))))
+                  (set! recv (send (progstate-recv state) clone (and ref (progstate-recv ref)))))
           (let ([val (send recv pop)])
             (send comm push (list val port 0))
             val))
@@ -127,7 +134,9 @@
 	 [(equal? addr RIGHT) (set! ret (read RIGHT))]
 	 [(equal? addr IO)    (set! ret (read IO))]
 	 [else
-          ;(pretty-display `(memory-load ,addr))
+          ;;(pretty-display `(memory-load ,addr))
+          (unless memory
+                  (set! memory (send (progstate-memory state) clone (and ref (progstate-memory ref)))))
           (set! ret (send memory load addr))])
         ret)
       
@@ -137,6 +146,9 @@
       (define (set-memory! addr val)
 	(when debug (pretty-display `(set-memory! ,addr ,val)))
 	(define (write port)
+          (unless comm
+                  (set! comm (send (progstate-comm state) clone (and ref (progstate-comm ref))))
+                  (set! recv (send (progstate-recv state) clone (and ref (progstate-recv ref)))))
           (send comm push (list val port 1)))
 	(cond
 	 [(equal? addr UP)    (write UP)]
@@ -145,6 +157,8 @@
 	 [(equal? addr RIGHT) (write RIGHT)]
 	 [(equal? addr IO)    (write IO)]
 	 [else
+          (unless memory
+                  (set! memory (send (progstate-memory state) clone (and ref (progstate-memory ref)))))
           (send memory store addr val)]))
 
       (define (clip x) (finitize x bit))
@@ -267,7 +281,10 @@
       (progstate a b r s t 
 		  (stack data-sp data-body)
 		  (stack return-sp return-body)
-		  memory recv comm)
+		  (or memory (progstate-memory state))
+                  (or recv (progstate-recv state))
+                  (or comm (progstate-comm state))
+                  )
       )
 
     (define (performance-cost code)

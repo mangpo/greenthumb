@@ -474,48 +474,51 @@ state)
         (set-progstate-r! live #t)
         live]))
 
-    (define/override (update-live live my-inst)
-      (define new-live (super update-live live my-inst))
-      (define opcode-id (inst-op my-inst))
-      (define opcode-name (vector-ref opcodes opcode-id))
+    (define/override (update-live live my-inst) #f)
+    (define/override (update-live-backward live my-inst) #f)
 
-      (define ret
-      (and new-live
-           (cond
-            [(member opcode-name '(nop 2* 2/ - +*)) new-live]
-            [(member opcode-name '(+ and or ! !+ !b drop a! b!))
-             (dec-live-data new-live)]
-            [(member opcode-name '(@p @ @+ @b a dup over))
-             (inc-live-data new-live)]
-            [(member opcode-name '(push))
-             (define inter (dec-live-data new-live))
-             (and inter (inc-live-return inter))]
-            [(member opcode-name '(pop))
-             (define inter (inc-live-data new-live))
-             (and inter (dec-live-return inter))])))
+    ;; (define/override (update-live live my-inst)
+    ;;   (define new-live (super update-live live my-inst))
+    ;;   (define opcode-id (inst-op my-inst))
+    ;;   (define opcode-name (vector-ref opcodes opcode-id))
+
+    ;;   (define ret
+    ;;   (and new-live
+    ;;        (cond
+    ;;         [(member opcode-name '(nop 2* 2/ - +*)) new-live]
+    ;;         [(member opcode-name '(+ and or ! !+ !b drop a! b!))
+    ;;          (dec-live-data new-live)]
+    ;;         [(member opcode-name '(@p @ @+ @b a dup over))
+    ;;          (inc-live-data new-live)]
+    ;;         [(member opcode-name '(push))
+    ;;          (define inter (dec-live-data new-live))
+    ;;          (and inter (inc-live-return inter))]
+    ;;         [(member opcode-name '(pop))
+    ;;          (define inter (inc-live-data new-live))
+    ;;          (and inter (dec-live-return inter))])))
       
-      ;;(pretty-display `(update-live ,ret))
-      ret
-      ) ;; TODO: may still need prescreen since update-live is not precise anymore
+    ;;   ;;(pretty-display `(update-live ,ret))
+    ;;   ret
+    ;;   ) ;; TODO: may still need prescreen since update-live is not precise anymore
 
-    (define/override (update-live-backward live my-inst)
-      (define new-live (super update-live-backward live my-inst))
-      (define opcode-id (inst-op my-inst))
-      (define opcode-name (vector-ref opcodes opcode-id))
+    ;; (define/override (update-live-backward live my-inst)
+    ;;   (define new-live (super update-live-backward live my-inst))
+    ;;   (define opcode-id (inst-op my-inst))
+    ;;   (define opcode-name (vector-ref opcodes opcode-id))
 
-      (and new-live
-           (cond
-            [(member opcode-name '(nop 2* 2/ - +*)) new-live]
-            [(member opcode-name '(+ and or ! !+ !b drop a! b!))
-             (inc-live-data new-live)]
-            [(member opcode-name '(@p @ @+ @b a dup over))
-             (dec-live-data new-live)]
-            [(member opcode-name '(push))
-             (define inter (inc-live-data new-live))
-             (and inter (dec-live-return inter))]
-            [(member opcode-name '(pop))
-             (define inter (dec-live-data new-live))
-             (and inter (inc-live-return inter))])))
+    ;;   (and new-live
+    ;;        (cond
+    ;;         [(member opcode-name '(nop 2* 2/ - +*)) new-live]
+    ;;         [(member opcode-name '(+ and or ! !+ !b drop a! b!))
+    ;;          (inc-live-data new-live)]
+    ;;         [(member opcode-name '(@p @ @+ @b a dup over))
+    ;;          (dec-live-data new-live)]
+    ;;         [(member opcode-name '(push))
+    ;;          (define inter (inc-live-data new-live))
+    ;;          (and inter (dec-live-return inter))]
+    ;;         [(member opcode-name '(pop))
+    ;;          (define inter (dec-live-data new-live))
+    ;;          (and inter (inc-live-return inter))])))
       
 
     ))

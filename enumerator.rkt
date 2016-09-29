@@ -50,11 +50,14 @@
   (class object%
     (super-new)
     (init-field machine printer)
-    (public generate-inst get-flag)
+    (public generate-inst get-flag filter-with-flags)
 
     (define (get-flag state) #f)
     
     (define opcodes (get-field opcodes machine))
+
+    (define (filter-with-flags opcodes flag-in flag-out #:try-cmp [try-cmp #f])
+      opcodes)
     
     ;; Mode `no-args is for generating instructions to be used for creating
     ;; inverse behaviors, so we don't have to enumerate variables/registers.
@@ -84,8 +87,10 @@
           ;;(pretty-display `(gen-pos ,step-fw ,(+ step-fw step-bw 1)))
           (send machine get-valid-opcode-pool step-fw (+ step-fw step-bw 1) live-in)]
          [else (get-field opcode-pool machine)]))
-      ;; (define inst-choice '(!+ @))
+      ;; (define inst-choice '(@p a! !))
       ;; (define opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
+
+      (set! opcode-pool (filter-with-flags opcode-pool flag-in flag-out #:try-cmp try-cmp))
 
       ;;(pretty-display `(generate-inst ,opcode-pool))
 

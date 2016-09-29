@@ -1,6 +1,7 @@
 #lang racket
 
 (require "../forwardbackward.rkt" "../inst.rkt" "../ops-racket.rkt"
+         "../special.rkt" "../memory-racket.rkt"
          "GA-machine.rkt")
 
 (require (only-in "GA-simulator-racket.rkt" [GA-simulator-racket% GA-simulator-racket%]))
@@ -134,26 +135,26 @@
     ;;      [(number? x) #t]
     ;;      [else #f]))
     ;;   (for/vector ([x state-vec]) (inner x)))
-    
-    ;; (define (mask-in state-vec live-list #:keep-flag [keep #t])
-    ;;   (if live-list
-    ;;       (let* ([pass #t]
-    ;;              [ret
-    ;;               (for/vector ([x state-vec]
-    ;;                            [v live-list] #:break (not pass))
-    ;;                           (cond
-    ;;                            [(number? x)
-    ;;                             (and v x)]
-    ;;                            [(and (vector? x) (or (number? v) (vector? v)))
-    ;;                             (for/vector
-    ;;                              ([i x] [live v] #:break (not pass))
-    ;;                              (when (and live (not i)) (set! pass #f))
-    ;;                              (and live i))]
-    ;;                            [(equal? v #t)
-    ;;                             (unless x (set! pass #f)) x]
-    ;;                            [else x]))])
-    ;;         (and pass ret))
-    ;;       state-vec))
+
+    ;; Override this function for performance.
+    (define (mask-in state-vec live-list #:keep-flag [keep #t])
+      (for/vector ([state state-vec]
+                   [live live-list])
+                  (cond
+                   [(number? state) (and live state)]
+                   [(boolean? state) (and live state)]
+                   [(and (vector? state) (number? live))
+                    (for/vector ([s state]
+                                 [l (in-naturals)])
+                                (and (< l live) s))]
+                   [(vector? state)
+                    (for/vector ([s state]
+                                 [l live])
+                                (and l s))]
+                   [(is-a? state memory-racket%)
+                    (if live state (send state clone-init))]
+                   [(is-a? state special%) state]
+                   [else (and live state)])))
       
     ;; Ignore a completely.
     (define (combine-live a b)
@@ -162,43 +163,43 @@
       (when (and s (not t)) (vector-set! b 4 #t))
       b)
 
-    ;; (define (prescreen my-inst state)
-    ;;   (define opcode-id (inst-op my-inst))
-    ;;   (define a (vector-ref state 0))
-    ;;   (define b (vector-ref state 1))
-    ;;   (define r (vector-ref state 2))
-    ;;   (define s (vector-ref state 3))
-    ;;   (define t (vector-ref state 4))
-    ;;   (define mem-len (vector-length (vector-ref state 7)))
+    (define/override (prescreen my-inst state)
+      (define opcode-id (inst-op my-inst))
+      (define a (vector-ref state 0))
+      (define b (vector-ref state 1))
+      (define r (vector-ref state 2))
+      (define s (vector-ref state 3))
+      (define t (vector-ref state 4))
+      (define mem-len 64) ;;(vector-length (vector-ref state 7)))
 
-    ;;   (define opcode-name (vector-ref opcodes opcode-id))
-    ;;   (define-syntax-rule (inst-eq x) (equal? x opcode-name))
-    ;;   (cond
-    ;;    [(member opcode-name '(@b))
-    ;;     (and b
-    ;;          (or (and (>= b 0) (< b mem-len))
-    ;;              (member b (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
-    ;;    [(member opcode-name '(!b))
-    ;;     (and b t
-    ;;          (or (and (>= b 0) (< b mem-len))
-    ;;              (member b (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
-    ;;    [(member opcode-name '(@ @+))
-    ;;     (and a
-    ;;          (or (and (>= a 0) (< a mem-len))
-    ;;              (member a (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
-    ;;    [(member opcode-name '(@ @+ ! !+))
-    ;;     (and a t
-    ;;          (or (and (>= a 0) (< a mem-len))
-    ;;              (member a (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
-    ;;    ;; TODO: up down left right for bit = 4
+      (define opcode-name (vector-ref opcodes opcode-id))
+      (define-syntax-rule (inst-eq x) (equal? x opcode-name))
+      (cond
+       [(member opcode-name '(@b))
+        (and b
+             (or (and (>= b 0) (< b mem-len))
+                 (member b (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+       [(member opcode-name '(!b))
+        (and b t
+             (or (and (>= b 0) (< b mem-len))
+                 (member b (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+       [(member opcode-name '(@ @+))
+        (and a
+             (or (and (>= a 0) (< a mem-len))
+                 (member a (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+       [(member opcode-name '(@ @+ ! !+))
+        (and a t
+             (or (and (>= a 0) (< a mem-len))
+                 (member a (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+       ;; TODO: up down left right for bit = 4
 
-    ;;    [(member opcode-name '(+*)) (and a s t)]
-    ;;    [(member opcode-name '(2* 2/ - dup push b! a!)) t]
-    ;;    [(member opcode-name '(+ and or)) (and s t)]
-    ;;    [(member opcode-name '(pop)) r]
-    ;;    [(member opcode-name '(over)) s]
-    ;;    [(member opcode-name '(a)) a]
-    ;;    [else #t]))
+       [(member opcode-name '(+*)) (and a s t)]
+       [(member opcode-name '(2* 2/ - dup push b! a!)) t]
+       [(member opcode-name '(+ and or)) (and s t)]
+       [(member opcode-name '(pop)) r]
+       [(member opcode-name '(over)) s]
+       [(member opcode-name '(a)) a]
+       [else #t]))
       
     
     ))

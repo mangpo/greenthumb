@@ -904,8 +904,8 @@
             (define t1 (current-milliseconds))
             (set! t-intersect (+ t-intersect (- t1 t0)))
             (set! c-intersect (add1 c-intersect))
-	    ;; (when (= 19 (inst-op my-inst))
-            ;;       (pretty-display `(inner ,level ,(length inters-fw)))
+	    ;; (when (= 1 (inst-op my-inst))
+            ;;        (pretty-display `(inner ,(inst-op my-inst) ,level ,(length inters-fw)))
             ;;       )
 
             (for ([inter inters-fw])
@@ -925,12 +925,12 @@
                                         ce-out-level)))]
                            [s2 (current-milliseconds)]
                            )
-                      ;; (when (= 19 (inst-op my-inst))
+                      ;; (when (= 1 (inst-op my-inst))
                       ;;       (pretty-display `(inter ,inter))
-                      ;;       (pretty-display `(out ,out))
-                      ;;       (pretty-display `(out2 ,(send machine progstate->vector out))))
+                      ;;       (pretty-display `(out ,out)))
                             
-		      (set! out-vec (and out (mask-in (send machine progstate->vector out) my-live2)))
+		      ;;(set! out-vec (and out (mask-in (send machine progstate->vector out) my-live2)))
+		      (set! out-vec (and out (send machine progstate->vector out)))
                       (set! t-interpret-0 (+ t-interpret-0 (- s2 s1)))
                       (set! c-interpret-0 (add1 c-interpret-0))
 		      (hash-set! cache-level inter out-vec)))
@@ -940,7 +940,7 @@
 		  (set! c-interpret (add1 c-interpret))
                   )
 
-                ;; (when (= 19 (inst-op my-inst))
+                ;; (when (= 1 (inst-op my-inst))
                 ;;       (pretty-display `(my-live2 ,my-live2))
                 ;;       (pretty-display `(out-vec ,out-vec)))
 
@@ -961,19 +961,20 @@
 			   (let* ([t0 (current-milliseconds)]
 				  [live-mask (car pair)]
 				  [classes (cdr pair)]
-                                  ;; [_ (when (= 19 (inst-op my-inst))
+                                  ;; [_ (when (= 1 (inst-op my-inst))
                                   ;;          (pretty-display `(live-mask ,live-mask))
                                   ;;          (pretty-display `(KEYS ,(hash-keys classes)))
                                   ;;          )]
-				  [out-vec-masked 
-				   (if (or (and try-cmp (not (equal? live-mask my-live2)))
-                                           (not my-live2))
-				       (mask-in out-vec live-mask)
-				       out-vec)]
+				  ;; [out-vec-masked 
+				  ;;  (if (or (and try-cmp (not (equal? live-mask my-live2)))
+                                  ;;          (not my-live2))
+				  ;;      (mask-in out-vec live-mask)
+				  ;;      out-vec)]
+				  [out-vec-masked (mask-in out-vec live-mask)]
 				  [t1 (current-milliseconds)]
 				  [has-key (and out-vec-masked
                                                 (hash-has-key? classes out-vec-masked))]
-                                  ;; [_ (when (= 19 (inst-op my-inst))
+                                  ;; [_ (when (= 1 (inst-op my-inst))
                                   ;;          (pretty-display `(out-vec-maked ,out-vec-masked))
                                   ;;          (pretty-display `(has-key ,has-key)))]
 				  [progs-set (and has-key (hash-ref classes out-vec-masked))]
@@ -1208,7 +1209,8 @@
          (define ttt (current-milliseconds))
          (refine hash1 hash2 my-inst live1 live2 flag1 flag2)
          (when 
-          (and verbo (> (- (current-milliseconds) ttt) 500))
+          (and verbo);; (> (- (current-milliseconds) ttt) 500))
+          (newline)
           (pretty-display (format "search ~a ~a = ~a + ~a + ~a | ~a\t(~a + ~a/~a)\t~a ~a ~a/~a\t[~a/~a]\t~a/~a\t~a/~a (~a) ~a" 
                                   (- (current-milliseconds) ttt) ce-count-extra
                                   t-refine t-collect t-check
@@ -1235,7 +1237,7 @@
          (define keys-bw (hash-keys (vector-ref classes-bw step-bw)))
          (set! keys (sort-live keys))
          (set! keys-bw (sort-live-bw keys-bw))
-         (when debug
+         (when #t
                (for ([key keys])
                     (pretty-display `(key ,(entry-live key) ,(entry-flag key))))
                (pretty-display `(keys-bw ,step-bw ,keys-bw)))

@@ -6,7 +6,7 @@
 (define queue-in-racket%
   (class* special% (equal<%> printable<%>)
     (super-new)
-    (init-field [size 20]
+    (init-field [size 4]
                 [queue (make-vector size #f)]
                 [index 0]
                 [ref #f])
@@ -38,6 +38,17 @@
 
     (define/public (equal-secondary-hash-code-of hash-code)
       (hash-code (relevant-queue)))
+    
+    ;; (define/public (equal-to? other recur)
+    ;;   (and (is-a? other queue-in-racket%)
+    ;;        (equal? index (get-field index other))
+    ;;        ))
+
+    ;; (define/public (equal-hash-code-of hash-code)
+    ;;   (hash-code index))
+
+    ;; (define/public (equal-secondary-hash-code-of hash-code)
+    ;;   (hash-code index))
 
     (define (clone [ref #f])
       (new queue-in-racket% [ref ref] [queue queue] [index index]))
@@ -66,7 +77,7 @@
 (define queue-out-racket%
   (class* special% (equal<%> printable<%>)
     (super-new)
-    (init-field [size 20]
+    (init-field [size 4]
                 [queue (make-vector size)]
                 [index 0]
                 [ref #f])
@@ -100,6 +111,17 @@
 
     (define/public (equal-secondary-hash-code-of hash-code)
       (hash-code (relevant-queue)))
+    
+    ;; (define/public (equal-to? other recur)
+    ;;   (and (is-a? other queue-in-racket%)
+    ;;        (equal? index (get-field index other))
+    ;;        ))
+
+    ;; (define/public (equal-hash-code-of hash-code)
+    ;;   (hash-code index))
+
+    ;; (define/public (equal-secondary-hash-code-of hash-code)
+    ;;   (hash-code index))
 
     (define (clone [ref #f])
       (new queue-out-racket% [ref ref] [queue (vector-copy queue)] [index index]))
@@ -150,4 +172,14 @@
   (pretty-display `(queue ,q2))
   (send q2 push 22) ;; assert: push-cand: push a value different from spec does
   )
+
+(define (test-performance)
+  (define q (new queue-out-racket%))
+  (for/list ([i 1000000])
+    (send q clone)))
+
+(define t1 (current-milliseconds))
+(define ans (test-performance))
+(define t2 (current-milliseconds))
+(- t2 t1)
       
