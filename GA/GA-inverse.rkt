@@ -97,8 +97,7 @@
                (and (= c 1) (third key))))
        1))
                
-    (define (interpret-inst my-inst state-vec old-liveout [ref #f])
-      (define state (send machine vector->progstate state-vec))
+    (define (interpret-inst my-inst state old-liveout [ref #f])
       (define a (progstate-a state))
       (define b (progstate-b state))
       (define r (progstate-r state))
@@ -123,10 +122,10 @@
       (define (snapshot)
         (set! out-list
               (cons
-               (vector a b r s t 
-                       (stack->vector (stack data-sp data-body))
-                       (stack->vector (stack return-sp return-body))
-                       memory recv comm)
+               (progstate a b r s t 
+                          (stack data-sp data-body)
+                          (stack return-sp return-body)
+                          memory recv comm)
                out-list)))
       
       ;; Pushes a value to the given stack's body.

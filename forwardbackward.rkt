@@ -1135,7 +1135,7 @@
         )
 
       (define (build-hash-bw test current old-liveout my-hash iterator)
-        (define my-ce-out-vec (vector-ref ce-out-vec test))
+        (define my-ce-out (vector-ref ce-out test))
 	(define my-hash-test (vector-ref my-hash test))
 	(define (inner)
 	  (define inst-liveout-vreg (iterator))
@@ -1164,17 +1164,21 @@
 			     [progs (cdr pair)]
                              ;;[t0 (current-milliseconds)]
                              ;;[_ (pretty-display `(out-vec-before ,out-vec))]
-			     [in-vec
+			     [in-list
                               ;; (with-handlers*
                               ;;  ([exn? (lambda (e) #f)])
-                               (send inverse interpret-inst my-inst out-vec old-liveout my-ce-out-vec)]
+                              (send inverse interpret-inst my-inst
+                                    (send machine vector->progstate out-vec)
+                                    old-liveout my-ce-out)]
                              ;;[_ (pretty-display `(out-vec-after ,out-vec))]
                              ;;[t1 (current-milliseconds)]
                              )
-			(when (and in-vec (not (empty? in-vec)))
+			(when (and in-list (not (empty? in-list)))
                               ;;(pretty-display `(in-vec ,in-vec))
 			      (class-insert-bw! current my-liveout test 
-						in-vec (concat-progs inst-id progs)))
+						(map (lambda (x) (send machine progstate->vector x))
+                                                     in-list)
+                                                (concat-progs inst-id progs)))
                         ;; (let ([t2 (current-milliseconds)])
                         ;;   (set! t-interpret (+ t-interpret (- t1 t0)))
                         ;;   (set! t-hash (+ t-hash (- t2 t1)))

@@ -1,7 +1,11 @@
+- GA: enum performance test
+- GA: parallel performance test
+
+- inverse: interpret-inst is for vector. why??? BIG TODO
 - do we need get-state-liveness?
 - get rid of proper-machine-config
-- inverse: interpret-inst is for vector. why??? BIG TODO
 - avoid vector-copy (mem & queue clone) in interpret for enumerative search
+- do we need old-liveout in inverse interpret?
 
 - get rid of "extra" in get-state, proper-machine-config => using queue for recv
 - get rid of get-live-list (use progstatet->vector?)
@@ -24,6 +28,7 @@
 - ref in memory-racket
 
 Performance
+- inverse: interpret-inst takes vector vs progstate
 - prescreen
 - don't mask-in the start state
 - mask-in & maskin again (ARM)
