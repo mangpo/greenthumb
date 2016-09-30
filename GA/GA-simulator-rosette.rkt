@@ -126,7 +126,8 @@
 	 [(equal? addr LEFT)  (set! ret (read LEFT))]
 	 [(equal? addr RIGHT) (set! ret (read RIGHT))]
 	 [(equal? addr IO)    (set! ret (read IO))]
-	 [else 
+	 [else
+          (assert (and (>= addr 0) (< addr (min 64 (sub1 (arithmetic-shift 1 (sub1 bit)))))))
           (set! ret (send memory load addr))])
         ret)
       
@@ -144,6 +145,7 @@
 	 [(equal? addr RIGHT) (write RIGHT)]
 	 [(equal? addr IO)    (write IO)]
 	 [else
+          (assert (and (>= addr 0) (< addr (min 64 (sub1 (arithmetic-shift 1 (sub1 bit)))))))
           (send memory store addr val)]))
 
       (define (clip x) (finitize x bit))

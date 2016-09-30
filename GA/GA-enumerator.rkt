@@ -12,7 +12,7 @@
 
     (define opcodes (get-field opcodes machine))
     (define mem-inst
-      (map (lambda (x) (vector-member x opcodes)) '(! !b @ @b)))
+      (map (lambda (x) (vector-member x opcodes)) '(! !+ !b @ @+ @b)))
     
     (define/override (filter-with-flags opcode-pool flag-in flag-out #:try-cmp [try-cmp #f])
       (define-syntax-rule (min-list x) (foldl min (car x) (cdr x)))

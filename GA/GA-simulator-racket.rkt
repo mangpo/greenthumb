@@ -137,6 +137,7 @@
           ;;(pretty-display `(memory-load ,addr))
           (unless memory
                   (set! memory (send (progstate-memory state) clone (and ref (progstate-memory ref)))))
+          (assert (and (>= addr 0) (< addr (min 64 (sub1 (arithmetic-shift 1 (sub1 bit)))))))
           (set! ret (send memory load addr))])
         ret)
       
@@ -159,6 +160,7 @@
 	 [else
           (unless memory
                   (set! memory (send (progstate-memory state) clone (and ref (progstate-memory ref)))))
+          (assert (and (>= addr 0) (< addr (min 64 (sub1 (arithmetic-shift 1 (sub1 bit)))))))
           (send memory store addr val)]))
 
       (define (clip x) (finitize x bit))

@@ -63,11 +63,11 @@
   )
 
 (test 1 "dup drop up a! @ !" 4 '((data . 1) memory))
-(test 2 "dup drop up a! @+ !" 4 '((data . 1) memory))
+;;(test 2 "dup drop up a! @+ !" 4 '((data . 1) memory))
 (test 3 "dup drop up a! ! @" 4 '((data . 1) memory))
-(test 4 "dup drop up a! !+ @" 4 '((data . 1) memory))
-(test 5 "up a! !+ !" 3 '((data . 0)))
-(test 6 "up a! @+ @" 3 '((data . 0)))
+;;(test 4 "dup drop up a! !+ @" 4 '((data . 1) memory))
+;;(test 5 "up a! !+ !" 3 '((data . 0)))
+;;(test 6 "up a! @+ @" 3 '((data . 0)))
 (test 7 "dup drop @+ !" 2 '((data . 1) memory))
 (test 8 "dup drop !+ @" 2 '((data . 1) memory))
 

@@ -1076,11 +1076,9 @@
                                                      ce-out-level)))
                                         )
                                        ])
-                                  ;;(pretty-display `(tmp ,(prescreen my-inst state-vec) ,tmp))
                                   (when (list? val) (hash-set! cache state-vec tmp))
                                   tmp))
                             ])
-                      ;;(pretty-display `(level ,level ,(if out "Y" "-")))
                       (when out (recurse val (cons out states2-vec) (add1 level)))))))
          
          (recurse my-hash (list) 0)
