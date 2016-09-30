@@ -1,7 +1,3 @@
-- GA: using live => equivalence classes in different groups
-- GA: partial generate-inst
-- extra: get-state, get-state-liveness, proper-machine-config, gererate-input-states, counterexample, get-live-in
-- don't mask-in forward
 - do we need get-state-liveness?
 - get rid of proper-machine-config
 - inverse: interpret-inst is for vector. why??? BIG TODO
@@ -26,6 +22,11 @@
 
 - (get-arg-type) & (get-arg-ranges) take opcode-id not opcode-name
 - ref in memory-racket
+
+Performance
+- prescreen
+- don't mask-in the start state
+- mask-in & maskin again (ARM)
 
 Test on:
 - llvm
@@ -54,6 +55,7 @@ Test on:
    - say that (get) & (set) is used for update-live, update-live-backward, and inverse
      (get-arg-ranges) & (get-valid-opcode)
    - #:try-cmp? in enumerator, (try-cmp?) in forwardbackward
+   - limited size of memory & queue
 4. Increase precision in enum
    - synthesize constrants
    - in reduced-bitwidth domain: try all 4-bit constants

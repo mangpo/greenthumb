@@ -106,8 +106,8 @@
 	    (define info-file (format "~a/best.info" dir))
 	    (define-values (cost-r len-r time-r id-r) (get-best-info dir))
             
-	    (when (or (not cost-r) (<= cost cost-r))
-		;;(pretty-display "FOUND!!!")
+	    (when (or (not cost-r) (< cost cost-r))
+		(pretty-display "FOUND!!!")
 		(with-output-to-file #:exists 'append (format "~a/summary" dir)
 		  (thunk
 		   (pretty-display 

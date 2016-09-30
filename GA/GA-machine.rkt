@@ -1,6 +1,7 @@
 #lang racket
 
-(require "../inst.rkt" "../machine.rkt" "../ops-racket.rkt" "../special.rkt")
+(require "../inst.rkt" "../machine.rkt" "../ops-racket.rkt"
+         "../special.rkt" "../memory-racket.rkt" "../queue-racket.rkt")
 
 (provide GA-machine% (all-defined-out))
 
@@ -302,10 +303,24 @@ state)
       (define return (stack (string->number (first raw-return))
                             (list->vector 
                              (map string->number (string-split (second raw-return))))))
-      (define memory (list->vector (map string->number (string-split (vector-ref tokens 8)))))
-      (define recv (map string->number (string-split (vector-ref tokens 9))))
-      (define raw-comm (string-split (vector-ref tokens 10) ";"))
-      (define comm (map (lambda (x) (map string->number (string-split x))) raw-comm))
+      (define mem-content
+        (for/list ([val (map string->number (string-split (vector-ref tokens 8)))]
+                   [addr (in-naturals)])
+                  (cons addr val)))
+      (define memory (new memory-racket% [init (make-hash mem-content)]))
+      
+      (define recv-content (map string->number (string-split (vector-ref tokens 9))))
+      (define recv
+        (new queue-in-racket%
+             [queue
+              (vector-append
+               (list->vector recv-content)
+               (make-vector (- 4 (length recv-content)) #f))]))
+      (define comm (new queue-out-racket%))
+      ;;(define memory (list->vector (map string->number (string-split (vector-ref tokens 8)))))
+      ;;(define recv (map string->number (string-split (vector-ref tokens 9))))
+      ;;(define raw-comm (string-split (vector-ref tokens 10) ";"))
+      ;;(define comm (map (lambda (x) (map string->number (string-split x))) raw-comm))
       (cons (equal? (vector-ref tokens 0) "#t")
             (progstate a b r s t data return memory recv comm)))
 

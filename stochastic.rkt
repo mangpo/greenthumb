@@ -54,8 +54,8 @@
       (set! live-in (send machine get-live-list this-live-in))
       (for ([x prefix])
            (set! live-in (send machine update-live live-in x)))
-      (unless live-in
-              (raise "stochastic: live-in at spec cannot be #f"))
+      ;; (unless live-in
+      ;;         (raise "stochastic: live-in at spec cannot be #f"))
       
       (send machine analyze-args (vector) spec (vector) live-in constraint)
       (send machine analyze-opcode (vector) spec (vector))
