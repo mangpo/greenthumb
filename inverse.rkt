@@ -91,8 +91,10 @@
         (define mapping (hash-ref behaviors-bw key))
         (define in-vals-list (and (hash-has-key? mapping out-vals) (hash-ref mapping out-vals)))
         (and in-vals-list
-             (for/list ([in-vals in-vals-list])
-                       (send machine update-progstate-ins my-inst in-vals state-base)))]
+             (filter
+              (lambda (x) x)
+              (for/list ([in-vals in-vals-list])
+                        (send machine update-progstate-ins my-inst in-vals state-base))))]
 
        ;; load
        [(member (get-memory-type) ins-types)

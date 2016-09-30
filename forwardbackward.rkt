@@ -206,6 +206,9 @@
       (let* ([first-key (car key-list)]
 	     [flag (send enum get-flag first-key)]
 	     [live-mask (get-live-mask first-key)])
+        (unless live-mask
+                (pretty-display `(state ,first-key))
+                (raise "get-live-mask returns #f"))
         ;; (when debug
         ;;       (unless (equal? debug live-mask)
         ;;               (send printer print-syntax
@@ -1151,6 +1154,7 @@
 	  (when my-inst
                 (when debug
                       (send printer print-syntax-inst (send printer decode-inst my-inst))
+                      ;;(send printer print-struct my-inst)
                       ;;(pretty-display `(my-hash-test ,(hash-count my-hash-test)))
                       )
                 (define inst-id (inst->id my-inst))
@@ -1174,7 +1178,7 @@
                              ;;[t1 (current-milliseconds)]
                              )
 			(when (and in-list (not (empty? in-list)))
-                              ;;(pretty-display `(in-vec ,in-vec))
+                              ;;(pretty-display `(in-list ,in-list))
 			      (class-insert-bw! current my-liveout test 
 						(map (lambda (x) (send machine progstate->vector x))
                                                      in-list)

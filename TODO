@@ -1,37 +1,19 @@
 - GA: enum performance test
 - GA: parallel performance test
 
-- inverse: interpret-inst is for vector. why??? BIG TODO
-- do we need get-state-liveness?
-- get rid of proper-machine-config
-- avoid vector-copy (mem & queue clone) in interpret for enumerative search
-- do we need old-liveout in inverse interpret?
-
-- get rid of "extra" in get-state, proper-machine-config => using queue for recv
-- get rid of get-live-list (use progstatet->vector?)
-- when not constrain mem, but do use mem
-- GA: (progstate-structure) using vector
-  = get-state, clone-state, evaluate-state**
-- GA: (get) & (set)
-  = update-live, update-live-backward [only works of progstate matches vector at those fields] (partially)
-  = inverse [override]
-  = (get-arg-ranges)** uses arg & (get-valid-opcode)** users ins
-
-  = (mask-in state-vec) may work
-- get rid of prescreen in forwardbackward (use get-valid-opcode-pool instead).
-- progstate-vector conversion OR no conversion
-- get rid of flag? ARM uses flag to prune search space in enumerator
-  = user should be able to filter valid opcodes using flag-in/flag-out, but not by implementing (generate-inst)*
-  = make connection between (get-flag) and this new prunnign function
-
-- (get-arg-type) & (get-arg-ranges) take opcode-id not opcode-name
-- ref in memory-racket
 
 Performance
 - inverse: interpret-inst takes vector vs progstate
 - prescreen
 - don't mask-in the start state
 - mask-in & maskin again (ARM)
+
+ARM
+- (get-arg-type) & (get-arg-ranges) take opcode-id not opcode-name
+- do we need get-state-liveness?
+- get rid of proper-machine-config
+- do we need old-liveout in inverse interpret?
+- get rid of get-live-list (use progstatet->vector or not at all)
 
 Test on:
 - llvm
@@ -61,6 +43,7 @@ Test on:
      (get-arg-ranges) & (get-valid-opcode)
    - #:try-cmp? in enumerator, (try-cmp?) in forwardbackward
    - limited size of memory & queue
+   - make connection between (get-flag) and (filther-with-flags)
 4. Increase precision in enum
    - synthesize constrants
    - in reduced-bitwidth domain: try all 4-bit constants
