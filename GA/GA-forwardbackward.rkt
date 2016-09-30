@@ -128,14 +128,6 @@
                (list))
       ret)
 
-    ;; (define (get-live-mask state-vec)
-    ;;   (define (inner x)
-    ;;     (cond
-    ;;      [(vector? x) (for/vector ([i x]) (number? i))]
-    ;;      [(number? x) #t]
-    ;;      [else #f]))
-    ;;   (for/vector ([x state-vec]) (inner x)))
-
     ;; Override this function for performance.
     (define (mask-in state-vec live-list #:keep-flag [keep #t])
       (for/vector ([state state-vec]
@@ -163,43 +155,43 @@
       (when (and s (not t)) (vector-set! b 4 #t))
       b)
 
-    (define/override (prescreen my-inst state)
-      (define opcode-id (inst-op my-inst))
-      (define a (vector-ref state 0))
-      (define b (vector-ref state 1))
-      (define r (vector-ref state 2))
-      (define s (vector-ref state 3))
-      (define t (vector-ref state 4))
-      (define mem-len 64) ;;(vector-length (vector-ref state 7)))
+    ;; (define/override (prescreen my-inst state)
+    ;;   (define opcode-id (inst-op my-inst))
+    ;;   (define a (vector-ref state 0))
+    ;;   (define b (vector-ref state 1))
+    ;;   (define r (vector-ref state 2))
+    ;;   (define s (vector-ref state 3))
+    ;;   (define t (vector-ref state 4))
+    ;;   (define mem-len 64) ;;(vector-length (vector-ref state 7)))
 
-      (define opcode-name (vector-ref opcodes opcode-id))
-      (define-syntax-rule (inst-eq x) (equal? x opcode-name))
-      (cond
-       [(member opcode-name '(@b))
-        (and b
-             (or (and (>= b 0) (< b mem-len))
-                 (member b (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
-       [(member opcode-name '(!b))
-        (and b t
-             (or (and (>= b 0) (< b mem-len))
-                 (member b (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
-       [(member opcode-name '(@ @+))
-        (and a
-             (or (and (>= a 0) (< a mem-len))
-                 (member a (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
-       [(member opcode-name '(@ @+ ! !+))
-        (and a t
-             (or (and (>= a 0) (< a mem-len))
-                 (member a (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
-       ;; TODO: up down left right for bit = 4
+    ;;   (define opcode-name (vector-ref opcodes opcode-id))
+    ;;   (define-syntax-rule (inst-eq x) (equal? x opcode-name))
+    ;;   (cond
+    ;;    [(member opcode-name '(@b))
+    ;;     (and b
+    ;;          (or (and (>= b 0) (< b mem-len))
+    ;;              (member b (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+    ;;    [(member opcode-name '(!b))
+    ;;     (and b t
+    ;;          (or (and (>= b 0) (< b mem-len))
+    ;;              (member b (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+    ;;    [(member opcode-name '(@ @+))
+    ;;     (and a
+    ;;          (or (and (>= a 0) (< a mem-len))
+    ;;              (member a (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+    ;;    [(member opcode-name '(@ @+ ! !+))
+    ;;     (and a t
+    ;;          (or (and (>= a 0) (< a mem-len))
+    ;;              (member a (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+    ;;    ;; TODO: up down left right for bit = 4
 
-       [(member opcode-name '(+*)) (and a s t)]
-       [(member opcode-name '(2* 2/ - dup push b! a!)) t]
-       [(member opcode-name '(+ and or)) (and s t)]
-       [(member opcode-name '(pop)) r]
-       [(member opcode-name '(over)) s]
-       [(member opcode-name '(a)) a]
-       [else #t]))
+    ;;    [(member opcode-name '(+*)) (and a s t)]
+    ;;    [(member opcode-name '(2* 2/ - dup push b! a!)) t]
+    ;;    [(member opcode-name '(+ and or)) (and s t)]
+    ;;    [(member opcode-name '(pop)) r]
+    ;;    [(member opcode-name '(over)) s]
+    ;;    [(member opcode-name '(a)) a]
+    ;;    [else #t]))
       
     
     ))

@@ -1,12 +1,7 @@
-- GA: enum performance test
-- GA: parallel performance test
-
-
 Performance
 - inverse: interpret-inst takes vector vs progstate
-- prescreen
 - don't mask-in the start state
-- mask-in & maskin again (ARM)
+- mask-in & mask-in again (ARM)
 
 ARM
 - (get-arg-type) & (get-arg-ranges) take opcode-id not opcode-name
@@ -14,6 +9,7 @@ ARM
 - get rid of proper-machine-config
 - do we need old-liveout in inverse interpret?
 - get rid of get-live-list (use progstatet->vector or not at all)
+- do we need combine-live in forwardbackward?
 
 Test on:
 - llvm
@@ -22,18 +18,14 @@ Test on:
 - ARM
 
 1. Revisit
-   - get rid of "extra" in get-state, proper-machine-config
-   - do we need (combine-live)  in forwardbackward?
-   - template/test-simulator.rkt include validator.rkt for sym-input
+   - template
    - (reduce-precesion) in forwardbackward
    - (get-flag) in enumerator
    - change "public" to "protected"
-   - progstate->vector
    - do we need to extend enumerator, inverse, etc. at all?
 
 2. May need to override these functions
    - (reduce-precesion) in forwardbackward
-   - (get-val-range) in inverse
 3. Documentation 
    - efficient memory access. memory access operates in a granularity of # of bits defined
    - bit, const => reduce bitwidth

@@ -182,7 +182,7 @@
       (define my-live-in live-in)
       (for ([i index])
            (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
-      (define ranges (and my-live-in (send machine get-arg-ranges opcode-id entry my-live-in)))
+      (define ranges (send machine get-arg-ranges opcode-id entry my-live-in))
       (cond
        [(and ranges (> (vector-length ranges) 0))
         (define args (vector-copy (inst-args entry)))
@@ -403,7 +403,7 @@
         (define correct
           (and (send simulator is-valid? program)
                (loop 0 inputs outputs)))
-        (when debug (pretty-display `(final-correct ,correct)))
+        (when debug (pretty-display `(final-correct ,correct ,(length inputs))))
 
         (define ce #f)
         (when (and (number? correct) (= correct 0))
@@ -423,6 +423,7 @@
                     (pretty-display (format "Add counterexample. Total = ~a." (length inputs)))
                     (send machine display-state ce)
 		    (send printer print-syntax (send printer decode program))
+                    (when (> (length inputs) 100) (raise "ce > 100"))
                     )
                   (begin
                     (send stat inc-correct)

@@ -14,6 +14,23 @@
 (define-syntax-rule (entry-live x) (first x))
 (define-syntax-rule (entry-flag x) (second x))
 
+;; Enuemrative search performas bidirectional search.
+;; It uses two main data structures to memorize programs that have been explore,
+;; one for forward direction and another for backward direction.
+;;
+;; For forward direction: "classes"
+;;  classes     := (entry live1 flag) -> nested hash
+;;                 where live1 is liveness from (udpate-live) method, and flag is from (get-flag) method
+;;  nested hash := progstate -> nested hash
+;;                 | set of programs
+;;
+;; For backward direction: "classes-bw"
+;;  classes-bw := (vector hash1 ...), where index = backward step
+;;  hash1      := live1 -> vector2, where live1 is liveness from (udpate-live) method
+;;  vector2    := (vector hash2 ...), where idnex = test ID
+;;  hash2      := flag -> live2 -> progstate -> set of programs
+;;                where flag is from (get-flag) method, and live2 is from (get-live-mask) method
+
 (define forwardbackward%
   (class decomposer%
     (super-new)
@@ -209,12 +226,7 @@
         (unless live-mask
                 (pretty-display `(state ,first-key))
                 (raise "get-live-mask returns #f"))
-        ;; (when debug
-        ;;       (unless (equal? debug live-mask)
-        ;;               (send printer print-syntax
-        ;;                     (send printer decode
-        ;;                           (vector (vector-ref progs-bw prog))))
-        ;;               (raise (format "not-eq ~a ~a" debug live-mask))))
+        
 	(unless (hash-has-key? top-hash flag)
 		(hash-set! top-hash flag (make-hash)))
 	(define middle-hash (hash-ref top-hash flag))

@@ -170,52 +170,6 @@
               (set! t s)
               (set! s (pop-stack! data-sp data-body))
               (snapshot)))
-      
-      ;; Mutate comm and rev
-      #;(define (memeq? addr val)
-	(define (read port)
-          (define ret
-            (and (not (empty? comm))
-                 (equal? (list val port 0) (car comm))))
-          (when ret 
-            (set! recv (cons val recv))
-            (set! comm (cdr comm)))
-          ret)
-            
-	(cond
-	 [(equal? addr UP)    (read UP)]
-	 [(equal? addr DOWN)  (read DOWN)]
-	 [(equal? addr LEFT)  (read LEFT)]
-	 [(equal? addr RIGHT) (read RIGHT)]
-	 [(equal? addr IO)    (read IO)]
-         [(and (>= addr 0) (< addr nmems))
-          (let ([tmp (vector-ref memory addr)])
-            (unless tmp (vector-set! memory addr val) (set! tmp val))
-            (= tmp val))]        
-	 [else #f]))
-
-      #;(define (read-memory-rm addr)
-	(define (read port)
-          (define ret
-            (and (not (empty? comm))
-                 (let ([tuple (car comm)])
-                   (and (equal? (second tuple) port)
-                        (equal? (third tuple) 1)
-                        (first tuple)))))
-          (when ret (set! comm (cdr comm)))
-          ret)
-        
-	(cond
-	 [(equal? addr UP)    (read UP)]
-	 [(equal? addr DOWN)  (read DOWN)]
-	 [(equal? addr LEFT)  (read LEFT)]
-	 [(equal? addr RIGHT) (read RIGHT)]
-	 [(equal? addr IO)    (read IO)]
-	 [(and (>= addr 0) (< addr nmems))
-          (let ([tmp (vector-ref memory addr)])
-            (vector-set! memory addr #f)
-            tmp)]
-         [else #f]))
 
       ;; load inverse
       (define-syntax-rule (memeq-pop! a f)

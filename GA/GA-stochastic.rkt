@@ -117,7 +117,7 @@
 	(let ([mem1 (progstate-memory state1)]
 	      [mem2 (progstate-memory state2)]
 	      [mem-const (progstate-memory constraint)])
-          (when mem-const (send mem1 correstness-cost mem2 diff-cost bit))))
+          (when mem-const (accum (send mem1 correctness-cost mem2 diff-cost bit)))))
           ;; (unless (vector? mem-const)
           ;;         (set! mem-const
           ;;               (make-vector (send machine get-nmems) mem-const)))
@@ -135,7 +135,7 @@
 	(when (progstate-comm constraint)
 	      (let ([comm1 (progstate-comm state1)]
 		    [comm2 (progstate-comm state2)])
-                (send comm1 correctness-cost comm2 diff-cost bit))))
+                (accum (send comm1 correctness-cost comm2 diff-cost bit)))))
 		;; (for ([i1 (progstate-comm state1)]
 		;;       [i2 (progstate-comm state2)])
 		;;      (accum (diff-cost (first i1) (first i2)))
