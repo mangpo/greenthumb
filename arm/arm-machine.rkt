@@ -1,53 +1,68 @@
 #lang racket
 
-(require "../machine.rkt" "../inst.rkt" "arm-inst.rkt")
+(require "../machine.rkt" "../inst.rkt" "../special.rkt"
+         "arm-inst.rkt")
 
 (provide arm-machine% (all-defined-out))
 
 ;; Program state representation.
 (struct progstate (regs memory z fp))
 
-(define-syntax-rule (build-vector n init)
-  (let ([vec (make-vector n)])
-    (for ([i (in-range n)])
-	 (vector-set! vec i (init)))
-    vec))
+(define-syntax-rule
+  (progstate regs memory z fp)
+  (vector regs memory z fp))
+
+(define-syntax-rule (progstate-regs x) (vector-ref x 0))
+(define-syntax-rule (progstate-memory x) (vector-ref x 1))
+(define-syntax-rule (progstate-z x) (vector-ref x 2))
+(define-syntax-rule (progstate-fp x) (vector-ref x 3))
+
+(define-syntax-rule (set-progstate-regs! x v) (vector-set! x 0 v))
+(define-syntax-rule (set-progstate-memory! x v) (vector-set! x 1 v))
+(define-syntax-rule (set-progstate-z! x v) (vector-set! x 2 v))
+(define-syntax-rule (set-progstate-fp! x v) (vector-set! x 3 v))
+
+;; (define-syntax-rule (build-vector n init)
+;;   (let ([vec (make-vector n)])
+;;     (for ([i (in-range n)])
+;; 	 (vector-set! vec i (init)))
+;;     vec))
 
 ;; Macros to create init state for testing
-(define-syntax default-state
-  (syntax-rules (reg mem set-z set-fp)
-    ((default-state machine init)
-     (progstate (build-vector (send machine get-nregs) init) 
-                (build-vector (send machine get-nmems) init)
-		(init)
-		(send machine get-fp)))
+;; (define-syntax default-state
+;;   (syntax-rules (reg mem set-z set-fp)
+;;     ((default-state machine init)
+;;      (progstate (build-vector (send machine get-nregs) init) 
+;;                 (build-vector (send machine get-nmems) init)
+;; 		(init)
+;; 		(send machine get-fp)))
 
-    ((default-state machine init [set-z vz] [set-fp vfp])
-     (progstate (build-vector (send machine get-nregs) init) 
-                (build-vector (send machine get-nmems) init)
-		vz
-		vfp))
+;;     ((default-state machine init [set-z vz] [set-fp vfp])
+;;      (progstate (build-vector (send machine get-nregs) init) 
+;;                 (build-vector (send machine get-nmems) init)
+;; 		vz
+;; 		vfp))
 
-    ((default-state machine init [reg (a b) ...] [mem (c d) ...] [set-z vz] [set-fp vfp])
-     (let ([state (default-state machine init [set-z vz] [set-fp vfp])])
-       (vector-set! (progstate-regs state) a b)
-       ...
-       (vector-set! (progstate-memory state) c d)
-       ...
-       state))
+;;     ((default-state machine init [reg (a b) ...] [mem (c d) ...] [set-z vz] [set-fp vfp])
+;;      (let ([state (default-state machine init [set-z vz] [set-fp vfp])])
+;;        (vector-set! (progstate-regs state) a b)
+;;        ...
+;;        (vector-set! (progstate-memory state) c d)
+;;        ...
+;;        state))
 
-    ((default-state machine init [reg (a b) ...] [mem (c d) ...])
-     (let ([state (default-state machine init)])
-       (vector-set! (progstate-regs state) a b)
-       ...
-       (vector-set! (progstate-memory state) c d)
-       ...
-       state))
+;;     ((default-state machine init [reg (a b) ...] [mem (c d) ...])
+;;      (let ([state (default-state machine init)])
+;;        (vector-set! (progstate-regs state) a b)
+;;        ...
+;;        (vector-set! (progstate-memory state) c d)
+;;        ...
+;;        state))
 
-    ((default-state [reg valr] [mem valm])
-     (progstate valr valm 0 (send machine get-fp)))
-    ((default-state [mem valm] [reg valr])
-     (progstate valr valm 0 (send machine get-fp)))))
+;;     ((default-state [reg valr] [mem valm])
+;;      (progstate valr valm 0 (send machine get-fp)))
+;;     ((default-state [mem valm] [reg valr])
+;;      (progstate valr valm 0 (send machine get-fp)))))
 
 (define (lam-t) #t)
 (define (lam-f) #f)
@@ -101,59 +116,60 @@
 
     (unless bitwidth (set! bitwidth 32))
     (set! random-input-bits bitwidth)
-    (set! nop-id 0)
-    (set! opcodes '#(nop 
-                     add sub rsb
-                     add# sub# rsb#
-                     and orr eor bic orn
-                     and# orr# eor# bic# orn#
-                     mov mvn
-                     mov# mvn# movw# movt#
-                     rev rev16 revsh rbit
-                     asr lsl lsr ror
-                     asr# lsl# lsr# ror#
-                     mul mla mls
-                     smull umull
-                     smmul smmla smmls
-                     sdiv udiv
-		     uxtah uxth uxtb
-                     bfc bfi
-                     sbfx ubfx
-                     clz
-                     ;;ldr str
-                     ldr# str#
-                     tst cmp
-                     tst# cmp#
-                     ))
+    
+    ;; (set! nop-id 0)
+    ;; (set! opcodes '#(nop 
+    ;;                  add sub rsb
+    ;;                  add# sub# rsb#
+    ;;                  and orr eor bic orn
+    ;;                  and# orr# eor# bic# orn#
+    ;;                  mov mvn
+    ;;                  mov# mvn# movw# movt#
+    ;;                  rev rev16 revsh rbit
+    ;;                  asr lsl lsr ror
+    ;;                  asr# lsl# lsr# ror#
+    ;;                  mul mla mls
+    ;;                  smull umull
+    ;;                  smmul smmla smmls
+    ;;                  sdiv udiv
+    ;;     	     uxtah uxth uxtb
+    ;;                  bfc bfi
+    ;;                  sbfx ubfx
+    ;;                  clz
+    ;;                  ;;ldr str
+    ;;                  ldr# str#
+    ;;                  tst cmp
+    ;;                  tst# cmp#
+    ;;                  ))
 
-    ;; Instruction classes
-    (set! classes 
-          (vector '(add sub rsb
-			and orr eor bic orn
-			asr lsl lsr ror
-                        mul
-			sdiv udiv 
-                        smmul 
-                        uxtah
-                        ) ;; rrr
-			;; ldr str)
-		  '(add# sub# rsb#
-			 and# orr# eor# bic# orn#
-			 asr# lsl# lsr# ror#) ;; rri
-		  '(mov mvn 
-			rev rev16 revsh rbit
-			uxth uxtb
-			clz) ;;rr
-		  '(mov# mvn#) ;; ri
-		  '(movw# movt#) ;; ri
-		  '(mla mls smmla smmls) ;; rrrr
-		  '(smull umull) ;; ddrr
-		  '(bfi sbfx ubfx) ;; rrii
-		  '(tst cmp) ;; rr
-		  '(tst# cmp#) ;; ri
-                  ;'(ldr# str#) ;; rri
-		  ;'(bfc) ;; rii
-                  ))
+    ;; ;; Instruction classes
+    ;; (set! classes 
+    ;;       (vector '(add sub rsb
+    ;;     		and orr eor bic orn
+    ;;     		asr lsl lsr ror
+    ;;                     mul
+    ;;     		sdiv udiv 
+    ;;                     smmul 
+    ;;                     uxtah
+    ;;                     ) ;; rrr
+    ;;     		;; ldr str)
+    ;;     	  '(add# sub# rsb#
+    ;;     		 and# orr# eor# bic# orn#
+    ;;     		 asr# lsl# lsr# ror#) ;; rri
+    ;;     	  '(mov mvn 
+    ;;     		rev rev16 revsh rbit
+    ;;     		uxth uxtb
+    ;;     		clz) ;;rr
+    ;;     	  '(mov# mvn#) ;; ri
+    ;;     	  '(movw# movt#) ;; ri
+    ;;     	  '(mla mls smmla smmls) ;; rrrr
+    ;;     	  '(smull umull) ;; ddrr
+    ;;     	  '(bfi sbfx ubfx) ;; rrii
+    ;;     	  '(tst cmp) ;; rr
+    ;;     	  '(tst# cmp#) ;; ri
+    ;;               ;'(ldr# str#) ;; rri
+    ;;     	  ;'(bfc) ;; rii
+    ;;               ))
 
     ;; In ARM instructions, constant can have any value that can be produced by rotating an 8-bit value right by any even number of bits within a 32-bit word.
 
@@ -167,136 +183,243 @@
 		[cond-opcodes '#(nop eq ne ls hi cc cs lt ge)]
 		)
 
-    (define nregs 5)
-    (define nmems 1)
-    (define fp 0)
+    ;; (define nregs 5)
+    ;; (define nmems 1)
+    ;; (define fp 0)
  
-    (define reg-range #f)
-    (define reg-range-o #f)
-    (define operand2-range #f)
-    (define const-range #f)
-    (define shf-range #f)
-    (define bit-range #f)
-    (define bit-range-no-0 #f)
-    (define mem-range #f)
+    ;; (define reg-range #f)
+    ;; (define reg-range-o #f)
+    ;; (define operand2-range #f)
+    ;; (define const-range #f)
+    ;; (define shf-range #f)
+    ;; (define bit-range #f)
+    ;; (define bit-range-no-0 #f)
+    ;; (define mem-range #f)
 
-    (when config
-          (set! nregs (first config))
-          (set! nmems (second config))
-          (set! fp (third config))
-          (reset-arg-ranges))
+    ;; (when config
+    ;;       (set! nregs (first config))
+    ;;       (set! nmems (second config))
+    ;;       (set! fp (third config))
+    ;;       (reset-arg-ranges))
 
-    (define (get-nregs) nregs)
-    (define/public (get-nmems) nmems)
-    (define/public (get-fp) fp)
-    (define/public (get-shf-opcodes x)
-      (vector-member x shf-opcodes))
-    (define/public (get-shf-inst-name x)
-      (vector-ref shf-opcodes x))
-    (define/public (get-cond-opcodes x)
-      (vector-member x cond-opcodes))
-    (define/public (get-cond-inst-name x)
-      (vector-ref cond-opcodes x))
+    ;; (define (get-nregs) nregs)
+    ;; (define/public (get-nmems) nmems)
+    ;; (define/public (get-fp) fp)
+    ;; (define/public (get-shf-opcodes x)
+    ;;   (vector-member x shf-opcodes))
+    ;; (define/public (get-shf-inst-name x)
+    ;;   (vector-ref shf-opcodes x))
+    ;; (define/public (get-cond-opcodes x)
+    ;;   (vector-member x cond-opcodes))
+    ;; (define/public (get-cond-inst-name x)
+    ;;   (vector-ref cond-opcodes x))
 
-    ;; Set machine configuration and set valid operands' ranges accordingly.
-    ;; info: a list of (# of registers, # of memory, stack pointer)
-    (define (set-config info)
-      (set! config info)
-      (set! nregs (first info))
-      (set! nmems (second info))
-      (set! fp (third info))
-      (reset-arg-ranges)
+    ;; ;; Set machine configuration and set valid operands' ranges accordingly.
+    ;; ;; info: a list of (# of registers, # of memory, stack pointer)
+    ;; (define (set-config info)
+    ;;   (set! config info)
+    ;;   (set! nregs (first info))
+    ;;   (set! nmems (second info))
+    ;;   (set! fp (third info))
+    ;;   (reset-arg-ranges)
+    ;;   )
+
+    (define (set-config info) (set! config info))
+
+    ;;;;;;;;;;;;;;;;;;;;; program state ;;;;;;;;;;;;;;;;;;;;;;;;
+
+    (define (progstate-structure)
+      (progstate (for/vector ([i config]) 'reg)
+                 ;; # of registers = config
+                 ;; most block of code doesn't use all registers
+                 ;; the smaller the number of registers, the faster the search
+                 ;; printer needs to encode registers's name to numbers in [0,config)
+                 (get-memory-type)
+                 'z  ;; conditoinal flag
+                 'fp ;; special register fp
+                 ))
+
+    (define-progstate-type
+      'reg 
+      #:get (lambda (state arg) (vector-ref (progstate-regs state) arg))
+      #:set (lambda (state arg val) (vector-set! (progstate-regs state) arg val)))
+
+    (define-progstate-type
+      (get-memory-type)
+      #:get (lambda (state) (progstate-memory state))
+      #:set (lambda (state val) (set-progstate-memory! state val)))
+
+    (define-progstate-type 'z
+      #:get (lambda (state) (progstate-z state))
+      #:set (lambda (state val) (set-progstate-z! state val))
+      #:min ?
+      #:max ?
       )
 
+    (define-progstate-type 'fp
+      #:get (lambda (state) (progstate-fp state))
+      #:set (lambda (state val) (set-progstate-fp! state val)))
+
+    ;;;;;;;;;;;;;;;;;;;;; instruction classes ;;;;;;;;;;;;;;;;;;;;;;;;
+    (define-arg-type 'reg (lambda (config) (range config)))
+    (define-arg-type 'const (lambda (config) '(0 1)))
+    (define-arg-type 'bit (lambda (config) '(0 1)))
     
-    ;; Set valid operands' ranges.
-    (define (reset-arg-ranges)
-      (set! reg-range (list->vector (range nregs)))
-      (set! reg-range-o (list->vector (range nregs)))
-      (set! operand2-range (vector 0 1 (sub1 bitwidth)))
-      (set! const-range (vector 0 1))
-      (set! shf-range (vector 1))
-      (set! bit-range (vector 0 1))
-      (set! bit-range-no-0 (vector 1))
-      (set! mem-range (list->vector (for/list ([i nmems]) (- i fp)))))
+    (define-instruction-class 'nop '(nop))
 
-    ;; Add additional valid operands' ranges.
-    (define (update-arg-ranges op2 const bit reg reg-o mem only-const [vreg 0])
-      ;; Not include mem-range
-      (set! operand2-range 
-            (list->vector 
-             (set->list (set-union (list->set (vector->list operand2-range))
-                                   op2 const
-                                   ))))
-      (set! shf-range 
-            (list->vector 
-	     (filter (lambda (x) (and (> x 0) (<= x 32)))
-		     (set->list (set-union (list->set (vector->list shf-range))
-					   op2)))))
-      (set! const-range 
-            (list->vector 
-             (set->list (set-union (list->set (vector->list const-range))
-                                   op2 const))))
+    (define-instruction-class 'rrr-commute '(add and orr eor mul smmul)
+      #:args '(reg reg reg) #:ins '(1 2) #:outs '(0) #:commute '(1 . 2))
 
-      (set! bit-range 
-            (list->vector 
-	     (filter (lambda (x) (and (>= x 0) (<= x 32)))
-                     (set->list (set-union (list->set (vector->list bit-range))
-                                           op2 bit)))))
-      (set! bit-range-no-0 
-            (list->vector 
-	     (filter (lambda (x) (and (> x 0) (<= x 32)))
-                     (set->list (set-union (list->set
-                                            (vector->list bit-range-no-0))
-                                           op2 bit)))))
+    (define-instruction-class 'rrr-commute
+      '(addasr addlsl addlsr addror
+               andasr andlsl andlsr andror
+               orrasr orrlsl orrlsr orrror
+               eorasr eorlsl eorlsr eorror
+               mulasr mullsl mullsr mulror
+               smmulasr smmullsl smmullsr smmulror
+               )
+      ...)
 
-      (unless only-const
-              (set! reg-range
-                    (list->vector (append (set->list reg) 
-                                          (range nregs (+ nregs vreg)))))
-              (set! reg-range-o
-                    (list->vector (append (set->list reg-o) 
-                                          (range nregs (+ nregs vreg)))))
-              (set! nregs (+ nregs vreg)) ;; Same if enum = 0
+    ;; addeq addle addge addlt addgt
+
+    ;; addasreq addasrle ...
+
+    ;; TOO MUCH!!! Need optional arguments
+
+    (define-instruction-class 'rrr '(sub rsb bic orn asr lsl lsr ror sdiv udiv uxtah)
+      #:args '(reg reg reg) #:ins '(1 2) #:outs '(0))
+
+    (define-instruction-class 'rri '(add# sub# rsb# and# orr# eor# bic# orn# asr# lsl# lsr# ror#)
+      #:args '(reg reg const) #:ins '(1 2) #:outs '(0))
+
+    (define-instruction-class 'rr '(mov mvn rev rev16 revsh rbit uxth uxtb clz)
+      #:args '(reg reg) #:ins '(1) #:outs '(0))
+
+    (define-instruction-class 'ri1 '(mov# mvn#)
+      #:args '(reg const) #:ins '(1) #:outs '(0))
+
+    (define-instruction-class 'ri2 '(movw# movt#)
+      #:args '(reg const) #:ins '(0 1) #:outs '(0))
+
+    (define-instruction-class 'rrrr-commute '(mla smmla)
+      #:args '(reg reg reg reg) #:ins '(1 2 3) #:outs '(0) #:commute '(2 . 3))
+
+    (define-instruction-class 'rrrr '(mls smmls)
+      #:args '(reg reg reg reg) #:ins '(1 2 3) #:outs '(0))
+
+    (define-instruction-class 'ddrr '(smull umull)
+      #:args '(reg reg reg reg) #:ins '(2 3) #:outs '(0 1) #:commute '(2 . 3))
+
+    (define-instruction-class 'rrii '(bfi sbfx ubfx)
+      #:args '(reg reg bit bit-0) #:ins '(1 2 3) #:outs '(1))
+
+    (define-instruction-class 'rii '(bfc)
+      #:args '(reg bit bit) #:ins '(0 1 2) #:outs '(0))
+
+    (define-instruction-class 'cmp '(tst cmp)
+      #:args '(reg reg) #:ins '(0 1) #:outs '(z))
+
+    (define-instruction-class 'cmpi '(tst# cmp#)
+      #:args '(reg const) #:ins '(0 1) #:outs '(z))
+
+    (define-instruction-class 'load# '(ldr#)
+      #:args (list 'reg ? (get-memory-type)) #:ins '(1 2) #:outs '(0))
+
+    (define-instruction-class 'store# '(str#)
+      #:args (list 'reg ? (get-memory-type)) #:ins '(0 1) #:outs '(0))
+
+    ;; TODO: different types of args can link to the same progstate
+
+    ;; ldr str?
+    
+    ;; ;; Set valid operands' ranges.
+    ;; (define (reset-arg-ranges)
+    ;;   (set! reg-range (list->vector (range nregs)))
+    ;;   (set! reg-range-o (list->vector (range nregs)))
+    ;;   (set! operand2-range (vector 0 1 (sub1 bitwidth)))
+    ;;   (set! const-range (vector 0 1))
+    ;;   (set! shf-range (vector 1))
+    ;;   (set! bit-range (vector 0 1))
+    ;;   (set! bit-range-no-0 (vector 1))
+    ;;   (set! mem-range (list->vector (for/list ([i nmems]) (- i fp)))))
+
+    ;; ;; Add additional valid operands' ranges.
+    ;; (define (update-arg-ranges op2 const bit reg reg-o mem only-const [vreg 0])
+    ;;   ;; Not include mem-range
+    ;;   (set! operand2-range 
+    ;;         (list->vector 
+    ;;          (set->list (set-union (list->set (vector->list operand2-range))
+    ;;                                op2 const
+    ;;                                ))))
+    ;;   (set! shf-range 
+    ;;         (list->vector 
+    ;;          (filter (lambda (x) (and (> x 0) (<= x 32)))
+    ;;     	     (set->list (set-union (list->set (vector->list shf-range))
+    ;;     				   op2)))))
+    ;;   (set! const-range 
+    ;;         (list->vector 
+    ;;          (set->list (set-union (list->set (vector->list const-range))
+    ;;                                op2 const))))
+
+    ;;   (set! bit-range 
+    ;;         (list->vector 
+    ;;          (filter (lambda (x) (and (>= x 0) (<= x 32)))
+    ;;                  (set->list (set-union (list->set (vector->list bit-range))
+    ;;                                        op2 bit)))))
+    ;;   (set! bit-range-no-0 
+    ;;         (list->vector 
+    ;;          (filter (lambda (x) (and (> x 0) (<= x 32)))
+    ;;                  (set->list (set-union (list->set
+    ;;                                         (vector->list bit-range-no-0))
+    ;;                                        op2 bit)))))
+
+    ;;   (unless only-const
+    ;;           (set! reg-range
+    ;;                 (list->vector (append (set->list reg) 
+    ;;                                       (range nregs (+ nregs vreg)))))
+    ;;           (set! reg-range-o
+    ;;                 (list->vector (append (set->list reg-o) 
+    ;;                                       (range nregs (+ nregs vreg)))))
+    ;;           (set! nregs (+ nregs vreg)) ;; Same if enum = 0
               
-              (set! mem-range (list->vector (set->list mem))))
+    ;;           (set! mem-range (list->vector (set->list mem))))
 
-      (pretty-display `(reg-range ,reg-range))
-      (pretty-display `(reg-range-o ,reg-range-o))
-      (pretty-display `(mem-range ,mem-range))
-      (pretty-display `(operand2-range ,operand2-range))
-      (pretty-display `(const-range ,const-range))
-      (pretty-display `(shf-range ,shf-range))
-      (pretty-display `(bit-range ,bit-range))
-      (pretty-display `(bit-range-no-0 ,bit-range-no-0))
-      )
+    ;;   (pretty-display `(reg-range ,reg-range))
+    ;;   (pretty-display `(reg-range-o ,reg-range-o))
+    ;;   (pretty-display `(mem-range ,mem-range))
+    ;;   (pretty-display `(operand2-range ,operand2-range))
+    ;;   (pretty-display `(const-range ,const-range))
+    ;;   (pretty-display `(shf-range ,shf-range))
+    ;;   (pretty-display `(bit-range ,bit-range))
+    ;;   (pretty-display `(bit-range-no-0 ,bit-range-no-0))
+    ;;   )
 
-    ;; Double the memory size.
-    (define (adjust-config info)
-      (list (first info) (* 2 (second info)) (third info)))
+    ;; ;; Double the memory size.
+    ;; (define (adjust-config info)
+    ;;   (list (first info) (* 2 (second info)) (third info)))
 
-    (define (get-memory-size info) (second info))
+    ;; (define (get-memory-size info) (second info))
 
-    ;; Convert live-out from compact format into progstate format.
-    ;; live-out: a pair of (a list of live registers' ids, live memory)
-    ;; output: a progstate object. #t elements indicate live.
-    ;; (define/public (output-constraint live-out)
-    ;;   ;; Registers are default to be dead.
-    ;;   (define regs (make-vector nregs #f))
-    ;;   ;; Memory is default to be live.
-    ;;   (define memory (if (second live-out)
-    ;;                      (make-vector nmems #t)
-    ;;                      (make-vector nmems #f)))
-    ;;   (for ([x (first live-out)])
-    ;;        (vector-set! regs x #t))
-    ;;   (progstate regs memory #f #f))
+    ;; ;; Convert live-out from compact format into progstate format.
+    ;; ;; live-out: a pair of (a list of live registers' ids, live memory)
+    ;; ;; output: a progstate object. #t elements indicate live.
+    ;; ;; (define/public (output-constraint live-out)
+    ;; ;;   ;; Registers are default to be dead.
+    ;; ;;   (define regs (make-vector nregs #f))
+    ;; ;;   ;; Memory is default to be live.
+    ;; ;;   (define memory (if (second live-out)
+    ;; ;;                      (make-vector nmems #t)
+    ;; ;;                      (make-vector nmems #f)))
+    ;; ;;   (for ([x (first live-out)])
+    ;; ;;        (vector-set! regs x #t))
+    ;; ;;   (progstate regs memory #f #f))
 
-    ;; Get progstate when initialize each entry with the result of (init).
-    ;; Used for generating random input states.
-    (define (get-state init extra)
-      (default-state this init 
-        [set-z -1] ;; Set z (conditional flag) to -1 for a test input.
-        [set-fp fp]))
+    ;; ;; Get progstate when initialize each entry with the result of (init).
+    ;; ;; Used for generating random input states.
+    ;; (define (get-state init extra)
+    ;;   (default-state this init 
+    ;;     [set-z -1] ;; Set z (conditional flag) to -1 for a test input.
+    ;;     [set-fp fp]))
 
     ;; Get progstate when initialize each entry with the result of (init).
     ;; Used for analyzing live-in information.
@@ -486,6 +609,58 @@
        [(equal? opcode-name `bfc) (vector `reg-io `bit `bit-no-0)]
        [else (vector)]))
     
+    ;; ;; Instruction classes
+    (set! classes 
+          (vector ;; '(add sub rsb
+        	  ;;       and orr eor bic orn
+        		;; asr lsl lsr ror
+                        ;; mul
+        		;; sdiv udiv 
+                        ;; smmul 
+                        ;; uxtah
+                        ) ;; rrr
+        		;; ldr str)
+        	  '(add# sub# rsb#
+        		 and# orr# eor# bic# orn#
+        		 asr# lsl# lsr# ror#) ;; rri
+        	  '(mov mvn 
+        		rev rev16 revsh rbit
+        		uxth uxtb
+        		clz) ;;rr
+        	  '(mov# mvn#) ;; ri
+        	  '(movw# movt#) ;; ri
+        	  '(mla mls smmla smmls) ;; rrrr
+        	  '(smull umull) ;; ddrr
+        	  '(bfi sbfx ubfx) ;; rrii
+        	  '(tst cmp) ;; rr
+        	  '(tst# cmp#) ;; ri
+                  ;'(ldr# str#) ;; rri
+        	  ;'(bfc) ;; rii
+                  ))
+    
+    ;; (set! opcodes '#(nop 
+    ;;                  add sub rsb
+    ;;                  add# sub# rsb#
+    ;;                  and orr eor bic orn
+    ;;                  and# orr# eor# bic# orn#
+    ;;                  mov mvn
+    ;;                  mov# mvn# movw# movt#
+    ;;                  rev rev16 revsh rbit
+    ;;                  asr lsl lsr ror
+    ;;                  asr# lsl# lsr# ror#
+    ;;                  mul mla mls
+    ;;                  smull umull
+    ;;                  smmul smmla smmls
+    ;;                  sdiv udiv
+    ;;     	     uxtah uxth uxtb
+    ;;                  bfc bfi
+    ;;                  sbfx ubfx
+    ;;                  clz
+    ;;                  ;;ldr str
+    ;;                  ldr# str#
+    ;;                  tst cmp
+    ;;                  tst# cmp#
+    ;;                  ))
       
     ;; Get valid operands' ranges given opcode-name, live-in, live-out, and mode.
     ;; opcode-name: symbol

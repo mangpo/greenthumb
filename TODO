@@ -10,6 +10,7 @@ ARM
 - do we need old-liveout in inverse interpret?
 - get rid of get-live-list (use progstatet->vector or not at all)
 - do we need combine-live in forwardbackward?
+- get rid of set-config???
 
 Test on:
 - llvm
