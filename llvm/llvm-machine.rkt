@@ -8,8 +8,7 @@
   (class machine%
     (super-new)
     (inherit-field bitwidth random-input-bits config)
-    (inherit reset-arg-ranges 
-             define-instruction-class finalize-machine-description
+    (inherit define-instruction-class finalize-machine-description
              define-progstate-type define-arg-type
              update-progstate-ins kill-outs)
     (override get-constructor set-config progstate-structure 

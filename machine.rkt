@@ -202,16 +202,17 @@
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; instruction & arg class ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
     (define (define-instruction-class name class-opcodes
-              #:args [args '()] #:ins [ins '()] #:outs [outs '()] #:commute [commute #f])
-      (for ([arg args])
-           (unless (hash-has-key? argtypes-info arg)
-                   (raise (format ("Undefined argument type ~a in 'args'" arg)))))
-      (for ([in ins])
-           (unless (or (number? in) (hash-has-key? statetypes-info in))
-                   (raise (format ("Undefined program state type ~a in 'ins'" in)))))
-      (for ([out outs])
-           (unless (or (number? out) (hash-has-key? statetypes-info out))
-                   (raise (format ("Undefined program state type ~a in 'outs'" out)))))
+              #:args [args '()] #:ins [ins '()] #:outs [outs '()] #:commute [commute #f]
+              #:required [required #t])
+      ;; (for ([arg args])
+      ;;      (unless (hash-has-key? argtypes-info arg)
+      ;;              (raise (format "Undefined argument type ~a in 'args'" arg))))
+      ;; (for ([in ins])
+      ;;      (unless (or (number? in) (hash-has-key? statetypes-info in))
+      ;;              (raise (format "Undefined program state type ~a in 'ins'" in))))
+      ;; (for ([out outs])
+      ;;      (unless (or (number? out) (hash-has-key? statetypes-info out))
+      ;;              (raise (format "Undefined program state type ~a in 'outs'" out))))
       ;; filter out an entry that is not a part of program state (get & set = #f)
       (define (pred x)
         (if (number? x)

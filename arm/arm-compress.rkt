@@ -11,7 +11,6 @@
     (override compress-reg-space decompress-reg-space)
     
     (define opcodes (get-field opcodes machine))
-    (define branch-opcodes (get-field branch-opcodes machine))
 
     (define (inner-rename x reg-map)
       (define (register-rename r)

@@ -95,7 +95,7 @@
         (instruction ((WORD args) (create-inst $1 (list->vector $2)))
 		     ((WORD _WORD) (create-special-inst $1 $2))
                      ((NOP)       (create-inst "nop" (vector)))
-		     ((HOLE) (arm-inst #f #f #f #f #f)))
+		     ((HOLE) (inst #f #f)))
 
         (inst-list   (() (list))
                      ((instruction inst-list) (cons $1 $2)))
@@ -122,9 +122,9 @@
     (define (create-special-inst op1 op2)
       (cond
        [(equal? op2 "__aeabi_idiv")
-	(arm-inst "sdiv" (vector "r0" "r0" "r1") #f #f "")]
+	(inst "sdiv" (vector "r0" "r0" "r1"))]
        [(equal? op2 "__aeabi_uidiv")
-	(arm-inst "udiv" (vector "r0" "r0" "r1") #f #f "")]
+	(inst "udiv" (vector "r0" "r0" "r1"))]
        [else
 	(raise (format "Undefine special instruction: ~a ~a" op1 op2))]))
 
@@ -139,9 +139,11 @@
         (when (equal? shfop "asl") (set! shfop "lsl"))
 
         (define base (create-inst op (vector-copy args 0 (- args-len 2))))
-        (arm-inst (inst-op base) (inst-args base) 
-                  shfop (vector-ref args (- args-len 1))
-                  (inst-cond base))]
+        (define ops-vec (inst-op base))
+        (define args-vec (inst-args base))
+        (vector-set! ops-vec 2 shfop)
+        (vector-set! args-vec 2 (vector (vector-ref args (- args-len 1))))
+        base]
 
        [else
 	(when (equal? op "asl") (set! op "lsl"))
@@ -158,21 +160,24 @@
 
 	;; for ldr & str, fp => r99, divide offset by 4
 	(when (or (equal? op "str") (equal? op "ldr"))
-	      ;; (when (equal? (vector-ref args 1) "fp")
-	      ;; 	    (vector-set! args 1 "r10"))
 	      (define offset (vector-ref args 2))
 	      (unless (equal? (substring offset 0 1) "r")
 		      (vector-set! 
 		       args 2
 		       (number->string (quotient (string->number offset) 4)))))
 
-	(arm-inst op (vector-map rename args) #f #f cond-type)]))
+        (inst (vector op cond-type "")
+              (vector (vector-map rename args) #f #f))]))
 
     (define (rename x)
       (cond
-       [(equal? x "ip") "r10"]
-       [(equal? x "lr") "r11"]
-       [(equal? x "sl") "r11"]
+       [(equal? x "sb") "r9"]
+       [(equal? x "sl") "r10"]
+       [(equal? x "fp") "r11"]
+       [(equal? x "ip") "r12"]
+       [(equal? x "sp") "r13"]
+       [(equal? x "lr") "r14"]
+       [(equal? x "pc") "r15"]
        [else x]))
 
     (define/public (liveness-from-file file)

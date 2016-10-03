@@ -178,8 +178,4 @@
   (for/list ([i 1000000])
     (send q clone)))
 
-(define t1 (current-milliseconds))
-(define ans (test-performance))
-(define t2 (current-milliseconds))
-(- t2 t1)
       

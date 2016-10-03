@@ -108,8 +108,9 @@
             ret
             (filter
              (lambda (x) x)
-             (for/list ([actual-addr (send mem get-addr-with-val out-val)])
-                       (send machine update-progstate-ins-load my-inst actual-addr mem state))))
+             (flatten
+              (for/list ([actual-addr (send mem get-addr-with-val out-val)])
+                        (send machine update-progstate-ins-load my-inst actual-addr mem state)))))
 
           (when
            ref
@@ -120,12 +121,13 @@
                   ret
                   (filter
                    (lambda (x) x)
-                   (for/list ([actual-addr (send mem get-available-addr mem-ref)])
-                             (let* ([new-mem (send mem clone)] ;;clone-all
-                                    [new-state (send machine update-progstate-ins-load
-                                                     my-inst actual-addr new-mem state)])
-                               (send new-mem store actual-addr out-val)
-                               new-state))))))
+                   (flatten
+                    (for/list ([actual-addr (send mem get-available-addr mem-ref)])
+                              (let* ([new-mem (send mem clone)] ;;clone-all
+                                     [new-state (send machine update-progstate-ins-load
+                                                      my-inst actual-addr new-mem state)])
+                                (send new-mem store actual-addr out-val)
+                                new-state)))))))
           
           ret
           ]
@@ -142,13 +144,14 @@
           (define addr-var-list (send mem get-update-addr-val))
           (filter
            (lambda (x) x)
-           (for/list ([addr-val addr-var-list])
-                     (let* ([addr (car addr-val)]
-                            [val (cdr addr-val)]
-                            [new-state
-                             (send machine update-progstate-ins-store my-inst addr val state)])
-                       (and new-state
-                            (send machine update-progstate-del-mem addr new-state)))))]
+           (flatten
+            (for/list ([addr-val addr-var-list])
+                      (let* ([addr (car addr-val)]
+                             [val (cdr addr-val)]
+                             [new-state
+                              (send machine update-progstate-ins-store my-inst addr val state)])
+                        (and new-state
+                             (send machine update-progstate-del-mem addr new-state))))))]
 
          [else #f])
         ]

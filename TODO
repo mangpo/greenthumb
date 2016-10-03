@@ -4,6 +4,7 @@ Performance
 - mask-in & mask-in again (ARM)
 
 ARM
+- remove compress.rkt
 - (get-arg-type) & (get-arg-ranges) take opcode-id not opcode-name
 - do we need get-state-liveness?
 - get rid of proper-machine-config
@@ -11,6 +12,7 @@ ARM
 - get rid of get-live-list (use progstatet->vector or not at all)
 - do we need combine-live in forwardbackward?
 - get rid of set-config???
+- get rid of relaxed-state-eq?
 
 Test on:
 - llvm
@@ -19,6 +21,7 @@ Test on:
 - ARM
 
 1. Revisit
+   - inst.rkt
    - template
    - (reduce-precesion) in forwardbackward
    - (get-flag) in enumerator
