@@ -258,105 +258,105 @@
       #:required '(#t #f)
       #:args '((reg reg reg) ()) #:ins '((1 2) (z)) #:outs '(0) #:commute '(1 . 2))
 
-    ;; (define-instruction-class 'rrr-commute-shf
-    ;;   (list '(add and orr eor mul smmul) cond-opcodes shf-inst-reg)
-    ;;   #:required '(#t #f #f)
-    ;;   #:args '((reg reg reg) () (reg)) #:ins '((1 2) (z) (0)) #:outs '(0) #:commute '(1 . 2))
+    (define-instruction-class 'rrr-commute-shf
+      (list '(add and orr eor mul smmul) cond-opcodes shf-inst-reg)
+      #:required '(#t #f #f)
+      #:args '((reg reg reg) () (reg)) #:ins '((1 2) (z) (0)) #:outs '(0) #:commute '(1 . 2))
 
-    ;; (define-instruction-class 'rrr-commute-shf-imm
-    ;;   (list '(add and orr eor mul smmul) cond-opcodes shf-inst-imm)
-    ;;   #:required '(#t #f #t)
-    ;;   #:args '((reg reg reg) () (bit)) #:ins '((1 2) (z) (0)) #:outs '(0) #:commute '(1 . 2))
+    (define-instruction-class 'rrr-commute-shf-imm
+      (list '(add and orr eor mul smmul) cond-opcodes shf-inst-imm)
+      #:required '(#t #f #t)
+      #:args '((reg reg reg) () (bit)) #:ins '((1 2) (z) (0)) #:outs '(0) #:commute '(1 . 2))
 
-    ;; (define-instruction-class 'rrr
-    ;;   #:required (list '(asr lsl lsr ror sdiv udiv uxtah) cond-opcodes)
-    ;;   #:args '((reg reg reg) ()) #:ins '((1 2) (z)) #:outs '(0))
+    (define-instruction-class 'rrr
+      #:required (list '(asr lsl lsr ror sdiv udiv uxtah) cond-opcodes)
+      #:args '((reg reg reg) ()) #:ins '((1 2) (z)) #:outs '(0))
 
-    ;; (define-instruction-class 'rrr-shf
-    ;;   (list '(sub rsb bic orn) cond-opcodes shf-inst-reg)
-    ;;   #:required '(#t #f #f)
-    ;;   #:args '((reg reg reg) () (reg)) #:ins '((1 2) (z) (0)) #:outs '(0))
+    (define-instruction-class 'rrr-shf
+      (list '(sub rsb bic orn) cond-opcodes shf-inst-reg)
+      #:required '(#t #f #f)
+      #:args '((reg reg reg) () (reg)) #:ins '((1 2) (z) (0)) #:outs '(0))
 
-    ;; (define-instruction-class 'rrr-shf-imm
-    ;;   (list '(sub rsb bic orn) cond-opcodes shf-inst-imm)
-    ;;   #:required '(#t #f #t)
-    ;;   #:args '((reg reg reg) () (bit)) #:ins '((1 2) (z) (0)) #:outs '(0))
+    (define-instruction-class 'rrr-shf-imm
+      (list '(sub rsb bic orn) cond-opcodes shf-inst-imm)
+      #:required '(#t #f #t)
+      #:args '((reg reg reg) () (bit)) #:ins '((1 2) (z) (0)) #:outs '(0))
 
-    ;; ;; reg = reg op imm
-    ;; (define-instruction-class 'rri
-    ;;   (list '(add# sub# rsb# and# orr# eor# bic# orn# asr# lsl# lsr# ror#) cond-opcodes)
-    ;;   #:required '(#t #f)
-    ;;   #:args '((reg reg const) ()) #:ins '((1 2) (z)) #:outs '(0))
+    ;; reg = reg op imm
+    (define-instruction-class 'rri
+      (list '(add# sub# rsb# and# orr# eor# bic# orn# asr# lsl# lsr# ror#) cond-opcodes)
+      #:required '(#t #f)
+      #:args '((reg reg const) ()) #:ins '((1 2) (z)) #:outs '(0))
 
-    ;; ;; reg = reg
-    ;; (define-instruction-class 'rr-shf
-    ;;   (list '(mov mvn) cond-opcodes shf-inst-reg)
-    ;;   #:required '(#t #f #t)
-    ;;   #:args '((reg reg) () (reg)) #:ins '((1) (z) (2)) #:outs '(0))
+    ;; reg = reg
+    (define-instruction-class 'rr-shf
+      (list '(mov mvn) cond-opcodes shf-inst-reg)
+      #:required '(#t #f #t)
+      #:args '((reg reg) () (reg)) #:ins '((1) (z) (2)) #:outs '(0))
 
-    ;; (define-instruction-class 'rr-shf-imm
-    ;;   (list '(mov mvn) cond-opcodes shf-inst-imm)
-    ;;   #:required '(#t #f #t)
-    ;;   #:args '((reg reg) () (bit)) #:ins '((1) (z) (2)) #:outs '(0))
+    (define-instruction-class 'rr-shf-imm
+      (list '(mov mvn) cond-opcodes shf-inst-imm)
+      #:required '(#t #f #t)
+      #:args '((reg reg) () (bit)) #:ins '((1) (z) (2)) #:outs '(0))
 
-    ;; (define-instruction-class 'rr
-    ;;   (list '(rev rev16 revsh rbit uxth uxtb clz) cond-opcodes)
-    ;;   #:required '(#t #f)
-    ;;   #:args '((reg reg) ()) #:ins '((1) (z)) #:outs '(0))
+    (define-instruction-class 'rr
+      (list '(rev rev16 revsh rbit uxth uxtb clz) cond-opcodes)
+      #:required '(#t #f)
+      #:args '((reg reg) ()) #:ins '((1) (z)) #:outs '(0))
 
-    ;; ;; reg = imm
-    ;; (define-instruction-class 'ri1
-    ;;   (list '(mov# mvn#) cond-opcodes)
-    ;;   #:required '(#t #f)
-    ;;   #:args '((reg const) ()) #:ins '((1) (z)) #:outs '(0))
+    ;; reg = imm
+    (define-instruction-class 'ri1
+      (list '(mov# mvn#) cond-opcodes)
+      #:required '(#t #f)
+      #:args '((reg const) ()) #:ins '((1) (z)) #:outs '(0))
 
-    ;; (define-instruction-class 'ri2
-    ;;   (list '(movw# movt#) cond-opcodes)
-    ;;   #:required '(#t #f)
-    ;;   #:args '((reg const) ()) #:ins '((0 1) (z)) #:outs '(0))
+    (define-instruction-class 'ri2
+      (list '(movw# movt#) cond-opcodes)
+      #:required '(#t #f)
+      #:args '((reg const) ()) #:ins '((0 1) (z)) #:outs '(0))
 
-    ;; ;; reg = reg op reg op reg
-    ;; (define-instruction-class 'rrrr-commute
-    ;;   (list '(mla smmla) cond-opcodes)
-    ;;   #:required '(#t #f)
-    ;;   #:args '((reg reg reg reg) ()) #:ins '((1 2 3) (z)) #:outs '(0) #:commute '(2 . 3))
+    ;; reg = reg op reg op reg
+    (define-instruction-class 'rrrr-commute
+      (list '(mla smmla) cond-opcodes)
+      #:required '(#t #f)
+      #:args '((reg reg reg reg) ()) #:ins '((1 2 3) (z)) #:outs '(0) #:commute '(2 . 3))
 
-    ;; (define-instruction-class 'rrrr
-    ;;   (list '(mls smmls) cond-opcodes)
-    ;;   #:required '(#t #f)
-    ;;   #:args '((reg reg reg reg) ()) #:ins '((1 2 3) (z)) #:outs '(0))
+    (define-instruction-class 'rrrr
+      (list '(mls smmls) cond-opcodes)
+      #:required '(#t #f)
+      #:args '((reg reg reg reg) ()) #:ins '((1 2 3) (z)) #:outs '(0))
 
-    ;; (define-instruction-class 'ddrr
-    ;;   (list '(smull umull) cond-opcodes)
-    ;;   #:required '(#t #f)
-    ;;   #:args '((reg reg reg reg) ()) #:ins '((2 3) (z)) #:outs '(0 1) #:commute '(2 . 3))
+    (define-instruction-class 'ddrr
+      (list '(smull umull) cond-opcodes)
+      #:required '(#t #f)
+      #:args '((reg reg reg reg) ()) #:ins '((2 3) (z)) #:outs '(0 1) #:commute '(2 . 3))
 
-    ;; (define-instruction-class 'rrii
-    ;;   (list '(bfi sbfx ubfx) cond-opcodes)
-    ;;   #:args '((reg reg bit bit-0) ()) #:ins '((1 2 3) (z)) #:outs '(1))
+    (define-instruction-class 'rrii
+      (list '(bfi sbfx ubfx) cond-opcodes)
+      #:args '((reg reg bit bit-0) ()) #:ins '((1 2 3) (z)) #:outs '(1))
 
-    ;; (define-instruction-class 'rii
-    ;;   (list '(bfc) cond-opcodes)
-    ;;   #:required '(#t #f)
-    ;;   #:args '((reg bit bit) ()) #:ins '((0 1 2) (z)) #:outs '(0))
+    (define-instruction-class 'rii
+      (list '(bfc) cond-opcodes)
+      #:required '(#t #f)
+      #:args '((reg bit bit) ()) #:ins '((0 1 2) (z)) #:outs '(0))
 
-    ;; (define-instruction-class 'load#
-    ;;   (list '(ldr#) cond-opcodes)
-    ;;   #:required '(#t #f)
-    ;;   #:args '((reg reg-sp addr) ()) #:ins `((1 2 ,(get-memory-type)) (z)) #:outs '(0))
+    (define-instruction-class 'load#
+      (list '(ldr#) cond-opcodes)
+      #:required '(#t #f)
+      #:args '((reg reg-sp addr) ()) #:ins `((1 2 ,(get-memory-type)) (z)) #:outs '(0))
 
-    ;; (define-instruction-class 'store#
-    ;;   (list '(str#) cond-opcodes)
-    ;;   #:required '(#t #f)
-    ;;   #:args '((reg reg-sp addr) ()) #:ins '((0 1 2) (z)) #:outs `(0 ,(get-memory-type)))
+    (define-instruction-class 'store#
+      (list '(str#) cond-opcodes)
+      #:required '(#t #f)
+      #:args '((reg reg-sp addr) ()) #:ins '((0 1 2) (z)) #:outs `(0 ,(get-memory-type)))
 
-    ;; (define-instruction-class 'cmp '(tst cmp)
-    ;;   #:args '(reg reg) #:ins '(0 1) #:outs '(z))
+    (define-instruction-class 'cmp '(tst cmp)
+      #:args '(reg reg) #:ins '(0 1) #:outs '(z))
 
-    ;; (define-instruction-class 'cmpi '(tst# cmp#)
-    ;;   #:args '(reg const) #:ins '(0 1) #:outs '(z))
+    (define-instruction-class 'cmpi '(tst# cmp#)
+      #:args '(reg const) #:ins '(0 1) #:outs '(z))
 
-    ;;(finalize-machine-description)
+    (finalize-machine-description)
     
     ;; ;; Set valid operands' ranges.
     ;; (define (reset-arg-ranges)

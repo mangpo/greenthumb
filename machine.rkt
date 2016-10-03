@@ -204,29 +204,127 @@
     (define (define-instruction-class name class-opcodes
               #:args [args '()] #:ins [ins '()] #:outs [outs '()] #:commute [commute #f]
               #:required [required #t])
-      ;; (for ([arg args])
-      ;;      (unless (hash-has-key? argtypes-info arg)
-      ;;              (raise (format "Undefined argument type ~a in 'args'" arg))))
-      ;; (for ([in ins])
-      ;;      (unless (or (number? in) (hash-has-key? statetypes-info in))
-      ;;              (raise (format "Undefined program state type ~a in 'ins'" in))))
-      ;; (for ([out outs])
-      ;;      (unless (or (number? out) (hash-has-key? statetypes-info out))
-      ;;              (raise (format "Undefined program state type ~a in 'outs'" out))))
+      (unless opcodes
+              (raise "Call 'init-machine-description' before defining instruction classes"))
+      
+      (for ([arg (flatten args)])
+           (unless (hash-has-key? argtypes-info arg)
+                   (raise (format "Undefined argument type ~a in 'args'" arg))))
+      (for ([in (flatten ins)])
+           (unless (or (number? in) (hash-has-key? statetypes-info in))
+                   (raise (format "Undefined program state type ~a in 'ins'" in))))
+      (for ([out (flatten outs)])
+           (unless (or (number? out) (hash-has-key? statetypes-info out))
+                   (raise (format "Undefined program state type ~a in 'outs'" out))))
       ;; filter out an entry that is not a part of program state (get & set = #f)
       (define (pred x)
         (if (number? x)
             (hash-has-key? statetypes-info (list-ref args x))
             (hash-has-key? statetypes-info x)))
-      (set! ins (filter pred ins))
-      (set! outs (filter pred outs))
-      
-      (set! classes-info
-            (cons (instclass class-opcodes #f (list->vector args) ins outs commute)
-                  classes-info))
+      (set! ins (filter-nested-list pred ins))
+      (set! outs (filter-nested-list pred outs))
+      (cond
+       ;; if opcodes is a list of lists
+       [(list? (car class-opcodes))
+        (unless (= (length class-opcodes) (length required))
+                (raise "Please specify which lists of opcodes are required and optional."))
+        ;; collect opcodes
+        (for ([group class-opcodes]
+              [id (in-naturals)])
+             (for ([opcode group])
+                  (unless (member opcode (vector-ref opcodes id))
+                          (vector-set! opcodes id (cons opcode (vector-ref opcodes id))))))
+        ;; insert instruction classes
+        (for ([group (all-opcodes-groups class-opcodes args ins required)])
+             (set! classes-info
+                   (cons (instclass (first group) #f
+                                    (list->vector (second group))
+                                    (third group) outs commute)
+                         classes-info)))
+        ]
+
+       [else
+        ;; collect opcodes
+        (for ([opcode class-opcodes])
+             (unless (member opcode opcodes)
+                     (set! opcodes (cons opcode opcodes))))
+        ;; insert instruction class
+        (set! classes-info
+              (cons (instclass class-opcodes #f (list->vector args) ins outs commute)
+                    classes-info))])
       
       ;;(pretty-display (format "[DEFINE] class=~a | args=~a ins=~a outs=~a" name args ins outs))
       )
+
+    (define (filter-nested-list pred l)
+      (define (f l)
+        (cond
+         [(list? (car l)) (for/list ([ll l]) (f ll))]
+         [else (filter pred l)]))
+      (f l))
+
+    ;; Given an instruction class with multiple types of opcodes (both required and optional).
+    ;; Generate all instruction classes with required opcode types.
+    ;; TODO: when ins/outs refer to args using numbers***
+    (define (all-opcodes-groups opcodes-groups args-groups ins-groups required)
+      (define ret (list))
+      
+      (define (adjust ins-groups args-groups)
+        (define offset 0)
+        (for/list ([ins ins-groups]
+                   [args args-groups])
+                  (let ([ret
+                         (for/list ([in ins])
+                                   (if (number? in) (+ in offset) in))])
+                    (set! offset (+ offset (length args)))
+                    ret)))
+      
+      (define (recurse opcodes-final args-final ins-final
+                       opcodes-groups args-groups ins-groups required)
+        (cond
+         [(empty? opcods-groups)
+          (set! ret
+                (cons
+                 (list opcodes-final
+                       (flatten args-final)
+                       (flatten (adjust ins-final args-final)))
+                 ret))]
+         [else
+          ;; If this opcode type is not required, try excluding it.
+          (unless (car required)
+                  (recurse (cons (list '||) opcodes-final)
+                           (cons (list) args-final)
+                           (cons (list) ins-final)
+                           (cdr opcodes-groups) (cdr args-groups) (cdr ins-groups) (cdr required)))
+
+          ;; Include this opcode type.
+          (recurse (cons (car opcodes-groups) opcodes-final)
+                   (cons (car args-groups) args-final)
+                   (cons (car ins-groups) ins-final)
+                   (cdr opcodes-groups) (cdr args-groups) (cdr ins-groups) (cdr required))]))
+      (recurse (list) (list) (list)
+               (reverse opcodes-groups) (reverse args-groups) (reverse ins-groups) (reverse required))
+      ret)
+
+    ;; Given an instruction class with (one or more) required opcode types.
+    ;; Enumerate all possible combinations, and converting opcode name to opcode id in the process.
+    (define (all-opcodes-combinations opcodes-groups)
+      (define ret (list))
+      (define (recurse final work)
+        (cond
+         [(empty? work) (set! ret (cons (list->vector final) ret))]
+         [else
+          (define remain (cdr work))
+          (for ([op (car work)]) (recurse (cons op final) remain))]))
+      
+      (if (list? (car opcodes-groups))
+          ;; multiple opcode types, enumerate.
+          (recurse (list)
+                   (for/list ([group (reverse opcodes-groups)])
+                             ;; if opcode doens't exist, use -1 (default nop)
+                             (map (lambda (x) (or (vector-member x opcodes) -1)) group)))
+          ;; one opcode type, don't have to enumerate.
+          (map (lambda (x) (vector-member x opcodes)) opcodes-groups)))
 
     (define (define-progstate-type name #:get [get #f] #:set [set #f]
               #:min [min #f] #:max [max #f] #:const [const #f])
@@ -235,30 +333,37 @@
     (define (define-arg-type name validfunc)
       (hash-set! argtypes-info name (argtype validfunc #f)))
 
+    (define (init-machine-description opcode-types)
+      (if (= opcode-types 1)
+          (set! opcodes (list))
+          (set! opcodes (make-vector opcode-types (list)))))
+
     (define (finalize-machine-description)
-      (define all-opcodes (list))
       (define classes-list (list))
       (define n 0)
       (for ([info classes-info]
             [id (in-naturals)])
-           (let* ([class-opcodes (instclass-opcodes info)]
-                  [add-n (length class-opcodes)]
-                  [pool (for/list ([i add-n]) (+ n i))]
-                  )
-             (set! all-opcodes (append all-opcodes class-opcodes))
-             (set! classes-list (append classes-list (for/list ([i add-n]) id)))
-             (set-instclass-opcodes! info pool)
-             (set-instclass-pool! info pool)
-             (set! n (+ n add-n))))
+           (let* ([class-opcodes (all-opcodes-combinations (instclass-opcodes info))])
+             (set-instclass-opcodes! info class-opcodes)
+             (set-instclass-pool! info class-opcodes)
+             (for ([ops-vec class-opcodes])
+                  (hash-set! opcode-id-to-class ops-vec id))))
 
-      (set! opcodes (list->vector all-opcodes))
-      (set! opcode-id-to-class (list->vector classes-list))
-      (set! nop-id (vector-member 'nop opcodes))
+      ;; set nop-id and convert opcodes into vector format
+      (cond
+       [(list? (vector-ref opcodes 0))
+        (set! opcodes (for/vector ([group opcodes]) (list->vector group)))
+        (set! nop-id (vector-member 'nop (vector-ref opcodes 0)))
+        ]
+       [else
+        (set! opcodes (list->vector opcodes))
+        (set! nop-id (vector-member 'nop opcodes))])
+      ;; convert classes-info into vector format
       (set! classes-info (list->vector classes-info))
 
-      ;; (pretty-display `(opcodes ,opcodes))
-      ;; (pretty-display `(opcode-id-to-class ,opcode-id-to-class))
-      ;; (pretty-display `(nop-id ,nop-id))
+      (pretty-display `(opcodes ,opcodes))
+      (pretty-display `(opcode-id-to-class ,opcode-id-to-class))
+      (pretty-display `(nop-id ,nop-id))
       )
 
     (define (update-classes-pool)
@@ -270,11 +375,11 @@
              (instclass-opcodes class)))))
 
     (define (get-class-opcodes opcode-id)
-      (instclass-pool (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id))))
+      (instclass-pool (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id))))
     
     ;; Return types of operands given opcode-name.
     (define (get-arg-types opcode-id)
-      (instclass-args (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id))))
+      (instclass-args (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id))))
 
     ;; Reset valid operands' ranges.
     (define (reset-arg-ranges)
@@ -294,7 +399,7 @@
     ;;  2) `no-args = ignore reigster operands. Return `var-o and `var-i for operand that is input variable and output variable respectively. This mode is only used for enumerative search.
     (define (get-arg-ranges opcode-id entry live-in
                             #:live-out [live-out #f] #:mode [mode `basic])
-      (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
+      (define class (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id)))
       (define types (instclass-args class))
       (define ins (instclass-ins class))
       (define outs (instclass-outs class))
@@ -356,7 +461,7 @@
         (define new-live (clone-state live))
         (define opcode-id (inst-op my-inst))
         (define args (inst-args my-inst))
-        (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
+        (define class (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id)))
         (define types (instclass-args class))
         (define outs (instclass-outs class))
 
@@ -387,7 +492,7 @@
         (define new-live (clone-state live))
         (define opcode-id (inst-op my-inst))
         (define args (inst-args my-inst))
-        (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
+        (define class (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id)))
         (define types (instclass-args class))
         (define ins (instclass-ins class))
         (define outs (instclass-outs class))
@@ -434,7 +539,7 @@
 
       (when
        args
-       (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
+       (define class (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id)))
        (define types (instclass-args class))
        
        (for ([type types] [arg args])
@@ -448,7 +553,7 @@
     (define (get-inst-key my-inst)
       (define opcode-id (inst-op my-inst))
       (define args (inst-args my-inst))
-      (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
+      (define class (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id)))
       (define ins (instclass-ins class))
       (define outs (instclass-outs class))
       (cons
@@ -459,7 +564,7 @@
 
     (define (get-progstate-ins-types my-inst)
       (define opcode-id (inst-op my-inst))
-      (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
+      (define class (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id)))
       (define ins (instclass-ins class))
       (define types (instclass-args class))
 
@@ -467,7 +572,7 @@
 
     (define (get-progstate-outs-types my-inst)
       (define opcode-id (inst-op my-inst))
-      (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
+      (define class (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id)))
       (define outs (instclass-outs class))
       (define types (instclass-args class))
 
@@ -485,7 +590,7 @@
     (define (get-progstate-ins-vals my-inst state)
       (define opcode-id (inst-op my-inst))
       (define args (inst-args my-inst))
-      (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
+      (define class (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id)))
       (define ins (instclass-ins class))
       (define types (instclass-args class))
       (get-progstate-at state ins types args))
@@ -493,7 +598,7 @@
     (define (get-progstate-outs-vals my-inst state)
       (define opcode-id (inst-op my-inst))
       (define args (inst-args my-inst))
-      (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
+      (define class (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id)))
       (define outs (instclass-outs class))
       (define types (instclass-args class))
       (get-progstate-at state outs types args))
@@ -504,7 +609,7 @@
       (define new-state (clone-state state))
       (define opcode-id (inst-op my-inst))
       (define args (inst-args my-inst))
-      (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
+      (define class (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id)))
       (define ins (instclass-ins class))
       (define types (instclass-args class))
       (define pass #t)
@@ -539,7 +644,7 @@
       (define new-state (clone-state state))
       (define opcode-id (inst-op my-inst))
       (define args (inst-args my-inst))
-      (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
+      (define class (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id)))
       (define outs (instclass-outs class))
       (define types (instclass-args class))
 
@@ -563,7 +668,7 @@
     ;; If op is not commutative, then always return #t.
     ;; arg: list of arguments' IDs
     (define (is-cannonical opcode-id args)
-      (define class (vector-ref classes-info (vector-ref opcode-id-to-class opcode-id)))
+      (define class (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id)))
       (define commute (instclass-commute class))
       (cond
        [commute
