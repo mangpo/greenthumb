@@ -22,7 +22,7 @@
 	  
 
     (define bit (get-field bitwidth machine))
-    (define opcodes (get-field opcodes machine))
+    ;;(define opcodes (get-field opcodes machine))
     ;; (define shf-opcodes (get-field shf-opcodes machine))
     ;; (define shf-inst-reg (get-field shf-inst-reg machine))
     ;; (define shf-inst-imm (get-field shf-inst-imm machine))

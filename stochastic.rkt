@@ -254,9 +254,8 @@
     (define (random-instruction
              index n live-in
              [opcode-id (random-from-list (send machine get-valid-opcode-pool index n live-in))])
-      (when debug
-            (pretty-display `(pool ,(map (lambda (x) (send machine get-opcode-name x))
-                                         (send machine get-valid-opcode-pool index n live-in)))))
+      (when #f
+            (pretty-display `(pool ,(send machine get-valid-opcode-pool index n live-in))))
       (when debug (pretty-display `(random-instruction ,opcode-id)))
       (define args (random-args-from-op opcode-id live-in))
       (if args
@@ -292,7 +291,7 @@
     (define (get-mutate-type opcode-id)
       (define mutations (get-mutations opcode-id))
       
-      (when debug (pretty-display `(mutations ,mutations)))
+      (when debug (pretty-display `(mutations ,opcode-id ,mutations)))
       (define sum 0)
       (define prop (map (lambda (x) 
                           (let ([v (hash-ref mutate-dist x)])

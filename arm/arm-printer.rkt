@@ -109,7 +109,7 @@
       (define opcode (convert-op (send machine get-base-opcode-name (vector-ref ops-vec 0))))
       ;;(pretty-display `(op ,opcode))
       (define condtype (convert-op (send machine get-cond-opcode-name (vector-ref ops-vec 1))))
-      (define shfop (convert-op (send machine get-cond-opcode-name (vector-ref ops-vec 2))))
+      (define shfop (convert-op (send machine get-shf-opcode-name (vector-ref ops-vec 2))))
 
 
       (define new-args

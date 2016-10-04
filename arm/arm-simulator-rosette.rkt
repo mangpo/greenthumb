@@ -15,7 +15,6 @@
         
     (define bit (get-field bitwidth machine))
 
-    (define nop-id (get-field nop-id machine))
     (define opcodes (get-field opcodes machine))
     (define base-opcodes (vector-ref opcodes 0))
     (define cond-opcodes (vector-ref opcodes 1))
@@ -243,7 +242,7 @@
             (define len (vector-length args))
             (define k (and (> len 0) (vector-ref args (sub1 len))))
             (define-syntax-rule (shf-inst-eq xx) 
-              (equal? xx (vector-ref shf-opcodes shfop)))
+              (equal? xx (send machine get-shf-opcode-name shfop)))
 
             (define val #f)
             (define (rr f)
@@ -552,7 +551,7 @@
  		 (or (equal? a opcode-name) ...)))
              (define-syntax-rule (shf-inst-eq a ...)
  	       (and shfop
- 		    (let ([opcode-name (vector-ref shf-opcodes shfop)])
+ 		    (let ([opcode-name (send machine get-shf-opcode-name shfop)])
  		      (or (equal? a opcode-name) ...))))
 
              (cond

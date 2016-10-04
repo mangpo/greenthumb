@@ -86,14 +86,14 @@
           (vector-member opcode opcodes)
           (for/vector ([name opcode]
                        [vec opcodes])
-                      (vector-member name vec))))
+                      (or (vector-member name vec) -1))))
           
     (define (get-opcode-name id)
       (if (number? id)
-          (vector-ref opcodes id))
+          (vector-ref opcodes id)
           (for/vector ([i id]
                        [vec opcodes])
-                      (vector-ref vec i)))
+            (if (>= i 0) (vector-ref vec i) '||))))
     
     (define (no-assumption) #f)
     (define (get-state-liveness f) (get-state f))
@@ -125,7 +125,7 @@
       (vector-filter-not (lambda (x)
                            (if (number? (inst-op x))
                                (equal? (inst-op x) nop-id)
-                               (equal? (vector-ref (inst-op x) 0) nop-id)))
+                               (equal? (vector-ref (inst-op x) 0) (vector-ref nop-id 0))))
                          code))
 
     (define (state-eq? state1 state2 pred)
@@ -161,12 +161,9 @@
     ;;    [else range]))
 
     (define (get-live-list constraint) (progstate->vector constraint))
-    
-    (define (analyze-opcode prefix code postfix)
-      (set! opcode-pool (range (vector-length opcodes)))
-      (update-classes-pool)
-      (pretty-display `(analyze-opcode ,opcode-pool))
-      )
+
+    ;; This function can be overriden to update opcode-pool and instclass-pool given code.
+    (define (analyze-opcode prefix code postfix) (void))
 
     (define (reset-opcode-pool) (void))
 
@@ -417,12 +414,23 @@
       (for ([info classes-info]
             [id (in-naturals)])
            (let* ([class-opcodes (all-opcodes-combinations (instclass-opcodes info))])
+             ;;(pretty-display `(class ,id ,(length class-opcodes)))
              (set-instclass-opcodes! info class-opcodes)
              (set-instclass-pool! info class-opcodes)
              (for ([ops-vec class-opcodes])
                   (hash-set! opcode-id-to-class ops-vec id))))
       ;; convert classes-info into vector format
+      (set! opcode-pool (flatten (for/list ([info classes-info]) (instclass-pool info))))
       (set! classes-info (list->vector classes-info))
+      (get-class-opcodes (vector 14 -1 5))
+
+      (define nop-ops-vec #f)
+      (when (> groups-of-opcodes 1)
+            (for ([ops-vec (hash-keys opcode-id-to-class)])
+                 (when (= nop-id (vector-ref ops-vec 0))
+                       (when nop-ops-vec (raise "'nop' cannot be in multiple instruction classes."))
+                       (set! nop-ops-vec ops-vec)))
+            (set! nop-id nop-ops-vec))
 
       (pretty-display `(opcodes ,opcodes))
       ;;(pretty-display `(opcode-id-to-class ,opcode-id-to-class))
@@ -491,7 +499,7 @@
                  [(not pass) (vector)] ;; if not pass, return empty list
                  [(and (member id ins) (member id outs))
                   (define vals (get-arg-range-of-type type live-in))
-                  (get-arg-range-of-type type live-out #:vals vals)]
+                  (get-arg-range-of-type type live-out #:vals (vector->list vals))]
                  [(member id ins) (get-arg-range-of-type type live-in)]
                  [(member id outs) (get-arg-range-of-type type live-out)]
                  [else (get-arg-range-of-type type #f)]))
@@ -508,6 +516,7 @@
     (define (get-arg-range-of-type type live #:vals [vals #f])
       (define argtype-info (hash-ref argtypes-info type))
       (unless vals (set! vals (argtype-valid argtype-info)))
+      ;;(pretty-display `(vals ,type ,vals))
       (list->vector
        (if live
            (let ([get (statetype-get (hash-ref statetypes-info

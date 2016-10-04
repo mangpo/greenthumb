@@ -935,8 +935,14 @@
       (when (<= (length reg-list) 2)
             (let ([add-reg
                    (for/or ([i config])
-                           (and (not (member context-reg-list)) (not (member reg-list)) i))])
-              (when add-reg (set-argtype-valid! type-reg (cons add-reg reg-list))))))
+                           (and (not (member i context-reg-list)) (not (member i reg-list)) i))])
+              (when add-reg (set-argtype-valid! type-reg (cons add-reg reg-list)))))
+      
+      (for ([pair (hash->list argtypes-info)])
+           (let ([name (car pair)]
+                 [info (cdr pair)])
+             (pretty-display `(ARM-ARG ,name ,(argtype-valid info)))))
+      )
 
     ;; Inform about the order of argument for load instruction
     (define (update-progstate-ins-load my-inst addr mem state)
