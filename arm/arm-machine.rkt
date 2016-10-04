@@ -95,7 +95,7 @@
     (inherit-field bitwidth random-input-bits config
                    opcodes nop-id argtypes-info)
     
-    (inherit define-instruction-class finalize-machine-description
+    (inherit define-instruction-class init-machine-description finalize-machine-description
              define-progstate-type define-arg-type
              update-progstate-ins kill-outs)
     (override set-config display-state get-constructor
@@ -106,30 +106,30 @@
     (unless bitwidth (set! bitwidth 32))
     (set! random-input-bits bitwidth)
     
-    (set! nop-id 0)
-    (set! opcodes '#(nop 
-                     add sub rsb
-                     add# sub# rsb#
-                     and orr eor bic orn
-                     and# orr# eor# bic# orn#
-                     mov mvn
-                     mov# mvn# movw# movt#
-                     rev rev16 revsh rbit
-                     asr lsl lsr ror
-                     asr# lsl# lsr# ror#
-                     mul mla mls
-                     smull umull
-                     smmul smmla smmls
-                     sdiv udiv
-        	     uxtah uxth uxtb
-                     bfc bfi
-                     sbfx ubfx
-                     clz
-                     ;;ldr str
-                     ldr# str#
-                     tst cmp
-                     tst# cmp#
-                     ))
+    ;; (set! nop-id 0)
+    ;; (set! opcodes '#(nop 
+    ;;                  add sub rsb
+    ;;                  add# sub# rsb#
+    ;;                  and orr eor bic orn
+    ;;                  and# orr# eor# bic# orn#
+    ;;                  mov mvn
+    ;;                  mov# mvn# movw# movt#
+    ;;                  rev rev16 revsh rbit
+    ;;                  asr lsl lsr ror
+    ;;                  asr# lsl# lsr# ror#
+    ;;                  mul mla mls
+    ;;                  smull umull
+    ;;                  smmul smmla smmls
+    ;;                  sdiv udiv
+    ;;     	     uxtah uxth uxtb
+    ;;                  bfc bfi
+    ;;                  sbfx ubfx
+    ;;                  clz
+    ;;                  ;;ldr str
+    ;;                  ldr# str#
+    ;;                  tst cmp
+    ;;                  tst# cmp#
+    ;;                  ))
 
     ;; ;; Instruction classes
     ;; (set! classes 
@@ -164,13 +164,9 @@
 
     (define perline 8)
 
-    (init-field ;;[branch-opcodes '#(beq bne j jal b jr jr jalr bal)]
-        	;;[inst-with-shf '(add sub rsb and orr eor bic orn mov mvn)]
-                [shf-inst-reg '#(asr lsl lsr ror)]
-                [shf-inst-imm '#(asr# lsl# lsr# ror#)]
-                [shf-opcodes (vector-append shf-inst-reg shf-inst-imm)]
-        	[cond-opcodes '#(eq ne ls hi cc cs lt ge)]
-        	)
+    ;; (init-field ;;[branch-opcodes '#(beq bne j jal b jr jr jalr bal)]
+    ;;     	;;[inst-with-shf '(add sub rsb and orr eor bic orn mov mvn)]
+    ;;     	)
 
     ;; (define nregs 5)
     ;; (define nmems 1)
@@ -194,15 +190,26 @@
     ;; (define (get-nregs) nregs)
     ;; (define/public (get-nmems) nmems)
     ;; (define/public (get-fp) fp)
-    (define/public (get-shf-opcode-id x)
-      (or (vector-member x shf-opcodes) -1))
-    (define/public (get-shf-opcode-name x)
-      (if (>= x 0) (vector-ref shf-opcodes x) ""))
+
+    (define shf-inst-reg '(asr lsl lsr ror))
+    (define shf-inst-imm '(asr# lsl# lsr# ror#))
+    (define cond-opcodes '(eq ne ls hi cc cs lt ge))
+    
+    
+    (define/public (get-base-opcode-id x)
+      (vector-member x (vector-ref opcodes 0)))
+    (define/public (get-base-opcode-name x)
+      (vector-ref (vector-ref opcodes 0) x))
     
     (define/public (get-cond-opcode-id x)
-      (or (vector-member x cond-opcodes) -1))
+      (or (vector-member x (vector-ref opcodes 1)) -1))
     (define/public (get-cond-opcode-name x)
-      (if (>= x 0) (vector-ref cond-opcodes x) ""))
+      (if (>= x 0) (vector-ref (vector-ref opcodes 1) x) '||))
+    
+    (define/public (get-shf-opcode-id x)
+      (or (vector-member x (vector-ref opcodes 2)) -1))
+    (define/public (get-shf-opcode-name x)
+      (if (>= x 0) (vector-ref (vector-ref opcodes 2) x) '||))
 
     ;; ;; Set machine configuration and set valid operands' ranges accordingly.
     ;; ;; info: a list of (# of registers, # of memory, stack pointer)
@@ -244,14 +251,16 @@
       )
 
     ;;;;;;;;;;;;;;;;;;;;; instruction classes ;;;;;;;;;;;;;;;;;;;;;;;;
-    (define-arg-type 'reg (lambda (config) (range config)));; #:progstate 'reg) (TODO)
-    (define-arg-type 'reg-sp (lambda (config) '()));; #:progstate 'reg)
+    (define-arg-type 'reg (lambda (config) (range config)) #:progstate 'reg)
+    (define-arg-type 'reg-sp (lambda (config) '()) #:progstate 'reg)
     (define-arg-type 'const (lambda (config) '(0 1)))
     (define-arg-type 'bit (lambda (config) '(0 1)))
     (define-arg-type 'addr (lambda (config) '()))
     
+    (init-machine-description 3)
+    
     (define-instruction-class 'nop '(nop))
-
+    
     ;; reg = reg op reg
     (define-instruction-class 'rrr-commute
       (list '(mul smmul) cond-opcodes)
@@ -259,17 +268,18 @@
       #:args '((reg reg reg) ()) #:ins '((1 2) (z)) #:outs '(0) #:commute '(1 . 2))
 
     (define-instruction-class 'rrr-commute-shf
-      (list '(add and orr eor mul smmul) cond-opcodes shf-inst-reg)
+      (list '(add and orr eor) cond-opcodes shf-inst-reg)
       #:required '(#t #f #f)
       #:args '((reg reg reg) () (reg)) #:ins '((1 2) (z) (0)) #:outs '(0) #:commute '(1 . 2))
 
     (define-instruction-class 'rrr-commute-shf-imm
-      (list '(add and orr eor mul smmul) cond-opcodes shf-inst-imm)
+      (list '(add and orr eor) cond-opcodes shf-inst-imm)
       #:required '(#t #f #t)
       #:args '((reg reg reg) () (bit)) #:ins '((1 2) (z) (0)) #:outs '(0) #:commute '(1 . 2))
 
     (define-instruction-class 'rrr
-      #:required (list '(asr lsl lsr ror sdiv udiv uxtah) cond-opcodes)
+      (list '(asr lsl lsr ror sdiv udiv uxtah) cond-opcodes)
+      #:required '(#t #f)
       #:args '((reg reg reg) ()) #:ins '((1 2) (z)) #:outs '(0))
 
     (define-instruction-class 'rrr-shf
@@ -292,12 +302,12 @@
     (define-instruction-class 'rr-shf
       (list '(mov mvn) cond-opcodes shf-inst-reg)
       #:required '(#t #f #t)
-      #:args '((reg reg) () (reg)) #:ins '((1) (z) (2)) #:outs '(0))
+      #:args '((reg reg) () (reg)) #:ins '((1) (z) (0)) #:outs '(0))
 
     (define-instruction-class 'rr-shf-imm
       (list '(mov mvn) cond-opcodes shf-inst-imm)
       #:required '(#t #f #t)
-      #:args '((reg reg) () (bit)) #:ins '((1) (z) (2)) #:outs '(0))
+      #:args '((reg reg) () (bit)) #:ins '((1) (z) (0)) #:outs '(0))
 
     (define-instruction-class 'rr
       (list '(rev rev16 revsh rbit uxth uxtb clz) cond-opcodes)
@@ -333,7 +343,8 @@
 
     (define-instruction-class 'rrii
       (list '(bfi sbfx ubfx) cond-opcodes)
-      #:args '((reg reg bit bit-0) ()) #:ins '((1 2 3) (z)) #:outs '(1))
+      #:required '(#t #f)
+      #:args '((reg reg bit bit) ()) #:ins '((1 2 3) (z)) #:outs '(1))
 
     (define-instruction-class 'rii
       (list '(bfc) cond-opcodes)

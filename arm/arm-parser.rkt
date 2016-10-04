@@ -138,11 +138,10 @@
         (define shfop (vector-ref args (- args-len 2)))
         (when (equal? shfop "asl") (set! shfop "lsl"))
 
-        (define base (create-inst op (vector-copy args 0 (- args-len 2))))
+        (define base (create-inst op (vector-append (vector-copy args 0 (- args-len 2))
+                                                    (vector (vector-ref args (- args-len 1))))))
         (define ops-vec (inst-op base))
-        (define args-vec (inst-args base))
         (vector-set! ops-vec 2 shfop)
-        (vector-set! args-vec 2 (vector (vector-ref args (- args-len 1))))
         base]
 
        [else
@@ -166,8 +165,7 @@
 		       args 2
 		       (number->string (quotient (string->number offset) 4)))))
 
-        (inst (vector op cond-type "")
-              (vector (vector-map rename args) #f #f))]))
+        (inst (vector op cond-type "") (vector-map rename args))]))
 
     (define (rename x)
       (cond

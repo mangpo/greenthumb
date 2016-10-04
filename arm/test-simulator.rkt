@@ -22,7 +22,7 @@
   (if const const input))
 
 ;; Input machine state
-(define input-state (progstate (vector 1 3 0 0 0
+(define input-state (progstate (vector 2 3 0 0 0
                                        0 0 0 0 0
                                        0 0)
                                (new memory-rosette% [get-fresh-val func-sym]) -1))
@@ -31,7 +31,8 @@
 
 (define code
 (send parser ir-from-string "
-	mov	r0, r0, lsl r1
+	cmp	r0, r1
+	movcc	r0, r1
 "))
 
 (send printer print-struct code)

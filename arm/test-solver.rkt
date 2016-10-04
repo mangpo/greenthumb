@@ -9,7 +9,7 @@
 (current-solver (new z3%))
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine% [config (list 4 0 0)]))
+(define machine (new arm-machine% [config 12]))
 (define printer (new arm-printer% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
 (define validator (new arm-validator% [machine machine] [printer printer]
@@ -17,21 +17,77 @@
 
 (define code
 (send parser ir-from-string "
-	mov	r0, #-1073741824
+	str	r0, [fp, #-40]
+	str	r1, [fp, #-44]
+	ldr	r3, [fp, #-40]
+	uxth	r3, r3
+	str	r3, [fp, #-36]
+	ldr	r3, [fp, #-40]
+	mov	r3, r3, asr #16
+	str	r3, [fp, #-32]
+	ldr	r3, [fp, #-44]
+	uxth	r3, r3
+	str	r3, [fp, #-28]
+	ldr	r3, [fp, #-44]
+	mov	r3, r3, asr #16
+	str	r3, [fp, #-24]
+	ldr	r3, [fp, #-36]
+	ldr	r2, [fp, #-28]
+	mul	r3, r2, r3
+	str	r3, [fp, #-20]
+	ldr	r3, [fp, #-32]
+	ldr	r2, [fp, #-28]
+	mul	r2, r2, r3
+	ldr	r3, [fp, #-20]
+	mov	r3, r3, lsr #16
+	add	r3, r2, r3
+	str	r3, [fp, #-16]
+	ldr	r3, [fp, #-16]
+	uxth	r3, r3
+	str	r3, [fp, #-12]
+	ldr	r3, [fp, #-16]
+	mov	r3, r3, asr #16
+	str	r3, [fp, #-8]
+	ldr	r3, [fp, #-24]
+	ldr	r2, [fp, #-36]
+	mul	r2, r2, r3
+	ldr	r3, [fp, #-12]
+	add	r3, r2, r3
+	str	r3, [fp, #-12]
+	ldr	r3, [fp, #-32]
+	ldr	r2, [fp, #-24]
+	mul	r2, r2, r3
+	ldr	r3, [fp, #-8]
+	add	r2, r2, r3
+	ldr	r3, [fp, #-12]
+	mov	r3, r3, asr #16
+	add	r3, r2, r3
+	mov	r0, r3
 "))
 
 
 (define sketch
 (send parser ir-from-string "
-sub r0, r0, r0
+	uxth	r5, r0
+	mov	r3, r0, asr #16
+	uxth	r4, r1
+	mov	r1, r1, asr #16
+	mul	r2, r5, r4
+	mul	r4, r3, r4
+	mul	r5, r5, r1
+	add	r2, r4, r2, lsr #16
+	mov	r0, r2, asr #16
+	uxtah	r2, r5, r2
+	mla	r0, r1, r3, r0
+	add	r0, r0, r2, asr #16
 "))
 
 (define encoded-code (send printer encode code))
-(define encoded-sketch (send validator encode-sym sketch))
+(define encoded-sketch (send printer encode  sketch))
 
 (define ex 
   (send validator counterexample encoded-code encoded-sketch 
-        (constraint machine [reg 0] [mem])))
+        (send printer encode-live '(0))))
 
 (pretty-display "Counterexample:")
 (if ex 

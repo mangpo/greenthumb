@@ -109,7 +109,7 @@
                                     #:hard-postfix [hard-postfix (vector)]
 				    #:assume [assumption (send machine no-assumption)])
       (send (current-solver) shutdown)
-      (current-solver (new kodkod%))
+      (current-solver (new z3%))
       (pretty-display "SUPERPOTIMIZE:")
       (pretty-display (format "solver = ~a" (current-solver)))
       (when debug

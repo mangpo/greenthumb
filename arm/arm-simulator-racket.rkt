@@ -17,9 +17,10 @@
 
     (define nop-id (get-field nop-id machine))
     (define opcodes (get-field opcodes machine))
-    (define shf-opcodes (get-field shf-opcodes machine))
-    (define cond-opcodes (get-field cond-opcodes machine))
-    (define ninsts (vector-length opcodes))
+    (define base-opcodes (vector-ref opcodes 0))
+    (define cond-opcodes (vector-ref opcodes 1))
+    (define shf-opcodes (vector-ref opcodes 2))
+    (define ninsts (vector-length base-opcodes))
 
     (define (shl a b) (<< a b bit))
     (define (ushr a b) (>>> a b bit))
@@ -223,26 +224,24 @@
 
       (define (interpret-step step)
         (define ops-vec (inst-op step))
-        (define args-vec (inst-args step))
+        (define args (inst-args step))
         
         (define op (vector-ref ops-vec 0))
-        (define args (vector-ref args-vec 0))
         (define cond-type (vector-ref ops-vec 1))
         (define shfop (vector-ref ops-vec 2))
         ;;(pretty-display `(interpret-step ,z ,op ,cond-type))
 
         (define-syntax inst-eq
           (syntax-rules ()
-            ((inst-eq x) (equal? x (vector-ref opcodes op)))
+            ((inst-eq x) (equal? x (vector-ref base-opcodes op)))
             ((inst-eq a b ...) (or (inst-eq a) (inst-eq b) ...))))
 
         (define-syntax-rule (args-ref args i) (vector-ref args i))
 
         (define (exec)
           (define (opt-shift x)
-            (define k
-              (let ([tmp (vector-ref args-vec 2)])
-                (and tmp (vector-ref tmp 0))))
+            (define len (vector-length args))
+            (define k (and (> len 0) (vector-ref args (sub1 len))))
             (define-syntax-rule (shf-inst-eq xx) 
               (equal? xx (vector-ref shf-opcodes shfop)))
 
@@ -549,7 +548,7 @@
                   [op (vector-ref ops-vec 0)]
                   [shfop (vector-ref ops-vec 2)])
              (define-syntax-rule (inst-eq a ...)
- 	       (let ([opcode-name (vector-ref opcodes op)])
+ 	       (let ([opcode-name (vector-ref base-opcodes op)])
  		 (or (equal? a opcode-name) ...)))
              (define-syntax-rule (shf-inst-eq a ...)
  	       (and shfop

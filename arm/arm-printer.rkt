@@ -19,24 +19,29 @@
 
     (define (print-syntax-inst x [indent ""])
       (define ops-vec (inst-op x))
-      (define args-vec (inst-args x))
+      (define args (inst-args x))
 
       (define op (vector-ref ops-vec 0))
-      (define args (vector-copy (vector-ref args-vec 0)))
       
       (define shfop (vector-ref ops-vec 2))
-      (define shfarg (inst-shfarg x))
       
       (when (or (equal? op "str") (equal? op "ldr"))
 	    (when (equal? "r11" (vector-ref args 1))
                   (vector-set! args 1 "fp"))
 	    (when (not (equal? (substring (vector-ref args 2) 0 1) "r"))
 		  (vector-set! args 2 (number->string (* 4 (string->number (vector-ref args 2)))))))
-      
-      (display (format "~a~a~a ~a" indent op (vector-ref ops-vec 1)
-                       (string-join (vector->list args) ", ")))
-      (when (and shfop (not (equal? shfop "")))
-	    (display (format ", ~a ~a" shfop (vector-ref (vector-ref args-vec 2) 0))))
+
+      (define args-list (vector->list args))
+      (define len (length args-list))
+      (cond
+       [(equal? op "nop") (display "nop")]
+       [(and shfop (not (equal? shfop "")))
+        (display (format "~a~a~a ~a" indent op (vector-ref ops-vec 1)
+                         (string-join (take args-list (sub1 len)) ", ")))
+        (display (format ", ~a ~a" shfop (last args-list)))]
+       [else 
+        (display (format "~a~a~a ~a" indent op (vector-ref ops-vec 1)
+                         (string-join args-list ", ")))])
       (newline))
 
     (define (name->id name)
@@ -60,61 +65,63 @@
       (cond
        [(not ops-vec) x]
        [else
-        (define args-vec (inst-args x))
+        (define args (inst-args x))
         (define op0 (vector-ref ops-vec 0))
-	(define args0 (vector-ref args-vec 0))
-	(define args0-len (vector-length args0))
-	(when (and (> args0-len 0)
-		   (not (equal? "r" (substring (vector-ref args0 (sub1 args0-len)) 0 1)))
+        (define shfop (vector-ref ops-vec 2))
+	(define args-len (vector-length args))
+	(when (and (> args-len 0)
+		   (not (equal? "r" (substring (vector-ref args (sub1 args-len)) 0 1)))
+                   (or (not shfop) (equal? shfop ""))
 		   (not (member (string->symbol op0) '(bfc bfi sbfx ubfx))))
 	      (set! op0 (string-append op0 "#")))
         
-	(define shfop (vector-ref ops-vec 2))
-	(define shfarg (and (vector-ref args-vec 2) (vector-ref (vector-ref args-vec 2) 0)))
+	(define shfarg (and (> args-len 0) (vector-ref args (sub1 args-len))))
 	(when (and shfarg (not (equal? "r" (substring shfarg 0 1))))
 	      (set! shfop (string-append shfop "#")))
 
         (define cond-type (vector-ref ops-vec 1))
-        (inst (vector (send machine get-opcode-id (string->symbol op0))
+        (inst (vector (send machine get-base-opcode-id (string->symbol op0))
                       (send machine get-cond-opcode-id (string->symbol cond-type))
                       (send machine get-shf-opcode-id (string->symbol shfop)))
-              (vector (vector-map name->id args0)
-                      #f
-                      (and shfarg (vector (name->id shfarg)))))]))
+              (vector-map name->id args))]))
                 
     ;; Convert an instruction encoded using numbers
     ;; into an instruction in string format.
     (define (decode-inst x)
       (define ops-vec (inst-op x))
-      (define args-vec (inst-args x))
+      (define args (inst-args x))
 
-      (define opcode (send machine get-opcode-name (vector-ref ops-vec 0)))
-      (define condtype (send machine get-cond-opcode-name (vector-ref ops-vec 1)))
-      (define shfop (send machine get-cond-opcode-name (vector-ref ops-vec 2)))
-
+      (define test (send machine has-opcode-id? ops-vec))
+      (unless test
+              (vector-set! ops-vec 2 -1)
+              (set! test (send machine has-opcode-id? ops-vec)))
+      (unless test
+              (vector-set! ops-vec 1 -1)
+              (set! test (send machine has-opcode-id? ops-vec)))
+      
       (define (convert-op op)
 	(let* ([str (symbol->string op)]
 	       [len (string-length str)])
-	  (if (equal? (substring str (sub1 len)) "#")
+	  (if (and (> len 0) (equal? (substring str (sub1 len)) "#"))
 	      (substring str 0 (sub1 len))
 	      str)))
+      
+      (define opcode (convert-op (send machine get-base-opcode-name (vector-ref ops-vec 0))))
+      ;;(pretty-display `(op ,opcode))
+      (define condtype (convert-op (send machine get-cond-opcode-name (vector-ref ops-vec 1))))
+      (define shfop (convert-op (send machine get-cond-opcode-name (vector-ref ops-vec 2))))
 
-      (define new-args-vec
-	(for/vector 
-	 ([args args-vec]
-	  [types (send machine get-arg-types ops-vec)])
-         (and args
-              (for/vector ([arg args] [type types])
-                          (cond
-                           [(member type '(reg)) (format "r~a" arg)]
-                           [(number? arg) (number->string arg)]
-                           [else arg])))))
 
-      (inst (vector-map convert-op ops-vec) new-args-vec))
+      (define new-args
+        (for/vector ([arg args] [type (send machine get-arg-types ops-vec)])
+                     (cond
+                      [(member type '(reg)) (format "r~a" arg)]
+                      [(number? arg) (number->string arg)]
+                      [else arg])))
+
+      (inst (vector opcode condtype shfop) new-args))
 
     ;;;;;;;;;;;;;;;;;;;;;;; For compressing reg space ;;;;;;;;;;;;;;;;;;;;
-    (define opcodes (get-field opcodes machine))
-
     (define (inner-rename x reg-map)
       (define (register-rename r)
         (cond
@@ -123,12 +130,10 @@
          
          [else r]))
 
-      (define new-args-vec
-        (for/vector
-         ([args (inst-args x)])
-         (and args (for/vector ([arg args]) (register-rename arg)))))
+      (define new-args
+        (for/vector ([arg (inst-args x)]) (register-rename arg)))
 
-      (inst (inst-op x) new-args-vec))
+      (inst (inst-op x) new-args))
     
     ;; Input
     ;; program: string IR format
