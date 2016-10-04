@@ -972,7 +972,7 @@
     (define (update-progstate-ins-store my-inst addr val state)
       ;; Put val before addr => arg 0 is val, arg 1 is address.
       (define op (vector-ref (inst-op my-inst) 0))
-      (define opcode-name (vector-ref opcodes op))
+      (define opcode-name (vector-ref (vector-ref opcodes 0) op))
       (define args (vector-ref (inst-args my-inst) 0))
       (define offset (vector-ref args 2))
       (cond

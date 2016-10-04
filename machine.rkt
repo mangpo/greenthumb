@@ -80,8 +80,21 @@
     (define (get-config) config)
     (define (adjust-config config) config)
     (define (get-memory-size) config)
-    (define (get-opcode-id opcode) (vector-member opcode opcodes))
-    (define (get-opcode-name id) (vector-ref opcodes id))
+    
+    (define (get-opcode-id opcode)
+      (if (symbol? opcode)
+          (vector-member opcode opcodes)
+          (for/vector ([name opcode]
+                       [vec opcodes])
+                      (vector-member name vec))))
+          
+    (define (get-opcode-name id)
+      (if (number? id)
+          (vector-ref opcodes id))
+          (for/vector ([i id]
+                       [vec opcodes])
+                      (vector-ref vec i)))
+    
     (define (no-assumption) #f)
     (define (get-state-liveness f) (get-state f))
     (define (display-state x) (pretty-display x))
