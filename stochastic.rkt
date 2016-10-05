@@ -87,6 +87,8 @@
       (set-field! best-correct-program stat spec)
       (set-field! best-correct-cost stat (send simulator performance-cost spec))
       (send stat set-name name)
+      (pretty-display (format ">>> Finish generating inputs outputs at ~a s."
+                              (- (current-seconds) (get-field start-time stat))))
 
       ;; MCMC sampling
       (define-syntax-rule (get-sketch) 
@@ -409,6 +411,8 @@
         (when (and (number? correct) (= correct 0))
               (send stat inc-validate)
               (define t1 (current-milliseconds))
+              ;; (pretty-display `(counterexample))
+              ;; (send printer print-syntax (send printer decode program))
               (set! ce (send validator counterexample 
                              (vector-append prefix target postfix)
                              (vector-append prefix program postfix)

@@ -17,83 +17,54 @@
 
 (define code
 (send parser ir-from-string "
-	str	r0, [fp, #-40]
-	str	r1, [fp, #-44]
-	ldr	r3, [fp, #-40]
-	uxth	r3, r3
-	str	r3, [fp, #-36]
-	ldr	r3, [fp, #-40]
-	mov	r3, r3, asr #16
-	str	r3, [fp, #-32]
-	ldr	r3, [fp, #-44]
-	uxth	r3, r3
-	str	r3, [fp, #-28]
-	ldr	r3, [fp, #-44]
-	mov	r3, r3, asr #16
-	str	r3, [fp, #-24]
-	ldr	r3, [fp, #-36]
-	ldr	r2, [fp, #-28]
-	mul	r3, r2, r3
-	str	r3, [fp, #-20]
-	ldr	r3, [fp, #-32]
-	ldr	r2, [fp, #-28]
-	mul	r2, r2, r3
-	ldr	r3, [fp, #-20]
-	mov	r3, r3, lsr #16
-	add	r3, r2, r3
-	str	r3, [fp, #-16]
-	ldr	r3, [fp, #-16]
-	uxth	r3, r3
-	str	r3, [fp, #-12]
-	ldr	r3, [fp, #-16]
-	mov	r3, r3, asr #16
-	str	r3, [fp, #-8]
-	ldr	r3, [fp, #-24]
-	ldr	r2, [fp, #-36]
-	mul	r2, r2, r3
-	ldr	r3, [fp, #-12]
-	add	r3, r2, r3
-	str	r3, [fp, #-12]
-	ldr	r3, [fp, #-32]
-	ldr	r2, [fp, #-24]
-	mul	r2, r2, r3
-	ldr	r3, [fp, #-8]
-	add	r2, r2, r3
-	ldr	r3, [fp, #-12]
-	mov	r3, r3, asr #16
-	add	r3, r2, r3
-	mov	r0, r3
+uxth r5, r0
+mov r3, r0, asr 16
+uxth r4, r1
+mov r1, r1, asr 16
+mul r2, r5, r4
+mul r4, r3, r4
+mul r5, r5, r1
+add r2, r4, r2, lsr 16
+mov r0, r2, asr 16
+uxtah r2, r5, r2
+mla r0, r1, r3, r0
+add r0, r0, r2, asr 16
 "))
 
 
 (define sketch
 (send parser ir-from-string "
-	uxth	r5, r0
-	mov	r3, r0, asr #16
-	uxth	r4, r1
-	mov	r1, r1, asr #16
-	mul	r2, r5, r4
-	mul	r4, r3, r4
-	mul	r5, r5, r1
-	add	r2, r4, r2, lsr #16
-	mov	r0, r2, asr #16
-	uxtah	r2, r5, r2
-	mla	r0, r1, r3, r0
-	add	r0, r0, r2, asr #16
+add r4, r0, r0
+nop
+lsl r3, r1, r0
+rsb r4, r3, r0, ror 1
+eor r4, r4, r0, asr 16
+movt r2, 0
+and r5, r0, r3
+asr r4, r1, r5
+smmul r0, r4, r0
+eor r2, r5, r0
+tst r2, 1
+rsb r5, r2, r1, ror 0
 "))
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send printer encode  sketch))
 
+(define t1 (current-seconds))
 (define ex 
   (send validator counterexample encoded-code encoded-sketch 
         (send printer encode-live '(0))))
+(define t2 (current-seconds))
 
+(send validator adjust-memory-config encoded-code)
 (pretty-display "Counterexample:")
 (if ex 
   (send machine display-state ex)
   (pretty-display "No"))
 (newline)
+(pretty-display `(time ,(- t2 t1)))
+
 #|
 ;; Counterexample:
 (define input-state (progstate (vector 242087795 -1555402324 0 0 0 0)

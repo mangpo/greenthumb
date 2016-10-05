@@ -37,7 +37,7 @@
     (define ninsts (vector-length (get-field opcodes machine)))
     (define start-time #f)
 
-    (current-solver (new z3%))
+    (current-solver (new kodkod%))
 
     ;; Default: no assumption
     (define (assume state assumption)
@@ -313,8 +313,7 @@
     (define (counterexample spec program constraint
                             #:assume [assumption (send machine no-assumption)])
       ;;(pretty-display (format "solver = ~a" (current-solver)))
-      (pretty-display `(counterexample))
-      (when (and debug printer)
+      (when (and #t printer)
 	    (pretty-display `(counterexample ,bit))
 	    (pretty-display `(spec))
 	    (send printer print-syntax (send printer decode spec))
