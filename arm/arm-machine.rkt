@@ -93,11 +93,11 @@
   (class machine%
     (super-new)
     (inherit-field bitwidth random-input-bits config
-                   opcodes nop-id argtypes-info)
+                   opcodes opcode-pool nop-id argtypes-info classes-info)
     
     (inherit define-instruction-class init-machine-description finalize-machine-description
              define-progstate-type define-arg-type
-             update-progstate-ins kill-outs)
+             update-progstate-ins kill-outs update-classes-pool)
     (override set-config display-state get-constructor
               progstate-structure update-progstate-ins-load update-progstate-ins-store)
 
@@ -301,7 +301,7 @@
     ;; reg = reg
     (define-instruction-class 'rr-shf
       (list '(mov mvn) cond-opcodes shf-inst-reg)
-      #:required '(#t #f #t)
+      #:required '(#t #f #f)
       #:args '((reg reg) () (reg)) #:ins '((1) (z) (0)) #:outs '(0))
 
     (define-instruction-class 'rr-shf-imm
@@ -718,68 +718,69 @@
     ;;               reg-range))
     ;;       shf-range))
 
-    ;; ;; Analyze input code and remove some opcodes from instuction pool to be used during synthesis.
-    ;; (define (analyze-opcode prefix code postfix)
-    ;;   (set! code (vector-append prefix code postfix))
-    ;;   (define inst-choice '(nop 
-    ;;                         add sub rsb 
-    ;;                         add# sub# rsb#
-    ;;                         mov mvn
-    ;;                         mov# mvn#
-    ;;                         asr lsl lsr ror
-    ;;                         asr# lsl# lsr# ror#))
+    ;; Analyze input code and remove some opcodes from instuction pool to be used during synthesis.
+    (define/override (analyze-opcode prefix code postfix)
+      (set! code (vector-append prefix code postfix))
+      (define inst-choice '(nop 
+                            add sub rsb 
+                            add# sub# rsb#
+                            mov mvn
+                            mov# mvn#
+                            asr lsl lsr ror
+                            asr# lsl# lsr# ror#))
                                 
-    ;;   (when (code-has code '(clz
-    ;;                          and orr eor bic orn
-    ;;                          and# orr# eor# bic# orn#
-    ;;                          ))
-    ;;         (set! inst-choice (append inst-choice '(clz
-    ;;                                                 and orr eor bic orn
-    ;;                                                 and# orr# eor# bic# orn#
-    ;;                                                 ))))
+      (when (code-has code '(clz
+                             and orr eor bic orn
+                             and# orr# eor# bic# orn#
+                             ))
+            (set! inst-choice (append inst-choice '(clz
+                                                    and orr eor bic orn
+                                                    and# orr# eor# bic# orn#
+                                                    ))))
                                 
-    ;;   (when (code-has code '(movw# movt#))
-    ;;         (set! inst-choice (append inst-choice '(movw# movt#))))
+      (when (code-has code '(movw# movt#))
+            (set! inst-choice (append inst-choice '(movw# movt#))))
 
-    ;;   (when (code-has code '(rev rev16 revsh rbit
-    ;;     			 uxtah uxth uxtb
-    ;;     			 bfc bfi
-    ;;     			 sbfx ubfx
-    ;;     			 ))
-    ;;         (set! inst-choice (append inst-choice '(rev rev16 revsh rbit
-    ;;     					    	uxtah uxth uxtb
-    ;;     					    	bfc bfi
-    ;;     					    	sbfx ubfx
-    ;;     						))))
-    ;;   (when (code-has code '(mul mla mls
-    ;;                              smull umull
-    ;;                              smmul smmla smmls))
-    ;;         (set! inst-choice (append inst-choice '(mul mla mls
-    ;;                                                     smull umull
-    ;;                                                     smmul smmla smmls))))
-    ;;   (when (code-has code '(sdiv udiv))
-    ;;         (set! inst-choice (append inst-choice '(sdiv udiv))))
-    ;;   (when (code-has code '(ldr#))
-    ;;         (set! inst-choice (append inst-choice '(ldr#))))
-    ;;   (when (code-has code '(str#))
-    ;;         (set! inst-choice (append inst-choice '(str#))))
-    ;;   (when (code-has code '(tst cmp tst# cmp#))
-    ;;         (set! inst-choice (append inst-choice '(tst cmp tst# cmp#))))
-    ;;   (set! opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
-    ;;   (set! classes-filtered 
-    ;;         (for/vector ([c classes])
-    ;;                     (map (lambda (x) (vector-member x opcodes))
-    ;;                          (filter (lambda (x) (member x inst-choice)) c))))
-    ;;   (when debug
-    ;;         (pretty-display `(inst-choice ,inst-choice))
-    ;;         (pretty-display `(classes-filtered ,classes-filtered)))
-    ;;   )
+      (when (code-has code '(rev rev16 revsh rbit
+        			 uxtah uxth uxtb
+        			 bfc bfi
+        			 sbfx ubfx
+        			 ))
+            (set! inst-choice (append inst-choice '(rev rev16 revsh rbit
+        					    	uxtah uxth uxtb
+        					    	bfc bfi
+        					    	sbfx ubfx
+        						))))
+      (when (code-has code '(mul mla mls
+                                 smull umull
+                                 smmul smmla smmls))
+            (set! inst-choice (append inst-choice '(mul mla mls
+                                                        smull umull
+                                                        smmul smmla smmls))))
+      (when (code-has code '(sdiv udiv))
+            (set! inst-choice (append inst-choice '(sdiv udiv))))
+      (when (code-has code '(ldr#))
+            (set! inst-choice (append inst-choice '(ldr#))))
+      (when (code-has code '(str#))
+            (set! inst-choice (append inst-choice '(str#))))
+      (when (code-has code '(tst cmp tst# cmp#))
+            (set! inst-choice (append inst-choice '(tst cmp tst# cmp#))))
 
-    ;; ;; Helper function for 'analyze-opcode'.
-    ;; (define (code-has code inst-list)
-    ;;   (for/or ([i code])
-    ;;           (let ([opcode-name (vector-ref opcodes (inst-op i))])
-    ;;             (member opcode-name inst-list))))
+      (define base-opcodes (vector opcodes 0))
+      (set! inst-choice (map (lambda (x) (get-base-opcode-id x)) inst-choice))
+      (set! opcode-pool (filter (lambda (x) (member (vector-ref x 0) inst-choice)) opcode-pool))
+      (update-classes-pool)
+      (when debug (pretty-display `(opcode-pool ,opcode-pool)))
+      )
+
+    ;; Helper function for 'analyze-opcode'.
+    (define (code-has code inst-list)
+      (for/or ([i code])
+              (let ([opcode-name (get-base-opcode-name (vector-ref (inst-op i) 0))])
+                (member opcode-name inst-list))))
+
+    (define/override (reset-opcode-pool) 
+      (set! opcode-pool (flatten (for/list ([info classes-info]) (instclass-opcodes info)))))
 
     ;; ;; (define/override (reset-opcode-pool)
     ;; ;;   (define inst-choice '(

@@ -10,7 +10,7 @@
   (class stochastic%
     (super-new)
     (inherit-field machine stat mutate-dist live-in)
-    (inherit random-args-from-op mutate pop-count32 correctness-cost-base)
+    (inherit random-args-from-op mutate pop-count32 correctness-cost-base inst-copy-with-op)
     (override correctness-cost 
 	      ;; get-mutations random-instruction mutate-other mutate-swap
 	      ;; inst-copy-with-op inst-copy-with-args
@@ -19,9 +19,57 @@
     ;; (set! mutate-dist
     ;;       #hash((opcode . 2) (operand . 2) (swap . 1) (instruction . 2)
     ;;     	(shf . 4) (cond-type . 2)))
+
+    (set! mutate-dist
+          #hash((opcode . 2) (operand . 1) (swap . 1) (instruction . 1)))
 	  
 
     (define bit (get-field bitwidth machine))
+
+
+    ;; Mutate opcode.
+    ;; index: index to be mutated
+    ;; entry: instruction at index in p
+    ;; p: entire program
+    (define/override (mutate-opcode index entry p)
+      ;; (define n (vector-length p))
+      ;; (define my-live-in live-in)
+      ;; (for ([i index])
+      ;;      (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
+      ;; (define valid-opcode-pool (send machine get-valid-opcode-pool index n my-live-in))
+      
+      (define opcode-id (inst-op entry))
+      (define opcode-name (send machine get-opcode-name opcode-id))
+      (define op-types
+        (filter identity (for/list ([op opcode-id] [index (in-naturals)]) (and (>= op 0) index))))
+      (define op-type (random-from-list op-types))
+      (define checks (remove op-type (range (vector-length opcode-id))))
+      (define class
+        (filter
+         (lambda (x) (for/and ([index checks]) (= (vector-ref x index) (vector-ref opcode-id index))))
+        (send machine get-class-opcodes opcode-id)))
+      ;; (define class (filter
+      ;;                (lambda (x) (member x valid-opcode-pool))
+      ;;                (send machine get-class-opcodes opcode-id)))
+      (when debug
+            (pretty-display (format " >> mutate opcode"))
+            (pretty-display (format " --> org = ~a ~a" opcode-name opcode-id))
+            (pretty-display (format " --> op-type = ~a" op-type))
+            (pretty-display (format " --> class = ~a" class)))
+      (cond
+       [class
+        (define new-opcode-id (random-from-list-ex class opcode-id))
+        (define new-p (vector-copy p))
+        (when debug
+              (pretty-display (format " --> new = ~a ~a" (send machine get-opcode-name new-opcode-id) new-opcode-id)))
+        (vector-set! new-p index (inst-copy-with-op entry new-opcode-id))
+        (send stat inc-propose `opcode)
+        new-p]
+
+       [else (mutate p)]))
+
+
+    
     ;;(define opcodes (get-field opcodes machine))
     ;; (define shf-opcodes (get-field shf-opcodes machine))
     ;; (define shf-inst-reg (get-field shf-inst-reg machine))

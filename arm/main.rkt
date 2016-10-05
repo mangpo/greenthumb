@@ -22,7 +22,6 @@
                   #:size [size #f]
                   #:window [window #f]
                   #:input-file [input-file #f])
-  
   (define parser (new arm-parser%))
   (define machine (new arm-machine%))
   (define printer (new arm-printer% [machine machine]))

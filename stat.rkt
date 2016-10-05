@@ -49,7 +49,7 @@
       ;;   (thunk
       ;;    (pretty-display (format "~a,~a" iter-count current-cost))))
       (set! iter-count (add1 iter-count))
-      (and (= (modulo iter-count 30000) 0) ;;46 s
+      (and (= (modulo iter-count 30000) 0) ;;30000
 	   (let-values ([(cost len time id) (get-best-info dir)])
              (print-stat-to-file)
              (and cost len))))

@@ -165,6 +165,7 @@
 		       args 2
 		       (number->string (quotient (string->number offset) 4)))))
 
+        (pretty-display `(args ,args ,(vector-map rename args)))
         (inst (vector op cond-type "") (vector-map rename args))]))
 
     (define (rename x)
@@ -196,14 +197,10 @@
 
     (define/public (info-from-file file)
       (define lines (file->lines file))
-      (define live-out (map string->number (string-split (first lines) ",")))
-      (define live-in (map string->number (string-split (second lines) ",")))
-      (define live-mem (and (>= (length lines) 3)
-                            (regexp-match #rx"mem" (third lines))
-                            #t))
-      (define live-flag (and (>= (length lines) 3)
-                             (regexp-match #rx"flag" (third lines))
-                             #t))
-      (values live-flag live-mem live-out live-in))
+      (define live-out (map (lambda (x) (or (string->number x) x))
+                            (string-split (first lines) ",")))
+      (define live-in (map (lambda (x) (or (string->number x) x))
+                           (string-split (second lines) ",")))
+      (values live-out live-in))
 
     ))

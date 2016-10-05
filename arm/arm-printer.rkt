@@ -19,7 +19,7 @@
 
     (define (print-syntax-inst x [indent ""])
       (define ops-vec (inst-op x))
-      (define args (inst-args x))
+      (define args (vector-copy (inst-args x)))
 
       (define op (vector-ref ops-vec 0))
       
@@ -134,7 +134,7 @@
         (for/vector ([arg (inst-args x)]) (register-rename arg)))
 
       (inst (inst-op x) new-args))
-    
+
     ;; Input
     ;; program: string IR format
     ;; Output
@@ -177,27 +177,24 @@
                  (vector-set! reg-map-back id i)
                  (set! id (add1 id))))
 
-      (define (compress-reg-live live)
-        (define ret (make-vector id))
-        (for ([l live] [i (in-naturals)])
-             (let ([index (vector-ref reg-map i)])
-               (when index (vector-set! ret index l))))
-        ret)
-
       ;; Generate outputs.
       (define compressed-program 
         (traverse program inst? (lambda (x) (inner-rename x reg-map)))) 
-      (define compressed-live-out
-        (progstate (compress-reg-live (progstate-regs live-out))
-                   (progstate-memory live-out)
-                   (progstate-z live-out)))
-      (define compressed-live-in
-        (and live-in
-             (progstate (compress-reg-live (progstate-regs live-in))
-                        (progstate-memory live-in)
-                        (progstate-z live-in))))
 
-      (values compressed-program compressed-live-out compressed-live-in
+      (define live-out-extra (filter symbol? live-out))
+      (define live-in-extra (filter symbol? live-in))
+      (define compressed-live-out 
+        (map (lambda (x) (vector-ref reg-map x)) 
+             (filter (lambda (x) (and (number? x) (<= x max-reg) (vector-ref reg-map x))) 
+                     live-out)))
+      (define compressed-live-in 
+        (map (lambda (x) (vector-ref reg-map x)) 
+             (filter (lambda (x) (and (number? x) (<= x max-reg) (vector-ref reg-map x))) 
+                     live-in)))
+
+      (values compressed-program
+              (append compressed-live-out live-out-extra)
+              (append compressed-live-in live-in-extra)
               reg-map-back id))
 
     (define (decompress-reg-space program reg-map)

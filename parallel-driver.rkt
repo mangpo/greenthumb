@@ -27,6 +27,7 @@
     ;; Optimize code
     (define (optimize-inner code-org live-out-org live-in-org rootdir cores time-limit prog-size 
                             assume input-file start-prog)
+      ;;(raise "done")
       (pretty-display (format "SEACH TYPE: ~a size=~a" search-type prog-size))
       ;;(define path (format "~a/driver" dir))
       (system (format "rm -r ~a" rootdir))
@@ -41,6 +42,8 @@
       (define-values (code live-out live-in map-back machine-info) 
         (send printer compress-reg-space code-org live-out-org live-in-org))
       (pretty-display (format ">>> machine-info: ~a" machine-info))
+      (pretty-display (format ">>> live-in: ~a" live-in))
+      (pretty-display (format ">>> live-out: ~a" live-out))
       (pretty-display `(map-back ,map-back))
 
       (pretty-display ">>> compressed-code:")
@@ -153,12 +156,13 @@
           (define stats
             (for/list ([id cores])
                       (let ([name (format "~a-~a.stat" path id)])
-                        (and (file-exists? name)+
-                             (create-stat-from-file name printer)))))=
+                        (and (file-exists? name)
+                             (create-stat-from-file name printer)))))
           (with-handlers* 
            ([exn? (lambda (e) (pretty-display "Error: print stat"))])
            (when (> cores-stoch 0)
-                 (print-stat-all (filter identity (take stats cores-stoch)) printer)))
+                 (print-stat-all (filter identity (take stats cores-stoch)) printer))
+           )
 
           (define-values (cost len time id) (get-best-info dir))
           (pretty-display (format "current-time:\t~a" (- (current-seconds) t)))
@@ -377,7 +381,6 @@
                       #:size [size #f]
                       #:input-file [input-file #f]
                       #:start-prog [start-prog #f])
-
       (if (> (vector-length code-org) 0)
           (optimize-inner code-org live-out live-in dir cores time-limit size assume input-file start-prog)
           code-org))

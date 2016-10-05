@@ -350,7 +350,7 @@
     ;; Given an instruction class with (one or more) required opcode types.
     ;; Enumerate all possible combinations, and converting opcode name to opcode id in the process.
     (define (all-opcodes-combinations opcodes-groups)
-      (pretty-display `(groups ,opcodes-groups))
+      (when debug (pretty-display `(groups ,opcodes-groups)))
       (define ret (list))
       (define (recurse final work)
         (cond
@@ -432,9 +432,10 @@
                        (set! nop-ops-vec ops-vec)))
             (set! nop-id nop-ops-vec))
 
-      (pretty-display `(opcodes ,opcodes))
-      ;;(pretty-display `(opcode-id-to-class ,opcode-id-to-class))
-      (pretty-display `(nop-id ,nop-id))
+      (when debug
+            (pretty-display `(opcodes ,opcodes))
+            ;;(pretty-display `(opcode-id-to-class ,opcode-id-to-class))
+            (pretty-display `(nop-id ,nop-id)))
       
       ;; (for ([info classes-info]
       ;;       [id (in-naturals)])
@@ -609,11 +610,12 @@
       (for ([x (vector-append prefix code postfix)])
            (analyze-args-inst x))
 
-      (pretty-display `(analyze-args, argtypes-info))
-      (for ([pair (hash->list argtypes-info)])
-           (let ([name (car pair)]
-                 [info (cdr pair)])
-             (pretty-display `(ARG ,name ,(argtype-valid info)))))
+      (when debug
+            (pretty-display `(analyze-args, argtypes-info))
+            (for ([pair (hash->list argtypes-info)])
+                 (let ([name (car pair)]
+                       [info (cdr pair)])
+                   (pretty-display `(ARG ,name ,(argtype-valid info))))))
       )
 
     (define (analyze-args-inst my-inst)

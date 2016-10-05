@@ -108,7 +108,7 @@
         (let ([x (random-instruction i n my-live-in)])
           (when debug (pretty-display (format "inst #~a: ~a" i
                                               (send machine get-opcode-name (inst-op x)))))
-          (set! my-live-in (send machine update-live my-live-in x)) ;; TODO
+          (set! my-live-in (send machine update-live my-live-in x))
           x)))
       
     ;; Mutate by swapping instructions at 'index' with another instruction
@@ -119,23 +119,23 @@
       (define new-p (vector-copy p))
       (define index2 (random-from-list-ex (range (vector-length p)) index))
       
-
-      (define index-min (min index index2))
-      (define index-max (max index index2))
-      (define n (vector-length p))
-      (define my-live-in live-in)
-      (for ([i index-min])
-           (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
-      (define valid-opcode-pool (send machine get-valid-opcode-pool index-min n my-live-in))
+      ;; (define n (vector-length p))
+      ;; (define index-min (min index index2))
+      ;; (define index-max (max index index2))
+      ;; (define my-live-in live-in)
+      ;; (for ([i index-min])
+      ;;      (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
+      ;; (define valid-opcode-pool (send machine get-valid-opcode-pool index-min n my-live-in))
 
       (when debug
             (pretty-display " >> mutate swap")
             (pretty-display (format " --> swap = ~a" index2))
-            (pretty-display (format " --> valid = ~a in ~a"
-                                    (send machine get-opcode-name (inst-op (vector-ref p index-max)))
-                                    (map (lambda (x) (send machine get-opcode-name x)) valid-opcode-pool))))
+            ;; (pretty-display (format " --> valid = ~a in ~a"
+            ;;                         (send machine get-opcode-name (inst-op (vector-ref p index-max)))
+            ;;                         (map (lambda (x) (send machine get-opcode-name x)) valid-opcode-pool)))
+            )
       (cond
-       [(member (inst-op (vector-ref p index-max)) valid-opcode-pool)
+       [#t ;;(member (inst-op (vector-ref p index-max)) valid-opcode-pool)
         (vector-set! new-p index (vector-ref new-p index2))
         (vector-set! new-p index2 entry)
         (send stat inc-propose `swap)
@@ -147,17 +147,18 @@
     ;; entry: instruction at index in p
     ;; p: entire program
     (define (mutate-opcode index entry p)
-      (define n (vector-length p))
-      (define my-live-in live-in)
-      (for ([i index])
-           (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
-      (define valid-opcode-pool (send machine get-valid-opcode-pool index n my-live-in))
+      ;; (define n (vector-length p))
+      ;; (define my-live-in live-in)
+      ;; (for ([i index])
+      ;;      (set! my-live-in (send machine update-live my-live-in (vector-ref p i))))
+      ;; (define valid-opcode-pool (send machine get-valid-opcode-pool index n my-live-in))
       
       (define opcode-id (inst-op entry))
       (define opcode-name (send machine get-opcode-name opcode-id))
-      (define class (filter
-                     (lambda (x) (member x valid-opcode-pool))
-                     (send machine get-class-opcodes opcode-id)))
+      (define class (send machine get-class-opcodes opcode-id))
+      ;; (define class (filter
+      ;;                (lambda (x) (member x valid-opcode-pool))
+      ;;                (send machine get-class-opcodes opcode-id)))
       (when debug
             (pretty-display (format " >> mutate opcode"))
             (pretty-display (format " --> org = ~a ~a" opcode-name opcode-id))

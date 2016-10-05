@@ -97,6 +97,7 @@
       (define sols (list))
       (define first-solve #t)
       (define (loop [extra #t] [count n])
+        ;;(pretty-display `(loop ,extra ,n))
         (define (assert-extra-and-interpret)
           ;; Assert that the solution has to be different.
           (assert extra)

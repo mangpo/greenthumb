@@ -7,7 +7,7 @@
   (class* special% (equal<%> printable<%>)
     (super-new)
     (init-field get-fresh-val
-                [size 16]
+                [size 4]
                 [init (make-vector size)] ;; TODO: change to list
                 [update (make-vector size)]
                 ;; [get-fresh-val
