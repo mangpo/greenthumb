@@ -49,8 +49,8 @@
       (pretty-display ">>> compressed-code:")
       (send printer print-syntax code)
       ;; machine-info from compress-reg-space is only accurate for reg but not memory. This will adjust the rest of the machine info.
-      (set! machine-info (send validator proper-machine-config 
-			       (send printer encode code) machine-info))
+      ;; (set! machine-info (send validator proper-machine-config 
+      ;;   		       (send printer encode code) machine-info))
       (pretty-display (format ">>> machine-info: ~a" machine-info))
       (pretty-display (format ">>> live-in: ~a" live-in))
       (pretty-display (format ">>> live-out: ~a" live-out))

@@ -30,6 +30,7 @@
 			   #:start-prog [start #f])
       (send stat set-name name)
       (set-field! best-correct-cost stat (send simulator performance-cost spec))
+      (send validator adjust-memory-config spec)
       (timeout
        time-limit
        (cond

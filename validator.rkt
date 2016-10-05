@@ -3,6 +3,7 @@
 (require  "inst.rkt" "machine.rkt" "memory-rosette.rkt" "queue-rosette.rkt" "special.rkt")
 
 (require rosette/solver/smt/z3)
+(require rosette/solver/kodkod/kodkod)
 
 (provide validator% sym-input)
 
@@ -22,12 +23,12 @@
     (init-field machine simulator [printer #f]
                 [bit (get-field bitwidth machine)]
                 [random-input-bit (get-field random-input-bits machine)])
-    (public proper-machine-config generate-input-states generate-inputs-inner
+    (public generate-input-states generate-inputs-inner
             counterexample
             get-live-in
             get-sym-vars evaluate-state
             assume assert-state-eq
-            get-constructor
+            get-constructor adjust-memory-config
             )
     
     (define (get-constructor) validator%)
@@ -57,34 +58,84 @@
     ;; Adjust machine config. Specifially, increase memory size if necessary.
     ;; encoded concrete code
     ;; config: machine config
-    (define (proper-machine-config encoded-code config)
-      (pretty-display `(config ,config))
-      (define (solve-until-valid config)
-        (pretty-display `(solve ,config))
-        (send machine set-config config)
+    (define (adjust-memory-config encoded-code)
+      (define (solve-until-valid)
         (clear-asserts)
 	(current-bitwidth bit)
         (define state (send machine get-state sym-input))
         (pretty-display `(state ,state))
-	(send simulator interpret encoded-code state)
+	;;(send simulator interpret encoded-code state)
 
         (with-handlers* 
          ([exn:fail? 
            (lambda (e)
              (if  (equal? (exn-message e) "solve: no satisfying execution found")
-                  (let ([new-config (send machine adjust-config config)])
-                    (if (send machine config-exceed-limit? new-config)
-                        (raise "Cannot find inputs to the program for the memory size < 1000.
-1) Try increasing memory size when calling (set-machine-config).
-2) Some operation in interpret.rkt might not be legal for Rosette's symbolic object.")
-                        (solve-until-valid new-config)))
+                  (begin
+                    (increase-memory-size)
+                    (solve-until-valid))
                   (raise e)))])
-         (solve (send simulator interpret encoded-code state))
-         (send machine finalize-config config)))
-      
-      (solve-until-valid config))
+         (solve (send simulator interpret encoded-code state))))
+
+      (solve-until-valid)
+      (pretty-display "Finish adjusting memory config.")
+      )
     
-    (define (generate-inputs-inner 
+    (define (generate-inputs-inner-fast
+             n spec start-state assumption
+             #:rand-func
+             [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))]
+             #:db [db #f])
+
+      (clear-asserts)
+      (current-bitwidth bit)
+      (interpret spec start-state)
+      (define sym-vars (get-sym-vars start-state))
+      
+      (define const-range 
+	;; (- (arithmetic-shift 1 (sub1 random-input-bit)))
+	(for/vector ([i (sub1 random-input-bit)]) (arithmetic-shift 1 i)))
+      (define const-range-len (vector-length const-range))
+      
+      (define (generate-one-input random-f)
+        (make-hash 
+         (for/list ([v sym-vars]) 
+                   (let ([val (random-f)])
+                     (cons v val)))))
+      
+      ;; All 0s
+      ;;(define input-zero (list (generate-one-input (lambda () 0))))
+      
+      (define m (if db n (quotient (add1 n) 2)))
+      ;; Random
+      (define input-random
+        (for/list ([i m])
+                  (generate-one-input 
+                   (lambda () (let ([rand (rand-func)]
+				    [half (arithmetic-shift                           
+					   (min 4294967087 (<< 1 random-input-bit))   
+					   -1)])
+				;; (if (>= rand (<< 1 (sub1 bit)))
+				;;     (- rand (<< 1 bit))
+				(if (>= rand half)
+				    (- half rand)
+                                    rand))))))
+
+      ;; Random in const list
+      (define input-random-const
+        ;; (for/list ([i (- n m 1)])
+        (for/list ([i (- n m)])
+                  (generate-one-input 
+                   (lambda () 
+                     (vector-ref const-range (random const-range-len))))))
+      
+      ;;(define inputs (append input-zero input-random input-random-const))
+      (define inputs (append input-random input-random-const))
+      
+      (values sym-vars 
+              (map (lambda (x) (sat (make-immutable-hash (hash->list x)))) inputs)))
+
+      
+    (define (generate-inputs-inner-slow
              n spec start-state assumption
              #:rand-func
              [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))]
@@ -97,7 +148,7 @@
       (define sols (list))
       (define first-solve #t)
       (define (loop [extra #t] [count n])
-        ;;(pretty-display `(loop ,extra ,n))
+        (pretty-display `(loop ,extra ,n))
         (define (assert-extra-and-interpret)
           ;; Assert that the solution has to be different.
           (assert extra)
@@ -105,6 +156,7 @@
           (interpret spec start-state)
           )
         (define sol (solve (assert-extra-and-interpret)))
+        (pretty-display `(state ,start-state))
         (define restrict-pairs (solution->list sol))
         (set! first-solve #f)
         (unless (empty? restrict-pairs)
@@ -187,7 +239,7 @@
       
       (set! cnstr-inputs (list->vector cnstr-inputs))
       (define cnstr-inputs-len (vector-length cnstr-inputs))
-      (when debug (pretty-display `(cnstr-inputs ,cnstr-inputs-len ,cnstr-inputs)))
+      (when #t (pretty-display `(cnstr-inputs ,cnstr-inputs-len ,cnstr-inputs)))
       
       ;; Modify inputs with cnstr-inputs
       (when (> cnstr-inputs-len 0)
@@ -200,6 +252,32 @@
       (values sym-vars 
               (map (lambda (x) (sat (make-immutable-hash (hash->list x)))) inputs)))
 
+    
+    (define (generate-inputs-inner
+             n spec start-state assumption
+             #:rand-func
+             [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))]
+             #:db [db #f])
+      (pretty-display "Generate inputs (fast).")
+      (define-values (sym-vars sltns) 
+        (generate-inputs-inner-fast n spec start-state assumption 
+                                    #:rand-func rand-func #:db db))
+      (define states
+        (map (lambda (x) (evaluate-state start-state x)) sltns))
+
+      (define pass
+        (with-handlers* 
+         ([exn:fail? (lambda (e) #f)])
+         (for ([state states]) (send simulator interpret state))
+         #t))
+
+      (cond
+       [pass (values sym-vars sltns)]
+       [else
+        (pretty-display "Generate inputs (slow).")
+        (generate-inputs-inner-slow n spec start-state assumption 
+                                    #:rand-func rand-func #:db db)]))
+      
     ;; Generate input states.
     (define (generate-input-states 
              n spec assumption
@@ -207,17 +285,35 @@
              [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))]
              #:db [db #f])
       (define start-state (send machine get-state sym-input))
-      (define-values (sym-vars sltns)
-        (generate-inputs-inner n spec start-state assumption 
-                               #:rand-func rand-func
-                               #:db db))
-      (map (lambda (x) (evaluate-state start-state x)) sltns))
+      (pretty-display "Generate inputs (fast).")
+      (define-values (sym-vars sltns) 
+        (generate-inputs-inner-fast n spec start-state assumption 
+                                    #:rand-func rand-func #:db db))
+      (define states
+        (map (lambda (x) (evaluate-state start-state x)) sltns))
+      
+      (define pass
+        (with-handlers* 
+         ([exn:fail? (lambda (e) #f)])
+         (for ([state states]) (send simulator interpret spec state))
+         #t))
+
+      (cond
+       [pass states]
+       [else
+        (pretty-display "Generate inputs (slow).")
+        (define-values (sym-vars2 sltns2) 
+          (generate-inputs-inner-slow n spec start-state assumption 
+                                      #:rand-func rand-func #:db db))
+        (map (lambda (x) (evaluate-state start-state x)) sltns2)]))
+          
 
     ;; Returns a counterexample if spec and program are different.
     ;; Otherwise, returns false.
     (define (counterexample spec program constraint
                             #:assume [assumption (send machine no-assumption)])
       ;;(pretty-display (format "solver = ~a" (current-solver)))
+      (pretty-display `(counterexample))
       (when (and debug printer)
 	    (pretty-display `(counterexample ,bit))
 	    (pretty-display `(spec))

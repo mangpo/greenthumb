@@ -165,7 +165,6 @@
 		       args 2
 		       (number->string (quotient (string->number offset) 4)))))
 
-        (pretty-display `(args ,args ,(vector-map rename args)))
         (inst (vector op cond-type "") (vector-map rename args))]))
 
     (define (rename x)

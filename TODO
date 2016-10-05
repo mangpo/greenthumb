@@ -56,11 +56,3 @@ Profile:
 preston/program/ex1 on kaopad
 stoch -s: 6, 20, 2, 4*, 1
 
-
-mutate-time:	0.239471
-simulate-time:	0.216902
-check-time:	0.072388
-validate-time:	0.351956
-iterations/s:	21600.0
-
-

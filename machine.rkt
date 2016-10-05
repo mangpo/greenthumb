@@ -42,7 +42,7 @@
 
      ;; Search configuration
      window-size
-     get-config adjust-config finalize-config config-exceed-limit?
+     get-config ;;adjust-config finalize-config config-exceed-limit?
      get-constructor
      
      ;; Search helper functions
@@ -78,7 +78,7 @@
     ;; Context-aware window decomposition size is set in xxx-symbolic.rkt and xxx-forwardbackward.rkt
     (define (window-size) 100)
     (define (get-config) config)
-    (define (adjust-config config) config)
+    
     (define (get-memory-size) config)
     
     (define (get-opcode-id opcode)
@@ -99,9 +99,12 @@
     (define (get-state-liveness f) (get-state f))
     (define (display-state x) (pretty-display x))
 
-    (define (finalize-config info) info)
-    (define (config-exceed-limit? info)
-      (> (get-memory-size) 100))
+    ;; (define (adjust-config config)
+    ;;   (increase-memory-size)
+    ;;   config)
+    ;; (define (finalize-config info) info)
+    ;; (define (config-exceed-limit? info)
+    ;;   (> (get-memory-size) 100))
 
     (define (progstate->vector x) x)
     (define (vector->progstate x) x)

@@ -1,13 +1,19 @@
 #lang s-exp rosette
 
 (require "special.rkt" "memory-racket.rkt")
-(provide memory-rosette%)
+(provide memory-rosette% increase-memory-size)
+
+(define memory-size 4)
+(define (increase-memory-size)
+  (when (> memory-size 100) (raise "memory-rosette: memory size is too large."))
+  (pretty-display (format "Increse memory size to ~a" (* 2 memory-size)))
+  (set! memory-size (* 2 memory-size)))
 
 (define memory-rosette%
   (class* special% (equal<%> printable<%>)
     (super-new)
     (init-field get-fresh-val
-                [size 4]
+                [size memory-size]
                 [init (make-vector size)] ;; TODO: change to list
                 [update (make-vector size)]
                 ;; [get-fresh-val

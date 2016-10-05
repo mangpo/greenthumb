@@ -49,6 +49,7 @@
                            #:start-prog [start #f])
       (send machine reset-opcode-pool)
       (send machine reset-arg-ranges)
+      (send validator adjust-memory-config spec)
       
       (set! live-in (send machine get-live-list this-live-in))
       (for ([x prefix])
@@ -67,7 +68,6 @@
                 (pretty-display ">>> Inputs from file")
                 (pretty-display ">>> Auto generate"))
             )
-      (send printer print-struct spec)
       (define inits 
         (if input-file
             (map cdr (send machine get-states-from-file input-file))
