@@ -1,4 +1,4 @@
-* ARM gen inverse behavior is extremely slow.
+- test backward: std, ld, conditional, llvm regression
 
 Performance
 - don't mask-in the start state

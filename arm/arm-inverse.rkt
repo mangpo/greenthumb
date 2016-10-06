@@ -8,7 +8,7 @@
 (define arm-inverse%
   (class inverse%
     (super-new)
-    ;; (inherit-field machine simulator)
+    (inherit-field machine simulator)
     ;; (inherit lookup-bw)
     ;; (override gen-inverse-behavior interpret-inst uid-inst-in-out)
 
@@ -191,6 +191,62 @@
        
     ;;    [else (raise (format "illegal cond-type ~a" cond-type))]
     ;;    ))
-      
 
+    (define/override (get-val-range type)
+      (if (equal? type 'z)
+          -1
+          (super get-val-range type)))
+
+
+    (define cmp-inst (get-field cmp-inst machine))
+    (define/override (interpret-inst my-inst state old-liveout [ref #f])
+      (define (exec)
+        ;; Remove conditional so that we don't change the flag.
+        (define ops-vec (vector-copy (inst-op my-inst)))
+        (vector-set! ops-vec 1 -1) 
+        (super interpret-inst (inst ops-vec (inst-args my-inst)) state old-liveout ref))
+
+      (define op (vector-ref (inst-op my-inst) 0))
+      (cond
+       [(member op cmp-inst) (super interpret-inst my-inst state old-liveout ref)]
+       [else (exec-flag-backward my-inst state exec)]))
+
+    (define (exec-flag-backward my-inst state exec)
+      (define cond-id (vector-ref (inst-op my-inst) 1))
+      (define z (progstate-z state))
+      (define cond-type (send machine get-cond-opcode-name cond-id))
+     
+      (define (same) (list state))
+      ;; TODO: z != -1
+
+      (cond
+       [(or (equal? cond-id -1) (equal? z -1))
+        (exec)]
+
+       [(equal? cond-type `eq) ;; eq
+        (if (equal? z 0) (exec) (same))]
+
+       [(equal? cond-type `ne) ;; ne
+        (if (member z (list 1 2 3 4 5)) (exec) (same))]
+
+       [(equal? cond-type `ls) ;; ls
+        (if (member z (list 0 2 5)) (exec) (same))]
+
+       [(equal? cond-type `hi) ;; hi
+        (if (member z (list 3 4)) (exec) (same))]
+
+       [(equal? cond-type `cc) ;; cc
+        (if (member z (list 2 5)) (exec) (same))]
+
+       [(equal? cond-type `cs) ;; cs
+        (if (member z (list 0 3 4)) (exec) (same))]
+
+       [(equal? cond-type `lt) ;; lt
+        (if (member z (list 2 4)) (exec) (same))]
+       
+       [(equal? cond-type `ge) ;; ge
+        (if (member z (list 0 3 5)) (exec) (same))]
+       
+       [else (raise (format "illegal cond-type ~a" cond-type))]))
+      
     ))

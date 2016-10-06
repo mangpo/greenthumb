@@ -14,31 +14,39 @@
 
     (define/override (get-flag state-vec) (progstate-z state-vec))
     
-    (define/override (filter-with-flags opcode-pool flag-in flag-out #:try-cmp [try-cmp #f])
-      (cond
-       [try-cmp
+    (define/override (filter-with-flags opcode-pool flag-in flag-out
+                                        #:no-args [no-args #f] #:try-cmp [try-cmp #f])
+      (define ret
         (cond
-         ;; flags are different, need to insert cmp instructions.
-         [(and (number? flag-in) (list? flag-out)
-               (not (member flag-in flag-out)))
-          (filter (lambda (ops-vec) (member (vector-ref ops-vec 0) cmp-inst)) opcode-pool)]
+         [try-cmp
+          (cond
+           ;; flags are different, need to insert cmp instructions.
+           [(and (number? flag-in) (list? flag-out)
+                 (not (member flag-in flag-out)))
+            (filter (lambda (ops-vec) (member (vector-ref ops-vec 0) cmp-inst)) opcode-pool)]
 
-         ;; no conditional flag, don't use conditional opcodes.
-         [(equal? flag-in -1)
-          (filter (lambda (ops-vec) (= (vector-ref ops-vec 1) -1)) opcode-pool)]
+           ;; no conditional flag, don't use conditional opcodes.
+           [(equal? flag-in -1)
+            (filter (lambda (ops-vec) (= (vector-ref ops-vec 1) -1)) opcode-pool)]
 
-         ;; no restriction.
-         [else opcode-pool]
-         )
-        ]
+           ;; no restriction.
+           [else opcode-pool]
+           )
+          ]
 
-       [else
-        ;; don't use cmp instructions and conditional opcodes.
-        (filter (lambda (ops-vec)
-                  (and (not (member (vector-ref ops-vec 0) cmp-inst))
-                       (= (vector-ref ops-vec 1) -1)))
-                opcode-pool)
-        ]))
+         [else
+          ;; don't use cmp instructions and conditional opcodes.
+          (filter (lambda (ops-vec)
+                    (and (not (member (vector-ref ops-vec 0) cmp-inst))
+                         (= (vector-ref ops-vec 1) -1)))
+                  opcode-pool)
+          ]))
+
+      (if no-args
+          ;; don't enumerate conditional opcodes
+          (filter (lambda (ops-vec) (= -1 (vector-ref ops-vec 1))) ret)
+          ret)
+      )
     
     
     ;; (define opcodes (get-field opcodes machine))

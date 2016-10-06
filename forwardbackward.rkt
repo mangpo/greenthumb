@@ -597,8 +597,6 @@
       (define inits
         (send validator-abst generate-input-states ntests (vector-append prefix spec postfix)
               assumption #:db #t))
-      (vector-set! (progstate-regs (first inits)) 0 -1)
-      (vector-set! (progstate-regs (second inits)) 0 -3)
       (define states1 
 	(map (lambda (x) (send simulator-abst interpret prefix x)) inits))
       (define states2
@@ -1131,7 +1129,6 @@
         (for ([i test] #:break same)
              (when (equal? my-ce-out-vec (vector-ref ce-out-vec i))
                    (set! same i)))
-	(newline)
 	(pretty-display `(build-hash-bw-all ,test ,same))
         (when (= (vector-ref classes-bw-expand 0) test)
               (vector-set! classes-bw-expand 0 (add1 test))

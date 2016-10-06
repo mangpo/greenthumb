@@ -56,7 +56,7 @@
     
     (define opcodes (get-field opcodes machine))
 
-    (define (filter-with-flags opcodes flag-in flag-out #:try-cmp [try-cmp #f])
+    (define (filter-with-flags opcodes flag-in flag-out #:no-args [no-args #f] #:try-cmp [try-cmp #f])
       opcodes)
     
     ;; Mode `no-args is for generating instructions to be used for creating
@@ -90,11 +90,12 @@
       ;; (define inst-choice '((clz || ||) (sub || lsl) (lsr# || ||)))
       ;; (define opcode-pool (map (lambda (x) (send machine get-opcode-id x)) inst-choice))
 
-      (set! opcode-pool (filter-with-flags opcode-pool flag-in flag-out #:try-cmp try-cmp))
+      (set! opcode-pool (filter-with-flags opcode-pool flag-in flag-out
+                                           #:no-args no-args
+                                           #:try-cmp try-cmp))
+      
       ;; (pretty-display `(generate-inst ,(length opcode-pool) ,(length (get-field opcode-pool machine))))
       ;; (pretty-display (map (lambda (x) (send machine get-opcode-name x)) opcode-pool))
-
-      ;;(pretty-display `(generate-inst ,opcode-pool))
 
       (define iterator
         (generator 

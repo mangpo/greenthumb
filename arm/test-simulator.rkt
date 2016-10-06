@@ -32,6 +32,7 @@
 (define code
 (send parser ir-from-string "
 clz r3, r0
+sub r3, r3, r0, lsl r3
 "))
 
 (send printer print-struct code)

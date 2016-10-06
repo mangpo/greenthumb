@@ -75,7 +75,6 @@
 (test 'fff "0 a! !+ !+ push pop dup 1 b! @b and over 65535 or 0 b! @b and over - and + push drop pop"
       6 '((data . 2))
       #:assume '((<= . 65535) (<= . 65535) (<= . 65535)) #:sym #f)
-      #:assume '((<= . 65535) (<= . 65535) (<= . 65535)) #:sym #f)
 (test 'shaf "0 a! !+ !+ push pop dup 1 b! @b and over - 0 b! @b and or push drop pop" 6
       '((data . 2) (return . 1)) #:sym #f)
 
@@ -84,4 +83,4 @@
 #;(test 'rrotate "2 b! !b push drop pop 2 b! @b 0 b! !b up b! @b 0 b! @b 2/ 2/ + 65535 and" 8
       '((data . 2) (return . 1)) #:sym #f) ;; very slow
 #;(test 'ggg "0 a! push !+ !+ pop dup 1 b! @b and over 65535 or 0 b! @b and over - and + push drop pop"
-      7 '((data . 2))
+      7 '((data . 2)))

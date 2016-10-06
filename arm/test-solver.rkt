@@ -29,7 +29,9 @@
 
 (define sketch
 (send parser ir-from-string "
-mvn r0, r0, asr r0
+clz r3, r0
+sub r3, r3, r0, lsl r3
+lsr r0, r3, 3
 "))
 
 (define encoded-code (send printer encode code))

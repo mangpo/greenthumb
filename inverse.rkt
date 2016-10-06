@@ -13,7 +13,7 @@
   (class object%
     (super-new)
     (init-field machine simulator)
-    (public gen-inverse-behavior interpret-inst)
+    (public gen-inverse-behavior interpret-inst get-val-range)
     ;; Reduced-bit
     (field [bit (get-field bitwidth machine)])
 
