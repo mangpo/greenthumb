@@ -248,14 +248,14 @@
       #:get (lambda (state) (progstate-z state))
       #:set (lambda (state val) (set-progstate-z! state val))
       #:min 0
-      #:max 8
+      #:max 5
       )
 
     ;;;;;;;;;;;;;;;;;;;;; instruction classes ;;;;;;;;;;;;;;;;;;;;;;;;
     (define-arg-type 'reg (lambda (config) (range config)) #:progstate 'reg)
     (define-arg-type 'reg-sp (lambda (config) '()) #:progstate 'reg)
     (define-arg-type 'const (lambda (config) '(0 1)))
-    (define-arg-type 'bit (lambda (config) '(0 1)))
+    (define-arg-type 'bit (lambda (config) `(0 1 ,(sub1 bitwidth))))
     (define-arg-type 'addr (lambda (config) '()))
     
     (init-machine-description 3)
@@ -295,9 +295,14 @@
 
     ;; reg = reg op imm
     (define-instruction-class 'rri
-      (list '(add# sub# rsb# and# orr# eor# bic# orn# asr# lsl# lsr# ror#) cond-opcodes)
+      (list '(add# sub# rsb# and# orr# eor# bic# orn#) cond-opcodes)
       #:required '(#t #f)
       #:args '((reg reg const) ()) #:ins '((1 2) (z)) #:outs '(0))
+
+    (define-instruction-class 'rrb
+      (list '(asr# lsl# lsr# ror#) cond-opcodes)
+      #:required '(#t #f)
+      #:args '((reg reg bit) ()) #:ins '((1 2) (z)) #:outs '(0))
 
     ;; reg = reg
     (define-instruction-class 'rr-shf

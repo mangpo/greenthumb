@@ -59,13 +59,6 @@
     ;; encoded concrete code
     ;; config: machine config
     (define (adjust-memory-config encoded-code)
-      (pretty-display `(bit ,bit))
-      (send printer print-syntax (send printer decode encoded-code))
-      (send printer print-struct encoded-code)
-      (define state (send machine get-state sym-input))
-      (current-bitwidth bit)
-      (solve (assert (send simulator interpret encoded-code state)))
-      (raise "done")
       (define (solve-until-valid)
         (clear-asserts)
 	(current-bitwidth bit)
@@ -136,9 +129,12 @@
       
       ;;(define inputs (append input-zero input-random input-random-const))
       (define inputs (append input-random input-random-const))
+      (define models
+        (for/list ([input inputs])
+                  (let ([ans (sat (make-immutable-hash (hash->list input)))])
+                    ans)))
       
-      (values sym-vars 
-              (map (lambda (x) (sat (make-immutable-hash (hash->list x)))) inputs)))
+      (values sym-vars models))
 
       
     (define (generate-inputs-inner-slow
@@ -264,7 +260,7 @@
              #:rand-func
              [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))]
              #:db [db #f])
-      (pretty-display "Generate inputs (fast).")
+      (pretty-display "Generate inputs (fast): gen")
       (define-values (sym-vars sltns) 
         (generate-inputs-inner-fast n spec start-state assumption 
                                     #:rand-func rand-func #:db db))

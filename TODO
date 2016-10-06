@@ -1,13 +1,6 @@
+* ARM gen inverse behavior is extremely slow.
+
 Performance
-debug p18
-
-SIZE = 1
-
-[3] counterexample
-mvn r0, r0, asr r0
-(ce 2 #(#(0 0 0 0) #() -1 0) #(#(0 0 0 1) #() 0 0))
-------------------------------
-- inverse: interpret-inst takes vector vs progstate
 - don't mask-in the start state
 - mask-in & mask-in again (ARM)
 

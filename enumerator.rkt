@@ -87,8 +87,8 @@
           ;;(pretty-display `(gen-pos ,step-fw ,(+ step-fw step-bw 1)))
           (send machine get-valid-opcode-pool step-fw (+ step-fw step-bw 1) live-in)]
          [else (get-field opcode-pool machine)]))
-      ;; (define inst-choice '(!+ @))
-      ;; (define opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
+      ;; (define inst-choice '((clz || ||) (sub || lsl) (lsr# || ||)))
+      ;; (define opcode-pool (map (lambda (x) (send machine get-opcode-id x)) inst-choice))
 
       (set! opcode-pool (filter-with-flags opcode-pool flag-in flag-out #:try-cmp try-cmp))
       ;; (pretty-display `(generate-inst ,(length opcode-pool) ,(length (get-field opcode-pool machine))))
