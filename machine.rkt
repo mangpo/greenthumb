@@ -212,7 +212,7 @@
                            (unless ((statetype-get info) live-in)
                                    (set! pass #f)))))
             (if pass
-                (instclass-opcodes class)
+                (instclass-pool class)
                 (list)))))]
        
        [else opcode-pool]))

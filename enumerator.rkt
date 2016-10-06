@@ -91,8 +91,10 @@
       ;; (define opcode-pool (map (lambda (x) (vector-member x opcodes)) inst-choice))
 
       (set! opcode-pool (filter-with-flags opcode-pool flag-in flag-out #:try-cmp try-cmp))
+      ;; (pretty-display `(generate-inst ,(length opcode-pool) ,(length (get-field opcode-pool machine))))
+      ;; (pretty-display (map (lambda (x) (send machine get-opcode-name x)) opcode-pool))
 
-      (pretty-display `(generate-inst ,opcode-pool))
+      ;;(pretty-display `(generate-inst ,opcode-pool))
 
       (define iterator
         (generator 

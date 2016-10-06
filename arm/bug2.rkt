@@ -4,10 +4,7 @@
          "arm-simulator-rosette.rkt" 
          "arm-parser.rkt" "arm-inst.rkt")
 
-;;(require rosette/solver/smt/z3)
-
-;;(current-solver (new z3%))
-
+(current-bitwidth 4)
 (define parser (new arm-parser%))
 (define machine (new arm-machine% [config 4] [bitwidth 4]))
 (define printer (new arm-printer% [machine machine]))
@@ -26,26 +23,6 @@
 	andne	r0, r3, #1
 "))
 
-
-(define sketch
-(send parser ir-from-string "
-mvn r0, r0, asr r0
-"))
-
 (define encoded-code (send printer encode code))
-(define encoded-sketch (send printer encode  sketch))
 
 (send validator adjust-memory-config encoded-code)
-(define t1 (current-seconds))
-(define ex 
-  (send validator counterexample encoded-code encoded-sketch 
-        (send printer encode-live '(0))))
-(define t2 (current-seconds))
-
-(newline)
-(pretty-display "Counterexample:")
-(if ex 
-  (send machine display-state ex)
-  (pretty-display "No"))
-(newline)
-(pretty-display `(time ,(- t2 t1)))

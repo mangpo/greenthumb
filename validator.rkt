@@ -59,12 +59,18 @@
     ;; encoded concrete code
     ;; config: machine config
     (define (adjust-memory-config encoded-code)
+      (pretty-display `(bit ,bit))
+      (send printer print-syntax (send printer decode encoded-code))
+      (send printer print-struct encoded-code)
+      (define state (send machine get-state sym-input))
+      (current-bitwidth bit)
+      (solve (assert (send simulator interpret encoded-code state)))
+      (raise "done")
       (define (solve-until-valid)
         (clear-asserts)
 	(current-bitwidth bit)
         (define state (send machine get-state sym-input))
         (pretty-display `(state ,state))
-	;;(send simulator interpret encoded-code state)
 
         (with-handlers* 
          ([exn:fail? 

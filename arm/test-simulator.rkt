@@ -7,9 +7,9 @@
          "../memory-rosette.rkt"
          )
 
-(current-bitwidth 32)
+(current-bitwidth 4)
 (define parser (new arm-parser%))
-(define machine (new arm-machine% [config 4])) ;; argument = (list num-regs memory)
+(define machine (new arm-machine% [config 4] [bitwidth 4])) ;; argument = (list num-regs memory)
 (define printer (new arm-printer% [machine machine]))
 (define simulator-racket (new arm-simulator-racket% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
@@ -22,7 +22,7 @@
   (if const const input))
 
 ;; Input machine state
-(define input-state (progstate (vector 2 3 0 0 0
+(define input-state (progstate (vector -3 0 0 0 0
                                        0 0 0 0 0
                                        0 0)
                                (new memory-rosette% [get-fresh-val func-sym]) -1))
@@ -31,8 +31,13 @@
 
 (define code
 (send parser ir-from-string "
-	cmp	r0, r1
-	movcc	r0, r1
+	sub	r3, r0, #1
+	tst	r3, r0
+	movne	r3, #0
+	moveq	r3, #1
+	cmp	r0, #0
+	moveq	r0, #0
+	andne	r0, r3, #1
 "))
 
 (send printer print-struct code)

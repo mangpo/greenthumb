@@ -2,7 +2,7 @@
 
 (require "inst.rkt" "decomposer.rkt" "ops-racket.rkt" "enumerator.rkt"
          "special.rkt"
-         "memory-racket.rkt" "queue-racket.rkt")
+         "memory-racket.rkt" "queue-racket.rkt" "arm/arm-machine.rkt")
 (require racket/generator)
 
 (provide forwardbackward% entry-live entry-flag)
@@ -45,8 +45,8 @@
             mask-in get-live-mask inst->vector)
     
     (define debug #f)
-    (define verbo #f)
-    (define info #f)
+    (define verbo #t)
+    (define info #t)
     (define ce-limit 100)
 
     ;; Actual bitwidth
@@ -423,12 +423,15 @@
     (define t-interpret 0)
     (define t-extra 0)
     (define t-verify 0)
+    (define t-ce-abst 0)
     (define c-build-hash 0)
     (define c-intersect 0)
     (define c-interpret-0 0)
     (define c-interpret 0)
     (define c-extra 0)
     (define c-check 0)
+    (define c-verify 0)
+    (define c-ce-abst 0)
 
     (define t-refine 0)
     (define t-collect 0)
@@ -513,6 +516,7 @@
         (exec #t)]
        [(= try-cmp-status 2) ;; should try cmp
         (exec #f)
+        (raise "done")
         (set! start-time (current-seconds))
         (exec #t)
         ])
@@ -590,6 +594,8 @@
       (define inits
         (send validator-abst generate-input-states ntests (vector-append prefix spec postfix)
               assumption #:db #t))
+      (vector-set! (progstate-regs (first inits)) 0 -1)
+      (vector-set! (progstate-regs (second inits)) 0 -3)
       (define states1 
 	(map (lambda (x) (send simulator-abst interpret prefix x)) inits))
       (define states2
@@ -652,12 +658,13 @@
           ))
 
       (gen-inverse-behaviors (send enum generate-inst #f #f #f #f 
-				   #:no-args #t))
+				   #:no-args #t #:try-cmp try-cmp))
 
       (define (check-final p)
         (when debug
               (pretty-display (format "[5] check-final ~a" (length ce-in-final)))
               (send printer print-syntax (send printer decode p)))
+        (define t1 (current-milliseconds))
         (define
           pass
           (for/and ([input ce-in-final]
@@ -671,7 +678,10 @@
 			  [my-output-vec
 			   (and my-output (send machine progstate->vector my-output))])
                      (and my-output (send machine state-eq? output-vec my-output-vec live3-vec)))))
-
+        (define t2 (current-milliseconds))
+        (set! t-ce-abst (+ t-ce-abst (- t2 t1)))
+        (set! c-ce-abst (add1 c-ce-abst))
+            
         (define final-program (vector-append prefix-precise p postfix-precise))
 
         (when
@@ -741,7 +751,7 @@
 
           (cond
            [(empty? ce-in-final)
-          
+
             (define ce (send validator-abst counterexample 
                              (vector-append prefix spec postfix)
                              (vector-append prefix p postfix)
@@ -755,7 +765,7 @@
                         (send simulator-abst interpret spec ce-input)]
                        [ce-output-vec
                         (send machine progstate->vector ce-output)])
-                  (when debug
+                  (when #t
                         (newline)
                         (pretty-display "[3] counterexample")
                         (pretty-display `(ce ,ce-count-extra ,ce-input-vec ,ce-output-vec)))
@@ -778,7 +788,8 @@
                   (pretty-display "[4] found")
                   (send printer print-syntax (send printer decode p)))
             (for ([x (increase-precision p abst2precise)])
-                 (check-final x))]))
+                 (check-final x))
+            ]))
 
         (define (inner-behaviors p)
           (define t0 (current-milliseconds))
@@ -807,6 +818,7 @@
           (when pass
                 (inner-progs p)
                 (define t2 (current-milliseconds))
+                (set! c-verify (add1 c-verify))
                 (set! t-verify (+ t-verify (- t2 t1))))
 
           )
@@ -1227,9 +1239,8 @@
          (define ttt (current-milliseconds))
          (refine hash1 hash2 my-inst live1 live2 flag1 flag2)
          (when 
-          (and verbo);; (> (- (current-milliseconds) ttt) 500))
-          (newline)
-          (pretty-display (format "search ~a ~a = ~a + ~a + ~a | ~a\t(~a + ~a/~a)\t~a ~a ~a/~a\t[~a/~a]\t~a/~a\t~a/~a (~a) ~a" 
+          (and verbo) ;; (> (- (current-milliseconds) ttt) 500))
+          (pretty-display (format "search ~a ~a = ~a + ~a + ~a | ~a\t(~a + ~a/~a)\t~a ~a ~a/~a\t[~a/~a]\t~a/~a\t~a/~a (~a) ~a/~a ~a/~a " 
                                   (- (current-milliseconds) ttt) ce-count-extra
                                   t-refine t-collect t-check
                                   t-build t-build-inter t-build-hash c-build-hash
@@ -1237,10 +1248,11 @@
                                   t-interpret-0 c-interpret-0
                                   t-interpret c-interpret
                                   t-extra c-extra c-check
-                                  t-verify
+                                  t-verify c-verify
+                                  t-ce-abst c-ce-abst
                                   )))
-         (set! t-build 0) (set! t-build-inter 0) (set! t-build-hash 0) (set! t-mask 0) (set! t-hash 0) (set! t-intersect 0) (set! t-interpret-0 0) (set! t-interpret 0) (set! t-extra 0) (set! t-verify 0)
-         (set! c-build-hash 0) (set! c-intersect 0) (set! c-interpret-0 0) (set! c-interpret 0) (set! c-extra 0) (set! c-check 0)
+         (set! t-build 0) (set! t-build-inter 0) (set! t-build-hash 0) (set! t-mask 0) (set! t-hash 0) (set! t-intersect 0) (set! t-interpret-0 0) (set! t-interpret 0) (set! t-extra 0) (set! t-verify 0) (set! t-ce-abst 0)
+         (set! c-build-hash 0) (set! c-intersect 0) (set! c-interpret-0 0) (set! c-interpret 0) (set! c-extra 0) (set! c-check 0) (set! c-verify 0) (set! c-ce-abst 0)
          (set! t-refine 0) (set! t-collect 0) (set! t-check 0)
          (refine-all hash1 live1 flag1 hash2 live2 flag2 iterator)
          ))
