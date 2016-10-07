@@ -32,25 +32,18 @@
     ;; (define (inst->vector x)
     ;;   (vector (inst-op x) (inst-args x) (inst-shfop x) (inst-shfarg x) (inst-cond x)))
 
-    ;; ;; Mask in only the live values. If an entry in progstate is not live, set it to #f.
-    ;; ;; state-vec: progstate in vector/list/pair format
-    ;; ;; live-list: liveness in compact format
-    ;; ;; keep-flag: if #f, set flag to default value.
-    ;; ;; output: masked progstate in vector/list/pair format
-    ;; (define (mask-in state-vec live-list #:keep-flag [keep #t])
-    ;;   (define live-reg (car live-list))
-    ;;   (define live-mem (cdr live-list))
-      
-    ;;   (define regs (vector-ref state-vec 0))
-    ;;   (define mems (vector-ref state-vec 1))
-    ;;   (define z (vector-ref state-vec 2))
-    ;;   (define fp (vector-ref state-vec 3))
-    ;;   (vector
-    ;;    (for/vector ([r regs] [i (in-naturals)])
-    ;;     	   (and (member i live-reg) r))
-    ;;    (for/vector ([m mems] [i (in-naturals)])
-    ;;     	   (and (member i live-mem) m))
-    ;;    (if keep z -1) fp))
+    ;; Mask in only the live values. If an entry in progstate is not live, set it to #f.
+    ;; state-vec: progstate in vector/list/pair format
+    ;; live-list: liveness in compact format
+    ;; keep-flag: if #f, set flag to default value.
+    ;; output: masked progstate in vector/list/pair format
+    (define/override (mask-in state-vec live-list #:keep-flag [keep #t])
+      (define masked (super mask-in state-vec live-list #:keep-flag keep))
+      (if keep
+          (let ([z (progstate-z state-vec)])
+            (set-progstate-z! masked z))
+          (set-progstate-z! masked -1))
+      masked)
 
     ;; ;; Extract liveness from programstate. If an entry is a number, then it is live.
     ;; ;; state-vec: progstate in vector/list/pair format

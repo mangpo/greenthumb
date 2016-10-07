@@ -61,11 +61,46 @@
                           #:assume (and assume (send machine constrain-stack assume))))
     (when ce-enum (raise (format "TEST ~a: counter-example [enumerative]" id))))
   )
+#|
+(test 'p14 "
+        eor     r3, r1, r0
+        and     r0, r1, r0
+        add     r0, r0, r3, asr #1
+" 3 '(0))
 
-;; p14, p15, p16 (conditional)
-;; test condition with 3 instructions
+(test 'p15 "
+        orr     r3, r1, r0
+        eor     r0, r1, r0
+        sub     r0, r3, r0, asr #1
+" 3 '(0))
+
+(test 'p16 "
+        cmp     r0, r1
+        movcc   r0, r1
+" 2 '(0))
+|#
+(test 'p16-v2 "
+        add r0, r0, #1
+        cmp     r0, r1
+        movcc   r0, r1
+" 3 '(0))
+
+
+(test 'p16-v3 "
+        cmp     r0, r1
+        movcc   r0, r1
+        str r0, [r2, #0]
+" 2 '(0))
+
+
+(test 'p16-v4 "
+        cmp     r0, r1
+        movcc   r0, r1
+        str r0, [r2, #0]
+" 3 '(memory))
+
 ;; 160 s
-(test 1 "
+#;(test 1 "
 	sub	r3, r0, #1
 	tst	r3, r0
 	movne	r3, #0

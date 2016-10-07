@@ -81,14 +81,14 @@
 
       (define mode (cond [no-args `no-args] [else `basic]))
 
-      (define opcode-pool
-        (cond
-         [(and step-fw step-bw)
-          ;;(pretty-display `(gen-pos ,step-fw ,(+ step-fw step-bw 1)))
-          (send machine get-valid-opcode-pool step-fw (+ step-fw step-bw 1) live-in)]
-         [else (get-field opcode-pool machine)]))
-      ;; (define inst-choice '((clz || ||) (sub || lsl) (lsr# || ||)))
-      ;; (define opcode-pool (map (lambda (x) (send machine get-opcode-id x)) inst-choice))
+      ;; (define opcode-pool
+      ;;   (cond
+      ;;    [(and step-fw step-bw)
+      ;;     ;;(pretty-display `(gen-pos ,step-fw ,(+ step-fw step-bw 1)))
+      ;;     (send machine get-valid-opcode-pool step-fw (+ step-fw step-bw 1) live-in)]
+      ;;    [else (get-field opcode-pool machine)]))
+      (define inst-choice '((cmp || ||) (mov || ||) (mov cc ||) (add# || ||)))
+      (define opcode-pool (map (lambda (x) (send machine get-opcode-id x)) inst-choice))
 
       (set! opcode-pool (filter-with-flags opcode-pool flag-in flag-out
                                            #:no-args no-args

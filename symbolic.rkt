@@ -163,8 +163,10 @@
         )
       
       ;; Collect input variables and contruct their init values.
-      (define-values (sym-vars inputs)
-        (send validator generate-inputs-inner 2 spec start-state assumption))
+      (define inputs (send validator generate-input-states-slow 1 spec assumption #:raw #t))
+      (send simulator interpret spec start-state)
+      (define sym-vars (send validator get-sym-vars start-state))
+      (clear-asserts)
 
       ;; (when debug
       ;;       (pretty-display "Test calculate performance-cost with symbolic instructions...")
@@ -187,7 +189,7 @@
          time-limit
          (synthesize 
           #:forall sym-vars
-          #:init (drop inputs 1)
+          #:init inputs
           #:assume (interpret-spec!)
           #:guarantee (compare-spec-sketch))
          )

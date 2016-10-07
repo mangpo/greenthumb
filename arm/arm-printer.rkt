@@ -115,7 +115,7 @@
       (define new-args
         (for/vector ([arg args] [type (send machine get-arg-types ops-vec)])
                      (cond
-                      [(member type '(reg)) (format "r~a" arg)]
+                      [(member type '(reg reg-sp)) (format "r~a" arg)]
                       [(number? arg) (number->string arg)]
                       [else arg])))
 

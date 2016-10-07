@@ -247,8 +247,8 @@
     (define-progstate-type 'z
       #:get (lambda (state) (progstate-z state))
       #:set (lambda (state val) (set-progstate-z! state val))
-      #:min 0
-      #:max 5
+      #:const -1
+      ;; #:min 0 #:max 5
       )
 
     ;;;;;;;;;;;;;;;;;;;;; instruction classes ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -272,6 +272,7 @@
       (list '(add and orr eor) cond-opcodes shf-inst-reg)
       #:required '(#t #f #f)
       #:args '((reg reg reg) () (reg)) #:ins '((1 2) (z) (0)) #:outs '(0) #:commute '(1 . 2))
+    ;; TODO: ins include arg 0 for cond-opcodes
 
     (define-instruction-class 'rrr-commute-shf-imm
       (list '(add and orr eor) cond-opcodes shf-inst-imm)
@@ -365,7 +366,7 @@
     (define-instruction-class 'store#
       (list '(str#) cond-opcodes)
       #:required '(#t #f)
-      #:args '((reg reg-sp addr) ()) #:ins '((0 1 2) (z)) #:outs `(0 ,(get-memory-type)))
+      #:args '((reg reg-sp addr) ()) #:ins '((0 1 2) (z)) #:outs `(,(get-memory-type)))
 
     (define-instruction-class 'cmp '(tst cmp)
       #:args '(reg reg) #:ins '(0 1) #:outs '(z))
@@ -940,13 +941,18 @@
       (super analyze-args (vector) code (vector) live-in live-out)
       (define reg-list (argtype-valid type-reg))
       
+      (define type-reg-sp (hash-ref argtypes-info 'reg-sp))
+      (define reg-sp-list (argtype-valid type-reg-sp))
+
+      (define exclude (append reg-list context-reg-list reg-sp-list))
+      
       ;; If there are too few regs, add one more.
       ;; But try to add one that does not use anywhere
       ;; (including prefix and postfix).
       (when (<= (length reg-list) 2)
             (let ([add-reg
                    (for/or ([i config])
-                           (and (not (member i context-reg-list)) (not (member i reg-list)) i))])
+                           (and (not (member i exclude)) i))])
               (when add-reg (set-argtype-valid! type-reg (cons add-reg reg-list)))))
       
       (for ([pair (hash->list argtypes-info)])
@@ -955,107 +961,62 @@
              (pretty-display `(ARM-ARG ,name ,(argtype-valid info)))))
       )
 
-    (define (exec-flag-backward my-inst state exec)
-      (define cond-id (vector-ref (inst-op my-inst) 1))
-      (define z (progstate-z state))
-      (define cond-type (get-cond-opcode-name cond-id))
-     
-      (define (same) (list state))
-      ;; TODO: z != -1
-
-      (cond
-       [(or (equal? cond-id -1) (equal? z -1))
-        (exec)]
-
-       [(equal? cond-type `eq) ;; eq
-        (if (equal? z 0) (exec) (same))]
-
-       [(equal? cond-type `ne) ;; ne
-        (if (member z (list 1 2 3 4 5)) (exec) (same))]
-
-       [(equal? cond-type `ls) ;; ls
-        (if (member z (list 0 2 5)) (exec) (same))]
-
-       [(equal? cond-type `hi) ;; hi
-        (if (member z (list 3 4)) (exec) (same))]
-
-       [(equal? cond-type `cc) ;; cc
-        (if (member z (list 2 5)) (exec) (same))]
-
-       [(equal? cond-type `cs) ;; cs
-        (if (member z (list 0 3 4)) (exec) (same))]
-
-       [(equal? cond-type `lt) ;; lt
-        (if (member z (list 2 4)) (exec) (same))]
-       
-       [(equal? cond-type `ge) ;; ge
-        (if (member z (list 0 3 5)) (exec) (same))]
-       
-       [else (raise (format "illegal cond-type ~a" cond-type))]))
-      
-
     ;; Inform about the order of argument for load instruction
     (define (update-progstate-ins-load my-inst addr mem state)
-      (define (exec)
-        (define state-base (kill-outs my-inst state))
-        (define op (vector-ref (inst-op my-inst) 0))
-        (define opcode-name (get-base-opcode-name op))
-        (define args (inst-args my-inst))
-        (define offset (vector-ref args 2))
+      (define state-base (kill-outs my-inst state))
+      (define op (vector-ref (inst-op my-inst) 0))
+      (define opcode-name (get-base-opcode-name op))
+      (define args (inst-args my-inst))
+      (define offset (vector-ref args 2))
+      (cond
+       [(equal? 'ldr# opcode-name)
+        (update-progstate-ins
+         my-inst (list (finitize (- addr offset) bitwidth) offset mem) state-base)]
+       [(equal? 'ldr opcode-name)
+        (define fp (vector-ref (progstate-regs state) (vector-ref args 1)))
+        (set! offset (vector-ref (progstate-regs state) offset))
+
         (cond
-         [(equal? 'ldr# opcode-name)
+         [fp
+          (update-progstate-ins
+           my-inst (list fp (finitize (- addr fp) bitwidth) mem) state-base)]
+         [offset
           (update-progstate-ins
            my-inst (list (finitize (- addr offset) bitwidth) offset mem) state-base)]
-         [(equal? 'ldr opcode-name)
-          (define fp (vector-ref (progstate-regs state) (vector-ref args 1)))
-          (set! offset (vector-ref (progstate-regs state) offset))
+         [else
+          (for/list ([v (arithmetic-shift 1 bitwidth)])
+                    (let ([vv (finitize v bitwidth)])
+                      (update-progstate-ins
+                       my-inst (list vv (finitize (- addr vv) bitwidth) mem) state-base)))])]
+       [else (raise (format "update-progstate-ins-load: unknown instruction ~a" opcode-name))]))
 
-          (cond
-           [fp
-            (update-progstate-ins
-             my-inst (list fp (finitize (- addr fp) bitwidth) mem) state-base)]
-           [offset
-            (update-progstate-ins
-             my-inst (list (finitize (- addr offset) bitwidth) offset mem) state-base)]
-           [else
-            (for/list ([v (arithmetic-shift 1 bitwidth)])
-                      (let ([vv (finitize v bitwidth)])
-                        (update-progstate-ins
-                         my-inst (list vv (finitize (- addr vv) bitwidth) mem) state-base)))])]
-         [else (raise (format "update-progstate-ins-load: unknown instruction ~a" opcode-name))]))
-      (exec-flag-backward my-inst state exec))
-
-    ;; TODO: update z
     ;; Inform about the order of argument for store instruction
     (define (update-progstate-ins-store my-inst addr val state)
-      (define (exec)
-        ;; Put val before addr => arg 0 is val, arg 1 is address.
-        (define op (vector-ref (inst-op my-inst) 0))
-        (define opcode-name (get-base-opcode-name op))
-        (define args (inst-args my-inst))
-        (define offset (vector-ref args 2))
+      ;; Put val before addr => arg 0 is val, arg 1 is address.
+      (define op (vector-ref (inst-op my-inst) 0))
+      (define opcode-name (get-base-opcode-name op))
+      (define args (inst-args my-inst))
+      (define offset (vector-ref args 2))
+      (cond
+       [(equal? 'str# opcode-name)
+        (update-progstate-ins
+         my-inst (list val (finitize (- addr offset) bitwidth) offset) state)]
+       [(equal? 'str opcode-name)
+        (define fp (vector-ref (progstate-regs state) (vector-ref args 1)))
+        (set! offset (vector-ref (progstate-regs state) offset))
+
         (cond
-         [(equal? 'str# opcode-name)
+         [fp
+          (update-progstate-ins
+           my-inst (list val fp (finitize (- addr fp) bitwidth)) state)]
+         [offset
           (update-progstate-ins
            my-inst (list val (finitize (- addr offset) bitwidth) offset) state)]
-         [(equal? 'str opcode-name)
-          (define fp (vector-ref (progstate-regs state) (vector-ref args 1)))
-          (set! offset (vector-ref (progstate-regs state) offset))
-
-          (cond
-           [fp
-            (update-progstate-ins
-             my-inst (list val fp (finitize (- addr fp) bitwidth)) state)]
-           [offset
-            (update-progstate-ins
-             my-inst (list val (finitize (- addr offset) bitwidth) offset) state)]
-           [else
-            (for/list ([v (arithmetic-shift 1 bitwidth)])
-                      (let ([vv (finitize v bitwidth)])
-                        (update-progstate-ins
-                         my-inst (list val vv (finitize (- addr vv) bitwidth)) state)))])]
-         [else (raise (format "update-progstate-ins-store: unknown instruction ~a" opcode-name))]))
-      (exec-flag-backward my-inst state exec))
-      
+         [else
+          (for/list ([v (arithmetic-shift 1 bitwidth)])
+                    (let ([vv (finitize v bitwidth)])
+                      (update-progstate-ins
+                       my-inst (list val vv (finitize (- addr vv) bitwidth)) state)))])]
+       [else (raise (format "update-progstate-ins-store: unknown instruction ~a" opcode-name))]))
                           
     ))

@@ -228,7 +228,7 @@
         (define op (vector-ref ops-vec 0))
         (define cond-type (vector-ref ops-vec 1))
         (define shfop (vector-ref ops-vec 2))
-        ;;(pretty-display `(interpret-step ,z ,op ,cond-type))
+        ;;(pretty-display `(interpret-step ,(send machine get-opcode-name ops-vec)))
 
         (define-syntax inst-eq
           (syntax-rules ()
