@@ -253,8 +253,9 @@
                 (raise (format "At define-instruction-class '~a', there are ~a groups of opcodes, but ~a groups of arguments are given." name (length class-opcodes) (length args))))
         (unless (= (length class-opcodes) (length ins))
                 (raise (format "At define-instruction-class '~a', there are ~a groups of opcodes, but ~a groups of inputs are given." name (length class-opcodes) (length ins))))
-        
-        (set! ins (for/list ([in ins] [arg args]) (filter-statetype in arg)))
+
+        (define all-args (flatten args))
+        (set! ins (for/list ([in ins]) (filter-statetype in all-args)))
         (set! outs (filter-statetype outs (car args)))
         ;; collect opcodes
         (for ([group class-opcodes]
@@ -303,15 +304,20 @@
     (define (all-opcodes-groups opcodes-groups args-groups ins-groups required)
       (define ret (list))
       
-      (define (adjust ins-groups args-groups)
-        (define offset 0)
-        (for/list ([ins ins-groups]
-                   [args args-groups])
-                  (let ([ret
-                         (for/list ([in ins])
-                                   (if (number? in) (+ in offset) in))])
-                    (set! offset (+ offset (length args)))
-                    ret)))
+      ;; (define (adjust ins-groups args-groups)
+      ;;   (define offset 0)
+      ;;   (for/list ([ins ins-groups]
+      ;;              [args args-groups])
+      ;;             (let ([ret
+      ;;                    (for/list ([in ins])
+      ;;                              (if (number? in) (+ in offset) in))])
+      ;;               (set! offset (+ offset (length args)))
+      ;;               ret)))
+
+      (define (adjust-ins ins offset)
+        (for/list ([l ins])
+                  (for/list ([i l])
+                            (if (number? i) (- i offset) i))))
       
       (define (recurse opcodes-final args-final ins-final
                        opcodes-groups args-groups ins-groups required)
@@ -319,9 +325,8 @@
          [(empty? opcodes-groups)
           (set! ret
                 (cons
-                 (list opcodes-final
-                       (flatten args-final)
-                       (flatten (adjust ins-final args-final)))
+                 (list (reverse opcodes-final)
+                       (flatten (reverse args-final)) (flatten (reverse ins-final)))
                  ret))]
          [(empty? (car opcodes-groups))
           (recurse (cons (list '||) opcodes-final)
@@ -335,7 +340,9 @@
                   (recurse (cons (list '||) opcodes-final)
                            (cons (list) args-final)
                            (cons (list) ins-final)
-                           (cdr opcodes-groups) (cdr args-groups) (cdr ins-groups) (cdr required)))
+                           (cdr opcodes-groups) (cdr args-groups)
+                           (adjust-ins (cdr ins-groups) (length (car args-groups)))
+                           (cdr required)))
 
           ;; Include this opcode type.
           (recurse (cons (car opcodes-groups) opcodes-final)
@@ -344,10 +351,10 @@
                    (cdr opcodes-groups) (cdr args-groups) (cdr ins-groups) (cdr required))]))
       (define extra (- groups-of-opcodes (length opcodes-groups)))
       (recurse (list) (list) (list)
-               (append (make-list extra (list)) (reverse opcodes-groups))
-               (append (make-list extra (list)) (reverse args-groups))
-               (append (make-list extra (list)) (reverse ins-groups))
-               (append (make-list extra #t) (reverse required)))
+               (append opcodes-groups (make-list extra (list)))
+               (append args-groups (make-list extra (list)))
+               (append ins-groups (make-list extra (list)))
+               (append required (make-list extra #t)))
       ret)
 
     ;; Given an instruction class with (one or more) required opcode types.
@@ -416,12 +423,14 @@
       (set! classes-info (reverse classes-info))
       (for ([info classes-info]
             [id (in-naturals)])
+           ;; (pretty-display `(class ,(instclass-opcodes info)))
+           ;; (pretty-display `(ins ,(instclass-ins info)))
            (let* ([class-opcodes (all-opcodes-combinations (instclass-opcodes info))])
-             ;;(pretty-display `(class ,id ,(length class-opcodes)))
              (set-instclass-opcodes! info class-opcodes)
              (set-instclass-pool! info class-opcodes)
              (for ([ops-vec class-opcodes])
                   (hash-set! opcode-id-to-class ops-vec id))))
+      
       ;; convert classes-info into vector format
       (set! opcode-pool (flatten (for/list ([info classes-info]) (instclass-pool info))))
       (set! classes-info (list->vector classes-info))

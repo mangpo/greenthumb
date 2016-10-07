@@ -46,7 +46,7 @@
 
     (define (debug-inst my-inst)
       ;; #f)
-      (and (equal? (inst-op my-inst) '#(56 -1 -1))
+      (and (equal? (inst-op my-inst) '#(30 4 -1))
            (equal? (inst-args my-inst) '#(0 1))))
     
     (define debug #t)
@@ -610,7 +610,7 @@
       (define states2-vec 
 	(map (lambda (x) (mask-in (send machine progstate->vector x) live2-list #:keep-flag try-cmp)) states2))
 
-      (when info
+      (when debug
             (pretty-display `(states1-vec ,states1-vec))
             (pretty-display `(states2-vec ,states2-vec))
             (pretty-display `(live2-vec ,live2-vec))

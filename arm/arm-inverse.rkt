@@ -250,3 +250,42 @@
        [else (raise (format "illegal cond-type ~a" cond-type))]))
       
     ))
+
+(require "arm-simulator-racket.rkt" "arm-parser.rkt" "arm-printer.rkt"
+         "../memory-racket.rkt")
+
+(define (test)
+  
+  (define parser (new arm-parser%))
+  (define machine (new arm-machine% [config 4] [bitwidth 4]))
+  
+  (define printer (new arm-printer% [machine machine]))
+  (define simulator-racket (new arm-simulator-racket% [machine machine]))
+  (define inverse (new arm-inverse% [machine machine] [simulator simulator-racket]))
+
+  (define code
+    (send parser ir-from-string "
+        str r0, [r2, #0]
+"))
+  (define encoded-code (send printer encode code))
+  (define my-inst (vector-ref encoded-code 0))
+  
+  (define code2
+    (send parser ir-from-string "
+        strcc r0, [r2, #0]
+"))
+  (define encoded-code2 (send printer encode code2))
+  (define my-inst2 (vector-ref encoded-code2 0))
+  
+  (send inverse gen-inverse-behavior my-inst)
+
+  (define state1 (progstate '#(#f #f #f #f)
+                           (new memory-racket% [update (make-hash '((-2 . 1)))])
+                           2))
+  (define state2 (progstate '#(#f #f #f #f)
+                           (new memory-racket%)
+                           3))
+  (define live-out (progstate '#(#f #f #f #f) #t #f))
+
+  (send inverse interpret-inst my-inst2 state1 live-out)
+  )

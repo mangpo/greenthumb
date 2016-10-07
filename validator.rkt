@@ -370,6 +370,7 @@
               (if (procedure? spec)
                   (spec start-state) ;; TODO: handle assumption
                   (interpret-spec spec start-state assumption)))
+        (pretty-display `(start-state ,start-state))
         )
       
       (define (compare)
@@ -406,14 +407,14 @@
       (define live-list (list))
       (define (collect-sym pred x)
         (cond
-         [(is-a? x memory-rosette%) ;; TODO: treat all memory update to be live.
-          (define init (filter pair? (vector->list (get-field init x))))
-          (define update (filter pair? (vector->list (get-field update x))))
+         [(for/all ([s x]) (is-a? s memory-rosette%)) ;; TODO: treat all memory update to be live.
+          (define init (filter pair? (vector->list (for/all ([s x]) (get-field init s)))))
+          (define update (filter pair? (vector->list (for/all ([s x]) (get-field update s)))))
           (set! live-list (append (map car init) (map cdr init) live-list))
           (set! live-list (append (map car update) (map cdr update) live-list))]
-         [(is-a? x queue-in-rosette%) (void)]
-         [(is-a? x queue-out-rosette%)
-          (define queue (vector->list (get-field queue x)))
+         [(for/all ([s x]) (is-a? s queue-in-rosette%)) (void)]
+         [(for/all ([s x]) (is-a? s queue-out-rosette%))
+          (define queue (vector->list (for/all ([s x]) (get-field queue s))))
           (set! live-list (append queue live-list))]
          [(boolean? pred)
           ;; (pretty-display `(collect-sym ,pred ,x))
@@ -471,16 +472,22 @@
     ;; state1, state2, & pred: progstate format
     (define (assert-state-eq state1 state2 pred)
       (define (inner state1 state2 pred)
-        ;; (pretty-display `(assert-eq ,pred))
-        ;; (when (equal? pred #t) (pretty-display `(state ,state1 ,state2)))
+        ;; (pretty-display `(assert-eq ,pred ,state1 ,state2))
+        (when (equal? pred #t) (pretty-display `(state ,state1 ,state2)))
 	(cond
          ;; [(and pred (special-type? state1))
          ;;  (assert (equal? state1 state2))]
-         [(and pred (is-a? state1 memory-rosette%))
-          (assert (equal? (get-field update state1) (get-field update state2)))]
+         [(and pred (for/all ([s1 state1]) (is-a? s1 memory-rosette%)))
+          ;; (pretty-display "CHECK MEM!!!")
+          ;; (pretty-display `(state1 ,(get-field update state1)))
+          ;; (pretty-display `(state2 ,(get-field update state2)))
+          (assert (equal? (for/all ([s1 state1]) (get-field update s1))
+                          (for/all ([s2 state2]) (get-field update s2))))]
          
-         [(and pred (or (is-a? state1 queue-in-rosette%) (is-a? state1 queue-out-rosette%)))
-          (assert (equal? (get-field queue state1) (get-field queue state2)))]
+         [(and pred (or (for/all ([s1 state1]) (is-a? s1 queue-in-rosette%))
+                        (for/all ([s1 state1]) (is-a? s1 queue-out-rosette%))))
+          (assert (equal? (for/all ([s1 state1]) (get-field queue s1))
+                          (for/all ([s2 state2]) (get-field queue s2))))]
          
 	 [(equal? pred #t)
           (for*/all ([i state2])

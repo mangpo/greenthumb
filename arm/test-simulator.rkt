@@ -4,6 +4,7 @@
          "arm-printer.rkt" "arm-parser.rkt"
          "arm-simulator-rosette.rkt" 
          "arm-simulator-racket.rkt"
+         "arm-validator.rkt"
          "../memory-rosette.rkt"
          )
 
@@ -13,6 +14,7 @@
 (define printer (new arm-printer% [machine machine]))
 (define simulator-racket (new arm-simulator-racket% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
+(define validator (new arm-validator% [machine machine] [simulator simulator-rosette]))
 
 (define (func-rand #:min [min #f] #:max [max #f] #:const [const #f])
   (if const const (random 10)))
@@ -22,16 +24,17 @@
   (if const const input))
 
 ;; Input machine state
-(define input-state (progstate (vector -6 -2 0 0
-                                       0 0 0 0 0
-                                       0 0)
+#;(define input-state (progstate (vector 0 1 0 0)
                                (new memory-rosette% [get-fresh-val func-sym]) -1))
+(define input-state (send machine get-state func-sym))
 
 ;; Section 1: Concrete program
 
 (define code
 (send parser ir-from-string "
-add r0, r0, #1
+        cmp     r0, r1
+        movcc   r0, r1
+        strcc r0, [r2, #0]
 "))
 
 (send printer print-struct code)
@@ -41,8 +44,20 @@ add r0, r0, #1
 
 (define output-state
   (send simulator-rosette interpret encoded-code input-state))
-(pretty-display "Output from simulator in rosette.")
+(pretty-display ">>> Input.")
+(send machine display-state input-state)
+(newline)
+(pretty-display ">>> Output from simulator in rosette.")
 (send machine display-state output-state)
+(define mem1 (progstate-memory output-state))
+(send mem1 lookup-update 0)
+
+(define output-state2
+  (send simulator-rosette interpret encoded-code input-state output-state))
+(newline)
+(pretty-display ">>> Output2 from simulator in rosette.")
+(send machine display-state output-state2)
+(send validator assert-state-eq output-state output-state2 (send printer encode-live '(memory)))
 
 ;; (pretty-display
 ;;  (send enum abstract 

@@ -17,21 +17,17 @@
 
 (define code
 (send parser ir-from-string "
-	sub	r3, r0, #1
-	tst	r3, r0
-	movne	r3, #0
-	moveq	r3, #1
-	cmp	r0, #0
-	moveq	r0, #0
-	andne	r0, r3, #1
+        cmp     r0, r1
+        movcc   r0, r1
+        strcc r0, [r2, #0]
 "))
 
 
 (define sketch
 (send parser ir-from-string "
-clz r3, r0
-sub r3, r3, r0, lsl r3
-lsr r0, r3, 3
+        cmp     r0, r1
+        movcc   r0, r1
+        strcc r0, [r2, #0]
 "))
 
 (define encoded-code (send printer encode code))
@@ -41,7 +37,7 @@ lsr r0, r3, 3
 (define t1 (current-seconds))
 (define ex 
   (send validator counterexample encoded-code encoded-sketch 
-        (send printer encode-live '(0))))
+        (send printer encode-live '(memory))))
 (define t2 (current-seconds))
 
 (newline)

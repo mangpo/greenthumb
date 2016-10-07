@@ -78,7 +78,7 @@
         cmp     r0, r1
         movcc   r0, r1
 " 2 '(0))
-|#
+
 (test 'p16-v2 "
         add r0, r0, #1
         cmp     r0, r1
@@ -98,6 +98,31 @@
         movcc   r0, r1
         str r0, [r2, #0]
 " 3 '(memory))
+|#
+
+#;(test 'store1 "
+        eor     r3, r1, r0
+        and     r0, r1, r3
+        str r0, [r2, #0]
+" 3 '(memory))
+
+(test 'store2 "
+        cmp     r0, r1
+        movcc   r0, r1
+        strcc r0, [r2, #0]
+" 3 '(memory)) ;; fail
+
+#;(test 'load1 "
+        load    r0, [r2, #0]
+        eor     r3, r1, r0
+        and     r0, r1, r3
+" 3 '(0))
+
+#;(test 'load2 "
+        cmp     r0, r1
+        movcc   r0, r1
+        loadeq r0, [r2, #0]
+" 3 '(0))
 
 ;; 160 s
 #;(test 1 "

@@ -39,9 +39,9 @@
 
 (define code
 (send parser ir-from-string "
-        add r0, r0, #1
         cmp     r0, r1
         movcc   r0, r1
+        strcc r0, [r2, #0]
 "))
 
 
@@ -51,7 +51,7 @@
 "))
 
 (define livein (send printer encode-live '(0)))
-(define constraint (send printer encode-live '(0)))
+(define constraint (send printer encode-live '(memory)))
 
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))
