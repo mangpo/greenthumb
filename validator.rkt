@@ -404,6 +404,7 @@
       (define vec-live-out (send machine progstate->vector live-out))
       (define vec-input (send machine progstate->vector in-state))
       (define vec-output (send machine progstate->vector out-state))
+      (pretty-display `(in-state ,in-state))
       
       (define live-list (list))
       (define (collect-sym pred x)
@@ -465,14 +466,8 @@
           (for/list ([i x] [p pred]) (extract-live p i))]
          ;;[(is-a?* x special%) #t]
          [(is-a?* x memory-rosette%)
-          (pretty-display `(mem ,(append (vector->list (get-field* init x))
-                                         (vector->list (get-field* update x)))))
-          (for/or ([pair (append (vector->list (get-field* init x))
-                                 (vector->list (get-field* update x)))])
-                  (and (pair? pair) (set-member? live-terms (cdr pair))))]
-         [(is-a?* x queue-in-rosette%)
-          (for/or ([ele (get-field* queue x)])
-                  (set-member? live-terms ele))]
+          (or pred (not (empty? (get-sym-vars x))))]
+         [(is-a?* x queue-in-rosette%) #t]
          [(is-a?* x queue-out-rosette%) pred]
          [else pred]
          ))

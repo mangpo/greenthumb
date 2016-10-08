@@ -49,9 +49,9 @@
       ;; (and (equal? (inst-op my-inst) '#(30 4 -1))
       ;;      (equal? (inst-args my-inst) '#(0 1))))
     
-    (define debug #t)
-    (define verbo #t)
-    (define info #t)
+    (define debug #f)
+    (define verbo #f)
+    (define info #f)
     (define ce-limit 100)
 
     ;; Actual bitwidth
@@ -574,8 +574,6 @@
 
       (define live3-vec (send machine progstate->vector constraint))
       (define live2 (send validator-abst get-live-in postfix constraint))
-      (pretty-display `(live2 ,live2))
-      (raise "done")
       (define live2-vec (send machine progstate->vector live2))
       (define live1 (send validator-abst get-live-in (vector-append spec postfix) constraint))
       (define live0 (send validator-abst get-live-in (vector-append prefix spec postfix) constraint))
