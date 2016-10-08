@@ -29,6 +29,7 @@
   (pretty-display (format "TEST = ~a" id))
   (define code (send parser ir-from-string code-str))
   (define encoded-code (send printer encode code))
+  (send validator adjust-memory-config encoded-code)
   
   (define sketch (for/vector ([i size]) (send symbolic gen-sym-inst)))
   (define constraint (send printer encode-live liveout-str))
@@ -61,7 +62,7 @@
                           #:assume (and assume (send machine constrain-stack assume))))
     (when ce-enum (raise (format "TEST ~a: counter-example [enumerative]" id))))
   )
-#|
+
 (test 'p14 "
         eor     r3, r1, r0
         and     r0, r1, r0
@@ -97,10 +98,9 @@
         cmp     r0, r1
         movcc   r0, r1
         str r0, [r2, #0]
-" 3 '(memory))
-|#
+" 3 '(memory)) ;; fail
 
-#;(test 'store1 "
+(test 'store1 "
         eor     r3, r1, r0
         and     r0, r1, r3
         str r0, [r2, #0]
@@ -108,20 +108,20 @@
 
 (test 'store2 "
         cmp     r0, r1
-        movcc   r0, r1
-        strcc r0, [r2, #0]
-" 3 '(memory)) ;; fail
+        movcc   r0, r3
+        strne r0, [r2, #0]
+" 3 '(memory))
 
-#;(test 'load1 "
-        load    r0, [r2, #0]
+(test 'load1 "
+        ldr    r0, [r2, #0]
         eor     r3, r1, r0
         and     r0, r1, r3
-" 3 '(0))
+" 2 '(0))
 
-#;(test 'load2 "
+(test 'load2 "
         cmp     r0, r1
         movcc   r0, r1
-        loadeq r0, [r2, #0]
+        ldreq r0, [r2, #0]
 " 3 '(0))
 
 ;; 160 s

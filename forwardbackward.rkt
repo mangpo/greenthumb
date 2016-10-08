@@ -45,9 +45,9 @@
             mask-in get-live-mask inst->vector)
 
     (define (debug-inst my-inst)
-      ;; #f)
-      (and (equal? (inst-op my-inst) '#(30 4 -1))
-           (equal? (inst-args my-inst) '#(0 1))))
+      #f)
+      ;; (and (equal? (inst-op my-inst) '#(30 4 -1))
+      ;;      (equal? (inst-args my-inst) '#(0 1))))
     
     (define debug #t)
     (define verbo #t)
@@ -522,8 +522,8 @@
        [(= try-cmp-status 1) ;; must try cmp
         (exec #t)]
        [(= try-cmp-status 2) ;; should try cmp
-        ;; (exec #f)
-        ;; (set! start-time (current-seconds))
+        (exec #f)
+        (set! start-time (current-seconds))
         (exec #t)
         ])
 
@@ -574,6 +574,8 @@
 
       (define live3-vec (send machine progstate->vector constraint))
       (define live2 (send validator-abst get-live-in postfix constraint))
+      (pretty-display `(live2 ,live2))
+      (raise "done")
       (define live2-vec (send machine progstate->vector live2))
       (define live1 (send validator-abst get-live-in (vector-append spec postfix) constraint))
       (define live0 (send validator-abst get-live-in (vector-append prefix spec postfix) constraint))

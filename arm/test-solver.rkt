@@ -27,8 +27,8 @@
 (send parser ir-from-string "
         cmp     r0, r1
         movcc   r0, r1
-        strcc r0, [r2, #0]
-"))
+        strcc r0, [r2, #4]
+")) ;; wrong
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send printer encode  sketch))

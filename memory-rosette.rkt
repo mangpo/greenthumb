@@ -1,6 +1,6 @@
 #lang s-exp rosette
 
-(require "special.rkt" "memory-racket.rkt")
+(require "special.rkt" "memory-racket.rkt" "ops-rosette.rkt")
 (provide memory-rosette% increase-memory-size)
 
 (define memory-size 1)
@@ -46,7 +46,7 @@
 
     (define/public (equal-to? other recur)
       (and (is-a? other memory-rosette%)
-           (equal? update (get-field update other))))
+           (equal? update (get-field* update other))))
 
     (define/public (equal-hash-code-of hash-code)
       (hash-code update))
@@ -117,7 +117,7 @@
 
     (define (load-cand addr ref-mem)
       (or (lookup update addr)
-          (send ref-mem lookup-init addr) ;; TODO: (lookup init addr) should work too
+          (send* ref-mem lookup-init addr) ;; TODO: (lookup init addr) should work too
           (assert #f "load illegal address")))
 
     (define (load addr)
@@ -134,7 +134,7 @@
     (define (store-cand addr val mem-ref)
       ;; legal to update if that address is used for spec.
       (cond
-        [(send mem-ref lookup-update addr)
+        [(send* mem-ref lookup-update addr)
          (store-spec addr val)]
         [else (assert #f "store illegal address")]))
       

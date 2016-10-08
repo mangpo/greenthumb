@@ -228,7 +228,8 @@
         (define op (vector-ref ops-vec 0))
         (define cond-type (vector-ref ops-vec 1))
         (define shfop (vector-ref ops-vec 2))
-        ;;(pretty-display `(interpret-step ,(send machine get-opcode-name ops-vec)))
+        ;; (pretty-display `(interpret-step ,ops-vec))
+        ;; (pretty-display `(interpret-step ,(send machine get-opcode-name ops-vec)))
 
         (define-syntax inst-eq
           (syntax-rules ()
@@ -354,9 +355,9 @@
                   (+ (vector-ref regs a) b)))
             (define val (vector-ref regs d))
             (unless memory
-              (set! memory (send (progstate-memory state) clone
+              (set! memory (send* (progstate-memory state) clone
                                  (and ref (progstate-memory ref)))))
-            (send memory store (finitize-bit index) val))
+            (send* memory store (finitize-bit index) val))
 
           ;; load
           (define (ldr reg-offset)
@@ -368,9 +369,9 @@
                   (+ (vector-ref regs a) (vector-ref regs b))
                   (+ (vector-ref regs a) b)))
             (unless memory
-              (set! memory (send (progstate-memory state) clone
+              (set! memory (send* (progstate-memory state) clone
                                  (and ref (progstate-memory ref)))))
-            (define val (send memory load (finitize-bit index)))
+            (define val (send* memory load (finitize-bit index)))
             (vector-set! regs d val))
 
           ;; setbit

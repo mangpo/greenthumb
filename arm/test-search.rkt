@@ -41,7 +41,7 @@
 (send parser ir-from-string "
         cmp     r0, r1
         movcc   r0, r1
-        strcc r0, [r2, #0]
+        str r0, [r2, #0]
 "))
 
 

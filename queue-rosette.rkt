@@ -1,6 +1,6 @@
 #lang s-exp rosette
 
-(require "queue-racket.rkt" "special.rkt")
+(require "queue-racket.rkt" "special.rkt" "ops-rosette.rkt")
 (provide queue-in-rosette% queue-out-rosette%)
 
 (define queue-in-rosette%
@@ -25,7 +25,7 @@
 
     (define/public (equal-to? other recur)
       (and (is-a? other queue-in-rosette%)
-           (equal? queue (get-field queue other))))
+           (equal? queue (get-field* queue other))))
       
     (define/public (equal-hash-code-of hash-code)
       (hash-code queue))
@@ -92,7 +92,7 @@
       ;;                             ,(and (is-a? other queue-out-rosette%)
       ;;                                   (equal? queue (get-field queue other)))))
       (and (is-a? other queue-out-rosette%)
-           (equal? queue (get-field queue other))))
+           (equal? queue (get-field* queue other))))
       
     (define/public (equal-hash-code-of hash-code)
       (hash-code queue))
@@ -121,7 +121,7 @@
 
     (define (push-cand val)
       (define size (get-size))
-      (define val-ref (send ref get-at size))
+      (define val-ref (send* ref get-at size))
       (assert (equal? val val-ref) "push-cand: push a value different from spec does")
       (vector-set! queue size val))
 

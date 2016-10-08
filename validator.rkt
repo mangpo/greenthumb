@@ -1,6 +1,7 @@
 #lang s-exp rosette
 
-(require  "inst.rkt" "machine.rkt" "memory-rosette.rkt" "queue-rosette.rkt" "special.rkt")
+(require  "inst.rkt" "machine.rkt" "memory-rosette.rkt" "queue-rosette.rkt" "special.rkt"
+          "ops-rosette.rkt")
 
 (require rosette/solver/smt/z3)
 (require rosette/solver/kodkod/kodkod)
@@ -89,9 +90,9 @@
        [const const]
        [(and min-v max-v) (random-from-list (range min-v (add1 max-v)))]
        [else
-        (let* ([rand (random (min 4294967087 (<< 1 random-input-bit)))]
+        (let* ([rand (random (min 4294967087 (<< 1 random-input-bit bit)))]
                [half (arithmetic-shift                           
-                      (min 4294967087 (<< 1 random-input-bit))   
+                      (min 4294967087 (<< 1 random-input-bit bit))   
                       -1)])
           ;; (if (>= rand (<< 1 (sub1 bit)))
           ;;     (- rand (<< 1 bit))
@@ -370,7 +371,6 @@
               (if (procedure? spec)
                   (spec start-state) ;; TODO: handle assumption
                   (interpret-spec spec start-state assumption)))
-        (pretty-display `(start-state ,start-state))
         )
       
       (define (compare)
@@ -398,6 +398,7 @@
     ;; live-out: progstate format
     ;; extra: extra information
     (define (get-live-in code live-out)
+      (pretty-display `(live-out ,live-out))
       (define in-state (send machine get-state-liveness sym-input))
       (define out-state (interpret code in-state))
       (define vec-live-out (send machine progstate->vector live-out))
@@ -407,14 +408,14 @@
       (define live-list (list))
       (define (collect-sym pred x)
         (cond
-         [(for/all ([s x]) (is-a? s memory-rosette%)) ;; TODO: treat all memory update to be live.
-          (define init (filter pair? (vector->list (for/all ([s x]) (get-field init s)))))
-          (define update (filter pair? (vector->list (for/all ([s x]) (get-field update s)))))
+         [(is-a?* x memory-rosette%) ;; TODO: treat all memory update to be live.
+          (define init (filter pair? (vector->list  (get-field* init x))))
+          (define update (filter pair? (vector->list (get-field* update x))))
           (set! live-list (append (map car init) (map cdr init) live-list))
           (set! live-list (append (map car update) (map cdr update) live-list))]
-         [(for/all ([s x]) (is-a? s queue-in-rosette%)) (void)]
-         [(for/all ([s x]) (is-a? s queue-out-rosette%))
-          (define queue (vector->list (for/all ([s x]) (get-field queue s))))
+         [(is-a?* x queue-in-rosette%) (void)]
+         [(is-a?* x queue-out-rosette%)
+          (define queue (vector->list (get-field* queue x)))
           (set! live-list (append queue live-list))]
          [(boolean? pred)
           ;; (pretty-display `(collect-sym ,pred ,x))
@@ -436,10 +437,10 @@
       (collect-sym vec-live-out vec-output)
       (define live-terms (list->set (symbolics live-list)))
       ;; (pretty-display `(vec-input ,vec-input))
-      ;; (pretty-display `(live-terms ,live-terms))
+      (pretty-display `(live-terms ,(set->list live-terms)))
       
       (define (extract-live pred x)
-	;;(pretty-display `(extract-live ,pred ,x))
+	;;(pretty-display `(extract-live ,pred ,x ,(is-a?* x special%) ,(is-a? x memory-rosette%)))
         (cond
          [(number? pred)
           (define index 0)
@@ -455,14 +456,24 @@
 	  (for/vector ([i x] [p pred]) (extract-live p i))]
          [(vector? x) 
 	  (for/vector ([i x]) (extract-live pred i))]
-         [(boolean? pred) ;;(pretty-display `(return ,pred)) 
-	  pred]
+         ;; [(boolean? pred) ;;(pretty-display `(return ,pred)) 
+	 ;;  pred]
          [(pair? x) 
           (cons (extract-live (car pred) (car x)) 
                 (extract-live (cdr pred) (cdr x)))]
          [(list? x)
           (for/list ([i x] [p pred]) (extract-live p i))]
-         [(is-a? x special%) #t]
+         ;;[(is-a?* x special%) #t]
+         [(is-a?* x memory-rosette%)
+          (pretty-display `(mem ,(append (vector->list (get-field* init x))
+                                         (vector->list (get-field* update x)))))
+          (for/or ([pair (append (vector->list (get-field* init x))
+                                 (vector->list (get-field* update x)))])
+                  (and (pair? pair) (set-member? live-terms (cdr pair))))]
+         [(is-a?* x queue-in-rosette%)
+          (for/or ([ele (get-field* queue x)])
+                  (set-member? live-terms ele))]
+         [(is-a?* x queue-out-rosette%) pred]
          [else pred]
          ))
 
@@ -473,21 +484,21 @@
     (define (assert-state-eq state1 state2 pred)
       (define (inner state1 state2 pred)
         ;; (pretty-display `(assert-eq ,pred ,state1 ,state2))
-        (when (equal? pred #t) (pretty-display `(state ,state1 ,state2)))
+        ;;(when (equal? pred #t) (pretty-display `(state ,state1 ,state2)))
 	(cond
          ;; [(and pred (special-type? state1))
          ;;  (assert (equal? state1 state2))]
-         [(and pred (for/all ([s1 state1]) (is-a? s1 memory-rosette%)))
+         [(and pred (is-a?* state1 memory-rosette%))
           ;; (pretty-display "CHECK MEM!!!")
           ;; (pretty-display `(state1 ,(get-field update state1)))
           ;; (pretty-display `(state2 ,(get-field update state2)))
-          (assert (equal? (for/all ([s1 state1]) (get-field update s1))
-                          (for/all ([s2 state2]) (get-field update s2))))]
+          (assert (equal? (get-field* update state1)
+                          (get-field* update state2)))]
          
-         [(and pred (or (for/all ([s1 state1]) (is-a? s1 queue-in-rosette%))
-                        (for/all ([s1 state1]) (is-a? s1 queue-out-rosette%))))
-          (assert (equal? (for/all ([s1 state1]) (get-field queue s1))
-                          (for/all ([s2 state2]) (get-field queue s2))))]
+         [(and pred (or (is-a?* state1 queue-in-rosette%)
+                        (is-a?* state2 queue-out-rosette%)))
+          (assert (equal? (get-field* queue state1)
+                          (get-field* queue state2)))]
          
 	 [(equal? pred #t)
           (for*/all ([i state2])
