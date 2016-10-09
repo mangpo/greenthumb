@@ -64,7 +64,7 @@
         (clear-asserts)
 	(current-bitwidth bit)
         (define state (send machine get-state sym-input))
-        (send simulator interpret encoded-code state)
+        (pretty-display `(state ,state))
 
         (with-handlers* 
          ([exn:fail? 
@@ -74,10 +74,7 @@
                     (increase-memory-size)
                     (solve-until-valid))
                   (raise e)))])
-         (pretty-display `(state ,state))
-         (solve (send simulator interpret encoded-code state))
-         (pretty-display `(simulate))
-         ))
+         (solve (send simulator interpret encoded-code state))))
 
       (solve-until-valid)
       (pretty-display "Finish adjusting memory config.")
