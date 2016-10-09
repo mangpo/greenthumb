@@ -192,11 +192,17 @@
     ;;    [else (raise (format "illegal cond-type ~a" cond-type))]
     ;;    ))
 
+    (define/override (gen-inverse-behavior my-inst)
+      (define my-config (get-field config machine))
+      (set-field! config machine 4) ;; arm uses at most 4 registers.
+      (super gen-inverse-behavior my-inst)
+      (set-field! config machine my-config)
+      )
+
     (define/override (get-val-range type)
       (if (equal? type 'z)
           -1
           (super get-val-range type)))
-
 
     (define cmp-inst (get-field cmp-inst machine))
     (define/override (interpret-inst my-inst state old-liveout [ref #f])

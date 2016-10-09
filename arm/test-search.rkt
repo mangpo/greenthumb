@@ -39,58 +39,19 @@
 
 (define code
 (send parser ir-from-string "
-	str	r0, [r4, #-40]
-	str	r1, [r4, #-44]
-	ldr	r3, [r4, #-40]
-	uxth	r3, r3
-	str	r3, [r4, #-36]
-	ldr	r3, [r4, #-40]
-	mov	r3, r3, asr #16
-	str	r3, [r4, #-32]
-	ldr	r3, [r4, #-44]
-	uxth	r3, r3
-	str	r3, [r4, #-28]
-	ldr	r3, [r4, #-44]
-	mov	r3, r3, asr #16
-	str	r3, [r4, #-24]
-	ldr	r3, [r4, #-36]
-	ldr	r2, [r4, #-28]
-	mul	r3, r2, r3
-	str	r3, [r4, #-20]
-	ldr	r3, [r4, #-32]
-	ldr	r2, [r4, #-28]
-	mul	r2, r2, r3
-	ldr	r3, [r4, #-20]
-	mov	r3, r3, lsr #16
-	add	r3, r2, r3
-	str	r3, [r4, #-16]
-	ldr	r3, [r4, #-16]
-	uxth	r3, r3
-	str	r3, [r4, #-12]
-	ldr	r3, [r4, #-16]
-	mov	r3, r3, asr #16
-	str	r3, [r4, #-8]
-	ldr	r3, [r4, #-24]
-	ldr	r2, [r4, #-36]
-	mul	r2, r2, r3
-	ldr	r3, [r4, #-12]
-	add	r3, r2, r3
-	str	r3, [r4, #-12]
-	ldr	r3, [r4, #-32]
-	ldr	r2, [r4, #-24]
-	mul	r2, r2, r3
-	ldr	r3, [r4, #-8]
-	add	r2, r2, r3
-	ldr	r3, [r4, #-12]
-	mov	r3, r3, asr #16
-	add	r3, r2, r3
-	mov	r0, r3
+sub r1, r0, 1
+tst r1, r0
+movne r1, 0
+moveq r1, 1
+cmp r0, 0
+moveq r0, 0
+andne r0, r1, 1
 "))
 
 
 (define sketch
 (send parser ir-from-string "
-?
+? ? ? ?
 "))
 
 (define livein (send printer encode-live '(0)))
