@@ -163,7 +163,7 @@
         )
       
       ;; Collect input variables and contruct their init values.
-      (define inputs (send validator generate-input-states-slow 1 spec assumption #:raw #t))
+      ;;(define inputs (send validator generate-input-states-slow 1 spec assumption #:raw #t))
       (send simulator interpret spec start-state)
       (define sym-vars (send validator get-sym-vars start-state))
       (clear-asserts)
@@ -179,6 +179,7 @@
             (pretty-display "========= start state")
             (send machine display-state start-state)
             (pretty-display `(sym-vars ,sym-vars))
+            ;;(pretty-display `(inputs ,inputs))
             )
       
       ;;(interpret-spec!)
@@ -189,7 +190,7 @@
          time-limit
          (synthesize 
           #:forall sym-vars
-          #:init inputs
+          ;;#:init inputs
           #:assume (interpret-spec!)
           #:guarantee (compare-spec-sketch))
          )
@@ -197,7 +198,7 @@
 
       (when debug
             (pretty-display ">>> done synthesize")
-            ;;(pretty-display `(model ,model))
+            (pretty-display `(model ,model))
             )
       (define final-program (evaluate-program sketch model))
       (when debug (pretty-display ">>> done evaluate program"))

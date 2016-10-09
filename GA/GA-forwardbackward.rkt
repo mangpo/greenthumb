@@ -129,24 +129,24 @@
       ret)
 
     ;; Override this function for performance.
-    (define (mask-in state-vec live-list #:keep-flag [keep #t])
-      (for/vector ([state state-vec]
-                   [live live-list])
-                  (cond
-                   [(number? state) (and live state)]
-                   [(boolean? state) (and live state)]
-                   [(and (vector? state) (number? live))
-                    (for/vector ([s state]
-                                 [l (in-naturals)])
-                                (and (< l live) s))]
-                   [(vector? state)
-                    (for/vector ([s state]
-                                 [l live])
-                                (and l s))]
-                   [(is-a? state memory-racket%)
-                    (if live state (send state clone-init))]
-                   [(is-a? state special%) state]
-                   [else (and live state)])))
+    ;; (define (mask-in state-vec live-list #:keep-flag [keep #t])
+    ;;   (for/vector ([state state-vec]
+    ;;                [live live-list])
+    ;;               (cond
+    ;;                [(number? state) (and live state)]
+    ;;                [(boolean? state) (and live state)]
+    ;;                [(and (vector? state) (number? live))
+    ;;                 (for/vector ([s state]
+    ;;                              [l (in-naturals)])
+    ;;                             (and (< l live) s))]
+    ;;                [(vector? state)
+    ;;                 (for/vector ([s state]
+    ;;                              [l live])
+    ;;                             (and l s))]
+    ;;                [(is-a? state memory-racket%)
+    ;;                 (if live state (send state clone-init))]
+    ;;                [(is-a? state special%) state]
+    ;;                [else (and live state)])))
       
     ;; Ignore a completely.
     (define (combine-live a b)

@@ -14,7 +14,8 @@
     (define mem-inst
       (map (lambda (x) (vector-member x opcodes)) '(! !+ !b @ @+ @b)))
     
-    (define/override (filter-with-flags opcode-pool flag-in flag-out #:try-cmp [try-cmp #f])
+    (define/override (filter-with-flags opcode-pool flag-in flag-out
+                                        #:try-cmp [try-cmp #f] #:no-args [no-args #f])
       (define-syntax-rule (min-list x) (foldl min (car x) (cdr x)))
       (define-syntax-rule (max-list x) (foldl max (car x) (cdr x)))
       (cond

@@ -164,7 +164,7 @@ state)
                 [LEFT #x175] ;373
                 [RIGHT #x1d5] ;469
                 [IO #x15d])
-    (inherit define-instruction-class
+    (inherit init-machine-description define-instruction-class
              define-progstate-type define-arg-type
              finalize-machine-description get-state)
 
@@ -262,6 +262,9 @@ state)
           x))
     
     (define (progstate->vector x)
+      ;; (when x
+      ;;       (pretty-display `(test ,(progstate-data x) ,(progstate-return x) ,(progstate-memory x))))
+      (define ret
       (and x
            (vector (progstate-a x)
                    (progstate-b x)
@@ -273,6 +276,9 @@ state)
                    (progstate-memory x)
                    (progstate-recv x)
                    (progstate-comm x))))
+      ;; (pretty-display `(ret ,ret))
+      ret
+      )
 
     (define (vector->progstate x)
       (and x
@@ -405,6 +411,7 @@ state)
 
     ;; Use this information to update liveness for everything except data & return stacks.
     ;; Therefore, exclue anything related to those stacks including r, s, and t.
+    (init-machine-description 1)
     (define-instruction-class 'nop '(nop))
     (define-instruction-class '@p '(@p)
       #:args '(const) #:ins '(0) #:outs '()) ;; don't bother dealing with data & return stack here.

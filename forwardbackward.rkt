@@ -122,6 +122,7 @@
     (define (sort-live-bw x) x)
     (define (reduce-precision-assume x) x)
     (define (mask-in state live #:keep-flag [keep #t])
+      ;;(pretty-display `(mask-in ,state ,live))
       (define (f state live)
         (cond
          [(and (list? state) (number? live))
@@ -146,7 +147,9 @@
           (if live state (send state clone-init))]
          [(is-a? state special%) state]
          [else (and live state)]))
-      (f state live))
+      (if live
+          (f state live)
+          state))
 
     (define (get-live-mask state)
       (cond
@@ -616,6 +619,7 @@
             (pretty-display `(live2-vec ,live2-vec))
             (pretty-display `(live1-list ,live1-list))
             (pretty-display `(live2-list ,live2-list)))
+      ;;(raise "done")
       
       (define ce-in (make-vector ce-limit))
       (define ce-out (make-vector ce-limit))

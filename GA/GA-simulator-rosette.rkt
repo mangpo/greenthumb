@@ -66,12 +66,12 @@
       (define data-body (vector-copy (stack-body (progstate-data state))))
       (define return-sp (stack-sp (progstate-return state)))
       (define return-body (vector-copy (stack-body (progstate-return state))))
-      (define memory (send (progstate-memory state)
+      (define memory (send* (progstate-memory state)
                            clone (and ref (progstate-memory ref))))
       
-      (define recv (send (progstate-recv state)
+      (define recv (send* (progstate-recv state)
                          clone (and ref (progstate-recv ref))))
-      (define comm (send (progstate-comm state)
+      (define comm (send* (progstate-comm state)
                          clone (and ref (progstate-comm ref))))
 
       ;; Pushes a value to the given stack's body.
@@ -117,8 +117,8 @@
       (define (read-memory addr)
         (define ret #f)
 	(define (read port)
-          (let ([val (send recv pop)])
-            (send comm push (list val port 0))
+          (let ([val (send* recv pop)])
+            (send* comm push (list val port 0))
             val))
 	(cond
 	 [(equal? addr UP)    (set! ret (read UP))]
@@ -128,7 +128,7 @@
 	 [(equal? addr IO)    (set! ret (read IO))]
 	 [else
           (assert (and (>= addr 0) (< addr (min 64 (sub1 (arithmetic-shift 1 (sub1 bit)))))))
-          (set! ret (send memory load addr))])
+          (set! ret (send* memory load addr))])
         ret)
       
       ;; Write to the given memeory address or communication
@@ -137,7 +137,7 @@
       (define (set-memory! addr val)
 	(when debug (pretty-display `(set-memory! ,addr ,val)))
 	(define (write port)
-          (send comm push (list val port 1)))
+          (send* comm push (list val port 1)))
 	(cond
 	 [(equal? addr UP)    (write UP)]
 	 [(equal? addr DOWN)  (write DOWN)]
@@ -146,7 +146,7 @@
 	 [(equal? addr IO)    (write IO)]
 	 [else
           (assert (and (>= addr 0) (< addr (min 64 (sub1 (arithmetic-shift 1 (sub1 bit)))))))
-          (send memory store addr val)]))
+          (send* memory store addr val)]))
 
       (define (clip x) (finitize x bit))
 

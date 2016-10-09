@@ -1,20 +1,8 @@
-(outer #(56 -1 -1) 1 (2))
-(inner #(56 -1 -1) 1 1)
-(inter 1 #(#(-3 -3 #f #f) (memory% init: #hash() update: #hash()) -1))
-(out #(#(-3 -3 #f #f) (memory% init: #hash() update: #hash()) 0))
-(my-live2 #(#(#f #t #f #f) #f #t))
-(out-vec #(#(#f -3 #f #f) (memory% init: #hash() update: #hash()) 0))
-(flag 0 #t)
-(live-mask #(#(#t #f #f #f) #f #t))
-(KEYS (#(#(-3 #f #f #f) (memory% init: #hash() update: #hash()) 0)))
-(out-vec-maked #(#(#f #f #f #f) (memory% init: #hash() update: #hash()) 0))
-(has-key #f)
-
-- generate-input-fast: random function doesn't respect min-max-const
-
 Performance
 - don't mask-in the start state
 - mask-in & mask-in again (ARM)
+- symbolic: provide input or not?
+- kodkod vs z3?
 
 ARM
 - remove inst->vector in forwardbackward

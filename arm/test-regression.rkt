@@ -134,6 +134,6 @@
 	moveq	r0, #0
 	andne	r0, r3, #1" 3 '(0))
 
-;; p25 -O3 (with memory)
+;; p25 -O0 (with memory)
 
-;; test performace: p24 (& email helpdesk)
+;; test performace (& email helpdesk)

@@ -46,7 +46,7 @@
     (define (interpret program state [ref #f])
       (define out (vector-copy (vector-ref state 0)))
       (define mem (vector-ref state 1))
-      (set! mem (and mem (send mem clone (and ref (vector-ref ref 1)))))
+      (set! mem (and mem (send* mem clone (and ref (vector-ref ref 1)))))
 
       (define (interpret-step step)
         (define op (inst-op step))
@@ -86,12 +86,12 @@
         (define (load)
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
-          (vector-set! out d (send mem load (vector-ref out a))))
+          (vector-set! out d (send* mem load (vector-ref out a))))
 
         (define (store)
           (define val (vector-ref args 0))
           (define addr (vector-ref args 1))
-          (send mem store (vector-ref out addr) (vector-ref out val))) 
+          (send* mem store (vector-ref out addr) (vector-ref out val))) 
       
         (define-syntax inst-eq
           (syntax-rules ()

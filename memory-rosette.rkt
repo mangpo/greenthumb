@@ -3,7 +3,7 @@
 (require "special.rkt" "memory-racket.rkt" "ops-rosette.rkt")
 (provide memory-rosette% increase-memory-size)
 
-(define memory-size 1)
+(define memory-size 2)
 (define (increase-memory-size)
   (when (> memory-size 100) (raise "memory-rosette: memory size is too large."))
   (pretty-display (format "Increse memory size to ~a" (* 2 memory-size)))

@@ -8,7 +8,7 @@
   (class machine%
     (super-new)
     (inherit-field bitwidth random-input-bits config)
-    (inherit define-instruction-class finalize-machine-description
+    (inherit init-machine-description define-instruction-class finalize-machine-description
              define-progstate-type define-arg-type
              update-progstate-ins kill-outs)
     (override get-constructor set-config progstate-structure 
@@ -46,6 +46,7 @@
     (define-arg-type 'const (lambda (config) '(0 1 -1 -2 -8)))
     (define-arg-type 'bit (lambda (config) '(0 1)))
     
+    (init-machine-description 1)
     (define-instruction-class 'nop '(nop))
 
     (define-instruction-class

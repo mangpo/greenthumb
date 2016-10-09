@@ -64,7 +64,6 @@
         (clear-asserts)
 	(current-bitwidth bit)
         (define state (send machine get-state sym-input))
-        (pretty-display `(state ,state))
         (send simulator interpret encoded-code state)
 
         (with-handlers* 
@@ -75,7 +74,10 @@
                     (increase-memory-size)
                     (solve-until-valid))
                   (raise e)))])
-         (solve (send simulator interpret encoded-code state))))
+         (pretty-display `(state ,state))
+         (solve (send simulator interpret encoded-code state))
+         (pretty-display `(simulate))
+         ))
 
       (solve-until-valid)
       (pretty-display "Finish adjusting memory config.")
@@ -185,7 +187,7 @@
       (define sols (list))
       (define first-solve #t)
       (define (loop [extra #t] [count n])
-        (pretty-display `(loop ,extra ,n))
+        ;;(pretty-display `(loop ,extra ,n))
         (define (assert-extra-and-interpret)
           ;; Assert that the solution has to be different.
           (assert extra)
@@ -193,7 +195,7 @@
           (interpret spec start-state)
           )
         (define sol (solve (assert-extra-and-interpret)))
-        (pretty-display `(state ,start-state))
+        ;;(pretty-display `(state ,start-state))
         (define restrict-pairs (solution->list sol))
         (set! first-solve #f)
         (unless (empty? restrict-pairs)
@@ -398,13 +400,13 @@
     ;; live-out: progstate format
     ;; extra: extra information
     (define (get-live-in code live-out)
-      (pretty-display `(live-out ,live-out))
+      ;;(pretty-display `(live-out ,live-out))
       (define in-state (send machine get-state-liveness sym-input))
       (define out-state (interpret code in-state))
       (define vec-live-out (send machine progstate->vector live-out))
       (define vec-input (send machine progstate->vector in-state))
       (define vec-output (send machine progstate->vector out-state))
-      (pretty-display `(in-state ,in-state))
+      ;;(pretty-display `(in-state ,in-state))
       
       (define live-list (list))
       (define (collect-sym pred x)
@@ -438,7 +440,7 @@
       (collect-sym vec-live-out vec-output)
       (define live-terms (list->set (symbolics live-list)))
       ;; (pretty-display `(vec-input ,vec-input))
-      (pretty-display `(live-terms ,(set->list live-terms)))
+      ;;(pretty-display `(live-terms ,(set->list live-terms)))
       
       (define (extract-live pred x)
 	;;(pretty-display `(extract-live ,pred ,x ,(is-a?* x special%) ,(is-a? x memory-rosette%)))
@@ -466,7 +468,7 @@
           (for/list ([i x] [p pred]) (extract-live p i))]
          ;;[(is-a?* x special%) #t]
          [(is-a?* x memory-rosette%)
-          (or pred (not (empty? (get-sym-vars x))))]
+          (or pred (not (empty? (symbolics (get-field* init x)))))]
          [(is-a?* x queue-in-rosette%) #t]
          [(is-a?* x queue-out-rosette%) pred]
          [else pred]
@@ -574,7 +576,8 @@
          [(is-a? x queue-in-rosette%)  (inner (get-field init x))]
          [(is-a? x queue-out-rosette%) (inner (get-field queue x))]
 	 [else (add x)]))
-      (inner (send machine progstate->vector state))
+      (define converted (send machine progstate->vector state))
+      (inner converted)
       (set->list (list->set (symbolics lst)))
       )
 

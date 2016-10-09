@@ -275,7 +275,6 @@
        [else
         (unless (symbol? (car class-opcodes))
                 (raise (format "The number of groups of opcodes provided at define-instruction-class '~a' is more than '1', which is defined at init-machine-description." (length class-opcodes))))
-      (pretty-display "here6")
         (set! ins (filter-statetype ins args))
         (set! outs (filter-statetype outs args))
         ;; collect opcodes
@@ -434,7 +433,6 @@
       ;; convert classes-info into vector format
       (set! opcode-pool (flatten (for/list ([info classes-info]) (instclass-pool info))))
       (set! classes-info (list->vector classes-info))
-      (get-class-opcodes (vector 14 -1 5))
 
       (define nop-ops-vec #f)
       (when (> groups-of-opcodes 1)
