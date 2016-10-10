@@ -62,7 +62,7 @@
                           #:assume (and assume (send machine constrain-stack assume))))
     (when ce-enum (raise (format "TEST ~a: counter-example [enumerative]" id))))
   )
-#|
+
 (test 'p14 "
         eor     r3, r1, r0
         and     r0, r1, r0
@@ -111,7 +111,6 @@
         movcc   r0, r3
         strne r0, [r2, #0]
 " 3 '(memory))
-|#
 
 (test 'load1 "
         ldr    r0, [r2, #0]
