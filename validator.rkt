@@ -65,7 +65,7 @@
         (clear-asserts)
 	(current-bitwidth bit)
         (define state (send machine get-state sym-input #:concrete #f))
-        (pretty-display `(state ,state))
+        ;;(pretty-display `(state ,state))
 
         (with-handlers* 
          ([exn:fail? 
@@ -112,7 +112,7 @@
        [else (vector-ref const-range (random const-range-len))]
        ))
 
-    (define (generate-input-states-fast n spec #:db [db #f])
+    (define (generate-input-states-fast n spec assumption #:db [db #f])
       (define m (if db n (quotient (add1 n) 2)))
       (define inputs-random
         (for/list ([i m]) (send machine get-state rand-func)))
@@ -123,70 +123,12 @@
         (with-handlers* 
          ([exn:fail? (lambda (e) #f)])
          (for ([input inputs])
+              (assume input assumption)
               (send simulator interpret spec input))
          #t))
       (and pass inputs)
       )
         
-    
-    ;; (define (generate-inputs-inner-fast
-    ;;          n spec start-state assumption
-    ;;          #:rand-func
-    ;;          [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))]
-    ;;          #:db [db #f])
-
-    ;;   (clear-asserts)
-    ;;   (current-bitwidth bit)
-    ;;   (interpret spec start-state)
-    ;;   (define sym-vars (get-sym-vars start-state))
-      
-    ;;   (define const-range 
-    ;;     ;; (- (arithmetic-shift 1 (sub1 random-input-bit)))
-    ;;     (for/vector ([i (sub1 random-input-bit)]) (arithmetic-shift 1 i)))
-    ;;   (define const-range-len (vector-length const-range))
-      
-    ;;   (define (generate-one-input random-f)
-    ;;     (make-hash 
-    ;;      (for/list ([v sym-vars]) 
-    ;;                (let ([val (random-f)])
-    ;;                  (cons v val)))))
-      
-    ;;   ;; All 0s
-    ;;   ;;(define input-zero (list (generate-one-input (lambda () 0))))
-      
-    ;;   (define m (if db n (quotient (add1 n) 2)))
-    ;;   ;; Random
-    ;;   (define input-random
-    ;;     (for/list ([i m])
-    ;;               (generate-one-input 
-    ;;                (lambda () (let ([rand (rand-func)]
-    ;;     			    [half (arithmetic-shift                           
-    ;;     				   (min 4294967087 (<< 1 random-input-bit))   
-    ;;     				   -1)])
-    ;;     			;; (if (>= rand (<< 1 (sub1 bit)))
-    ;;     			;;     (- rand (<< 1 bit))
-    ;;     			(if (>= rand half)
-    ;;     			    (- half rand)
-    ;;                                 rand))))))
-
-    ;;   ;; Random in const list
-    ;;   (define input-random-const
-    ;;     ;; (for/list ([i (- n m 1)])
-    ;;     (for/list ([i (- n m)])
-    ;;               (generate-one-input 
-    ;;                (lambda () 
-    ;;                  (vector-ref const-range (random const-range-len))))))
-      
-    ;;   ;;(define inputs (append input-zero input-random input-random-const))
-    ;;   (define inputs (append input-random input-random-const))
-    ;;   (define models
-    ;;     (for/list ([input inputs])
-    ;;               (let ([ans (sat (make-immutable-hash (hash->list input)))])
-    ;;                 ans)))
-      
-    ;;   (values sym-vars models))
-
-      
     (define/public (generate-input-states-slow n spec assumption #:db [db #f] #:raw [raw #f])
       (when debug
             (pretty-display `(generate-inputs-inner ,n ,assumption ,random-input-bit)))
@@ -284,65 +226,10 @@
                     (let ([sol (sat (make-immutable-hash (hash->list input)))])
                       (evaluate-state start-state sol)))))
     
-    ;; (define (generate-inputs-inner
-    ;;          n spec start-state assumption
-    ;;          #:rand-func
-    ;;          [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))]
-    ;;          #:db [db #f])
-    ;;   (pretty-display "Generate inputs (fast): gen")
-    ;;   (define-values (sym-vars sltns) 
-    ;;     (generate-inputs-inner-fast n spec start-state assumption 
-    ;;                                 #:rand-func rand-func #:db db))
-    ;;   (define states
-    ;;     (map (lambda (x) (evaluate-state start-state x)) sltns))
-
-    ;;   (define pass
-    ;;     (with-handlers* 
-    ;;      ([exn:fail? (lambda (e) #f)])
-    ;;      (for ([state states]) (send simulator interpret state))
-    ;;      #t))
-
-    ;;   (cond
-    ;;    [pass (values sym-vars sltns)]
-    ;;    [else
-    ;;     (pretty-display "Generate inputs (slow).")
-    ;;     (generate-inputs-inner-slow n spec start-state assumption 
-    ;;                                 #:rand-func rand-func #:db db)]))
-      
-    ;; ;; Generate input states.
-    ;; (define (generate-input-states 
-    ;;          n spec assumption
-    ;;          #:rand-func 
-    ;;          [rand-func (lambda () (random (min 4294967087 (<< 1 random-input-bit))))]
-    ;;          #:db [db #f])
-    ;;   (define start-state (send machine get-state sym-input))
-    ;;   (pretty-display "Generate inputs (fast).")
-    ;;   (define-values (sym-vars sltns) 
-    ;;     (generate-inputs-inner-fast n spec start-state assumption 
-    ;;                                 #:rand-func rand-func #:db db))
-    ;;   (define states
-    ;;     (map (lambda (x) (evaluate-state start-state x)) sltns))
-      
-    ;;   (define pass
-    ;;     (with-handlers* 
-    ;;      ([exn:fail? (lambda (e) #f)])
-    ;;      (for ([state states]) (send simulator interpret spec state))
-    ;;      #t))
-
-    ;;   (cond
-    ;;    [pass states]
-    ;;    [else
-    ;;     (pretty-display "Generate inputs (slow).")
-    ;;     (define-values (sym-vars2 sltns2) 
-    ;;       (generate-inputs-inner-slow n spec start-state assumption 
-    ;;                                   #:rand-func rand-func #:db db))
-    ;;     (map (lambda (x) (evaluate-state start-state x)) sltns2)]))
-          
-      
     ;; Generate input states.
     (define (generate-input-states n spec assumption #:db [db #f])
       (pretty-display "Generate inputs (fast).")
-      (define states (generate-input-states-fast n spec))
+      (define states (generate-input-states-fast n spec assumption #:db db))
 
       (cond
        [states states]

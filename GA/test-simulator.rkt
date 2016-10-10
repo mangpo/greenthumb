@@ -2,19 +2,20 @@
 
 (require "GA-parser.rkt" "GA-printer.rkt" "GA-machine.rkt" "GA-validator.rkt"
          "GA-simulator-racket.rkt" "GA-simulator-rosette.rkt"
-         "GA-symbolic.rkt")
+         "GA-symbolic.rkt"
+         "../memory-racket.rkt" "../queue-racket.rkt")
 
 (define parser (new GA-parser%))
-(define machine (new GA-machine% [config #f]))
+(define machine (new GA-machine% [config #f] [bitwidth 4]))
 (define printer (new GA-printer% [machine machine]))
 (define simulator-racket (new GA-simulator-racket% [machine machine]))
 (define simulator-rosette (new GA-simulator-rosette% [machine machine]))
 (define validator (new GA-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
 
 (define code1 (send parser ir-from-string 
-                   "dup drop up a! @ !"))
+                   "0 a! !+ !+ push pop dup 1 b! @b and over 65535 or 0 b! @b and over - and + push drop pop"))
 (define code2 (send parser ir-from-string 
-                   "up a! @ !"))
+                   "a! a or and a or"))
 (define encoded-code1 (send printer encode code1))
 (define encoded-code2 (send printer encode code2))
 
@@ -31,9 +32,15 @@
   (define-symbolic* input number?)
   (if const const input))
 
-(define input (send machine get-state func-sym))
+(define input (send machine vector->progstate (vector #f #f #f -2 -3
+                                                      '#(1 2 #f #f #f #f #f #f)
+                                                      '#(#f #f #f #f #f #f #f #f)
+                                                      (new memory-racket%)
+                                                      (new queue-in-racket%) (new queue-out-racket%))))
 (define output1 (send simulator-rosette interpret encoded-code1 input))
 (define output2 (send simulator-rosette interpret encoded-code2 input output1))
+
+#|
 (send validator assert-state-eq output1 output2 (send machine output-constraint '() 1 0))
 
 (pretty-display "Phase C: interpret concrete program with symbolic inputs.")
@@ -48,3 +55,4 @@
 (define input-state-sym (send machine get-state func-sym))
 (define output-sym (send simulator-rosette interpret encoded-code-sym input-state-sym))
 (newline)
+|#

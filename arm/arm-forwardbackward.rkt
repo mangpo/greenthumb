@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../forwardbackward.rkt" "../inst.rkt"
-         "arm-inst.rkt" "arm-machine.rkt")
+         "arm-machine.rkt")
 
 (provide arm-forwardbackward%)
 
@@ -10,12 +10,7 @@
     (super-new)
     (inherit-field machine printer)
     (override len-limit window-size
-              ;; mask-in inst->vector
-              ;; change-inst change-inst-list
-              ;; get-live-mask
               try-cmp? combine-live sort-live sort-live-bw)
-
-    ;; (define shf-inst-imm (get-field shf-inst-imm machine))
 
     ;; Num of instructions that can be synthesized within a minute.
     (define (len-limit) 2)
@@ -23,14 +18,6 @@
     ;; Context-aware window decomposition size L.
     ;; The cooperative search tries L/2, L, 2L, 4L.
     (define (window-size) 4)
-
-    ;; (define opcodes (get-field opcodes machine))
-    ;; (define cmp-inst
-    ;;   (map (lambda (x) (vector-member x opcodes))'(cmp tst cmp# tst#)))
-
-    ;; ;; Convert instruction into vector/list/pair format.
-    ;; (define (inst->vector x)
-    ;;   (vector (inst-op x) (inst-args x) (inst-shfop x) (inst-shfarg x) (inst-cond x)))
 
     ;; Mask in only the live values. If an entry in progstate is not live, set it to #f.
     ;; state-vec: progstate in vector/list/pair format
@@ -45,57 +32,6 @@
           (set-progstate-z! masked -1))
       masked)
 
-    ;; ;; Extract liveness from programstate. If an entry is a number, then it is live.
-    ;; ;; state-vec: progstate in vector/list/pair format
-    ;; ;; output: liveness in compact format.
-    ;; (define (get-live-mask state-vec)
-    ;;   (cons
-    ;;    ;; registers
-    ;;    (filter number?
-    ;;            (for/list ([i (in-naturals)]
-    ;;                       [r (vector-ref state-vec 0)])
-    ;;                      (and r i)))
-    ;;    ;; memory
-    ;;    (filter number?
-    ;;            (for/list ([i (in-naturals)]
-    ;;                       [r (vector-ref state-vec 1)])
-    ;;                      (and r i)))
-    ;;    )
-    ;;   )
-    
-    ;; (define (change-inst x change)
-    ;;   (define base-inst (super change-inst x change))
-    ;;   (define shfop-name (and (inst-shfop x) (send machine get-shf-inst-name (inst-shfop x))))
-    ;;   (define shfarg (inst-shfarg x))
-
-    ;;   (define new-shfarg
-    ;;     (if (member shfop-name shf-inst-imm)
-    ;;         (change shfarg `bit)
-    ;;         shfarg))
-
-    ;;   (arm-inst (inst-op x) (inst-args base-inst)
-    ;;             (inst-shfop x) new-shfarg (inst-cond x)))
-    
-    ;; (define (change-inst-list x change)
-    ;;   (define op (inst-op x))
-    ;;   (define shfop (inst-shfop x))
-    ;;   (define cond-type (inst-cond x))
-    ;;   (define base-list (super change-inst-list x change))
-
-    ;;   (define shfop-name (and (inst-shfop x) (send machine get-shf-inst-name (inst-shfop x))))
-    ;;   (define shfarg (inst-shfarg x))
-
-    ;;   (define new-shfarg
-    ;;     (if (member shfop-name shf-inst-imm)
-    ;;         (change shfarg `bit)
-    ;;         (list shfarg)))
-
-    ;;   (for*/list ([base-inst base-list]
-    ;;               [shfarg-final new-shfarg])
-    ;;              (arm-inst op (inst-args base-inst)
-    ;;                        shfop shfarg-final cond-type)))
-
-    
     (define cmp-inst (get-field cmp-inst machine))
     
     ;; Analyze if we should include comparing instructions into out instruction pool.
@@ -132,9 +68,5 @@
     ;; Similar to 'sort-live' but for backward direction (program postfixes).
     (define (sort-live-bw keys)
       (sort keys (lambda (x y) (> (vector-count identity (progstate-regs x)) 0))))
-      ;; (sort keys (lambda (x y)
-      ;;   	   (if (= (length (cdr x)) (length (cdr y)))
-      ;;   	       (> (length (car x)) 0)
-      ;;   	       (<= (length (cdr x)) (length (cdr y)))))))
 
     ))

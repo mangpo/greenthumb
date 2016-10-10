@@ -62,6 +62,7 @@
                           #:assume (and assume (send machine constrain-stack assume))))
     (when ce-enum (raise (format "TEST ~a: counter-example [enumerative]" id))))
   )
+
 (test 1 "dup drop up a! @ !" 4 '((data . 1) memory) #:sym #t)
 ;;(test 2 "dup drop up a! @+ !" 4 '((data . 1) memory) #:sym #t)
 (test 3 "dup drop up a! ! @" 4 '((data . 1) memory) #:sym #t)

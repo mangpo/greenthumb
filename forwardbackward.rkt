@@ -619,7 +619,6 @@
             (pretty-display `(live2-vec ,live2-vec))
             (pretty-display `(live1-list ,live1-list))
             (pretty-display `(live2-list ,live2-list)))
-      ;;(raise "done")
       
       (define ce-in (make-vector ce-limit))
       (define ce-out (make-vector ce-limit))
@@ -1282,6 +1281,7 @@
         (when
          (>= size size-from)
          (pretty-display (format "\nSIZE = ~a" size))
+         (when (> size 6) (raise "done"))
          
          (define keys (hash-keys classes))
          (define keys-bw (hash-keys (vector-ref classes-bw step-bw)))
