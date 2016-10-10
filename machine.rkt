@@ -1,6 +1,7 @@
 #lang racket
 
-(require "inst.rkt" "memory-rosette.rkt" "queue-rosette.rkt" "special.rkt")
+(require "inst.rkt" "memory-rosette.rkt" "queue-rosette.rkt"
+         "memory-racket.rkt" "queue-racket.rkt" "special.rkt")
 (provide (all-defined-out))
 
 (define debug #f)
@@ -96,7 +97,7 @@
             (if (>= i 0) (vector-ref vec i) '||))))
     
     (define (no-assumption) #f)
-    (define (get-state-liveness f) (get-state f))
+    (define (get-state-liveness f) (get-state f #:concrete #f))
     (define (display-state x) (pretty-display x))
 
     ;; (define (adjust-config config)
@@ -170,14 +171,17 @@
 
     (define (reset-opcode-pool) (void))
 
-    (define (get-state init)
+    (define (get-state init #:concrete [concrete #t])
       (define progstate (progstate-structure))
 
       (define (inner x)
         (cond
-         [(equal? x (get-memory-type)) (new memory-rosette% [get-fresh-val init])]
-         [(equal? x (get-queue-in-type)) (new queue-in-rosette% [get-fresh-val init])]
-         [(equal? x (get-queue-out-type)) (new queue-out-rosette% [get-fresh-val init])]
+         [(equal? x (get-memory-type))
+          (new (if concrete memory-racket% memory-rosette%) [get-fresh-val init])]
+         [(equal? x (get-queue-in-type))
+          (new (if concrete queue-in-racket% queue-in-rosette%) [get-fresh-val init])]
+         [(equal? x (get-queue-out-type))
+          (new (if concrete queue-out-racket% queue-out-rosette%) [get-fresh-val init])]
          [(symbol? x)
           (define info (hash-ref statetypes-info x))
           (init #:min (statetype-min info) #:max (statetype-max info) #:const (statetype-const info))]

@@ -9,7 +9,7 @@
          )
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine% [config 5]))
+(define machine (new arm-machine% [config 6]))
 
 (define printer (new arm-printer% [machine machine]))
 (define simulator-racket (new arm-simulator-racket% [machine machine]))
@@ -39,22 +39,22 @@
 
 (define code
 (send parser ir-from-string "
-sub r1, r0, 1
-tst r1, r0
-movne r1, 0
-moveq r1, 1
-cmp r0, 0
-moveq r0, 0
-andne r0, r1, 1
+	rsb	r3, r0, #0
+	mov	r0, r0, asr #31
+	orr	r0, r0, r3, asr #31
 "))
 
 
 (define sketch
 (send parser ir-from-string "
-? ? ? ?
+? ?
 "))
+;; p13 -O0
+;; z3: >5 min, java: 12 s
+;; p25 -O3
+;; z3: >5 min, java: 9 s
 
-(define livein (send printer encode-live '(0)))
+(define livein (send printer encode-live '(0 1)))
 (define constraint (send printer encode-live '(0)))
 
 (define encoded-prefix (send printer encode prefix))
@@ -62,7 +62,7 @@ andne r0, r1, 1
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send printer encode sketch))
 
-(send validator adjust-memory-config (vector-append encoded-code encoded-code encoded-postfix))
+(send validator adjust-memory-config (vector-append encoded-prefix encoded-code encoded-postfix))
 
 #;(send symbolic synthesize-window
       encoded-code ;; spec

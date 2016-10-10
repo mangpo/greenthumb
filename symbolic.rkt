@@ -109,7 +109,7 @@
                                     #:hard-postfix [hard-postfix (vector)]
 				    #:assume [assumption (send machine no-assumption)])
       (send (current-solver) shutdown)
-      (current-solver (new z3%))
+      (current-solver (new kodkod%))
       (pretty-display "SUPERPOTIMIZE:")
       (pretty-display (format "solver = ~a" (current-solver)))
       (when debug
@@ -125,7 +125,7 @@
       (current-bitwidth bit)
       
 
-      (define start-state (send machine get-state sym-input))
+      (define start-state (send machine get-state sym-input #:concrete #f))
       (define spec-state #f)
       (define sketch-state #f)
       (define spec-cost #f)

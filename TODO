@@ -1,10 +1,14 @@
+- stoch
+- hybrid
+
 Performance
+- prescreen?
 - don't mask-in the start state
 - mask-in & mask-in again (ARM)
 - symbolic: provide input or not?
-- kodkod vs z3?
 
 ARM
+- clean-code
 - remove inst->vector in forwardbackward
 - remove arm-inst.rkt
 - remove compress.rkt
@@ -29,6 +33,7 @@ Test on:
 - ARM
 
 1. Revisit
+   - remove (debug-inst) in forwardbackward
    - inst.rkt
    - template
    - (reduce-precesion) in forwardbackward

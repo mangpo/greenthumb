@@ -60,11 +60,12 @@
     ;; encoded concrete code
     ;; config: machine config
     (define (adjust-memory-config encoded-code)
+      (pretty-display (format "solver = ~a" (current-solver)))
       (define (solve-until-valid)
         (clear-asserts)
 	(current-bitwidth bit)
-        (define state (send machine get-state sym-input))
-        (send simulator interpret encoded-code state)
+        (define state (send machine get-state sym-input #:concrete #f))
+        (pretty-display `(state ,state))
 
         (with-handlers* 
          ([exn:fail? 
@@ -74,14 +75,15 @@
                     (increase-memory-size)
                     (solve-until-valid))
                   (raise e)))])
-         (pretty-display `(state ,state))
-         (solve (send simulator interpret encoded-code state))
-         (pretty-display `(simulate))
-         ))
+         (solve (send simulator interpret encoded-code state))))
 
+      (define t1 (current-seconds))
       (solve-until-valid)
       (pretty-display "Finish adjusting memory config.")
+      (define t2 (current-seconds))
+      (pretty-display `(t ,(- t2 t1)))
       )
+
 
     (define const-range 
       (for/vector ([i (sub1 random-input-bit)]) (arithmetic-shift 1 i)))
@@ -110,13 +112,21 @@
        [else (vector-ref const-range (random const-range-len))]
        ))
 
-    (define (generate-input-states-fast n spec assumption #:db [db #f])
+    (define (generate-input-states-fast n spec #:db [db #f])
       (define m (if db n (quotient (add1 n) 2)))
       (define inputs-random
         (for/list ([i m]) (send machine get-state rand-func)))
       (define inputs-random-const
         (for/list ([i (- n m)]) (send machine get-state rand-from-const)))
-      (append inputs-random inputs-random-const))
+      (define inputs (append inputs-random inputs-random-const))
+      (define pass
+        (with-handlers* 
+         ([exn:fail? (lambda (e) #f)])
+         (for ([input inputs])
+              (send simulator interpret spec input))
+         #t))
+      (and pass inputs)
+      )
         
     
     ;; (define (generate-inputs-inner-fast
@@ -182,7 +192,7 @@
             (pretty-display `(generate-inputs-inner ,n ,assumption ,random-input-bit)))
       (clear-asserts)
       (current-bitwidth bit)
-      (define start-state (send machine get-state sym-input))
+      (define start-state (send machine get-state sym-input #:concrete #f))
 
       (define sols (list))
       (define first-solve #t)
@@ -331,17 +341,11 @@
       
     ;; Generate input states.
     (define (generate-input-states n spec assumption #:db [db #f])
-      ;; (pretty-display "Generate inputs (fast).")
-      ;; (define states (generate-input-states-fast n))
-      
-      ;; (define pass
-      ;;   (with-handlers* 
-      ;;    ([exn:fail? (lambda (e) #f)])
-      ;;    (for ([state states]) (send simulator interpret spec state))
-      ;;    #t))
+      (pretty-display "Generate inputs (fast).")
+      (define states (generate-input-states-fast n spec))
 
       (cond
-       ;;[pass states]
+       [states states]
        [else
         (pretty-display "Generate inputs (slow).")
         (generate-input-states-slow n spec assumption #:db db)]))
@@ -364,7 +368,7 @@
       
       (clear-asserts)
       (current-bitwidth bit)
-      (define start-state (send machine get-state sym-input))
+      (define start-state (send machine get-state sym-input #:concrete #f))
       (define spec-state #f)
       (define program-state #f)
       

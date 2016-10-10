@@ -6,7 +6,8 @@
 (define queue-in-racket%
   (class* special% (equal<%> printable<%>)
     (super-new)
-    (init-field [size 4]
+    (init-field [get-fresh-val #f]
+                [size 4]
                 [queue (make-vector size #f)]
                 [index 0]
                 [ref #f])
@@ -51,16 +52,27 @@
     ;;   (hash-code index))
 
     (define (clone [ref #f])
-      (new queue-in-racket% [ref ref] [queue queue] [index index]))
+      (new queue-in-racket% [ref ref] [queue queue] [index index] [get-fresh-val get-fresh-val]))
 
     ;; (define (clone-all [ref #f])
     ;;   (new queue-in-racket% [ref ref] [queue queue] [index index]))
 
-    (define (pop)
+    (define (pop-spec)
+      (define val (vector-ref queue index))
+      (unless val
+              (set! val (get-fresh-val))
+              (vector-set! queue index val))
+      (set! index (add1 index))
+      val)
+    
+    (define (pop-cand)
       (define val (vector-ref queue index))
       (assert (not (equal? val #f)) "pop more than number of elements")
       (set! index (add1 index))
       val)
+
+    (define (pop)
+      (if ref (pop-cand) (pop-spec)))
 
     (define (pop-inverse val)
       (set! index (sub1 index))
@@ -77,7 +89,8 @@
 (define queue-out-racket%
   (class* special% (equal<%> printable<%>)
     (super-new)
-    (init-field [size 4]
+    (init-field [get-fresh-val #f]
+                [size 4]
                 [queue (make-vector size)]
                 [index 0]
                 [ref #f])
@@ -124,10 +137,8 @@
     ;;   (hash-code index))
 
     (define (clone [ref #f])
-      (new queue-out-racket% [ref ref] [queue (vector-copy queue)] [index index]))
-
-    ;; (define (clone-all [ref #f])
-    ;;   (new queue-out-racket% [ref ref] [queue (vector-copy queue)] [index index]))
+      (new queue-out-racket% [ref ref] [queue (vector-copy queue)] [index index]
+           [get-fresh-val get-fresh-val]))
 
     (define (push-spec val)
       (vector-set! queue index val)

@@ -50,6 +50,7 @@ dup drop !+ @
 (define constraint (send machine output-constraint '((data . 1) memory)))
 ;;(define precond (send machine constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
 
+(send validator adjust-memory-config encoded-code)
 (send machine analyze-opcode encoded-prefix encoded-code encoded-postfix)
 (send machine reset-arg-ranges)
 (send machine analyze-args encoded-prefix encoded-code encoded-prefix

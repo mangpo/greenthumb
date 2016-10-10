@@ -6,7 +6,8 @@
 (define memory-racket%
   (class* special% (equal<%> printable<%>)
     (super-new)
-    (init-field [init (make-hash)]
+    (init-field [get-fresh-val #f]
+                [init (make-hash)]
                 [update (make-hash)]
                 ;; If this memory object is for interpreting specification program,
                 ;; don't initialize ref.
@@ -44,7 +45,7 @@
     ;; Use this method to clone new memory for every program interpretation.
     (define (clone [ref #f])
       (new memory-racket% [ref ref] [init init]
-           [update (make-hash (hash->list update))]))
+           [update (make-hash (hash->list update))] [get-fresh-val get-fresh-val]))
       
     ;; ;; Clone a new memory object with the same update.
     ;; ;; Use this method to clone new memory for every inverse program interpretation.
@@ -105,6 +106,11 @@
     (define (modify storage addr val)
       (hash-set! storage addr val))
 
+    (define (init-new-val addr)
+      (define val (get-fresh-val))
+      (hash-set! init addr val)
+      val)
+
     ;;;;;;;;;;;;;;;;;;;; del ;;;;;;;;;;;;;;;;;;;;
     (define (del addr)
       (hash-remove! update addr))
@@ -115,7 +121,8 @@
       ;;(pretty-display `(load-spec ,init ,(lookup init addr)))
       (or (lookup update addr)
           (lookup init addr)
-          (assert #f "load illegal address (spec)")))
+          (init-new-val addr)))
+          ;;(assert #f "load illegal address (spec)")))
 
     (define (load-cand addr ref-mem)
       (or (lookup update addr)

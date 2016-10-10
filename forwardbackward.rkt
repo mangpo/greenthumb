@@ -660,8 +660,8 @@
         (define p (iterator))
         (define my-inst (car p))
         (when my-inst
-          (send printer print-struct my-inst)
-          (send printer print-syntax (send printer decode my-inst))
+          ;; (send printer print-struct my-inst)
+          ;; (send printer print-syntax (send printer decode my-inst))
           (send inverse gen-inverse-behavior my-inst)
           (gen-inverse-behaviors iterator)
           ))

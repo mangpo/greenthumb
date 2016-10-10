@@ -62,7 +62,7 @@
                           #:assume (and assume (send machine constrain-stack assume))))
     (when ce-enum (raise (format "TEST ~a: counter-example [enumerative]" id))))
   )
-
+#|
 (test 'p14 "
         eor     r3, r1, r0
         and     r0, r1, r0
@@ -78,7 +78,7 @@
 (test 'p16 "
         cmp     r0, r1
         movcc   r0, r1
-" 2 '(0))
+" 2 '(0) #:sym #t)
 
 (test 'p16-v2 "
         add r0, r0, #1
@@ -91,7 +91,7 @@
         cmp     r0, r1
         movcc   r0, r1
         str r0, [r2, #0]
-" 2 '(0))
+" 2 '(0) #:sym #t)
 
 
 (test 'p16-v4 "
@@ -111,6 +111,7 @@
         movcc   r0, r3
         strne r0, [r2, #0]
 " 3 '(memory))
+|#
 
 (test 'load1 "
         ldr    r0, [r2, #0]
@@ -125,7 +126,7 @@
 " 3 '(0))
 
 ;; 160 s
-#;(test 1 "
+(test 1 "
 	sub	r3, r0, #1
 	tst	r3, r0
 	movne	r3, #0
@@ -133,7 +134,3 @@
 	cmp	r0, #0
 	moveq	r0, #0
 	andne	r0, r3, #1" 3 '(0))
-
-;; p25 -O0 (with memory)
-
-;; test performace (& email helpdesk)
