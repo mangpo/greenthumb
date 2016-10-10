@@ -5,12 +5,13 @@
          "arm-simulator-rosette.rkt" 
          "arm-simulator-racket.rkt"
          "arm-validator.rkt"
+         "arm-symbolic.rkt"
          "../memory-rosette.rkt"
          )
 
-(current-bitwidth 4)
+(current-bitwidth 32)
 (define parser (new arm-parser%))
-(define machine (new arm-machine% [config 4] [bitwidth 4])) ;; argument = (list num-regs memory)
+(define machine (new arm-machine% [config 4])) ;; argument = (list num-regs memory)
 (define printer (new arm-printer% [machine machine]))
 (define simulator-racket (new arm-simulator-racket% [machine machine]))
 (define simulator-rosette (new arm-simulator-rosette% [machine machine]))
@@ -32,9 +33,8 @@
 
 (define code
 (send parser ir-from-string "
-        cmp     r0, r1
-        movcc   r0, r1
-        strcc r0, [r2, #0]
+rsb r1, r0, r0, lsr 1
+orr r0, r0, r1, asr 31
 "))
 
 (send printer print-struct code)
@@ -42,6 +42,16 @@
 (send printer print-struct encoded-code)
 ;;(send printer print-syntax (send printer decode encoded-code))
 
+(define symbolic (new arm-symbolic% [machine machine] [printer printer]
+                      [parser parser]
+                      [validator validator] [simulator simulator-rosette]))
+(define cost
+  (send simulator-rosette performance-cost
+        (for/vector ([i 2]) (send symbolic gen-sym-inst))))
+(define output-state
+  (send simulator-rosette interpret (for/vector ([i 2]) (send symbolic gen-sym-inst)) input-state))
+
+#|
 (define output-state
   (send simulator-rosette interpret encoded-code input-state))
 (pretty-display ">>> Input.")
@@ -57,7 +67,8 @@
 (newline)
 (pretty-display ">>> Output2 from simulator in rosette.")
 (send machine display-state output-state2)
-(send validator assert-state-eq output-state output-state2 (send printer encode-live '(memory)))
+(send validator assert-state-eq output-state output-state2 (send printer encode-live '(0)))
+|#
 
 ;; (pretty-display
 ;;  (send enum abstract 

@@ -51,6 +51,8 @@
 "))
 ;; p13 -O0
 ;; z3: >5 min, java: 12 s
+;; rsb r1, r0, r0, lsr 1
+;; orr r0, r0, r1, asr 31
 ;; p25 -O3
 ;; z3: >5 min, java: 9 s
 
@@ -64,12 +66,12 @@
 
 (send validator adjust-memory-config (vector-append encoded-prefix encoded-code encoded-postfix))
 
-#;(send symbolic synthesize-window
+(send symbolic synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch
       encoded-prefix encoded-postfix
       constraint ;; live-out
-      #f ;; upperbound cost, #f = no upperbound
+      3 ;; upperbound cost, #f = no upperbound
       3600 ;; time limit in seconds
       )
 
@@ -78,7 +80,7 @@
       livein ;; live-in
       "./driver-0" 3600 #f)
 
-(send backward synthesize-window
+#;(send backward synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch => start from searching from length 1, number => only search for that length
       encoded-prefix encoded-postfix

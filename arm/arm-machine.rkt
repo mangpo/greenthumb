@@ -526,26 +526,27 @@
     ;; (define (vector->progstate x)
     ;;   (and x (progstate (vector-ref x 0) (vector-ref x 1) (vector-ref x 2) (vector-ref x 3))))
 
-    ;; ;; overridden method.
-    ;; ;; Remove code that behaves like nop.
-    ;; (define (clean-code code [prefix (vector)])
-    ;;   ;; Filter out nop.
-    ;;   (set! code (vector-filter-not (lambda (x) (= (inst-op x) nop-id)) code))
-    ;;   (define z-flag #f)
-    ;;   (define cond-type-nop (vector-member `nop cond-opcodes))
-    ;;   (for ([x prefix])
-    ;;        (let ([op (inst-op x)])
-    ;;          (when (member (vector-ref opcodes op) '(tst cmp tst# cmp#))
-    ;;     	   (set! z-flag #t))))
-    ;;   (for/vector ([x code])
-    ;;        (let ([op (inst-op x)]
-    ;;     	 [cond-type (inst-cond x)])
-    ;;          (when (member (vector-ref opcodes op) '(tst cmp tst# cmp#))
-    ;;     	   (set! z-flag #t))
-    ;;          (if (or z-flag (equal? cond-type cond-type-nop))
-    ;;     	 x
-    ;;              ;; If conditional flag is not set, you can remove condition-code-suffix.
-    ;;     	 (arm-inst op (inst-args x) (inst-shfop x) (inst-shfarg x) cond-type-nop)))))
+    ;; overridden method.
+    ;; Remove code that behaves like nop.
+    (define/override (clean-code code [prefix (vector)])
+      ;; Filter out nop.
+      (set! code (vector-filter-not
+                  (lambda (x) (= (vector-ref (inst-op x) 0) (vector-ref nop-id 0)))
+                  code))
+      (define z-flag #f)
+      (for ([x prefix])
+           (let ([ops-vec (inst-op x)])
+             (when (member (vector-ref ops-vec 0) cmp-inst)
+        	   (set! z-flag #t))))
+      (for/vector ([x code])
+           (let ([ops-vec (inst-op x)])
+             (when (member (vector-ref ops-vec 0) cmp-inst)
+        	   (set! z-flag #t))
+             (if (or z-flag (equal? (vector-ref ops-vec 1) -1))
+        	 x
+                 ;; If conditional flag is not set, you can remove condition-code-suffix.
+        	 (inst (vector (vector-ref ops-vec 0) -1 (vector-ref ops-vec 2))
+                       (inst-args x))))))
 
     ;; ;; Convert liveness information from progstate format to a compact format.
     ;; ;; Use registers' liveness from state and memory' livenss from state2.

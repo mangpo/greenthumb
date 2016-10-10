@@ -228,12 +228,15 @@
         (define op (vector-ref ops-vec 0))
         (define cond-type (vector-ref ops-vec 1))
         (define shfop (vector-ref ops-vec 2))
-        ;;(pretty-display `(interpret-step ,z ,op ,cond-type))
+        (define op-name (vector-ref base-opcodes op))
+        (define shfop-name (and (>= shfop 0) (vector-ref shf-opcodes shfop)))
+        
+        ;; (pretty-display `(interpret-step ,ops-vec))
 
-        (define-syntax inst-eq
-          (syntax-rules ()
-            ((inst-eq x) (equal? x (vector-ref base-opcodes op)))
-            ((inst-eq a b ...) (or (inst-eq a) (inst-eq b) ...))))
+        (define-syntax-rule (inst-eq a ...)
+          (or (equal? a op-name) ...))
+        (define-syntax-rule (shf-inst-eq a ...)
+          (or (equal? a shfop-name) ...))
 
         (define-syntax-rule (args-ref args i) (vector-ref args i))
 
@@ -241,8 +244,6 @@
           (define (opt-shift x)
             (define len (vector-length args))
             (define k (and (> len 0) (vector-ref args (sub1 len))))
-            (define-syntax-rule (shf-inst-eq xx) 
-              (equal? xx (send machine get-shf-opcode-name shfop)))
 
             (define val #f)
             (define (rr f)
@@ -354,9 +355,9 @@
                   (+ (vector-ref regs a) b)))
             (define val (vector-ref regs d))
             (unless memory
-              (set! memory (send (progstate-memory state) clone
+              (set! memory (send* (progstate-memory state) clone
                                  (and ref (progstate-memory ref)))))
-            (send memory store (finitize-bit index) val))
+            (send* memory store (finitize-bit index) val))
 
           ;; load
           (define (ldr reg-offset)
@@ -368,9 +369,9 @@
                   (+ (vector-ref regs a) (vector-ref regs b))
                   (+ (vector-ref regs a) b)))
             (unless memory
-              (set! memory (send (progstate-memory state) clone
+              (set! memory (send* (progstate-memory state) clone
                                  (and ref (progstate-memory ref)))))
-            (define val (send memory load (finitize-bit index)))
+            (define val (send* memory load (finitize-bit index)))
             (vector-set! regs d val))
 
           ;; setbit
@@ -494,7 +495,8 @@
            [(inst-eq `tst#) (z=ri tst)]
            [(inst-eq `cmp#) (z=ri cmp)]
 
-           [else (assert #f "undefine instruction")]))
+           [else (assert #f "undefine instruction")]
+           ))
 
 	;; z: eq 0, ne 1, < 1, > 3
 	;; cond: eq 0, ne 1, ls 2, hi 3, cc 4, cs 5
@@ -531,7 +533,7 @@
 	 
          [else (assert #f (format "illegal cond-type ~a" cond-type))]
          )        
-        (assert (or (equal? shfop #f) (and (>= shfop -1) (< shfop (vector-length shf-opcodes)))))
+        (assert (and (>= shfop -1) (< shfop (vector-length shf-opcodes))))
         )
 
       (for ([x program])
@@ -545,14 +547,15 @@
       (for ([x code])
            (let* ([ops-vec (inst-op x)]
                   [op (vector-ref ops-vec 0)]
-                  [shfop (vector-ref ops-vec 2)])
+                  [shfop (vector-ref ops-vec 2)]
+                  [op-name (vector-ref base-opcodes op)]
+                  [shfop-name (and (>= shfop 0) (vector-ref shf-opcodes shfop))]
+                  )
+
              (define-syntax-rule (inst-eq a ...)
- 	       (let ([opcode-name (vector-ref base-opcodes op)])
- 		 (or (equal? a opcode-name) ...)))
+               (or (equal? a op-name) ...))
              (define-syntax-rule (shf-inst-eq a ...)
- 	       (and shfop
- 		    (let ([opcode-name (send machine get-shf-opcode-name shfop)])
- 		      (or (equal? a opcode-name) ...))))
+               (or (equal? a shfop-name) ...))
 
              (cond
               [(inst-eq `nop) (void)]
@@ -567,6 +570,7 @@
               ;;   [else (add-cost 1)])]
 
               ;; [(shf-inst-eq `lsr# `asr# `lsl# `ror#) (add-cost 2)]
+              
               [(and (inst-eq `add `sub `rsb `and `orr `eor `bic `orn `mov `mvn)
                     (shf-inst-eq `lsr `asr `lsl `ror))
                (add-cost 2)]

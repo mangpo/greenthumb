@@ -25,7 +25,8 @@
                       [enumerator% arm-enumerator%]
                       [syn-mode `linear]))
 
-(define (test id code-str size liveout-str #:sym [sym #f] #:enum [enum #t] #:assume [assume #f])
+(define (test id code-str size liveout-str #:sym [sym #f] #:enum [enum #t] #:assume [assume #f]
+              #:cost [cost #f])
   (pretty-display (format "TEST = ~a" id))
   (define code (send parser ir-from-string code-str))
   (define encoded-code (send printer encode code))
@@ -37,7 +38,7 @@
   ;; symbolic
   (when sym
     (define-values (out-sym cost-sym)
-      (send symbolic synthesize-from-sketch encoded-code sketch constraint
+      (send symbolic synthesize-from-sketch encoded-code sketch constraint cost
             #:assume (and assume (send machine constrain-stack assume))))
     
     (unless out-sym (raise (format "TEST ~a: fail to synthesize [symbolic]" id)))
@@ -52,7 +53,7 @@
             sketch
             (vector) (vector)
             constraint ;; live-out
-            #f ;; upperbound cost, #f = no upperbound
+            cost ;; upperbound cost, #f = no upperbound
             3600 ;; time limit in seconds
             #:assume (and assume (send machine constrain-stack assume))
             ))
@@ -62,6 +63,16 @@
                           #:assume (and assume (send machine constrain-stack assume))))
     (when ce-enum (raise (format "TEST ~a: counter-example [enumerative]" id))))
   )
+
+(test 'sym "
+rsb r1, r0, r0, lsr 1
+" 1 '(1) #:sym #t)
+
+(test 'p13 "
+	rsb	r3, r0, #0
+	mov	r0, r0, asr #31
+	orr	r0, r0, r3, asr #31
+" 2 '(0) #:cost 3)
 
 (test 'p14 "
         eor     r3, r1, r0
@@ -86,12 +97,11 @@
         movcc   r0, r1
 " 3 '(0))
 
-
 (test 'p16-v3 "
         cmp     r0, r1
         movcc   r0, r1
         str r0, [r2, #0]
-" 2 '(0) #:sym #t)
+" 2 '(0))
 
 
 (test 'p16-v4 "
@@ -125,7 +135,7 @@
 " 3 '(0))
 
 ;; 160 s
-(test 1 "
+#;(test 1 "
 	sub	r3, r0, #1
 	tst	r3, r0
 	movne	r3, #0

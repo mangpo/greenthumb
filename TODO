@@ -1,6 +1,3 @@
-- stoch
-- hybrid
-
 Performance
 - prescreen?
 - don't mask-in the start state
@@ -9,6 +6,7 @@ Performance
 
 ARM
 - clean-code
+- remove commented code
 - remove inst->vector in forwardbackward
 - remove arm-inst.rkt
 - remove compress.rkt
@@ -33,13 +31,13 @@ Test on:
 - ARM
 
 1. Revisit
-   - remove (debug-inst) in forwardbackward
    - inst.rkt
    - template
    - (reduce-precesion) in forwardbackward
    - (get-flag) in enumerator
    - change "public" to "protected"
    - do we need to extend enumerator, inverse, etc. at all?
+   - remove (debug-inst) in forwardbackward
 
 2. May need to override these functions
    - (reduce-precesion) in forwardbackward
