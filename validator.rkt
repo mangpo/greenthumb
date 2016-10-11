@@ -243,7 +243,7 @@
     (define (counterexample spec program constraint
                             #:assume [assumption (send machine no-assumption)])
       ;;(pretty-display (format "solver = ~a" (current-solver)))
-      (when (and #t printer)
+      (when (and debug printer)
 	    (pretty-display `(counterexample ,bit))
 	    (pretty-display `(spec))
 	    (send printer print-syntax (send printer decode spec))

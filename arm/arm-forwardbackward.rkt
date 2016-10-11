@@ -55,6 +55,17 @@
     ;; y: liveness from analyzing the program backward from the end to point p.
     (define (combine-live x y) 
       ;; Use register's liveness from x but memory's liveness from y.
+      (for ([xi x]
+            [yi y])
+           (when (and yi (not xi))
+                 (pretty-display `(combine-live ,x ,y))
+                 (raise "done")))
+      (for ([xi (progstate-regs x)]
+            [yi (progstate-regs y)])
+           (when (and yi (not xi))
+                 (pretty-display `(combine-live ,x ,y))
+                 (raise "done")))
+      
       (progstate (progstate-regs x)
                  (progstate-memory y)
                  (progstate-z x)))

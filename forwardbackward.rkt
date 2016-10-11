@@ -346,9 +346,14 @@
 
     (define (try-cmp? code state live) 0)
     ;; Combine liveness from two sources
-    ;; x is from using update-live from live-in. This does not work well for memory.
-    ;; y is from using symbolic analyze from live-out.
-    (define (combine-live x y) y)
+    ;; 1. x is from using update-live from live-in.
+    ;;    This allows the optimizer to use intermediate registers more flexibly.
+    ;;    Use x if update-live is precise.
+    ;; 2. y is from using symbolic analyze from live-out.
+    ;;    This may disallow the optimizer to use some intermedates.
+    ;;    If r0 and mem0 have the same value, if the spec use mem0 in that window
+    ;;    then r0 won't be live in y (but it is in x).
+    (define (combine-live x y) x)
     
     ;;;;;;;;;;;;;;;;;;;;;;; Reduce/Increase bitwidth ;;;;;;;;;;;;;;;;;;;;;;
 
