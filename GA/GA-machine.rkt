@@ -10,9 +10,6 @@
 ;; (struct labelinfo (data return simple))
 
 ;;;;;;;;;;;;;; PROGSTATE ;;;;;;;;;;;;;;;;;;
-;; (struct progstate (a b r s t data return memory recv comm) 
-;;         #:mutable #:transparent)
-
 (define-syntax-rule
   (progstate a b r s t data return memory recv comm)
   (vector a b r s t data return memory recv comm))
@@ -40,8 +37,6 @@
 (define-syntax-rule (set-progstate-comm! x v)   (vector-set! x 9 v))
 
 ;;;;;;;;;;;;;; STACK ;;;;;;;;;;;;;;;;;;
-;; (struct stack (sp body))
-
 (define-syntax-rule (stack sp body) (vector sp body))
 (define-syntax-rule (stack? x)
   (and (vector? x) (= 2 (vector-length x))
@@ -56,12 +51,6 @@
 ;;; Print a circular stack:
 (define (display-stack x)
   (display (format " ~a" x)))
-  ;; (define-syntax-rule (modulo- x y) (if (< x 0) (+ x y) x))
-  ;; (if (stack? x)
-  ;;     (for [(i (in-range 0 8))]
-  ;;          (display (format " ~a" (vector-ref (stack-body x)
-  ;;                                             (modulo- (- (stack-sp x) i) 8)))))
-  ;;     (display (format " ~a" x)))
 
 (define-syntax-rule (build-vector n init)
   (let ([vec (make-vector n)])
@@ -69,84 +58,11 @@
 	 (vector-set! vec i (init)))
     vec))
 
-#;(define-syntax default-state
-  (syntax-rules ()
-    ((default-state machine recv-n init)
-     (progstate (init) (init) (init) (init) (init)
-		(stack 0 (build-vector 8 init))
-		(stack 0 (build-vector 8 init))
-		(build-vector (send machine get-nmems) init)
-		(for/list ([i recv-n]) (init))
-		(list)))
-
-    ((default-state machine recv-n init [data-pair (i i-val) ...] [key val] ...)
-     (let* ([state (default-state machine recv-n init)]
-            [body (stack-body (progstate-data state))]
-            [pairs (list (cons i i-val) ...)])
-       (for ([p pairs])
-            (vector-set! body (modulo (- (car p)) 8) (cdr p)))
-       (struct-copy progstate state [data (stack 0 body)] [key val] ...)))
-
-    ((default-state machine recv-n init [key val] ...)
-     (struct-copy progstate (default-state machine recv-n init) [key val] ...))
-    
-    ((default-state machine)
-     (default-state machine 0 (lambda () 0)))
-))
-
 ;;; The empty constraint. Pretty useless.
 (define constraint-none (progstate #f #f #f #f #f 0 0 #f #f #t))
 
 ;;; Constrain everything. We must have perfection!
 (define constraint-all (progstate #t #t #t #t #t 8 8 #t #f #t))
-
-;;; Defines a constraint for some fields. For example, `(constraint
-;;; t)' is the same as constraint-only-t and evaluates to `(progstate
-;;; #f #f #f #f #f #f #t #f #f #f)'. If you want to constrain
-;;; everything *except* the given fields, start with the except
-;;; keyword: `(constrain except t)' constrains everything but t. 
-;; (define-syntax constraint
-;;   (syntax-rules (except data return none)
-
-;;     ((constraint (return val1) (data val2) var ...)  
-;;      (struct-copy progstate constraint-none [return val1] [data val2] [var #t] ...))
-;;     ((constraint (data val2) (return val1) var ...)  
-;;      (struct-copy progstate constraint-none [return val1] [data val2] [var #t] ...))
-
-;;     ((constraint (return val1) (data val2))
-;;      (struct-copy progstate constraint-none [return val1] [data val2]))
-;;     ((constraint (data val2) (return val1))
-;;      (struct-copy progstate constraint-none [return val1] [data val2]))
-
-;;     ((constraint (data val) var ...)  
-;;      (struct-copy progstate constraint-none [data val] [var #t] ...))
-;;     ((constraint (data val))  
-;;      (struct-copy progstate constraint-none [data val]))
-;;     ((constraint (return val) var ...)  
-;;      (struct-copy progstate constraint-none [return val] [var #t] ...))
-;;     ((constraint (return val))  
-;;      (struct-copy progstate constraint-none [return val]))
-
-;;     ((constraint except var ...) (struct-copy progstate constraint-all  [var #f] ...))
-;;     ((constraint var ...)        (struct-copy progstate constraint-none [var #t] ...))
-;;     ))
-
-#;(define (constrain-stack machine precond [state (default-state machine)])
-  (when (list? precond)
-    (for ([assume precond]
-          [i (reverse (range (length precond)))])
-      (cond
-       [(and assume (= i 0)) (set-progstate-t! state assume)]
-       [(and assume (= i 1)) (set-progstate-s! state assume)]
-       [(and assume (< i 10))
-        (let ([body (stack-body (progstate-data state))])
-          (vector-set! body (modulo (- 2 i) 8) assume))]
-
-       [(and assume (<= i 10))
-	(raise "A small function cannot have more than 10 parameters.")]
-       )))
-state)
-
 
 (define GA-machine%
   (class machine%
@@ -319,10 +235,6 @@ state)
                (list->vector recv-content)
                (make-vector (- 4 (length recv-content)) #f))]))
       (define comm (new queue-out-racket%))
-      ;;(define memory (list->vector (map string->number (string-split (vector-ref tokens 8)))))
-      ;;(define recv (map string->number (string-split (vector-ref tokens 9))))
-      ;;(define raw-comm (string-split (vector-ref tokens 10) ";"))
-      ;;(define comm (map (lambda (x) (map string->number (string-split x))) raw-comm))
       (cons (equal? (vector-ref tokens 0) "#t")
             (progstate a b r s t data return memory recv comm)))
 
@@ -494,49 +406,5 @@ state)
 
     (define/override (update-live live my-inst) #f)
     (define/override (update-live-backward live my-inst) #f)
-
-    ;; (define/override (update-live live my-inst)
-    ;;   (define new-live (super update-live live my-inst))
-    ;;   (define opcode-id (inst-op my-inst))
-    ;;   (define opcode-name (vector-ref opcodes opcode-id))
-
-    ;;   (define ret
-    ;;   (and new-live
-    ;;        (cond
-    ;;         [(member opcode-name '(nop 2* 2/ - +*)) new-live]
-    ;;         [(member opcode-name '(+ and or ! !+ !b drop a! b!))
-    ;;          (dec-live-data new-live)]
-    ;;         [(member opcode-name '(@p @ @+ @b a dup over))
-    ;;          (inc-live-data new-live)]
-    ;;         [(member opcode-name '(push))
-    ;;          (define inter (dec-live-data new-live))
-    ;;          (and inter (inc-live-return inter))]
-    ;;         [(member opcode-name '(pop))
-    ;;          (define inter (inc-live-data new-live))
-    ;;          (and inter (dec-live-return inter))])))
-      
-    ;;   ;;(pretty-display `(update-live ,ret))
-    ;;   ret
-    ;;   ) ;; TODO: may still need prescreen since update-live is not precise anymore
-
-    ;; (define/override (update-live-backward live my-inst)
-    ;;   (define new-live (super update-live-backward live my-inst))
-    ;;   (define opcode-id (inst-op my-inst))
-    ;;   (define opcode-name (vector-ref opcodes opcode-id))
-
-    ;;   (and new-live
-    ;;        (cond
-    ;;         [(member opcode-name '(nop 2* 2/ - +*)) new-live]
-    ;;         [(member opcode-name '(+ and or ! !+ !b drop a! b!))
-    ;;          (inc-live-data new-live)]
-    ;;         [(member opcode-name '(@p @ @+ @b a dup over))
-    ;;          (dec-live-data new-live)]
-    ;;         [(member opcode-name '(push))
-    ;;          (define inter (inc-live-data new-live))
-    ;;          (and inter (dec-live-return inter))]
-    ;;         [(member opcode-name '(pop))
-    ;;          (define inter (dec-live-data new-live))
-    ;;          (and inter (inc-live-return inter))])))
-      
 
     ))

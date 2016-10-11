@@ -127,6 +127,7 @@
       (recurse (reverse (for/list ([x prog]) (change-inst-list x change)))
                (list))
       ret)
+    
     ;; Ignore a completely.
     (define (combine-live a b)
       (define s (vector-ref b 3))

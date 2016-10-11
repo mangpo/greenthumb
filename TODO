@@ -3,8 +3,9 @@ Performance
 * mask-in & mask-in again (ARM)
 - symbolic: provide input or not?
 
-ARM
-- user don't have to provide live-in for stoch
+TODO
+- remove arm & GA's combine-live
+- user don't have to provide live-in for stoch, use result from combine-live too
 
 Correctness
 - how to prevent users from making a mistake on machine description (ins & outs).
@@ -36,7 +37,7 @@ Correctness
    - define-progstate-stype #:const #:min #:max
    - define-instruction-class #:args #:ins #:outs #:commute #:required
    - default arg-type: const, bit => reduce-precision
-   - combine-live
+   - combine-live & update-live (GA)
    - mask-in & get-pruning-info
 4. Increase precision in enum
    - synthesize constrants
