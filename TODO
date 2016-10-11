@@ -4,13 +4,6 @@ Performance
 - symbolic: provide input or not?
 
 ARM
-- prescreen
-- inst.rkt
-- get-flag -> get-pruning-info, filter-with-flags => filter-with-pruning-info
-- entry-flag => entry-prune
-- "compact format"
-
-- do we need combine-live in forwardbackward?
 - user don't have to provide live-in for stoch
 
 Correctness
@@ -43,6 +36,8 @@ Correctness
    - define-progstate-stype #:const #:min #:max
    - define-instruction-class #:args #:ins #:outs #:commute #:required
    - default arg-type: const, bit => reduce-precision
+   - combine-live
+   - mask-in & get-pruning-info
 4. Increase precision in enum
    - synthesize constrants
    - in reduced-bitwidth domain: try all 4-bit constants
