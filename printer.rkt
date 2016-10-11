@@ -11,7 +11,7 @@
     (public encode decode 
             print-struct print-struct-inst
             print-syntax print-syntax-inst
-            compress-reg-space decompress-reg-space
+            compress-state-space decompress-state-space
             config-from-string-ir set-config-string
             output-constraint-string output-assume-string
             print-encode-info)
@@ -88,14 +88,14 @@
       (f x indent))
 
     ;; Default: no compression
-    (define (compress-reg-space program live-out live-in)
+    (define (compress-state-space program live-out live-in)
       (values program
               live-out
               live-in
               #f
               (config-from-string-ir program)))
 
-    (define (decompress-reg-space program reg-map) program)
+    (define (decompress-state-space program reg-map) program)
     (define (config-from-string-ir program) (send machine get-config))
     (define (output-constraint-string live-out) live-out)
     (define (output-assume-string x) x)

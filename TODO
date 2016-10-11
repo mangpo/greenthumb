@@ -5,31 +5,21 @@ Performance
 - symbolic: provide input or not?
 
 ARM
-- remove commented code
-- remove compress.rkt
-- fast: assume
-
 - remove inst->vector in forwardbackward
-- remove arm-inst.rkt
-- (get-arg-type) & (get-arg-ranges) take opcode-id not opcode-name
 - do we need get-state-liveness?
-- get rid of proper-machine-config => adjust mem-size
+- rename compress-reg-space
 - do we need old-liveout in inverse interpret?
 - get rid of get-live-list (use progstatet->vector or not at all)
-- do we need combine-live in forwardbackward?
-- get rid of set-config???
 - get rid of relaxed-state-eq?
+- get-memory-size
+- get rid of set-config???
+
+- do we need combine-live in forwardbackward?
 
 Correctness
 - how to prevent users from making a mistake on machine description (ins & outs).
   = e.g. putting arg 0 to be output of str# => backward can't find solution.
   = SOLUTION: extract ins & outs from simulator!!!
-
-Test on:
-- llvm
-- preston
-- GA
-- ARM
 
 1. Revisit
    - inst.rkt
@@ -39,10 +29,15 @@ Test on:
    - change "public" to "protected"
    - do we need to extend enumerator, inverse, etc. at all?
    - remove (debug-inst) in forwardbackward
+   - user don't have to provide live-in for stoch
 
 2. May need to override these functions
    - (reduce-precesion) in forwardbackward
 3. Documentation 
+   - config:
+     = when testing (new machine% [config ?])
+     = when using parallel driver, printer:compress-state-space
+     = config can be use in program-structor, define-arg-type
    - efficient memory access. memory access operates in a granularity of # of bits defined
    - bit, const => reduce bitwidth
    - update-progstate-ins-load -store

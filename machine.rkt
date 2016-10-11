@@ -30,9 +30,8 @@
      )
     
     ;; Required methods to be implemented.
-    ;; See comments at the point of method declaration in arm/arm-machine.rkt for example.
-    (abstract set-config 
-              update-progstate-ins-load update-progstate-ins-store
+    ;; See comments at the point of method declaration in llvm/llvm-machine.rkt for example.
+    (abstract update-progstate-ins-load update-progstate-ins-store
               progstate-structure)
 
     ;; Provided default methods. Can be overriden if needed.
@@ -43,12 +42,12 @@
 
      ;; Search configuration
      window-size
-     get-config ;;adjust-config finalize-config config-exceed-limit?
+     set-config get-config
      get-constructor
      
      ;; Search helper functions
      no-assumption clean-code 
-     get-state clone-state get-state-liveness display-state state-eq? relaxed-state-eq?
+     get-state clone-state display-state state-eq?
      get-opcode-id get-opcode-name
 
      ;; For stochastic & enumerative search
@@ -68,7 +67,6 @@
      is-cannonical
      
      ;; TODO: clean-up
-     get-memory-size get-live-list
      progstate->vector vector->progstate
      get-states-from-file parse-state-text
      )
@@ -79,8 +77,7 @@
     ;; Context-aware window decomposition size is set in xxx-symbolic.rkt and xxx-forwardbackward.rkt
     (define (window-size) 100)
     (define (get-config) config)
-    
-    (define (get-memory-size) config)
+    (define (set-config info) (set! config info))
     
     (define (get-opcode-id opcode)
       (if (symbol? opcode)
@@ -97,15 +94,7 @@
             (if (>= i 0) (vector-ref vec i) '||))))
     
     (define (no-assumption) #f)
-    (define (get-state-liveness f) (get-state f #:concrete #f))
     (define (display-state x) (pretty-display x))
-
-    ;; (define (adjust-config config)
-    ;;   (increase-memory-size)
-    ;;   config)
-    ;; (define (finalize-config info) info)
-    ;; (define (config-exceed-limit? info)
-    ;;   (> (get-memory-size) 100))
 
     (define (progstate->vector x) x)
     (define (vector->progstate x) x)
@@ -149,22 +138,6 @@
 		  [s1 state1]
 		  [s2 state2])
 		 (state-eq? s1 s2 i))]))
-
-    (define (relaxed-state-eq? state1 state2 pred [out-loc #f])
-      (state-eq? state1 state2 pred))
-
-    ;; Deprecated
-    ;; ;; range is a vector of possible arguments.
-    ;; ;; live is either a list of live arguments or indicator vector.
-    ;; (define (filter-live range live)
-    ;;   (cond
-    ;;    [(list? live)
-    ;;     (vector-filter (lambda (x) (member x live)) range)]
-    ;;    [(vector? live)
-    ;;     (vector-filter (lambda (x) (vector-ref live x)) range)]
-    ;;    [else range]))
-
-    (define (get-live-list constraint) (progstate->vector constraint))
 
     ;; This function can be overriden to update opcode-pool and instclass-pool given code.
     (define (analyze-opcode prefix code postfix) (void))

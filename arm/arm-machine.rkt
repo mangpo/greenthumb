@@ -26,7 +26,7 @@
     (inherit define-instruction-class init-machine-description finalize-machine-description
              define-progstate-type define-arg-type
              update-progstate-ins kill-outs update-classes-pool get-opcode-name)
-    (override set-config display-state get-constructor
+    (override display-state get-constructor
               progstate-structure update-progstate-ins-load update-progstate-ins-store)
     (field [cmp-inst #f])
 
@@ -64,9 +64,6 @@
       (or (vector-member x (vector-ref opcodes 2)) -1))
     (define/public (get-shf-opcode-name x)
       (if (>= x 0) (vector-ref (vector-ref opcodes 2) x) '||))
-
-    ;; config = # of registers in this piece of code
-    (define (set-config info) (set! config info))
 
     ;;;;;;;;;;;;;;;;;;;;; program state ;;;;;;;;;;;;;;;;;;;;;;;;
 

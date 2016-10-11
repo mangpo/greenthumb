@@ -292,7 +292,7 @@
     ;; extra: extra information
     (define (get-live-in code live-out)
       ;;(pretty-display `(live-out ,live-out))
-      (define in-state (send machine get-state-liveness sym-input))
+      (define in-state (send machine get-state sym-input #:concrete #f))
       (define out-state (interpret code in-state))
       (define vec-live-out (send machine progstate->vector live-out))
       (define vec-input (send machine progstate->vector in-state))

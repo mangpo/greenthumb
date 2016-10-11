@@ -11,7 +11,7 @@
     (super-new)
     (inherit-field machine report-mutations)
     (override encode-inst decode-inst print-struct-inst print-syntax-inst
-              compress-reg-space decompress-reg-space
+              compress-state-space decompress-state-space
               output-constraint-string)
 
     (define (print-struct-inst x [indent ""])
@@ -143,7 +143,7 @@
     ;; 3) compressed live-in
     ;; 4) map-back
     ;; 5) program state config
-    (define (compress-reg-space program live-out live-in)
+    (define (compress-state-space program live-out live-in)
       (define reg-set (mutable-set))
       (define max-reg 0)
 
@@ -197,7 +197,7 @@
               (append compressed-live-in live-in-extra)
               reg-map-back id))
 
-    (define (decompress-reg-space program reg-map)
+    (define (decompress-state-space program reg-map)
       (traverse program inst? (lambda (x) (inner-rename x reg-map))))
 
     (define/public (encode-live x)

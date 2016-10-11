@@ -152,8 +152,7 @@ state)
   (class machine%
     (super-new)
     (inherit-field bitwidth random-input-bits config opcodes)
-    (override set-config 
-              display-state 
+    (override display-state 
               parse-state-text
               progstate->vector vector->progstate
               get-constructor progstate-structure
@@ -184,9 +183,6 @@ state)
           (set! LEFT -5)
           (set! RIGHT -6)
           (set! IO -7))
-    
-    (when config (set-config config))
-    (define (set-config config-init) (set! config config-init))
 
 
     (define/public (output-constraint lst [extra-data 0] [extra-return 0])

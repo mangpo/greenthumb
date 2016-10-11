@@ -42,7 +42,7 @@
             reduce-precision increase-precision
             reduce-precision-assume
             change-inst change-inst-list
-            mask-in get-live-mask inst->vector)
+            mask-in get-live-mask)
 
     (define (debug-inst my-inst)
       #f)
@@ -76,7 +76,6 @@
     (set! enum (new enumerator% [machine machine] [printer printer]))
     
     ;;;;;;;;;;;;;;;;;;;;;;; Helper functions ;;;;;;;;;;;;;;;;;;;;;;
-    (define (inst->vector x) (vector (inst-op x) (inst-args x)))
     (define (prescreen my-inst state-vec) #t)
     
     ;; Return a copy of a given instruction x,
@@ -211,6 +210,7 @@
       (hash-ref prog2id prog))
 
     (define (id->prog id) (vector-ref id2prog id))
+    (define (inst->vector x) (vector (inst-op x) (inst-args x)))
 
     (define (inst->id my-inst)
       (define inst-vec (inst->vector my-inst))
@@ -580,7 +580,7 @@
       (define live2-vec (send machine progstate->vector live2))
       (define live1 (send validator-abst get-live-in (vector-append spec postfix) constraint))
       (define live0 (send validator-abst get-live-in (vector-append prefix spec postfix) constraint))
-      (define live0-list (send machine get-live-list live0))
+      (define live0-list (send machine progstate->vector live0))
 
       (define live1-list-alt live0-list)
       (for ([x prefix])
@@ -590,8 +590,8 @@
 
       ;; Convert live2 after analyze-args to filter some live-out regs
       ;; that do not involve in here.
-      (define live1-list (send machine get-live-list live1))
-      (define live2-list (send machine get-live-list live2))
+      (define live1-list (send machine progstate->vector live1))
+      (define live2-list (send machine progstate->vector live2))
       
       (set! live1-list (combine-live live1-list-alt live1-list))
 
@@ -1214,7 +1214,7 @@
                               ;;  ([exn? (lambda (e) #f)])
                               (send inverse interpret-inst my-inst
                                     (send machine vector->progstate out-vec)
-                                    old-liveout my-ce-out)]
+                                    my-ce-out)]
                              ;;[_ (pretty-display `(out-vec-after ,out-vec))]
                              ;;[t1 (current-milliseconds)]
                              )

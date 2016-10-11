@@ -75,9 +75,8 @@
     ;; Inverse interpret my-inst using the pre-computed 'behaviors-bw'.
     ;; my-inst: instruction
     ;; state-vec: progstate in vector/list/pair format
-    ;; old-liveout: liveout info
     ;; output: a list of progstates in vector/list/pair format
-    (define (interpret-inst my-inst state old-liveout [ref #f])
+    (define (interpret-inst my-inst state [ref #f])
       (define args (inst-args my-inst))
       (define ins-types (send machine get-progstate-ins-types my-inst))
       (define outs-types (send machine get-progstate-outs-types my-inst))
@@ -86,7 +85,7 @@
        [(not (member (get-memory-type) (append ins-types outs-types)))
         (define key (send machine get-inst-key my-inst))
         (define out-vals (send machine get-progstate-outs-vals my-inst state))
-        (define state-base (send machine kill-outs my-inst state)) ;; TODO: do we have to use old-liveout?
+        (define state-base (send machine kill-outs my-inst state))
 
         (define mapping (hash-ref behaviors-bw key))
         (define in-vals-list (and (hash-has-key? mapping out-vals) (hash-ref mapping out-vals)))

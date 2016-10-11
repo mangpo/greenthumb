@@ -2,7 +2,8 @@
 
 (provide (all-defined-out))
 
-(struct inst (op args) #:mutable) ;; machine-dependent
+(struct inst (op args) #:mutable)
+
 (struct block (body org info))
 ;; info may include output constraint and # of recv data depending on arch
 (struct call (name))

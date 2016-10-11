@@ -39,19 +39,19 @@
       (pretty-display (format ">>> live-out-org: ~a" live-out-org))
 
       ;; Use the fewest number of registers possible.
-      (define-values (code live-out live-in map-back machine-info) 
-        (send printer compress-reg-space code-org live-out-org live-in-org))
-      (pretty-display (format ">>> machine-info: ~a" machine-info))
+      (define-values (code live-out live-in map-back machine-config) 
+        (send printer compress-state-space code-org live-out-org live-in-org))
+      (pretty-display (format ">>> machine-config: ~a" machine-config))
       (pretty-display (format ">>> live-in: ~a" live-in))
       (pretty-display (format ">>> live-out: ~a" live-out))
       (pretty-display `(map-back ,map-back))
 
       (pretty-display ">>> compressed-code:")
       (send printer print-syntax code)
-      ;; machine-info from compress-reg-space is only accurate for reg but not memory. This will adjust the rest of the machine info.
-      ;; (set! machine-info (send validator proper-machine-config 
-      ;;   		       (send printer encode code) machine-info))
-      (pretty-display (format ">>> machine-info: ~a" machine-info))
+      ;; machine-config from compress-state-space is only accurate for reg but not memory. This will adjust the rest of the machine info.
+      ;; (set! machine-config (send validator proper-machine-config 
+      ;;   		       (send printer encode code) machine-config))
+      (pretty-display (format ">>> machine-config: ~a" machine-config))
       (pretty-display (format ">>> live-in: ~a" live-in))
       (pretty-display (format ">>> live-out: ~a" live-out))
 
@@ -82,7 +82,7 @@
                (pretty-display (format "(require ~a)" required-files))
                (pretty-display (format "(define machine (new ~a [config ~a]))"
                                        (get-class-name "machine")
-                                       (send printer set-config-string machine-info)))
+                                       (send printer set-config-string machine-config)))
                (pretty-display (format "(define printer (new ~a [machine machine]))" (get-class-name "printer")))
                (pretty-display (format "(define parser (new ~a))" (get-class-name "parser")))
                (pretty-display (format "(define simulator-racket (new ~a [machine machine]))" (get-class-name "simulator-racket")))
@@ -365,7 +365,7 @@
 
       (system "pkill -u mangpo java")
       (system "pkill -u mangpo z3")
-      (let ([decompressed-code (send printer decompress-reg-space output-code map-back)])
+      (let ([decompressed-code (send printer decompress-state-space output-code map-back)])
         (newline)
         (pretty-display "OUTPUT")
         (pretty-display "------")

@@ -11,7 +11,7 @@
     (inherit init-machine-description define-instruction-class finalize-machine-description
              define-progstate-type define-arg-type
              update-progstate-ins kill-outs)
-    (override get-constructor set-config progstate-structure 
+    (override get-constructor progstate-structure 
               update-progstate-ins-load
               update-progstate-ins-store)
 
@@ -19,11 +19,6 @@
     
     (unless bitwidth (set! bitwidth 32))
     (set! random-input-bits bitwidth)
-
-    (when config (set-config config))
-    
-    (define (set-config x) 
-      (set! config x))
 
     ;;;;;;;;;;;;;;;;;;;;; program state ;;;;;;;;;;;;;;;;;;;;;;;;
 

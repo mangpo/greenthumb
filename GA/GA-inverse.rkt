@@ -97,7 +97,7 @@
                (and (= c 1) (third key))))
        1))
                
-    (define (interpret-inst my-inst state old-liveout [ref #f])
+    (define (interpret-inst my-inst state [ref #f])
       (define a (progstate-a state))
       (define b (progstate-b state))
       (define r (progstate-r state))

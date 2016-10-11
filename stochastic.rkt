@@ -51,7 +51,7 @@
       (send machine reset-arg-ranges)
       (send validator adjust-memory-config spec)
       
-      (set! live-in (send machine get-live-list this-live-in))
+      (set! live-in (send machine progstate->vector this-live-in))
       (for ([x prefix])
            (set! live-in (send machine update-live live-in x)))
       ;; (unless live-in

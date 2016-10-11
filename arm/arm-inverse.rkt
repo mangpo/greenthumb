@@ -21,16 +21,16 @@
           (super get-val-range type)))
 
     (define cmp-inst (get-field cmp-inst machine))
-    (define/override (interpret-inst my-inst state old-liveout [ref #f])
+    (define/override (interpret-inst my-inst state [ref #f])
       (define (exec)
         ;; Remove conditional so that we don't change the flag.
         (define ops-vec (vector-copy (inst-op my-inst)))
         (vector-set! ops-vec 1 -1) 
-        (super interpret-inst (inst ops-vec (inst-args my-inst)) state old-liveout ref))
+        (super interpret-inst (inst ops-vec (inst-args my-inst)) state ref))
 
       (define op (vector-ref (inst-op my-inst) 0))
       (cond
-       [(member op cmp-inst) (super interpret-inst my-inst state old-liveout ref)]
+       [(member op cmp-inst) (super interpret-inst my-inst state ref)]
        [else (exec-flag-backward my-inst state exec)]))
 
     (define (exec-flag-backward my-inst state exec)
