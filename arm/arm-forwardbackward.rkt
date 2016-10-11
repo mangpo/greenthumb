@@ -21,7 +21,7 @@
 
     ;; Mask in only the live values. If an entry in progstate is not live, set it to #f.
     ;; state-vec: progstate in vector/list/pair format
-    ;; live-list: liveness in compact format
+    ;; live-list: liveness in vector/list/pair format
     ;; keep-flag: if #f, set flag to default value.
     ;; output: masked progstate in vector/list/pair format
     (define/override (mask-in state-vec live-list #:keep-flag [keep #t])
@@ -55,6 +55,9 @@
     ;; y: liveness from analyzing the program backward from the end to point p.
     (define (combine-live x y) 
       ;; Use register's liveness from x but memory's liveness from y.
+      (unless (equal? x y)
+              (pretty-display `(combine-live ,x ,y))
+              (raise "combine!!!"))
       (progstate (progstate-regs x)
                  (progstate-memory y)
                  (progstate-z x)))

@@ -50,13 +50,14 @@
   (class object%
     (super-new)
     (init-field machine printer)
-    (public generate-inst get-flag filter-with-flags)
+    (public generate-inst get-pruning-info filter-with-pruning-info)
 
-    (define (get-flag state) #f)
+    (define (get-pruning-info state) #f)
     
     (define opcodes (get-field opcodes machine))
 
-    (define (filter-with-flags opcodes flag-in flag-out #:no-args [no-args #f] #:try-cmp [try-cmp #f])
+    (define (filter-with-pruning-info opcodes prune-in prune-out
+                                      #:no-args [no-args #f] #:try-cmp [try-cmp #f])
       opcodes)
     
     ;; Mode `no-args is for generating instructions to be used for creating
@@ -75,7 +76,7 @@
     ;; (inst add#-id #(2 0 {0, 1, or -1}))
     ;; Only enumerate const and not variables, but make sure to assign
     ;; different IDs for the variables.
-    (define (generate-inst live-in live-out flag-in flag-out
+    (define (generate-inst live-in live-out prune-in prune-out
                            #:no-args [no-args #f] #:try-cmp [try-cmp #f]
                            #:step-fw [step-fw #f] #:step-bw [step-bw #f])
 
@@ -90,9 +91,9 @@
       ;; (define inst-choice '(dup a! or and a))
       ;; (define opcode-pool (map (lambda (x) (send machine get-opcode-id x)) inst-choice))
 
-      (set! opcode-pool (filter-with-flags opcode-pool flag-in flag-out
-                                           #:no-args no-args
-                                           #:try-cmp try-cmp))
+      (set! opcode-pool (filter-with-pruning-info opcode-pool prune-in prune-out
+                                                  #:no-args no-args
+                                                  #:try-cmp try-cmp))
       
       ;; (pretty-display `(generate-inst ,(length opcode-pool) ,(length (get-field opcode-pool machine))))
       ;; (pretty-display (map (lambda (x) (send machine get-opcode-name x)) opcode-pool))

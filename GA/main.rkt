@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../parallel-driver.rkt" "../fitness-learner.rkt"
+(require "../parallel-driver.rkt" 
          "GA-parser.rkt" "GA-machine.rkt" 
          "GA-printer.rkt" 
          "GA-simulator-rosette.rkt"

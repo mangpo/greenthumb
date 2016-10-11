@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../parallel-driver.rkt" "../inst.rkt" "../fitness-learner.rkt"
+(require "../parallel-driver.rkt" "../inst.rkt"
          "arm-parser.rkt" "arm-machine.rkt" 
          "arm-printer.rkt"
 	 ;; simulator, validator
@@ -8,7 +8,7 @@
 	 "arm-simulator-rosette.rkt"
          "arm-validator.rkt")
 
-(provide optimize arm-generate-inputs)
+(provide optimize)
 
 ;; Main function to perform superoptimization on multiple cores.
 ;; >>> INPUT >>>
@@ -37,9 +37,9 @@
         #:time-limit time-limit #:size size #:input-file input-file)
   )
   
-(define (arm-generate-inputs code machine-config dir)
-  (define machine (new arm-machine% [config machine-config]))
-  (define printer (new arm-printer% [machine machine]))
-  (define simulator (new arm-simulator-rosette% [machine machine]))
-  (define validator (new arm-validator% [machine machine] [simulator simulator]))
-  (generate-inputs (send printer encode code) #f dir machine printer validator))
+;; (define (arm-generate-inputs code machine-config dir)
+;;   (define machine (new arm-machine% [config machine-config]))
+;;   (define printer (new arm-printer% [machine machine]))
+;;   (define simulator (new arm-simulator-rosette% [machine machine]))
+;;   (define validator (new arm-validator% [machine machine] [simulator simulator]))
+;;   (generate-inputs (send printer encode code) #f dir machine printer validator))

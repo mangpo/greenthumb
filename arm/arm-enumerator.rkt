@@ -12,10 +12,10 @@
     
     (define cmp-inst (get-field cmp-inst machine))
 
-    (define/override (get-flag state-vec) (progstate-z state-vec))
+    (define/override (get-pruning-info state-vec) (progstate-z state-vec))
     
-    (define/override (filter-with-flags opcode-pool flag-in flag-out
-                                        #:no-args [no-args #f] #:try-cmp [try-cmp #f])
+    (define/override (filter-with-pruning-info opcode-pool flag-in flag-out
+                                               #:no-args [no-args #f] #:try-cmp [try-cmp #f])
       (define ret
         (cond
          [try-cmp

@@ -459,7 +459,7 @@
     ;; Return valid operands' ranges given opcode-name, live-in, live-out, and mode.
     ;; Return #f if the given opcode is not a valid instruction given live-in and live-out.
     ;; opcode-name: symbol
-    ;; live-in & live-out: compact format
+    ;; live-in & live-out: vector/list/pair format
     ;; There are 3 modes.
     ;;  1) `basic (no restriction)
     ;;  2) `no-args = ignore reigster operands. Return `var-o and `var-i for operand that is input variable and output variable respectively. This mode is only used for enumerative search.

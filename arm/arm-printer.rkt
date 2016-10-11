@@ -178,8 +178,8 @@
                  (set! id (add1 id))))
 
       ;; Generate outputs.
-      (define compressed-program 
-        (traverse program inst? (lambda (x) (inner-rename x reg-map)))) 
+      (define compressed-program
+        (vector-map (lambda (x) (inner-rename x reg-map)) program))
 
       (define live-out-extra (filter symbol? live-out))
       (define live-in-extra (filter symbol? live-in))
@@ -198,7 +198,7 @@
               reg-map-back id))
 
     (define (decompress-state-space program reg-map)
-      (traverse program inst? (lambda (x) (inner-rename x reg-map))))
+      (vector-map (lambda (x) (inner-rename x reg-map)) program))
 
     (define/public (encode-live x)
       (define reg (make-vector (send machine get-config) #f))

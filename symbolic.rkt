@@ -226,6 +226,6 @@
             (evaluate (inst-args x) model)))
     
     (define (evaluate-program code model)
-      (traverse code inst? (lambda (x) (evaluate-inst x model))))
+      (vector-map (lambda (x) (evaluate-inst x model)) code))
 
     ))

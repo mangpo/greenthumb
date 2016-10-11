@@ -1,20 +1,17 @@
 Performance
-* prescreen?
 * don't mask-in the start state
 * mask-in & mask-in again (ARM)
 - symbolic: provide input or not?
 
 ARM
-- remove inst->vector in forwardbackward
-- do we need get-state-liveness?
-- rename compress-reg-space
-- do we need old-liveout in inverse interpret?
-- get rid of get-live-list (use progstatet->vector or not at all)
-- get rid of relaxed-state-eq?
-- get-memory-size
-- get rid of set-config???
+- prescreen
+- inst.rkt
+- get-flag -> get-pruning-info, filter-with-flags => filter-with-pruning-info
+- entry-flag => entry-prune
+- "compact format"
 
 - do we need combine-live in forwardbackward?
+- user don't have to provide live-in for stoch
 
 Correctness
 - how to prevent users from making a mistake on machine description (ins & outs).
@@ -22,14 +19,10 @@ Correctness
   = SOLUTION: extract ins & outs from simulator!!!
 
 1. Revisit
-   - inst.rkt
-   - template
    - (reduce-precesion) in forwardbackward
-   - (get-flag) in enumerator
    - change "public" to "protected"
-   - do we need to extend enumerator, inverse, etc. at all?
    - remove (debug-inst) in forwardbackward
-   - user don't have to provide live-in for stoch
+   - template
 
 2. May need to override these functions
    - (reduce-precesion) in forwardbackward
@@ -49,6 +42,7 @@ Correctness
    - make connection between (get-flag) and (filther-with-flags)
    - define-progstate-stype #:const #:min #:max
    - define-instruction-class #:args #:ins #:outs #:commute #:required
+   - default arg-type: const, bit => reduce-precision
 4. Increase precision in enum
    - synthesize constrants
    - in reduced-bitwidth domain: try all 4-bit constants

@@ -39,9 +39,33 @@
 
 (define code
 (send parser ir-from-string "
-	rsb	r3, r0, #0
-	mov	r0, r0, asr #31
-	orr	r0, r0, r3, asr #31
+        str     r0, [r4, #-24]
+        ldr     r3, [r4, #-24]
+        rsb     r3, r3, #0
+        mov     r2, r3
+        ldr     r3, [r4, #-24]
+        and     r3, r2, r3
+        str     r3, [r4, #-20]
+        ldr     r2, [r4, #-24]
+        ldr     r3, [r4, #-20]
+        add     r3, r2, r3
+        str     r3, [r4, #-16]
+        ldr     r2, [r4, #-24]
+        ldr     r3, [r4, #-16]
+        eor     r3, r2, r3
+        str     r3, [r4, #-12]
+        ldr     r0, [r4, #-12]
+        ldr     r1, [r4, #-20]
+        bl      __aeabi_uidiv
+        mov     r3, r0
+        str     r3, [r4, #-8]
+        ldr     r3, [r4, #-8]
+        mov     r3, r3, lsr #2
+        str     r3, [r4, #-8]
+        ldr     r2, [r4, #-8]
+        ldr     r3, [r4, #-16]
+        orr     r3, r2, r3
+        mov     r0, r3
 "))
 
 
@@ -56,7 +80,7 @@
 ;; p25 -O3
 ;; z3: >5 min, java: 9 s
 
-(define livein (send printer encode-live '(0 1)))
+(define livein (send printer encode-live '(0 3)))
 (define constraint (send printer encode-live '(0)))
 
 (define encoded-prefix (send printer encode prefix))
@@ -66,7 +90,7 @@
 
 (send validator adjust-memory-config (vector-append encoded-prefix encoded-code encoded-postfix))
 
-(send symbolic synthesize-window
+#;(send symbolic synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch
       encoded-prefix encoded-postfix
@@ -80,7 +104,7 @@
       livein ;; live-in
       "./driver-0" 3600 #f)
 
-#;(send backward synthesize-window
+(send backward synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch => start from searching from length 1, number => only search for that length
       encoded-prefix encoded-postfix

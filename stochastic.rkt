@@ -253,7 +253,7 @@
       new-p)
     
     ;; Create a new instruction with operands that are live (in live-in) and with opcode-id if specified.
-    ;; live-in: compact format
+    ;; live-in: vector/list/pair format
     (define (random-instruction
              index n live-in
              [opcode-id (random-from-list (send machine get-valid-opcode-pool index n live-in))])

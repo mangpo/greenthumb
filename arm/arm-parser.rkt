@@ -100,21 +100,7 @@
         (inst-list   (() (list))
                      ((instruction inst-list) (cons $1 $2)))
 
-        (oneblock    ((BLOCK inst-list) (block (list->vector $2) #f 
-                                               (substring $1 2))))
-        (blocks      ((oneblock) (list $1))
-                     ((oneblock blocks) (cons $1 $2)))
-        
-
-        (chunk  ((LABEL blocks)    (label $1 $2 #f))
-                ((LABEL inst-list) (label $1 (block (list->vector $2) #f #f) #f)))
-        
-        (chunks ((chunk) (list $1))
-                ((chunk chunks) (cons $1 $2)))
-
-        (code   ((inst-list chunks) (cons (label #f (block (list->vector $1) #f #f) #f)
-                                          $2))
-                ((inst-list) (list->vector $1))
+        (code   ((inst-list) (list->vector $1))
                 )
 
         )))
@@ -122,9 +108,9 @@
     (define (create-special-inst op1 op2)
       (cond
        [(equal? op2 "__aeabi_idiv")
-	(inst "sdiv" (vector "r0" "r0" "r1"))]
+	(inst (vector "sdiv" "" "") (vector "r0" "r0" "r1"))]
        [(equal? op2 "__aeabi_uidiv")
-	(inst "udiv" (vector "r0" "r0" "r1"))]
+	(inst (vector "udiv" "" "") (vector "r0" "r0" "r1"))]
        [else
 	(raise (format "Undefine special instruction: ~a ~a" op1 op2))]))
 

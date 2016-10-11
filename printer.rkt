@@ -19,12 +19,12 @@
     (abstract encode-inst decode-inst)
 
     (define (encode code)
-      (define ret (traverse code inst? encode-inst))
+      (define ret (vector-map (lambda (x) (encode-inst x)) code))
       (print-encode-info)
       ret)
 
     (define (decode code)
-      (traverse code inst? decode-inst))
+      (vector-map (lambda (x) (decode-inst x)) code))
 
     (define (print-encode-info) (void))
 
@@ -47,17 +47,6 @@
        
        [(inst? x) (print-struct-inst x indent)]
        
-       [(block? x)
-        (print-struct (block-body x) indent)]
-       
-       [(label? x)
-        (pretty-display (format "~a(label ~a" indent (label-name x)))
-        (print-struct (label-body x) (inc indent))
-        (pretty-display (format "~a)" indent))]
-       
-       [(program? x)
-        (print-struct (program-code x))]
-       
        [else
         (pretty-display (format "~a~a" indent x))]))
 
@@ -69,19 +58,6 @@
          
          [(or (list? x) (vector? x))
           (for ([i x]) (f i indent))]
-         
-         [(block? x)
-          (when (block-info x)
-                (pretty-display (format "~a; ~a" indent (block-info x))))
-          (f (block-body x) indent)]
-         
-         [(label? x)
-          (when (label-name x) 
-                (pretty-display (format "~a~a" indent (label-name x))))
-          (f (label-body x) (inc indent))]
-         
-         [(program? x)
-          (f (program-code x))]
          
          [else
           (pretty-display (format "~a~a" indent x))]))

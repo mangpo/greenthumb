@@ -231,35 +231,35 @@
 	 [(or (vector? x) (list? x))
 	  (for ([i x]) (interpret-struct i))]
 	 
-	 [(block? x)
-	  (interpret-struct (block-body x))]
+	 ;; [(block? x)
+	 ;;  (interpret-struct (block-body x))]
 
-	 [(forloop? x)
-	  (interpret-struct (forloop-init x))
-	  (r-push! (pop!))
-	  (for ([i (in-range (add1 r))])
-	       (interpret-struct (forloop-body x))
-	       (set! r (sub1 r)))
-	  (r-pop!)
-	  ]
+	 ;; [(forloop? x)
+	 ;;  (interpret-struct (forloop-init x))
+	 ;;  (r-push! (pop!))
+	 ;;  (for ([i (in-range (add1 r))])
+	 ;;       (interpret-struct (forloop-body x))
+	 ;;       (set! r (sub1 r)))
+	 ;;  (r-pop!)
+	 ;;  ]
 
-	 [(ift? x)
-	  (when (not (equal? t 0))
-		(interpret-struct (ift-t x)))]
+	 ;; [(ift? x)
+	 ;;  (when (not (equal? t 0))
+	 ;;        (interpret-struct (ift-t x)))]
 
-	 [(iftf? x)
-	  (if (not (equal? t 0))
-	      (interpret-struct (iftf-t x))
-	      (interpret-struct (iftf-f x)))]
+	 ;; [(iftf? x)
+	 ;;  (if (not (equal? t 0))
+	 ;;      (interpret-struct (iftf-t x))
+	 ;;      (interpret-struct (iftf-f x)))]
 
-	 [(-ift? x)
-	  (when (negative? t) ;(or (negative? t) (>= t (arithmetic-shift 1 (sub1 bit)))) ;; negative
-		(interpret-struct (-ift-t x)))]
+	 ;; [(-ift? x)
+	 ;;  (when (negative? t) ;(or (negative? t) (>= t (arithmetic-shift 1 (sub1 bit)))) ;; negative
+	 ;;        (interpret-struct (-ift-t x)))]
 
-	 [(-iftf? x)
-	  (if (negative? t) ;(or (negative? t) (>= t (arithmetic-shift 1 (sub1 bit)))) ;; negative
-	      (interpret-struct (-iftf-t x))
-	      (interpret-struct (-iftf-f x)))]
+	 ;; [(-iftf? x)
+	 ;;  (if (negative? t) ;(or (negative? t) (>= t (arithmetic-shift 1 (sub1 bit)))) ;; negative
+	 ;;      (interpret-struct (-iftf-t x))
+	 ;;      (interpret-struct (-iftf-f x)))]
 
 	 [else (raise (format "interpret-struct: unimplemented for ~a" x))]
 	 ))
@@ -290,12 +290,12 @@
 	  (foldl (lambda (i all) (+ all (cost-struct i))) 0 x)]
 	 [(vector? x)
 	  (foldl (lambda (i all) (+ all (cost-struct i))) 0 (vector->list x))]
-	 [(block? x)   (cost-struct (block-body x))]
-	 [(forloop? x) (+ (cost-struct (forloop-init x)) (cost-struct (forloop-body x)))]
-	 [(ift? x)     (cost-struct (ift-t x))]
-	 [(iftf? x)    (+ (cost-struct (iftf-t x)) (cost-struct (iftf-f x)))]
-	 [(-ift? x)    (cost-struct (-ift-t x))]
-	 [(-iftf? x)   (+ (cost-struct (-iftf-t x)) (cost-struct (-iftf-f x)))]
+	 ;; [(block? x)   (cost-struct (block-body x))]
+	 ;; [(forloop? x) (+ (cost-struct (forloop-init x)) (cost-struct (forloop-body x)))]
+	 ;; [(ift? x)     (cost-struct (ift-t x))]
+	 ;; [(iftf? x)    (+ (cost-struct (iftf-t x)) (cost-struct (iftf-f x)))]
+	 ;; [(-ift? x)    (cost-struct (-ift-t x))]
+	 ;; [(-iftf? x)   (+ (cost-struct (-iftf-t x)) (cost-struct (-iftf-f x)))]
 	 [else (raise (format "cost-struct: unimplemented for ~a" x))]
 	 ))
 
