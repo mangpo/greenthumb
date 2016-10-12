@@ -8,7 +8,7 @@
 
 
 (define parser (new GA-parser%))
-(define machine (new GA-machine% [config 5]))
+(define machine (new GA-machine% [config 1]))
 
 (define printer (new GA-printer% [machine machine]))
 (define simulator-racket (new GA-simulator-racket% [machine machine]))
@@ -28,16 +28,17 @@
 
 (define prefix 
 (send parser ir-from-string "
-drop pop a 325 a! !
+0 a! !+ 0 
 "))
 
 (define postfix
 (send parser ir-from-string "
+2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ push drop pop dup over - 1 + 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ over - and + push drop pop
 "))
 
 (define code
 (send parser ir-from-string "
-2* 2* @+ 3 and +
+0 b! @b 2/ 2/ 2/ 2/
 "))
 
 
@@ -55,15 +56,18 @@ drop pop a 325 a! !
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send printer encode sketch))
 
+(define t1 (current-seconds))
 (define f
   (send backward synthesize-window
         encoded-code ;; spec
         encoded-sketch ;; sketch = spec in this case
         encoded-prefix encoded-postfix
-        (constraint s t) 1 11 3600
+        (constraint r s t) 1 11 3600
         ;#:assume (constrain-stack 
         ;          machine '((<= . 65535) (<= . 65535) (<= . 65535)))
         ))
+(define t2 (current-seconds))
+(pretty-display `(time ,(- t2 t1)))
 #|(send stoch superoptimize encoded-code 
       (constraint machine [reg 0] [mem]) ;; constraint
       (constraint machine [reg 0] [mem]) ;; live-in

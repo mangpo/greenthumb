@@ -49,7 +49,7 @@
       (define shfop (inst-shfop my-inst))
       (define shfarg (inst-shfarg my-inst))
       (when (and shfop (member (vector-ref shf-opcodes shfop) shf-inst-reg))
-            (vector-set! in shfarg #t))
+            (vector-set! in shfarg reg-range-db))
       
       (for ([arg (inst-args my-inst)]
 	    [type arg-types])
@@ -194,3 +194,40 @@
       
 
     ))
+
+#|
+(require "arm-simulator-racket.rkt" "arm-parser.rkt" "arm-printer.rkt")
+
+(define (test)
+  
+  (define parser (new arm-parser%))
+  (define machine (new arm-machine% [config (list 4 1 0 )] [bitwidth 4]))
+  
+  (define printer (new arm-printer% [machine machine]))
+  (define simulator-racket (new arm-simulator-racket% [machine machine]))
+  (define inverse (new arm-inverse% [machine machine] [simulator simulator-racket]))
+
+  (define code
+    (send parser ir-from-string "
+        sub r0, r1, r2, lsl r3
+"))
+  (define encoded-code (send printer encode code))
+  (define my-inst (vector-ref encoded-code 0))
+  
+  (define code2
+    (send parser ir-from-string "
+        sub r0, r2, r0, lsl r1
+"))
+  (define encoded-code2 (send printer encode code2))
+  (define my-inst2 (vector-ref encoded-code2 0))
+  
+  (send inverse gen-inverse-behavior my-inst)
+
+  (define state1 (vector '#(-8 #f #f)
+                           '#()
+                           -1 0))
+  (define live-out (cons (list 0) (list)))
+
+  (send inverse interpret-inst my-inst2 state1 live-out)
+  )
+|#

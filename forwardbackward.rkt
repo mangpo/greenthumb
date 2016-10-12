@@ -392,6 +392,7 @@
     (define t-extra 0)
     (define t-verify 0)
     (define c-build-hash 0)
+    (define c-mask 0)
     (define c-intersect 0)
     (define c-interpret-0 0)
     (define c-interpret 0)
@@ -571,7 +572,7 @@
       (define states2-vec 
 	(map (lambda (x) (mask-in (send machine progstate->vector x) live2-list #:keep-flag try-cmp)) states2))
 
-      (when info
+      (when debug
             (pretty-display `(states1-vec ,states1-vec))
             (pretty-display `(states2-vec ,states2-vec))
             (pretty-display `(live2-vec ,live2-vec))
@@ -652,7 +653,7 @@
                      (send simulator interpret (vector-append spec-precise postfix-precise) ce-input)]
                     [ce-output-vec
                      (send machine progstate->vector ce-output)])
-               (when debug
+               (when #t
                      (pretty-display "[6] counterexample (precise)")
                      (send machine display-state ce-input)
                      (pretty-display `(ce-out-vec ,ce-output-vec)))
@@ -718,7 +719,7 @@
                         (send simulator-abst interpret spec ce-input)]
                        [ce-output-vec
                         (send machine progstate->vector ce-output)])
-                  (when debug
+                  (when #t
                         (newline)
                         (pretty-display "[3] counterexample")
                         (pretty-display `(ce ,ce-count-extra ,ce-input-vec ,ce-output-vec)))
@@ -953,6 +954,7 @@
 			     (set! t-mask (+ t-mask (- t1 t0)))
 			     (set! t-hash (+ t-hash (- t2 t1)))
 			     (set! t-intersect (+ t-intersect (- t3 t2)))
+                             (set! c-mask (add1 c-mask))
 			     
 			     (when
 			      (and new-candidates (not (empty? new-candidates)))
@@ -1104,7 +1106,8 @@
 	  (when my-inst
                 (when debug
                       (send printer print-syntax-inst (send printer decode-inst my-inst))
-                      (pretty-display `(live ,my-liveout)))
+                      ;;(pretty-display `(live ,my-liveout))
+                      )
                 (define inst-id (inst->id my-inst))
                 ;; (define t-interpret 0)
                 ;; (define t-hash 0)
@@ -1120,6 +1123,7 @@
                              )
 			;;(pretty-display `(test-live ,test ,old-liveout ,out-vec ,in-vec))
 			(when (and in-vec (not (empty? in-vec)))
+                              ;;(pretty-display `(in-vec ,my-liveout))
 			      (class-insert-bw! current my-liveout test 
 						in-vec (concat-progs inst-id progs)))
                         ;; (let ([t2 (current-milliseconds)])
@@ -1154,19 +1158,19 @@
          (define ttt (current-milliseconds))
          (refine hash1 hash2 my-inst live1 live2 flag1 flag2)
          (when 
-          (and verbo (> (- (current-milliseconds) ttt) 500))
-          (pretty-display (format "search ~a ~a = ~a + ~a + ~a | ~a\t(~a + ~a/~a)\t~a ~a ~a/~a\t[~a/~a]\t~a/~a\t~a/~a (~a) ~a" 
+          (and verbo) ;;(> (- (current-milliseconds) ttt) 500))
+          (pretty-display (format "search ~a ~a = ~a + ~a + ~a | ~a\t(~a + ~a/~a)\t~a/~a ~a ~a/~a\t[~a/~a]\t~a/~a\t~a/~a (~a) ~a" 
                                   (- (current-milliseconds) ttt) ce-count-extra
                                   t-refine t-collect t-check
                                   t-build t-build-inter t-build-hash c-build-hash
-                                  t-mask t-hash t-intersect c-intersect
+                                  t-mask c-mask t-hash t-intersect c-intersect
                                   t-interpret-0 c-interpret-0
                                   t-interpret c-interpret
                                   t-extra c-extra c-check
                                   t-verify
                                   )))
          (set! t-build 0) (set! t-build-inter 0) (set! t-build-hash 0) (set! t-mask 0) (set! t-hash 0) (set! t-intersect 0) (set! t-interpret-0 0) (set! t-interpret 0) (set! t-extra 0) (set! t-verify 0)
-         (set! c-build-hash 0) (set! c-intersect 0) (set! c-interpret-0 0) (set! c-interpret 0) (set! c-extra 0) (set! c-check 0)
+         (set! c-build-hash 0) (set! c-mask 0) (set! c-intersect 0) (set! c-interpret-0 0) (set! c-interpret 0) (set! c-extra 0) (set! c-check 0)
          (set! t-refine 0) (set! t-collect 0) (set! t-check 0)
          (refine-all hash1 live1 flag1 hash2 live2 flag2 iterator)
          ))
@@ -1181,7 +1185,7 @@
          (define keys-bw (hash-keys (vector-ref classes-bw step-bw)))
          (set! keys (sort-live keys))
          (set! keys-bw (sort-live-bw keys-bw))
-         (when debug
+         (when #t
                (for ([key keys])
                     (pretty-display `(key ,(entry-live key) ,(entry-flag key))))
                (pretty-display `(keys-bw ,step-bw ,keys-bw)))
