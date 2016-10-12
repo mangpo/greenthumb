@@ -10,7 +10,7 @@
     (super-new)
     (inherit-field machine printer)
     (override len-limit window-size
-              try-cmp? combine-live sort-live sort-live-bw)
+              try-cmp? sort-live sort-live-bw)
 
     ;; Num of instructions that can be synthesized within a minute.
     (define (len-limit) 2)
@@ -49,26 +49,6 @@
        [(and (> z -1) (or use-cond1 use-cond2)) 2] ;; should try cmp
        [else 0] ;; don't try cmp
        ))
-
-    ;; Combine livenss information at an abitrary point p in the program.
-    ;; x: liveness from executing the program from the beginning to point p.
-    ;; y: liveness from analyzing the program backward from the end to point p.
-    (define (combine-live x y) 
-      ;; Use register's liveness from x but memory's liveness from y.
-      (for ([xi x]
-            [yi y])
-           (when (and yi (not xi))
-                 (pretty-display `(combine-live ,x ,y))
-                 (raise "done")))
-      (for ([xi (progstate-regs x)]
-            [yi (progstate-regs y)])
-           (when (and yi (not xi))
-                 (pretty-display `(combine-live ,x ,y))
-                 (raise "done")))
-      
-      (progstate (progstate-regs x)
-                 (progstate-memory y)
-                 (progstate-z x)))
 
     ;; Sort liveness. Say we have program prefixes that have different live-outs.
     ;; If liveness A comes before B, program prefix with live-out A will be considered before program prefix with live-out B.

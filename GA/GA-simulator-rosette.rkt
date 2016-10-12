@@ -24,39 +24,11 @@
     (define RIGHT (get-field RIGHT machine))
     (define IO (get-field IO machine))
 
-    #|
-    ;; Creates a policy that determines what kind of communication is allowed 
-    ;; during interpretation.  The policy is a procedure that takes as input a 
-    ;; comm pair and the current comm list.  If the policy allows 
-    ;; the given pair to be added to the list, the pair is inserted at the beginning 
-    ;; of the list and the result is returned.  If the policy doesn't allow the pair 
-    ;; to be added to the list, then an assertion error is thrown.
-    (define-syntax comm-policy
-      (syntax-rules (all at-most)
-	[(comm-policy all) cons]         ; allow everything
-	[(comm-policy at-most state)     ; allow only prefixes of the communication sequence observed in the given state 
-	 (let ([limit (reverse (progstate-comm state))])
-	   (lambda (p comm)
-	     (for*/all ([c comm])        ; this is not needed for correctness, but improves performance
-		       (let* ([len (length c)]
-			      [limit-p (list-ref limit len)])
-			 (assert (< len (length limit)) 'comm-length)  
-			 (assert (equal? (first p) (first limit-p)) `comm-data)
-			 (assert (equal? (second p) (second limit-p)) `comm-port)
-			 (assert (equal? (third p) (third limit-p)) `comm-read-write)
-			 (cons limit-p c)))))])) ; can return (cons p c) here, but this is more efficient. 
-					; it is correct because we assert that p == limit-p.
-|#
-
     ;; Interpret a given program from a given state.
     ;; code
     ;; state: initial progstate
     ;; policy: a procedure that enforces a communication policy (see the definition of comm-policy above)
     (define (interpret code state [ref #f])
-      ;; (set! policy (if policy
-      ;;   	       (comm-policy at-most policy)
-      ;;   	       (comm-policy all)))
-      
       (define a (progstate-a state))
       (define b (progstate-b state))
       (define r (progstate-r state))
@@ -193,11 +165,11 @@
 	(cond
 	 [(inst-eq `@p)   (push! const)]
 	 [(inst-eq `@+)   (mem-to-stack a)
-	                  (set! a (add1 a))]
+	                  (set! a (clip (add1 a)))]
 	 [(inst-eq `@b)   (mem-to-stack b)]
 	 [(inst-eq `@)    (mem-to-stack a)]
 	 [(inst-eq `!+)   (stack-to-mem a)
-	                  (set! a (add1 a))]
+	                  (set! a (clip (add1 a)))]
 	 [(inst-eq `!b)   (stack-to-mem b)]
 	 [(inst-eq `!)    (stack-to-mem a)]
 	 [(inst-eq `+*)   (if (= (bitwise-and #x1 a) 0)

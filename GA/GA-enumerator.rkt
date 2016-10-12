@@ -12,7 +12,7 @@
 
     (define opcodes (get-field opcodes machine))
     (define mem-inst
-      (map (lambda (x) (vector-member x opcodes)) '(! !+ !b @ @+ @b)))
+      (map (lambda (x) (vector-member x opcodes)) '(! !b @ @b)))
     
     (define/override (filter-with-pruning-info opcode-pool prune-in prune-out
                                         #:try-cmp [try-cmp #f] #:no-args [no-args #f])

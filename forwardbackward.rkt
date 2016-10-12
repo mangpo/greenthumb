@@ -43,12 +43,11 @@
             reduce-precision increase-precision
             reduce-precision-assume
             change-inst change-inst-list
-            mask-in get-live-mask)
+            mask-in get-live-mask prescreen)
 
     (define (debug-inst my-inst)
       #f)
-      ;; (and (equal? (inst-op my-inst) '#(30 4 -1))
-      ;;      (equal? (inst-args my-inst) '#(0 1))))
+      ;; (and (equal? (inst-op my-inst) 3)))
     
     (define debug #f)
     (define verbo #f)
@@ -77,6 +76,7 @@
     (set! enum (new enumerator% [machine machine] [printer printer]))
     
     ;;;;;;;;;;;;;;;;;;;;;;; Helper functions ;;;;;;;;;;;;;;;;;;;;;;
+    (define (prescreen my-inst state-vec) #t)
     
     ;; Return a copy of a given instruction x,
     ;; but replacing each constant c in the instruction x with (change c).
@@ -228,41 +228,40 @@
       (for/set ([prog-id prog-set])
 	       (prog->id (cons inst-id (id->prog prog-id)))))
 
+    
     ;; Insert into backward equivlance classes.
-    (define (class-insert-bw-inner! top-hash key-list progs)
-      (let* ([first-key (car key-list)]
-	     [prune (send enum get-pruning-info first-key)]
-	     [live-mask (get-live-mask first-key)])
+    (define (class-insert-bw-inner! top-hash state progs)
+      (let* ([prune (send enum get-pruning-info state)]
+             [live-mask (get-live-mask state)])
         (unless live-mask
-                (pretty-display `(state ,first-key))
+                (pretty-display `(state ,state))
                 (raise "get-live-mask returns #f"))
         
-	(unless (hash-has-key? top-hash prune)
-		(hash-set! top-hash prune (make-hash)))
-	(define middle-hash (hash-ref top-hash prune))
-	(unless (hash-has-key? middle-hash live-mask)
-		(hash-set! middle-hash live-mask (make-hash)))
-	(let ([my-hash (hash-ref middle-hash live-mask)])
-	  (for ([key key-list])
-	       (if (hash-has-key? my-hash key)
-		   (hash-set! my-hash key (set-union (hash-ref my-hash key) progs))
-		   (begin
-		     (set! c-behaviors-bw (add1 c-behaviors-bw))
-		     (hash-set! my-hash key progs)))))))
+        (unless (hash-has-key? top-hash prune)
+        	(hash-set! top-hash prune (make-hash)))
+        (define middle-hash (hash-ref top-hash prune))
+        (unless (hash-has-key? middle-hash live-mask)
+        	(hash-set! middle-hash live-mask (make-hash)))
+        (let ([my-hash (hash-ref middle-hash live-mask)])
+          (if (hash-has-key? my-hash state)
+              (hash-set! my-hash state (set-union (hash-ref my-hash state) progs))
+              (begin
+                (set! c-behaviors-bw (add1 c-behaviors-bw))
+                (hash-set! my-hash state progs))))))
       
 
-    (define (class-insert-bw! class live test key-list new-progs)
-      ;; (pretty-display `(class-insert-bw! ,live ,test ,key-list ,new-progs))
+    (define (class-insert-bw! class live test state new-progs)
+      ;; (pretty-display `(class-insert-bw! ,live ,test ,state ,new-progs))
       ;; (pretty-display `(before ,class))
       (define key live)
       
       ;(set! states-vec (map (lambda (x) (abstract x live-list identity)) states-vec))
       (unless (hash-has-key? class key) 
-	      (hash-set! class key (make-vector ce-limit #f)))
+              (hash-set! class key (make-vector ce-limit #f)))
 
       (define tests (hash-ref class key))
       (unless (vector-ref tests test) (vector-set! tests test (make-hash)))
-      (class-insert-bw-inner! (vector-ref tests test) key-list new-progs)
+      (class-insert-bw-inner! (vector-ref tests test) state new-progs)
       ;; (pretty-display `(after ,class))
       )
 
@@ -440,6 +439,7 @@
     (define t-verify 0)
     (define t-ce-abst 0)
     (define c-build-hash 0)
+    (define c-mask 0)
     (define c-intersect 0)
     (define c-interpret-0 0)
     (define c-interpret 0)
@@ -716,7 +716,8 @@
                (when debug
                      (pretty-display "[6] counterexample (precise)")
                      (send machine display-state ce-input)
-                     (pretty-display `(ce-out-vec ,ce-output-vec)))
+                     ;;(pretty-display `(ce-out-vec ,ce-output-vec))
+                     )
                (set! ce-in-final (cons ce-input ce-in-final))
                (set! ce-out-final (cons ce-output ce-out-vec-final))
                (set! ce-out-vec-final (cons ce-output-vec ce-out-vec-final))
@@ -784,7 +785,8 @@
                   (when debug
                         (newline)
                         (pretty-display "[3] counterexample")
-                        (pretty-display `(ce ,ce-count-extra ,ce-input-vec ,ce-output-vec)))
+                        ;;(pretty-display `(ce ,ce-count-extra ,ce-input-vec ,ce-output-vec))
+                        )
                   (vector-set! ce-in ce-count-extra ce-input)
                   (vector-set! ce-out ce-count-extra ce-output)
                   (vector-set! ce-in-vec ce-count-extra ce-input-vec)
@@ -866,9 +868,9 @@
 	     (vector-set! cache i (make-hash)))
 
         (define (outer my-classes candidates level)
-	  (when (debug-inst my-inst)
-                (newline)
-	  	(pretty-display `(outer ,(inst-op my-inst) ,level ,candidates)))
+	  ;; (when (debug-inst my-inst)
+          ;;       (newline)
+	  ;; 	(pretty-display `(outer ,level ,candidates)))
 	  (define my-classes-bw-level (vector-ref my-classes-bw level))
 	  (define cache-level (vector-ref cache level))
           (define real-hash my-classes)
@@ -934,9 +936,9 @@
             (define t1 (current-milliseconds))
             (set! t-intersect (+ t-intersect (- t1 t0)))
             (set! c-intersect (add1 c-intersect))
-	    (when (debug-inst my-inst)
-                   (pretty-display `(inner ,(inst-op my-inst) ,level ,(length inters-fw)))
-                  )
+	    ;; (when (debug-inst my-inst)
+            ;;        (pretty-display `(inner ,level ,(length inters-fw)))
+            ;;       )
 
             (for ([inter inters-fw])
               (let ([t0 (current-milliseconds)]
@@ -945,17 +947,19 @@
 		(if (and (> level 0) (hash-has-key? cache-level inter))
 		    (set! out-vec (hash-ref cache-level inter))
 		    (let* ([s1 (current-milliseconds)]
+                           [pass (prescreen my-inst inter)]
                            [out
+                            (and pass
                             (with-handlers*
                              ([exn? (lambda (e) #f)])
                              (send simulator-abst interpret (vector my-inst)
                                    (send machine vector->progstate inter)
-                                   ce-out-level))]
+                                   ce-out-level)))]
                            [s2 (current-milliseconds)]
                            )
-                      (when (debug-inst my-inst)
-                            (pretty-display `(inter ,level ,inter))
-                            (pretty-display `(out ,out)))
+                      ;; (when (debug-inst my-inst)
+                      ;;       (pretty-display `(inter ,level ,inter))
+                      ;;       (pretty-display `(out ,out)))
                             
 		      (set! out-vec (and out (mask-in (send machine progstate->vector out) my-live2)))
 		      ;;(set! out-vec (and out (send machine progstate->vector out)))
@@ -968,17 +972,18 @@
 		  (set! c-interpret (add1 c-interpret))
                   )
 
-                (when (debug-inst my-inst)
-                      (pretty-display `(my-live2 ,my-live2))
-                      (pretty-display `(out-vec ,out-vec)))
+                ;; (when (debug-inst my-inst)
+                ;;       (pretty-display `(my-live2 ,my-live2))
+                ;;       ;;(pretty-display `(out-vec ,out-vec))
+                ;;       )
 
 		(when 
 		 out-vec
 		 (let ([prune (send enum get-pruning-info out-vec)]
                        [s0 (current-milliseconds)])
 
-                   (when (debug-inst my-inst)
-                         (pretty-display `(prune ,prune ,(hash-has-key? my-classes-bw-level prune))))
+                   ;; (when (debug-inst my-inst)
+                   ;;       (pretty-display `(prune ,prune ,(hash-has-key? my-classes-bw-level prune))))
 		   (when
 		    (hash-has-key? my-classes-bw-level prune)
 		    (let* ([pairs (hash->list (hash-ref my-classes-bw-level prune))]
@@ -992,10 +997,10 @@
 			   (let* ([t0 (current-milliseconds)]
 				  [live-mask (car pair)]
 				  [classes (cdr pair)]
-                                  [_ (when (debug-inst my-inst)
-                                           (pretty-display `(live-mask ,live-mask))
-                                           (pretty-display `(KEYS ,(hash-keys classes)))
-                                           )]
+                                  ;; [_ (when (debug-inst my-inst)
+                                  ;;          (pretty-display `(live-mask ,level ,live-mask))
+                                  ;;          (pretty-display `(KEYS ,level ,(hash-keys classes)))
+                                  ;;          )]
 				  [out-vec-masked 
 				   (if (or (and try-cmp (not (equal? live-mask my-live2)))
                                            (not my-live2))
@@ -1005,9 +1010,9 @@
 				  [t1 (current-milliseconds)]
 				  [has-key (and out-vec-masked
                                                 (hash-has-key? classes out-vec-masked))]
-                                  [_ (when (debug-inst my-inst)
-                                           (pretty-display `(out-vec-maked ,out-vec-masked))
-                                           (pretty-display `(has-key ,has-key)))]
+                                  ;; [_ (when (debug-inst my-inst)
+                                  ;;          (pretty-display `(out-vec-maked ,level ,out-vec-masked))
+                                  ;;          (pretty-display `(has-key ,level ,has-key)))]
 				  [progs-set (and has-key (hash-ref classes out-vec-masked))]
 				  [t2 (current-milliseconds)]
 				  [new-candidates
@@ -1023,11 +1028,12 @@
 			     (set! t-mask (+ t-mask (- t1 t0)))
 			     (set! t-hash (+ t-hash (- t2 t1)))
 			     (set! t-intersect (+ t-intersect (- t3 t2)))
+                             (set! c-mask (add1 c-mask))
                               
 			     (when
 			      (and new-candidates (not (empty? new-candidates)))
-                              (when (debug-inst my-inst)
-                                    (pretty-display `(pass!!! ,(= 1 (- ce-count level)))))
+                              ;; (when (debug-inst my-inst)
+                              ;;       (pretty-display `(pass!!! ,level ,(= 1 (- ce-count level)))))
 			      (if (= 1 (- ce-count level))
 				  (begin
                                     ;; (when (debug-inst my-inst)
@@ -1094,13 +1100,15 @@
                             (if (and (list? val) (hash-has-key? cache state-vec))
                                 (hash-ref cache state-vec)
                                 (let ([tmp
+                                       (and
+                                        (prescreen my-inst state-vec)
                                        (with-handlers*
                                         ([exn? (lambda (e) #f)])
                                         (send machine progstate->vector 
                                               (send simulator-abst interpret 
                                                     (vector my-inst)
                                                     (send machine vector->progstate state-vec)
-                                                    ce-out-level)))])
+                                                    ce-out-level))))])
                                   (when (list? val) (hash-set! cache state-vec tmp))
                                   tmp))
                             ])
@@ -1188,13 +1196,13 @@
                              ;;[_ (pretty-display `(out-vec-after ,out-vec))]
                              )
 			(when (and in-list (not (empty? in-list)))
-                              (when (and (equal? (inst-op my-inst) (vector 54 -1 -1))
-                                         (equal? (inst-args my-inst) (vector 0 2 0)))
-                                    (pretty-display `(in-list ,(inst-op my-inst) ,my-liveout ,in-list)))
-			      (class-insert-bw! current my-liveout test 
-						(map (lambda (x) (send machine progstate->vector x))
-                                                     in-list)
-                                                (concat-progs inst-id progs)))
+                              ;; (when (equal? (inst-op my-inst) 2)
+                              ;;       (pretty-display `(in-list ,(inst-op my-inst) ,my-liveout ,in-list)))
+                              (let ([new-progs (concat-progs inst-id progs)])
+                                (for ([in in-list])
+                                     (class-insert-bw! current my-liveout test 
+                                                       (send machine progstate->vector in)
+                                                       new-progs))))
                         )
                       )
 		(inner)
@@ -1217,11 +1225,11 @@
          (refine hash1 hash2 my-inst live1 live2)
          (when 
           (and verbo (> (- (current-milliseconds) ttt) 500))
-          (pretty-display (format "search ~a ~a = ~a + ~a + ~a | ~a\t(~a + ~a/~a)\t~a ~a ~a/~a\t[~a/~a]\t~a/~a\t~a/~a (~a) ~a/~a ~a/~a " 
+          (pretty-display (format "search ~a ~a = ~a + ~a + ~a | ~a\t(~a + ~a/~a)\t~a/~a ~a ~a/~a\t[~a/~a]\t~a/~a\t~a/~a (~a) ~a/~a ~a/~a " 
                                   (- (current-milliseconds) ttt) ce-count-extra
                                   t-refine t-collect t-check
                                   t-build t-build-inter t-build-hash c-build-hash
-                                  t-mask t-hash t-intersect c-intersect
+                                  t-mask c-mask t-hash t-intersect c-intersect
                                   t-interpret-0 c-interpret-0
                                   t-interpret c-interpret
                                   t-extra c-extra c-check
@@ -1229,7 +1237,7 @@
                                   t-ce-abst c-ce-abst
                                   )))
          (set! t-build 0) (set! t-build-inter 0) (set! t-build-hash 0) (set! t-mask 0) (set! t-hash 0) (set! t-intersect 0) (set! t-interpret-0 0) (set! t-interpret 0) (set! t-extra 0) (set! t-verify 0) (set! t-ce-abst 0)
-         (set! c-build-hash 0) (set! c-intersect 0) (set! c-interpret-0 0) (set! c-interpret 0) (set! c-extra 0) (set! c-check 0) (set! c-verify 0) (set! c-ce-abst 0)
+         (set! c-build-hash 0)  (set! c-mask 0)(set! c-intersect 0) (set! c-interpret-0 0) (set! c-interpret 0) (set! c-extra 0) (set! c-check 0) (set! c-verify 0) (set! c-ce-abst 0)
          (set! t-refine 0) (set! t-collect 0) (set! t-check 0)
          (refine-all hash1 live1 hash2 live2 iterator)
          ))
@@ -1239,7 +1247,6 @@
         (when
          (>= size size-from)
          (pretty-display (format "\nSIZE = ~a" size))
-         (when (> size 6) (raise "done"))
          
          (define keys (hash-keys classes))
          (define keys-bw (hash-keys (vector-ref classes-bw step-bw)))

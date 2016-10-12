@@ -93,6 +93,12 @@
 		(set! random-input-bits 16)
 		(set! random-input-bits (sub1 bitwidth))))
 
+    ;; (when (= bitwidth 4)
+    ;;       (set! UP -2)
+    ;;       (set! DOWN -4)
+    ;;       (set! LEFT -6)
+    ;;       (set! RIGHT -8)
+    ;;       (set! IO 6))
     (when (= bitwidth 4)
           (set! UP -3)
           (set! DOWN -4)

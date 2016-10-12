@@ -54,10 +54,10 @@
     ;;        [update (make-hash (hash->list update))]))
     
     (define/public (clone-init)
-      ;;(new memory-racket% [ref ref] [init init]))
-      (if (hash-empty? update)
-          this
-          (new memory-racket% [ref ref] [init init])))
+      (new memory-racket% [ref ref] [init init]))
+      ;; (if (hash-empty? update)
+      ;;     this
+      ;;     (new memory-racket% [ref ref] [init init])))
 
     (define (correctness-cost other diff-cost bit)
       (define cost 0)

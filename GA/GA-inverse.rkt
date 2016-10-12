@@ -204,7 +204,7 @@
                (define mem-ref (progstate-memory ref))
                (for ([actual-addr (send memory get-available-addr mem-ref)])
                     (when (= a actual-addr)
-                          (set! memory (send (progstate-memory state) clone))
+                          (set! memory (send (progstate-memory state) clone)) ;; clone before modify
                           (send memory store actual-addr t-org)
                           (snapshot))))
               
@@ -224,12 +224,13 @@
               (define mem-ref (progstate-memory ref))
               (for ([actual-addr (send memory get-available-addr mem-ref)])
                    (set! a actual-addr)
-                   (set! memory (send (progstate-memory state) clone))
+                   (set! memory (send (progstate-memory state) clone)) ;; clone before modify
                    (send memory store actual-addr t-org)
                    (snapshot))))
             
             (when (> (get-field index comm) 0)
-                  (set! comm (send comm clone))
+                  (set! memory (progstate-memory state)) ;; reset memory
+                  (set! comm (send comm clone)) ;; clone before modify
                   (define token (send comm push-inverse))
                   (define val (first token))
                   (define port (second token))
@@ -253,7 +254,7 @@
            (cond
              [(member a (list UP DOWN LEFT RIGHT IO))
               (when (> (get-field index comm) 0)
-                    (set! comm (send comm clone))
+                    (set! comm (send comm clone)) ;; clone before modify
                     (define token (send comm push-inverse))
                     (define val (first token))
                     (define port (second token))
@@ -267,7 +268,7 @@
                 (let* ([addr (car addr-val)]
                        [val (cdr addr-val)])
                   (when (= a addr)
-                    (set! memory (send (progstate-memory state) clone))
+                    (set! memory (send (progstate-memory state) clone)) ;; clone before modify
                     (send memory del addr)
                     (set! t val)
                     (snapshot))))
@@ -280,15 +281,15 @@
            (for/list ([addr-val (send memory get-update-addr-val)])
              (let* ([addr (car addr-val)]
                     [val (cdr addr-val)])
-               (set! memory (send (progstate-memory state) clone))
+               (set! memory (send (progstate-memory state) clone)) ;; clone before modify
                (send memory del addr)
                (set! a addr)
                (set! t val)
                (snapshot)))
 
            (when (> (get-field index comm) 0)
-                 (set! memory (progstate-memory state))
-                 (set! comm (send comm clone))
+                 (set! memory (progstate-memory state)) ;; reset memory
+                 (set! comm (send comm clone)) ;; clone before modify
                  (define token (send comm push-inverse))
                  (define val (first token))
                  (define port (second token))

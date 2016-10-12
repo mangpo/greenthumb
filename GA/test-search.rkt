@@ -15,30 +15,30 @@
 (define simulator-rosette (new GA-simulator-rosette% [machine machine]))
 (define validator (new GA-validator% [machine machine] [simulator simulator-rosette]))
 
+
+;[0 a! !+ 0 ]
+;0 b! @b 2/ 2/ 2/ 2/
+;[2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ push drop pop dup over - 1 + 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ over - and + push drop pop ]
 (define prefix 
 (send parser ir-from-string "
+0 a! !+ 0 
 "))
 
 (define postfix
 (send parser ir-from-string "
+2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ push drop pop dup over - 1 + 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ over - and + push drop pop
 "))
 
 (define code
 (send parser ir-from-string "
-dup drop !+ @
+0 b! @b 2/ 2/ 2/ 2/
 "))
 
 
 (define sketch
 (send parser ir-from-string "
-? ?
+? ? ? ? ? ?
 "))
-; bug dup drop up a! @ !
-; bug: dup drop a! @+ !
-;[drop pop a ] 325 9 2/ b! a! ! !b @b 2* 2* 325 b! @b 3  [and + ]
-; drop pop a ] 3 325 b! a! !b 2* 2* 325 b! @b 3 [and +
-; drop pop a 325 a! ! ] 2* 2* @+ 3 and +
-; opt: drop pop a 325 a! ! 2* 2* @ 3 and or 
 
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))
@@ -47,10 +47,11 @@ dup drop !+ @
 
 ;; Phase 0: create constraint (live-out)
 (define livein (send machine output-constraint '(a) 4 1))
-(define constraint (send machine output-constraint '((data . 1) memory)))
+(define constraint (send machine output-constraint '((data . 2) (return . 1))))
 ;;(define precond (send machine constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535))))
 
-(send validator adjust-memory-config encoded-code)
+(send validator adjust-memory-config
+      (vector-append encoded-prefix encoded-code encoded-postfix))
 (send machine analyze-opcode encoded-prefix encoded-code encoded-postfix)
 (send machine reset-arg-ranges)
 (send machine analyze-args encoded-prefix encoded-code encoded-prefix
@@ -91,6 +92,7 @@ dup drop !+ @
                       [inverse% GA-inverse%]
                       [enumerator% GA-enumerator%]
                       [syn-mode `linear]))
+(define t1 (current-seconds))
 (send backward synthesize-window
       encoded-code
       encoded-sketch
@@ -101,6 +103,8 @@ dup drop !+ @
       ;;#:assume precond
       )
 
+(define t2 (current-seconds))
+(pretty-display `(time ,(- t2 t1)))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 #;(define f

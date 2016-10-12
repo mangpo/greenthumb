@@ -13,9 +13,9 @@
 (define validator (new GA-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
 
 (define code1 (send parser ir-from-string 
-                   "0 a! !+ !+ push pop dup 1 b! @b and over 65535 or 0 b! @b and over - and + push drop pop"))
+                   "2 a! ! @+ a! @+ a b! @b"))
 (define code2 (send parser ir-from-string 
-                   "a! a or and a or"))
+                   "@"))
 (define encoded-code1 (send printer encode code1))
 (define encoded-code2 (send printer encode code2))
 
@@ -32,13 +32,15 @@
   (define-symbolic* input number?)
   (if const const input))
 
-(define input (send machine vector->progstate (vector #f #f #f -2 -3
-                                                      '#(1 2 #f #f #f #f #f #f)
-                                                      '#(#f #f #f #f #f #f #f #f)
-                                                      (new memory-racket%)
-                                                      (new queue-in-racket%) (new queue-out-racket%))))
+(define input (send machine vector->progstate
+                    (vector 2 #f #f #f 3
+                            '#(#f #f #f #f #f #f #f #f)
+                            '#(#f #f #f #f #f #f #f #f)
+                            (new memory-racket% [init (make-hash '((4 . 0) (3 . -2)))])
+                            (new queue-in-racket%) (new queue-out-racket%))))
 (define output1 (send simulator-rosette interpret encoded-code1 input))
-(define output2 (send simulator-rosette interpret encoded-code2 input output1))
+output1
+;;(define output2 (send simulator-rosette interpret encoded-code2 input output1))
 
 #|
 (send validator assert-state-eq output1 output2 (send machine output-constraint '() 1 0))

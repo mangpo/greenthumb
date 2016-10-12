@@ -1,11 +1,11 @@
 Performance
-* don't mask-in the start state
-* mask-in & mask-in again (ARM)
+* default mask-in with check (return early)
+- mask-in & mask-in again (ARM)
 - symbolic: provide input or not?
 
 TODO
-- remove arm & GA's combine-live
-- user don't have to provide live-in for stoch, use result from combine-live too
+* run regression test
+* user don't have to provide live-in for stoch, use result from combine-live too
 
 Correctness
 - how to prevent users from making a mistake on machine description (ins & outs).

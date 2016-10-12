@@ -15,8 +15,7 @@
     (inherit-field machine printer)
     (override len-limit window-size
               reduce-precision increase-precision reduce-precision-assume
-              change-inst change-inst-list
-	      combine-live)
+              change-inst change-inst-list)
 
     (define (len-limit) 8)
     (define (window-size) 14)
@@ -29,6 +28,12 @@
     (define RIGHT #x1d5)
     (define IO #x15d)
     
+    ;; (define UP-abst -2)
+    ;; (define DOWN-abst -4)
+    ;; (define LEFT-abst -6)
+    ;; (define RIGHT-abst -8)
+    ;; (define IO-abst 6)
+
     (define UP-abst -3)
     (define DOWN-abst -4)
     (define LEFT-abst -5)
@@ -128,12 +133,78 @@
                (list))
       ret)
     
-    ;; Ignore a completely.
-    (define (combine-live a b)
+    ;; Optional but make performance better much better.
+    ;; Without this, we will never mask-in init states
+    ;; (mask-in init state with 'a' which is always #f in GA
+    ;; because GA:update-live always returns #f)
+    (define/override (combine-live a b)
       (define s (vector-ref b 3))
       (define t (vector-ref b 4))
       (when (and s (not t)) (vector-set! b 4 #t))
       b)
+
+    ;; Optional but make performance better much better.
+    (define/override (mask-in state-vec live-list #:keep-flag [keep #t])
+      (if live-list
+          (let* ([pass #t]
+                 [ret
+                  (for/vector ([x state-vec]
+                               [v live-list] #:break (not pass))
+                              (cond
+                               [(number? x)
+                                (and v x)]
+                               [(and (vector? x) (or (number? v) (vector? v)))
+                                (for/vector
+                                 ([i x] [live v] #:break (not pass))
+                                 (when (and live (not i)) (set! pass #f))
+                                 (and live i))]
+                               [(is-a? x memory-racket%)
+                                (if v x (send x clone-init))]
+                               [(is-a? x special%) x]
+                               [(equal? v #t)
+                                (unless x (set! pass #f)) x]
+                               [else x]))])
+            (and pass ret))
+          state-vec))
+
+    ;; Optional but make performance slightly better.
+    (define/override (prescreen my-inst state)
+      (define opcode-id (inst-op my-inst))
+      (define a (progstate-a state))
+      (define b (progstate-b state))
+      (define r (progstate-r state))
+      (define s (progstate-s state))
+      (define t (progstate-r state))
+      (define mem-len 64)
+
+      (define opcode-name (vector-ref opcodes opcode-id))
+      (define-syntax-rule (inst-eq x) (equal? x opcode-name))
+      (cond
+       [(member opcode-name '(@b))
+        (and b
+             (or (and (>= b 0) (< b mem-len))
+                 (member b (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+       [(member opcode-name '(!b))
+        (and b t
+             (or (and (>= b 0) (< b mem-len))
+                 (member b (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+       [(member opcode-name '(@ @+))
+        (and a
+             (or (and (>= a 0) (< a mem-len))
+                 (member a (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+       [(member opcode-name '(@ @+ ! !+))
+        (and a t
+             (or (and (>= a 0) (< a mem-len))
+                 (member a (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+       ;; TODO: up down left right for bit = 4
+
+       [(member opcode-name '(+*)) (and a s t)]
+       [(member opcode-name '(2* 2/ - dup push b! a!)) t]
+       [(member opcode-name '(+ and or)) (and s t)]
+       [(member opcode-name '(pop)) r]
+       [(member opcode-name '(over)) s]
+       [(member opcode-name '(a)) a]
+       [else #t]))
     
     ))
   

@@ -25,11 +25,14 @@
                       [enumerator% GA-enumerator%]
                       [syn-mode `linear]))
 
-(define (test id code-str size liveout-str #:sym [sym #f] #:enum [enum #t] #:assume [assume #f])
+(define (test id code-str size liveout-str
+              #:sym [sym #f] #:enum [enum #t] #:assume [assume #f]
+              #:prefix [prefix-str ""] #:postfix [postfix-str ""])
   (pretty-display (format "TEST = ~a" id))
-  (define code (send parser ir-from-string code-str))
-  (define encoded-code (send printer encode code))
-  (send validator adjust-memory-config encoded-code)
+  (define encoded-code (send printer encode (send parser ir-from-string code-str)))
+  (define encoded-prefix (send printer encode (send parser ir-from-string prefix-str)))
+  (define encoded-postfix (send printer encode (send parser ir-from-string postfix-str)))
+  (send validator adjust-memory-config (vector-append encoded-prefix encoded-code encoded-postfix))
   
   (define sketch (for/vector ([i size]) (send symbolic gen-sym-inst)))
   (define constraint (send machine output-constraint liveout-str))
@@ -37,8 +40,15 @@
   ;; symbolic
   (when sym
     (define-values (out-sym cost-sym)
-      (send symbolic synthesize-from-sketch encoded-code sketch constraint
-            #:assume (and assume (send machine constrain-stack assume))))
+      (send symbolic synthesize-window
+            encoded-code sketch
+            encoded-prefix encoded-postfix
+            constraint ;; live-out
+            #f ;; upperbound cost, #f = no upperbound
+            #f ;; time limit in seconds
+            ))
+      ;; (send symbolic synthesize-from-sketch encoded-code sketch constraint
+      ;;       #:assume (and assume (send machine constrain-stack assume))))
     
     (unless out-sym (raise (format "TEST ~a: fail to synthesize [symbolic]" id)))
     (define ce-sym (send validator counterexample encoded-code out-sym constraint
@@ -50,7 +60,7 @@
       (send backward synthesize-window
             encoded-code
             sketch
-            (vector) (vector)
+            encoded-prefix encoded-postfix
             constraint ;; live-out
             #f ;; upperbound cost, #f = no upperbound
             3600 ;; time limit in seconds
@@ -62,6 +72,12 @@
                           #:assume (and assume (send machine constrain-stack assume))))
     (when ce-enum (raise (format "TEST ~a: counter-example [enumerative]" id))))
   )
+
+
+(test 'interp1 "2 b! !b 2 b! @b a!" 5
+      '((data . 2)) #:sym #f #:postfix "@+ a b! @b - over + -")
+(test 'interp2 "dup !+ a! @+ dup @" 5
+      '((data . 2)) #:sym #f #:prefix "2 a!" #:postfix "- over + -")
 
 (test 1 "dup drop up a! @ !" 4 '((data . 1) memory) #:sym #t)
 ;;(test 2 "dup drop up a! @+ !" 4 '((data . 1) memory) #:sym #t)

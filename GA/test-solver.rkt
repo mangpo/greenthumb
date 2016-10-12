@@ -9,21 +9,24 @@
 (define simulator-rosette (new GA-simulator-rosette% [machine machine]))
 (define validator (new GA-validator% [machine machine] [printer printer] [simulator simulator-rosette]))
 
+;[0 a! ] !+ 0 0 b! @b 2/ 2/ [2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ push drop pop ]
+;[0 a! ] 2/ +* dup  [2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ push drop pop ]
 (define code
 (send parser ir-from-string 
-      "0 a! push !+ !+ pop dup 1 b! @b and over 65535 or 0 b! @b and over - and + push drop pop"))
+      "0 a! !+ 0 0 b! @b 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ push drop pop"))
 
 (define sketch (send parser ir-from-string 
-      "a! over or dup a and or nop or"))
+      "0 a! 2/ +* dup 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ push drop pop"))
 
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send printer encode sketch))
 
+
+(send validator adjust-memory-config encoded-code)
 (define ce
   (send validator counterexample encoded-code encoded-sketch 
-        (send machine output-constraint '((data . 2)))
-        #:assume (send machine constrain-stack 
-                       '((<= . 65535) (<= . 65535) (<= . 65535)))
+        (send machine output-constraint '((data . 2) (return . 1)))
+        ;;#:assume (send machine constrain-stack '((<= . 65535) (<= . 65535) (<= . 65535)))
         ))
 
 (if ce
