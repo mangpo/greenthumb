@@ -38,7 +38,7 @@
 (define sketch
 (send parser ir-from-string "
 ? ? ? ? ? ?
-"))
+")) ; dup ! a! 2 @+ @ 
 
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))

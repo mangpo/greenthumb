@@ -28,17 +28,17 @@
     (define RIGHT #x1d5)
     (define IO #x15d)
     
-    ;; (define UP-abst -2)
-    ;; (define DOWN-abst -4)
-    ;; (define LEFT-abst -6)
-    ;; (define RIGHT-abst -8)
-    ;; (define IO-abst 6)
-
-    (define UP-abst -3)
+    (define UP-abst -2)
     (define DOWN-abst -4)
-    (define LEFT-abst -5)
-    (define RIGHT-abst -6)
-    (define IO-abst -7)
+    (define LEFT-abst -6)
+    (define RIGHT-abst -8)
+    (define IO-abst 6)
+
+    ;; (define UP-abst -3)
+    ;; (define DOWN-abst -4)
+    ;; (define LEFT-abst -5)
+    ;; (define RIGHT-abst -6)
+    ;; (define IO-abst -7)
 
     (define opcodes (get-field opcodes machine))
     (define mask (sub1 (arithmetic-shift 1 bit)))
@@ -167,44 +167,44 @@
             (and pass ret))
           state-vec))
 
-    ;; Optional but make performance slightly better.
-    (define/override (prescreen my-inst state)
-      (define opcode-id (inst-op my-inst))
-      (define a (progstate-a state))
-      (define b (progstate-b state))
-      (define r (progstate-r state))
-      (define s (progstate-s state))
-      (define t (progstate-r state))
-      (define mem-len 64)
+    ;; ;; optional but make performance slightly better.
+    ;; (define/override (prescreen my-inst state)
+    ;;   (define opcode-id (inst-op my-inst))
+    ;;   (define a (progstate-a state))
+    ;;   (define b (progstate-b state))
+    ;;   (define r (progstate-r state))
+    ;;   (define s (progstate-s state))
+    ;;   (define t (progstate-t state))
+    ;;   (define mem-len 64)
 
-      (define opcode-name (vector-ref opcodes opcode-id))
-      (define-syntax-rule (inst-eq x) (equal? x opcode-name))
-      (cond
-       [(member opcode-name '(@b))
-        (and b
-             (or (and (>= b 0) (< b mem-len))
-                 (member b (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
-       [(member opcode-name '(!b))
-        (and b t
-             (or (and (>= b 0) (< b mem-len))
-                 (member b (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
-       [(member opcode-name '(@ @+))
-        (and a
-             (or (and (>= a 0) (< a mem-len))
-                 (member a (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
-       [(member opcode-name '(@ @+ ! !+))
-        (and a t
-             (or (and (>= a 0) (< a mem-len))
-                 (member a (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
-       ;; TODO: up down left right for bit = 4
+    ;;   (define opcode-name (vector-ref opcodes opcode-id))
+    ;;   (define-syntax-rule (inst-eq x) (equal? x opcode-name))
+    ;;   (cond
+    ;;    [(member opcode-name '(@b))
+    ;;     (and b
+    ;;          (or (and (>= b 0) (< b mem-len))
+    ;;              (member b (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+    ;;    [(member opcode-name '(!b))
+    ;;     (and b t
+    ;;          (or (and (>= b 0) (< b mem-len))
+    ;;              (member b (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+    ;;    [(member opcode-name '(@ @+))
+    ;;     (and a
+    ;;          (or (and (>= a 0) (< a mem-len))
+    ;;              (member a (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+    ;;    [(member opcode-name '(! !+))
+    ;;     (and a t
+    ;;          (or (and (>= a 0) (< a mem-len))
+    ;;              (member a (list UP-abst DOWN-abst LEFT-abst RIGHT-abst))))]
+    ;;    ;; TODO: up down left right for bit = 4
 
-       [(member opcode-name '(+*)) (and a s t)]
-       [(member opcode-name '(2* 2/ - dup push b! a!)) t]
-       [(member opcode-name '(+ and or)) (and s t)]
-       [(member opcode-name '(pop)) r]
-       [(member opcode-name '(over)) s]
-       [(member opcode-name '(a)) a]
-       [else #t]))
+    ;;    [(member opcode-name '(+*)) (and a s t)]
+    ;;    [(member opcode-name '(2* 2/ - dup push b! a!)) t]
+    ;;    [(member opcode-name '(+ and or)) (and s t)]
+    ;;    [(member opcode-name '(pop)) r]
+    ;;    [(member opcode-name '(over)) s]
+    ;;    [(member opcode-name '(a)) a]
+    ;;    [else #t]))
     
     ))
   

@@ -51,7 +51,10 @@
       ;;       #:assume (and assume (send machine constrain-stack assume))))
     
     (unless out-sym (raise (format "TEST ~a: fail to synthesize [symbolic]" id)))
-    (define ce-sym (send validator counterexample encoded-code out-sym constraint
+    (define ce-sym (send validator counterexample
+                         (vector-append encoded-prefix encoded-code encoded-postfix)
+                         (vector-append encoded-prefix out-sym encoded-postfix)
+                         constraint
                          #:assume (and assume (send machine constrain-stack assume))))
     (when ce-sym (raise (format "TEST ~a: counter-example [symbolic]" id))))
 
@@ -68,17 +71,23 @@
             ))
     
     (unless out-enum (raise (format "TEST ~a: fail to synthesize [enumerative]" id)))
-    (define ce-enum (send validator counterexample encoded-code out-enum constraint
+    (define ce-enum (send validator counterexample
+                         (vector-append encoded-prefix encoded-code encoded-postfix)
+                         (vector-append encoded-prefix out-enum encoded-postfix)
+                         constraint
                           #:assume (and assume (send machine constrain-stack assume))))
     (when ce-enum (raise (format "TEST ~a: counter-example [enumerative]" id))))
   )
 
 
 (test 'interp1 "2 b! !b 2 b! @b a!" 5
-      '((data . 2)) #:sym #f #:postfix "@+ a b! @b - over + -")
+      '((data . 2)) #:sym #f #:postfix "@+ a b! @b - over + -") ;; 2 a! ! @+ a! 
 (test 'interp2 "dup !+ a! @+ dup @" 5
-      '((data . 2)) #:sym #f #:prefix "2 a!" #:postfix "- over + -")
+      '((data . 2)) #:sym #f #:prefix "2 a!" #:postfix "- over + -") ;; ! @+ a! @+ @+ 
+(test 'interp2 "@ @b b! - @b + -" 5
+      '((data . 2)) #:sym #f #:prefix "2 b! dup !b a! @+") ;; @ - over + -
 
+#|
 (test 1 "dup drop up a! @ !" 4 '((data . 1) memory) #:sym #t)
 ;;(test 2 "dup drop up a! @+ !" 4 '((data . 1) memory) #:sym #t)
 (test 3 "dup drop up a! ! @" 4 '((data . 1) memory) #:sym #t)
@@ -94,7 +103,7 @@
       #:assume '((<= . 65535) (<= . 65535) (<= . 65535)) #:sym #f)
 (test 'shaf "0 a! !+ !+ push pop dup 1 b! @b and over - 0 b! @b and or push drop pop" 6
       '((data . 2) (return . 1)) #:sym #f)
-
+|#
 #;(test 'complexB "drop 3 and + push drop pop dup 0 b! @b" 10
       '((data . 2)) #:sym #f) ;; very slow
 #;(test 'rrotate "2 b! !b push drop pop 2 b! @b 0 b! !b up b! @b 0 b! @b 2/ 2/ + 65535 and" 8
