@@ -80,7 +80,6 @@
 ;; p25 -O3
 ;; z3: >5 min, java: 9 s
 
-(define livein (send printer encode-live '(0 3)))
 (define constraint (send printer encode-live '(0)))
 
 (define encoded-prefix (send printer encode prefix))
@@ -101,7 +100,6 @@
 
 #;(send stoch superoptimize encoded-code 
       constraint ;; constraint
-      livein ;; live-in
       "./driver-0" 3600 #f)
 
 (send backward synthesize-window

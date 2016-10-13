@@ -126,9 +126,8 @@
                      (pretty-display (format "(define encoded-start-code (send printer encode start-code))"))
                      )
                (pretty-display 
-                (format "(send search superoptimize encoded-code ~a ~a \"~a-~a\" ~a ~a #:assume ~a #:input-file ~a #:start-prog ~a #:prefix encoded-prefix #:postfix encoded-postfix)" 
+                (format "(send search superoptimize encoded-code ~a \"~a-~a\" ~a ~a #:assume ~a #:input-file ~a #:start-prog ~a #:prefix encoded-prefix #:postfix encoded-postfix)" 
                         (send printer output-constraint-string live-out)
-                        (send printer output-constraint-string live-in)
                         path id time-limit prog-size 
                         (send printer output-assume-string assume)
                         (if input-file (string-append "\"" input-file "\"") #f)
@@ -182,7 +181,7 @@
         (define cores-enum
           (cond
            [(equal? search-type `enum) cores]
-           [(equal? search-type `hybrid) (floor (* (/ 2 6) cores))] ;;(floor (* (/ 3 6) cores))]
+           [(equal? search-type `hybrid) (floor (* (/ 3 6) cores))] ;;(floor (* (/ 3 6) cores))]
            [else 0]
            ))
         (define cores-solver 

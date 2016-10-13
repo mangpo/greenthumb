@@ -40,7 +40,7 @@
     (define (inst-copy-with-op x op) (struct-copy inst x [op op]))
     (define (inst-copy-with-args x args) (struct-copy inst x [args args]))
 
-    (define (superoptimize spec constraint this-live-in
+    (define (superoptimize spec constraint 
                            name time-limit size 
                            #:prefix [prefix (vector)]
                            #:postfix [postfix (vector)]
@@ -50,12 +50,47 @@
       (send machine reset-opcode-pool)
       (send machine reset-arg-ranges)
       (send validator adjust-memory-config spec)
-      
-      (set! live-in (send machine progstate->vector this-live-in))
+
+      ;; 1) User-provided live-in
+      ;; (define live-in-user (send machine progstate->vector this-live-in))
+      ;; (for ([x prefix])
+      ;;      (set! live-in-user (send machine update-live live-in x)))
+
+      ;; 2) Combined automatic live-in
+      ;; (define live1 (send validator get-live-in (vector-append spec postfix) constraint))
+      ;; (define live0 (send validator-abst get-live-in (vector-append prefix spec postfix) constraint))
+      ;; (define live0-list (send machine progstate->vector live0))
+
+      ;; (define live1-list-alt live0-list)
+      ;; (for ([x prefix])
+      ;;      (set! live1-list-alt (send machine update-live live1-list-alt x)))
+      ;; (define live1-list (send machine progstate->vector live1))
+      ;; (set! live-in (combine-live live1-list-alt live1-list))
+
+      ;; 3) get-live-in then update-live
+      (define live0 (send validator get-live-in (vector-append prefix spec postfix) constraint))
+      (define live0-list (send machine progstate->vector live0))
+
+      (set! live-in live0-list)
       (for ([x prefix])
            (set! live-in (send machine update-live live-in x)))
-      ;; (unless live-in
-      ;;         (raise "stochastic: live-in at spec cannot be #f"))
+
+      ;; (unless (vector? live-in-user)
+      ;;         (for ([l1 live-in]
+      ;;               [l2 live-in-user])
+      ;;              (cond
+      ;;               [(boolean? l1)
+      ;;                (when (and l2 (not l1))
+      ;;                      (pretty-display `(live-in ,live-in ,live-in-user))
+      ;;                      (raise "done"))]
+      ;;               [else
+      ;;                (for ([ll1 l1]
+      ;;                      [ll2 l2])
+      ;;                     (when (and ll2 (not ll1))
+      ;;                           (pretty-display `(live-in ,live-in ,live-in-user))
+      ;;                           (raise "done")))])))
+                          
+
       
       (send machine analyze-args (vector) spec (vector) live-in constraint)
       (send machine analyze-opcode (vector) spec (vector))

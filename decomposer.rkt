@@ -23,7 +23,7 @@
     ;; The cooperative search tries L, 2L, 3L, 4L
     (define (window-size) (* 2 (len-limit)))
 
-    (define (superoptimize spec constraint live-in name time-limit size
+    (define (superoptimize spec constraint name time-limit size
                            #:prefix [prefix (vector)] #:postfix [postfix (vector)]
 			   #:assume [assumption (send machine no-assumption)]
 			   #:input-file [input-file #f]

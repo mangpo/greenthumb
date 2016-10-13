@@ -118,7 +118,6 @@ store i32 %1, i32* %2
                       ))
 #;(send stoch superoptimize encoded-code 
       constraint ;; constraint
-      (send printer encode-live (vector '(%2) #t)) ;; live-in
       "./driver-0" 3600)
 
 ;; Step 4: create enumerative search

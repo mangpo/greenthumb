@@ -119,7 +119,6 @@
         ))
 #;(send stoch superoptimize encoded-code 
       (send machine output-constraint '() 2 0) ;; constraint
-      (send machine output-constraint '(a) 4 1) ;; live-in
       "./driver-0" 3600 #f)
 
 ;(require profile)

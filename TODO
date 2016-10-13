@@ -1,11 +1,7 @@
-Performance
-* default mask-in with check (return early)
-- mask-in & mask-in again (ARM)
-- symbolic: provide input or not?
-
 TODO
-* run regression test
-* user don't have to provide live-in for stoch, use result from combine-live too
+* user don't have to provide live-in for stoch, use result from combine-live too [test stoch]
+  - test regression
+- get rid of live-in parser
 
 Correctness
 - how to prevent users from making a mistake on machine description (ins & outs).
@@ -13,9 +9,7 @@ Correctness
   = SOLUTION: extract ins & outs from simulator!!!
 
 1. Revisit
-   - (reduce-precesion) in forwardbackward
-   - change "public" to "protected"
-   - remove (debug-inst) in forwardbackward
+   - remove (debug-inst) in forwardbackward & live-in in stoch
    - template
 
 2. May need to override these functions
@@ -26,9 +20,8 @@ Correctness
      = when using parallel driver, printer:compress-state-space
      = config can be use in program-structor, define-arg-type
    - efficient memory access. memory access operates in a granularity of # of bits defined
-   - bit, const => reduce bitwidth
    - update-progstate-ins-load -store
-   - want stact, contact me
+   - want stack, contact me
    - say that (get) & (set) is used for update-live, update-live-backward, and inverse
      (get-arg-ranges) & (get-valid-opcode)
    - #:try-cmp? in enumerator, (try-cmp?) in forwardbackward

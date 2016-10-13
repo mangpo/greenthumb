@@ -87,7 +87,6 @@
 (test 'interp2 "@ @b b! - @b + -" 5
       '((data . 2)) #:sym #f #:prefix "2 b! dup !b a! @+") ;; @ - over + -
 
-#|
 (test 1 "dup drop up a! @ !" 4 '((data . 1) memory) #:sym #t)
 ;;(test 2 "dup drop up a! @+ !" 4 '((data . 1) memory) #:sym #t)
 (test 3 "dup drop up a! ! @" 4 '((data . 1) memory) #:sym #t)
@@ -103,7 +102,7 @@
       #:assume '((<= . 65535) (<= . 65535) (<= . 65535)) #:sym #f)
 (test 'shaf "0 a! !+ !+ push pop dup 1 b! @b and over - 0 b! @b and or push drop pop" 6
       '((data . 2) (return . 1)) #:sym #f)
-|#
+
 #;(test 'complexB "drop 3 and + push drop pop dup 0 b! @b" 10
       '((data . 2)) #:sym #f) ;; very slow
 #;(test 'rrotate "2 b! !b push drop pop 2 b! @b 0 b! !b up b! @b 0 b! @b 2/ 2/ + 65535 and" 8
