@@ -161,8 +161,7 @@
 		  (set! vars (cons arg vars))))
       (add1 (length vars)))
     
-    ;; Convert live-out (which is one of the outputs from 
-    ;; parser::info-from-file) into string. 
+    ;; Convert live-out (the output from parser::info-from-file) into string. 
     (define (output-constraint-string live-out) 
       (format "(send printer encode-live '~a)" live-out))
 

@@ -180,7 +180,7 @@
       (parse)
       liveness-map)
 
-    (define/public (info-from-file file)
+    (define/override (info-from-file file)
       (define lines (file->lines file))
       (define live-out (map (lambda (x) (or (string->number x) x))
                             (string-split (first lines) ",")))

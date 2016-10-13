@@ -23,10 +23,11 @@
      [classes-info (list)]            ;; Store classes' info
      [argtypes-info (make-hash)]      ;; Map from arg type to arg type info
      [statetypes-info (make-hash)]    ;; Map from state type to state type info
+     [groups-of-opcodes #f]
+     [max-number-of-args 0]
 
      ;; Fields to be set by method 'analyze-opcode'
      [opcode-pool #f]        ;; Opcodes to be considered during synthesis.
-     [program-state #f]
      )
     
     ;; Required methods to be implemented.
@@ -196,7 +197,6 @@
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; instruction & arg class ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-    (define groups-of-opcodes #f)
     ;; Inform GreenThumb how many opcodes there are in one instruction.
     (define (init-machine-description opcode-types)
       (set! groups-of-opcodes opcode-types)
@@ -256,6 +256,7 @@
                           (vector-set! opcodes id (cons opcode (vector-ref opcodes id))))))
         ;; insert instruction classes
         (for ([group (all-opcodes-groups class-opcodes args ins required)])
+             (check-max-number-of-args (second group))
              (set! classes-info
                    (cons (instclass (first group) #f
                                     (list->vector (second group))
@@ -266,6 +267,8 @@
        [else
         (unless (symbol? (car class-opcodes))
                 (raise (format "The number of groups of opcodes provided at define-instruction-class '~a' is more than '1', which is defined at init-machine-description." (length class-opcodes))))
+        (check-max-number-of-args args)
+        
         (set! ins (filter-statetype ins args))
         (set! outs (filter-statetype outs args))
         ;; collect opcodes
@@ -279,6 +282,9 @@
       
       ;;(pretty-display (format "[DEFINE] class=~a | args=~a ins=~a outs=~a" name args ins outs))
       )
+
+    (define (check-max-number-of-args args)
+        (when (> (length args) max-number-of-args) (set! max-number-of-args (length args))))
 
     (define (filter-statetype locs args)
       (define (pred x)

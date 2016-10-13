@@ -80,13 +80,8 @@
   )
 
 
-(test 'interp1 "2 b! !b 2 b! @b a!" 5
-      '((data . 2)) #:sym #f #:postfix "@+ a b! @b - over + -") ;; 2 a! ! @+ a! 
-(test 'interp2 "dup !+ a! @+ dup @" 5
-      '((data . 2)) #:sym #f #:prefix "2 a!" #:postfix "- over + -") ;; ! @+ a! @+ @+ 
-(test 'interp2 "@ @b b! - @b + -" 5
-      '((data . 2)) #:sym #f #:prefix "2 b! dup !b a! @+") ;; @ - over + -
 
+(test 0 "1 2 3" 3 '((data . 3)) #:sym #t)
 (test 1 "dup drop up a! @ !" 4 '((data . 1) memory) #:sym #t)
 ;;(test 2 "dup drop up a! @+ !" 4 '((data . 1) memory) #:sym #t)
 (test 3 "dup drop up a! ! @" 4 '((data . 1) memory) #:sym #t)
@@ -95,6 +90,13 @@
 ;;(test 6 "up a! @+ @" 3 '((data . 0)) #:sym #t)
 (test 7 "dup drop @+ !" 2 '((data . 1) memory) #:sym #t)
 (test 8 "dup drop !+ @" 2 '((data . 1) memory) #:sym #t)
+
+(test 'interp1 "2 b! !b 2 b! @b a!" 5
+      '((data . 2)) #:sym #f #:postfix "@+ a b! @b - over + -") ;; 2 a! ! @+ a! 
+(test 'interp2 "dup !+ a! @+ dup @" 5
+      '((data . 2)) #:sym #f #:prefix "2 a!" #:postfix "- over + -") ;; ! @+ a! @+ @+ 
+(test 'interp2 "@ @b b! - @b + -" 5
+      '((data . 2)) #:sym #f #:prefix "2 b! dup !b a! @+") ;; @ - over + -
 
 (test 'hhh "0 a! !+ push !+ pop 1 b! @b over or 0 b! @b or push drop pop" 2 '((data . 2)) #:sym #t)
 (test 'fff "0 a! !+ !+ push pop dup 1 b! @b and over 65535 or 0 b! @b and over - and + push drop pop"

@@ -4,6 +4,7 @@ Correctness
   = SOLUTION: extract ins & outs from simulator!!!
 
 1. Revisit
+   - get rid of (gen-sym-inst)
    - remove (debug-inst) in forwardbackward & live-in in stoch
    - template
      = more skeleton for parser:info-from-file, printer:output-constraint-string

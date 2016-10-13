@@ -85,7 +85,7 @@
          ((inst-list) (if compress? (rename (list->vector $1) no-rename) (list->vector $1))))
        )))
 
-    (define/public (info-from-file file)
+    (define/override (info-from-file file)
       (define lines (file->lines file))
       (define live-out (string-split (first lines) ","))
       (set! compress? #t)

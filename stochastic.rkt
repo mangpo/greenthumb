@@ -606,6 +606,7 @@
                           w-error)
                       ))))
 
+    ;; Population count for 32-bit number
     (define (pop-count32 a)
       (set! a (- a (bitwise-and (arithmetic-shift a -1) #x55555555)))
       ;;(pretty-display a)
@@ -617,6 +618,7 @@
       (set! a (+ a (arithmetic-shift a -16)))
       (bitwise-and a #x3f))
 
+    ;; Population count for 64-bit number
     (define (pop-count64 a)
       (set! a (- a (bitwise-and (arithmetic-shift a -1) #x5555555555555555)))
       ;;(pretty-display a)
@@ -632,7 +634,10 @@
     ;; Helper function to calculate correctness cost.
     ;; state1, state2, constraint are vectors of the same length,
     ;; delta is a function that calculate the cost between two numbers.
+    ;; 
     ;; Compute correctness cost sum of all bit difference in live entires.
+    ;; This method takes into account of misalignment.
+    ;; For example, if r0 of state1 = r1 of state2, the cost will be quite low.
     (define (correctness-cost-base state1 state2 constraint delta)
       (define correctness 0)
       (define n (vector-length state1))
@@ -643,6 +648,7 @@
             (let* ([v1 (vector-ref state1 i)]
                    [best-cost (delta v1 (vector-ref state2 i))]
                    [best-j i])
+              ;; test i against all values, and find the lowest cost of i against j
               (for ([j n])
                    (let* ([v2 (vector-ref state2 j)]
                           [this-cost (delta v1 v2)])
@@ -650,7 +656,7 @@
                            (set! best-cost this-cost)
                            (set! best-j j))))
               (set! correctness (+ correctness best-cost))
-              ;; mis-aligned penalty = 1
+              ;; if i != j, add mis-aligned penalty = 1
               (unless (= best-j i) (set! correctness (add1 correctness))))))
       correctness)
 

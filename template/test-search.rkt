@@ -45,7 +45,7 @@ code here
 (send machine reset-arg-ranges)
 (send machine analyze-args encoded-prefix encoded-code encoded-postfix #f #f)
 
-;; Phase 0: create constriant (live-out)
+;; Phase 0: create constriant (live-out in program state format)
 (define constraint ?)
 
 ;; Phase A: create symbolic search (step 4)
@@ -58,7 +58,6 @@ code here
       encoded-sketch
       encoded-prefix encoded-postfix
       constraint ;; live-out
-      #f ;; extra parameter (not use most of the time)
       #f ;; upperbound cost, #f = no upperbound
       3600 ;; time limit in seconds
       )
@@ -71,10 +70,8 @@ code here
                       ))
 #;(send stoch superoptimize encoded-code 
       constraint ;; live-out
-      ? ;; live-in
       "./driver-0" 
       3600 ;; time limit in seconds
-      #f   ;; extra parameter (not use most of the time)
       )
 
 
@@ -90,7 +87,6 @@ code here
       encoded-sketch
       encoded-prefix encoded-postfix
       constraint ;; live-out
-      #f ;; extra parameter (not use most of the time)
       #f ;; upperbound cost, #f = no upperbound
       3600 ;; time limit in seconds
       )

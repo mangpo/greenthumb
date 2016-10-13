@@ -15,8 +15,7 @@
     (init-field [pure-symbolic #t]
                 [bit (get-field bitwidth machine)])
     (override synthesize-window)
-    (public synthesize-from-sketch evaluate-inst sym-op sym-arg)
-    (abstract gen-sym-inst)
+    (public synthesize-from-sketch evaluate-inst gen-sym-inst)
 
     ;; Create symbolic opcode using Rosette symbolic variable.
     (define (sym-op)
@@ -28,6 +27,15 @@
     (define (sym-arg)
       (define-symbolic* arg number?)
       arg)
+
+    (define groups (get-field groups-of-opcodes machine))
+    (define args (get-field max-number-of-args machine))
+    (define (gen-sym-inst)
+      (if (= groups 1)
+          (inst (sym-op)
+                (for/vector ([arg args]) (sym-arg)))
+          (inst (for/vector ([op groups]) (sym-op))
+                (for/vector ([arg args]) (sym-arg)))))
     
     (define ninsts (vector-length (get-field opcodes machine)))
 
@@ -181,9 +189,6 @@
             (pretty-display `(sym-vars ,sym-vars))
             ;;(pretty-display `(inputs ,inputs))
             )
-      
-      ;;(interpret-spec!)
-      ;;(clear-asserts)
       
       (define model 
         (timeout

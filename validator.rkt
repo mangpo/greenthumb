@@ -6,7 +6,7 @@
 (require rosette/solver/smt/z3)
 (require rosette/solver/kodkod/kodkod)
 
-(provide validator% sym-input)
+(provide validator% sym-input rand-input)
 
 ;; min & max are inclusive.
 (define (sym-input #:min [min #f] #:max [max #f] #:const [const #f])
@@ -17,6 +17,30 @@
     (when min (assert (>= input min)))
     (when max (assert (<= input max)))
     input]))
+
+    
+(define (rand-input #:min [min-v #f] #:max [max-v #f] #:const [const #f])
+  (cond
+   [const const]
+   [(and min-v max-v) (random-from-list (range min-v (add1 max-v)))]
+   [else
+    (let* ([rand (random (min 4294967087 (<< 1 random-input-bit bit)))]
+           [half (arithmetic-shift                           
+                  (min 4294967087 (<< 1 random-input-bit bit))   
+                  -1)])
+      ;; (if (>= rand (<< 1 (sub1 bit)))
+      ;;     (- rand (<< 1 bit))
+      (if (>= rand half)
+          (- half rand)
+          rand))]
+   ))
+
+(define (rand-from-const #:min [min-v #f] #:max [max-v #f] #:const [const #f])
+  (cond
+   [const const]
+   [(and min-v max-v) (random-from-list (range min-v (add1 max-v)))]
+   [else (vector-ref const-range (random const-range-len))]
+   ))
 
 (define validator%
   (class object%
@@ -88,34 +112,12 @@
     (define const-range 
       (for/vector ([i (sub1 random-input-bit)]) (arithmetic-shift 1 i)))
     (define const-range-len (vector-length const-range))
-    
-    (define (rand-func #:min [min-v #f] #:max [max-v #f] #:const [const #f])
-      (cond
-       [const const]
-       [(and min-v max-v) (random-from-list (range min-v (add1 max-v)))]
-       [else
-        (let* ([rand (random (min 4294967087 (<< 1 random-input-bit bit)))]
-               [half (arithmetic-shift                           
-                      (min 4294967087 (<< 1 random-input-bit bit))   
-                      -1)])
-          ;; (if (>= rand (<< 1 (sub1 bit)))
-          ;;     (- rand (<< 1 bit))
-          (if (>= rand half)
-              (- half rand)
-              rand))]
-       ))
-    
-    (define (rand-from-const #:min [min-v #f] #:max [max-v #f] #:const [const #f])
-      (cond
-       [const const]
-       [(and min-v max-v) (random-from-list (range min-v (add1 max-v)))]
-       [else (vector-ref const-range (random const-range-len))]
-       ))
+
 
     (define (generate-input-states-fast n spec assumption #:db [db #f])
       (define m (if db n (quotient (add1 n) 2)))
       (define inputs-random
-        (for/list ([i m]) (send machine get-state rand-func)))
+        (for/list ([i m]) (send machine get-state rand-input)))
       (define inputs-random-const
         (for/list ([i (- n m)]) (send machine get-state rand-from-const)))
       (define inputs (append inputs-random inputs-random-const))
@@ -182,7 +184,7 @@
       
       (define m (if db n (quotient (add1 n) 2)))
       ;; Random
-      (define input-random (for/list ([i m]) (generate-one-input rand-func)))
+      (define input-random (for/list ([i m]) (generate-one-input rand-input)))
       ;; Random in const list
       (define input-random-const (for/list ([i (- n m)]) (generate-one-input rand-from-const)))
       
@@ -371,15 +373,9 @@
     ;; state1, state2, & pred: progstate format
     (define (assert-state-eq state1 state2 pred)
       (define (inner state1 state2 pred)
-        ;; (pretty-display `(assert-eq ,pred ,state1 ,state2))
-        ;;(when (equal? pred #t) (pretty-display `(state ,state1 ,state2)))
+        ;;(pretty-display `(assert-eq ,pred ,state1 ,state2))
 	(cond
-         ;; [(and pred (special-type? state1))
-         ;;  (assert (equal? state1 state2))]
          [(and pred (is-a?* state1 memory-rosette%))
-          ;; (pretty-display "CHECK MEM!!!")
-          ;; (pretty-display `(state1 ,(get-field update state1)))
-          ;; (pretty-display `(state2 ,(get-field update state2)))
           (assert (equal? (get-field* update state1)
                           (get-field* update state2)))]
          
@@ -391,27 +387,16 @@
 	 [(equal? pred #t)
           (for*/all ([i state2])
                     (assert (equal? state1 i)))
-	  ;;(assert (equal? state1 state2))
           ]
 	 [(equal? pred #f)
 	  (void)]
-	 [(number? pred)
-	  (for/and ([i pred]
-		    [s1 state1]
-		    [s2 state2])
-		   (assert (equal? s1 s2)))]
 	 [else
 	  (for/and ([i pred]
 		    [s1 state1]
 		    [s2 state2])
 		   (inner s1 s2 i))])
 	)
-      ;; (pretty-display `(eq ,(send machine progstate->vector state1)
-      ;;                      ,(send machine progstate->vector state2)
-      ;;                      ,(send machine progstate->vector pred)))
-      (inner (send machine progstate->vector state1)
-	     (send machine progstate->vector state2)
-	     (send machine progstate->vector pred))
+      (inner state1 state2 pred)
       )
 
     ;; Evaluate symbolic progstate to concrete progstate based on solution 'sol'.

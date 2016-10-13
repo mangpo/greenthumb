@@ -9,7 +9,7 @@
 (define GA-validator%
   (class validator%
     (super-new)
-    (override assume get-constructor)
+    (override assume get-constructor assert-state-eq)
 
     (define (get-constructor) GA-validator%)
 
@@ -43,6 +43,21 @@
             (check-reg progstate-t)
             (check-stack progstate-data)
             (check-stack progstate-return)))
+
+    
+    (define (assert-state-eq state1 state2 pred)
+      (define (check-stack s1 s2 p)
+	(when p
+	      (for ([i p])
+                   (assert (equal? (get-stack s1 i) (get-stack s2 i)) `stack))))
+            
+      (for ([s1 state1]
+            [s2 state2]
+            [p pred])
+           (cond
+            [(stack? s1) (check-stack s1 s2 p)]
+            [else (super assert-state-eq s1 s2 p)]))
+      )
 
 
     ))

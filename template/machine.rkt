@@ -2,7 +2,19 @@
 
 (require "../machine.rkt" "../special.rkt")
 
-(provide $-machine%)
+(provide $-machine%  (all-defined-out))
+
+;;;;;;;;;;;;;;;;;;;;; program state macro ;;;;;;;;;;;;;;;;;;;;;;;;
+;; This is just for convenience.
+(define-syntax-rule
+  (progstate regs memory)
+  (vector regs memory))
+
+(define-syntax-rule (progstate-regs x) (vector-ref x 0))
+(define-syntax-rule (progstate-memory x) (vector-ref x 1))
+
+(define-syntax-rule (set-progstate-regs! x v) (vector-set! x 0 v))
+(define-syntax-rule (set-progstate-memory! x v) (vector-set! x 1 v))
 
 (define $-machine%
   (class machine%
@@ -24,18 +36,18 @@
     ;;;;;;;;;;;;;;;;;;;;; program state ;;;;;;;;;;;;;;;;;;;;;;;;
 
     (define (progstate-structure)
-      (vector (for/vector ([i config]) 'reg)
-              (get-memory-type)))
+      (progstate (for/vector ([i config]) 'reg)
+                 (get-memory-type)))
 
     (define-progstate-type
       'reg 
-      #:get (lambda (state arg) (vector-ref (vector-ref state 0) arg))
-      #:set (lambda (state arg val) (vector-set! (vector-ref state 0) arg val)))
+      #:get (lambda (state arg) (vector-ref (progstate-regs state) arg))
+      #:set (lambda (state arg val) (vector-set! (progstate-regs state) arg val)))
 
     (define-progstate-type
       (get-memory-type)
-      #:get (lambda (state) (vector-ref state 1))
-      #:set (lambda (state val) (vector-set! state 1 val)))
+      #:get (lambda (state) (progstate-memory state))
+      #:set (lambda (state val) (set-progstate-memory! state val)))
 
     ;;;;;;;;;;;;;;;;;;;;; instruction classes ;;;;;;;;;;;;;;;;;;;;;;;;
     (define-arg-type 'reg (lambda (config) (range config)))

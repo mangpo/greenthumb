@@ -71,8 +71,10 @@
               (config-from-string-ir program)))
 
     (define (decompress-state-space program reg-map) program)
-    (define (config-from-string-ir program) (send machine get-config))
-    (define (output-constraint-string live-out) live-out)
+    (define (config-from-string-ir program)
+      (raise "config-from-string-ir: unimplemented. Need to extend this function."))
+    (define (output-constraint-string live-out)
+      (raise "config-from-string-ir: unimplemented. Need to extend this function."))
     (define (output-assume-string x) x)
     
     (define (set-config-string x)

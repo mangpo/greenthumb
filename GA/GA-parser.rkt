@@ -26,7 +26,7 @@
 		  [x (string-split line)])
 		 (string->inst x)))
 
-    (define/public (info-from-file file)
+    (define/override (info-from-file file)
       (define lines (file->lines file))
       (define live-out
 	(for/list ([ele (string-split (first lines) ",")])

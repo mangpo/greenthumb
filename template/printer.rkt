@@ -1,7 +1,6 @@
 #lang racket
 
-(require "../printer.rkt" 
-         "../inst.rkt")
+(require "../printer.rkt" "../inst.rkt" "$-machine.rkt")
 
 (provide $-printer%)
 
@@ -9,10 +8,7 @@
   (class printer%
     (super-new)
     (inherit-field machine)
-    (override encode-inst decode-inst print-syntax-inst
-              ;; >> Required method for cooperative search
-              ;; config-from-string-ir output-constraint-string
-              )
+    (override encode-inst decode-inst print-syntax-inst)
 
     ;; Print in the assembly format.
     ;; x: string IR
@@ -74,11 +70,47 @@
 
     ;;;;;;;;;;;;;;;;;;;;;;;;; For cooperative search ;;;;;;;;;;;;;;;;;;;;;;;
     #|
-    ;; Convert live-out (which is one of the outputs from parser::info-from-file) into string. 
+    ;; Convert live-out (the output from parser::info-from-file) into string. 
     ;; The string will be used as a piece of code the search driver generates as
     ;; the live-out argument to the method superoptimize of 
     ;; stochastics%, forwardbackward%, and symbolic%.
-    (define (output-constraint-string live-out) ?)
+    (define/override (output-constraint-string live-out)
+      ? ;; modify this funcion.
+      
+      ;; Example:
+      ;; If live-out is a list/vector/pair, we can just print it out.
+      (format "(send printer encode-live '~a)" live-out))
+
+    ;; Convert liveness infomation to the same format as program state.
+    (define/public (encode-live x)
+      ? ;; modify this funcion.
+      
+      ;; Example:
+      ;; If x is a list, iterate over elements in x, and set those elements to be live.
+      (define reg-live (make-vector (send machine get-config) #f))
+      (define mem-live #f)
+      (for ([v x])
+           (cond
+            [(number? v) (vector-set! reg-live v #t)]
+            [(equal? v 'memory) (set! mem-live #t)]))
+      (progstate reg-live memlive))
+    
+    ;; Return program state config from a given program in string-IR format.
+    ;; program: string IR format
+    ;; output: program state config
+    (define/override (config-from-string-ir program)
+      ? ;; modify this funcion.
+      
+      ;; Example:
+      ;; config = number of registers
+      ;; Find the highest register ID and return that as a config
+      (define max-reg 0)
+      (for* ([x program]
+	     [arg (inst-args x)])
+            (when (equal? "r" (substring x 0 1))
+                  (let ([id (string->number (substring x 1))])
+                    (when (> id max-reg) (set! max-reg id)))))
+      (add1 max-reg))
     |#
     
     ))
