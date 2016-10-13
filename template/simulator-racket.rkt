@@ -33,8 +33,11 @@
     
     ;;;;;;;;;;;;;;;;;;;;;;;;;;; Required methods ;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Interpret a given program from a given state.
-    ;; Policy argument is always #f unless for advanced usage.
-    (define (interpret program state [policy #f]) ?)
+    ;; 'program' is a vector of 'inst' struct.
+    ;; 'ref' is optional. When given, it is an output program state returned from spec.
+    ;; We can assert something from ref to terminate interpret early.
+    ;; This can help prune the search space.
+    (define (interpret program state [ref #f]) ?)
 
     ;; Estimate performance cost of a given program.
     (define (performance-cost program) ?)

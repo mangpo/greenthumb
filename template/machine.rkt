@@ -1,83 +1,89 @@
 #lang racket
 
-(require "../machine.rkt" "../inst.rkt")
+(require "../machine.rkt" "../special.rkt")
 
 (provide $-machine%)
 
 (define $-machine%
   (class machine%
     (super-new)
-    (inherit-field bitwidth random-input-bits config
-                   opcodes nop-id
-                   ;; >> required fileds for stochastic and enumerative only
-		   ;; classes
-                   )
-    (inherit get-class-id filter-live)
-    (override get-constructor set-config get-state reset-arg-ranges
-              ;; >> Required methods for stochastic and enumerative only
-              ;; get-arg-types get-arg-ranges
-              ;; update-live update-live-backward
-              )
+    (inherit-field bitwidth random-input-bits config)
+    (inherit init-machine-description define-instruction-class finalize-machine-description
+             define-progstate-type define-arg-type
+             update-progstate-ins kill-outs)
+    (override get-constructor progstate-structure 
+              ;; >> required fileds for stochastic and enumerative only
+              update-progstate-ins-load
+              update-progstate-ins-store)
 
     (define (get-constructor) $-machine%)
     
     (unless bitwidth (set! bitwidth ?))
     (set! random-input-bits bitwidth)
-    (set! nop-id 0)
-    (set! opcodes '#(nop)) ;; list of instructions
 
-    (when config (set-config config))
+    ;;;;;;;;;;;;;;;;;;;;; program state ;;;;;;;;;;;;;;;;;;;;;;;;
 
-    ;; Save program state parameters to appropriate fields.
-    (define (set-config config-init)
-      (set! config config-init)
-      (reset-arg-ranges))
+    (define (progstate-structure)
+      (vector (for/vector ([i config]) 'reg)
+              (get-memory-type)))
+
+    (define-progstate-type
+      'reg 
+      #:get (lambda (state arg) (vector-ref (vector-ref state 0) arg))
+      #:set (lambda (state arg val) (vector-set! (vector-ref state 0) arg val)))
+
+    (define-progstate-type
+      (get-memory-type)
+      #:get (lambda (state) (vector-ref state 1))
+      #:set (lambda (state val) (vector-set! state 1 val)))
+
+    ;;;;;;;;;;;;;;;;;;;;; instruction classes ;;;;;;;;;;;;;;;;;;;;;;;;
+    (define-arg-type 'reg (lambda (config) (range config)))
+    (define-arg-type 'const (lambda (config) '(0 1 -1 -2 -8)))
+    (define-arg-type 'bit (lambda (config) '(0 1)))
+    ;; try more values for const than for bit
+
+    ;; Inform GreenThumb how many opcodes there are in one instruction.
+    (init-machine-description 1)
     
-    ;; Generate a program state from lambda init.
-    (define (get-state init [extra #f]) ?)
+    (define-instruction-class 'nop '(nop))
 
-    ;;;;;;;;;;;;;;;;;;;;; For stochastic and enumerative ;;;;;;;;;;;;;;;;;;
+    ;; An example of an instruction that takes two input registers
+    ;; and update one output register
+    (define-instruction-class 'rrr-commute '(add)
+     #:args '(reg reg reg) #:ins '(1 2) #:outs '(0) #:commute '(1 . 2))
 
-    ;; Set valid operands' ranges from saved config parameters.
-    (define (reset-arg-ranges) (void))
-    
-    #|
-    ;; Instruction classes
-    (set! classes 
-          (vector '() ;; list of type 1 instructions
-        	  '() ;; list of type 2 instructions
-                  ))
+    ;; An example of an instruction that takes an input register and a constant
+    ;; and update one output register.
+    ;; Notice that opcodes in different classes can't have the same name.
+    (define-instruction-class 'rri '(add#)
+     #:args '(reg reg const) #:ins '(1 2) #:outs '(0))
 
-    ;; Return a vector of operands' types given opcode-name.
-    ;; Type should be a symbol such as `var-i, `var-o, `mem, `const, `bit.
-    ;; Make sure to use `bit for a shifting constant, and `const for a non-shifting constant.
-    (define (get-arg-types opcode-name)
-      (define class-id (get-class-id opcode-name))
-      (cond
-       [(equal? class-id 0) (vector ?)]
-       [(equal? class-id 1) (vector ?)]
-       [else (vector)]))
+    ;; An example of an instruction that takes an input register and a shift constant
+    ;; and update one output register
+    (define-instruction-class 'rrb '(shl#)
+     #:args '(reg reg bit) #:ins '(1) #:outs '(0))
 
-    ;; Get valid operands' values given opcode-name, live-in, live-out, and mode.
-    ;; >> INPUT >>
-    ;; opcode-name: opcode in symbol form (e.g. `nop)
-    ;; live-in & live-out: liveness infomation
-    ;; mode: can be either
-    ;;  1) `basic (no restriction)
-    ;;  2) `no-args = ignore register/variable operands. Return a symbol like `var-i and `var-o instead of a vector of values for register/varaible operands. The enumerator% (which will be extended later) used in enumerative search will use this.
-    ;; >> OUTPUT >>
-    ;; A vector of vectors containing valid values for operands
-    (define (get-arg-ranges opcode-name entry live-in
-                            #:live-out [live-out #f] #:mode [mode `basic])
-      ?)
+    ;; An example of an instruction that accesses memory
+    (define-instruction-class 'load '(load)
+     #:args '(reg reg) #:ins (list 1 (get-memory-type)) #:outs '(0))
 
-    ;; Return live-out
-    (define (update-live live-in this-inst)
-      ?)
+    ;; An example of an instruction that updates memory
+    (define-instruction-class 'store '(store)
+     #:args '(reg reg) #:ins '(0 1) #:outs (list (get-memory-type)))
 
-    ;; Return live-in (for enumerative search).
-    (define (update-live-backward live-out this-inst)
-      ?)
-|#
+    (finalize-machine-description)
+
+    ;; Inform about the order of argument for store instruction.
+    (define (update-progstate-ins-store my-inst addr val state)
+      ;; Put val before addr => arg 0 is val, arg 1 is address.
+      (update-progstate-ins my-inst (list val addr) state))
+
+    ;; Inform about the order of argument for load instruction.
+    ;; Need to do more work if load instruction takes more than one input argument.
+    (define (update-progstate-ins-load my-inst addr mem state)
+      (define state-base (kill-outs my-inst state))
+      (update-progstate-ins my-inst (list addr mem) state-base))
+
     ))
-     
+      

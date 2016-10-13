@@ -6,9 +6,10 @@ Correctness
 1. Revisit
    - remove (debug-inst) in forwardbackward & live-in in stoch
    - template
+     = more skeleton for parser:info-from-file, printer:output-constraint-string
+     = simulator
 
 2. May need to override these functions
-   - (reduce-precesion) in forwardbackward
 3. Documentation 
    - config:
      = when testing (new machine% [config ?])
@@ -27,15 +28,12 @@ Correctness
    - default arg-type: const, bit => reduce-precision
    - combine-live & update-live (GA)
    - mask-in & get-pruning-info
+   - (reduce-precesion) in forwardbackward
+   - opcodes name, encode, decode in printer
 4. Increase precision in enum
    - synthesize constrants
    - in reduced-bitwidth domain: try all 4-bit constants
    - e.g. Preston load1
-
-
-- No longer need validator:proper-machine-config if we use the new memory access support.
-  => Will memory object slowdown the interpreter?
-  => keep ARM & GA as is.
 
 Profile:
 preston/program/ex1 on kaopad

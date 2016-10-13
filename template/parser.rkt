@@ -7,13 +7,18 @@
 
 (provide $-parser%)
 
+;; This is a Racket Lex Yacc parser.
+;; Refer to the follow resources to complete this file.
+;; - Lexer:   http://docs.racket-lang.org/parser-tools/Lexers.html
+;; - Parser:  http://docs.racket-lang.org/parser-tools/LALR_1__Parsers.html
+;; - Example: https://gist.github.com/danking/1068185
 (define $-parser%
   (class parser%
     (super-new)
     (inherit-field asm-parser asm-lexer)
     (init-field [compress? #f])
     
-    (define-tokens a (WORD NUM)) ;; add more tokens
+    (define-tokens a (WORD NUM REG)) ;; add more tokens
     (define-empty-tokens b (EOF HOLE)) ;; add more tokens
 
     (define-lex-abbrevs
@@ -26,12 +31,14 @@
       (identifier (re-seq identifier-characters 
                           (re-* (re-or identifier-characters digit10))))
       (var (re-: "%" (re-+ (re-or identifier-characters digit10))))
+      (reg (re-seq "r" number10))
       )
 
     ;; Complete lexer
     (set! asm-lexer
       (lexer-src-pos
        ("?"        (token-HOLE))
+       (reg        (token-REG lexeme))
        (snumber10  (token-NUM lexeme))
        (identifier (token-WORD lexeme))
        (whitespace   (position-token-token (asm-lexer input-port)))
@@ -52,7 +59,15 @@
        (tokens a b)
        (src-pos)
        (grammar
+
+        (arg  ((REG) $1)
+              ((NUM) $1))
+
+        (args ((arg) (list $1))
+              ((arg COMMA args) (cons $1 $3)))
+        
         (instruction
+         ((WORD args)    (inst $1 (list->vector $2)))
          ((HOLE)         (inst #f #f)))
         
         (code   
@@ -61,10 +76,8 @@
        )))
 
     ;; Required method if using cooperative search driver.
-    ;; Parse file that contains live-in and live-out information
-    ;; (in any user-defined format) of a code fragment to be optimized into
-    ;; another form (also in user-defined format).
+    ;; Parse file that contains live-out information (in any user-defined format)
     ;; (define/public (info-from-file file)
-    ;;   (valies live-out live-in))
+    ;;   live-out)
 
     ))

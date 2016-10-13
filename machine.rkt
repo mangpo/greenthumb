@@ -196,6 +196,20 @@
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; instruction & arg class ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+    (define groups-of-opcodes #f)
+    ;; Inform GreenThumb how many opcodes there are in one instruction.
+    (define (init-machine-description opcode-types)
+      (set! groups-of-opcodes opcode-types)
+      (if (= opcode-types 1)
+          (set! opcodes (list))
+          (set! opcodes (make-vector opcode-types (list)))))
+    
+    ;; name: name of this class of instructions
+    ;; class-opcodes:
+    ;;   if groups-of-opcodes = 1, class-opcodes is a list of opcodes
+    ;;   if groups-of-opcodes = n > 1, class-opcodes is a list of <= n sublists of opcodes.
+    ;;      where sublist i corresponds to opcodes in group i.
+    ;;      (see ARM for an example)
     (define (define-instruction-class name class-opcodes
               #:args [args '()] #:ins [ins '()] #:outs [outs '()] #:commute [commute #f]
               #:required [required (list)])
@@ -366,13 +380,6 @@
 
     (define (define-arg-type name validfunc #:progstate [state name])
       (hash-set! argtypes-info name (argtype validfunc #f state)))
-
-    (define groups-of-opcodes #f)
-    (define (init-machine-description opcode-types)
-      (set! groups-of-opcodes opcode-types)
-      (if (= opcode-types 1)
-          (set! opcodes (list))
-          (set! opcodes (make-vector opcode-types (list)))))
 
     (define (finalize-machine-description)
 

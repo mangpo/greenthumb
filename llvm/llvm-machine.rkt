@@ -1,8 +1,8 @@
 #lang racket
 
-(require "../machine.rkt" "../inst.rkt" "../special.rkt")
+(require "../machine.rkt" "../special.rkt")
 
-(provide llvm-machine% (all-defined-out))
+(provide llvm-machine%)
 
 (define llvm-machine%
   (class machine%
@@ -12,6 +12,7 @@
              define-progstate-type define-arg-type
              update-progstate-ins kill-outs)
     (override get-constructor progstate-structure 
+              ;; >> required fileds for stochastic and enumerative only
               update-progstate-ins-load
               update-progstate-ins-store)
 
