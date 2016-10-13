@@ -1,8 +1,3 @@
-TODO
-* user don't have to provide live-in for stoch, use result from combine-live too [test stoch]
-  - test regression
-- get rid of live-in parser
-
 Correctness
 - how to prevent users from making a mistake on machine description (ins & outs).
   = e.g. putting arg 0 to be output of str# => backward can't find solution.

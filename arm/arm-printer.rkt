@@ -140,10 +140,9 @@
     ;; Output
     ;; 1) compressed program in the same format as input
     ;; 2) compressed live-out
-    ;; 3) compressed live-in
-    ;; 4) map-back
-    ;; 5) program state config
-    (define (compress-state-space program live-out live-in)
+    ;; 3) map-back
+    ;; 4) program state config
+    (define (compress-state-space program live-out)
       (define reg-set (mutable-set))
       (define max-reg 0)
 
@@ -182,19 +181,13 @@
         (vector-map (lambda (x) (inner-rename x reg-map)) program))
 
       (define live-out-extra (filter symbol? live-out))
-      (define live-in-extra (filter symbol? live-in))
       (define compressed-live-out 
         (map (lambda (x) (vector-ref reg-map x)) 
              (filter (lambda (x) (and (number? x) (<= x max-reg) (vector-ref reg-map x))) 
                      live-out)))
-      (define compressed-live-in 
-        (map (lambda (x) (vector-ref reg-map x)) 
-             (filter (lambda (x) (and (number? x) (<= x max-reg) (vector-ref reg-map x))) 
-                     live-in)))
 
       (values compressed-program
               (append compressed-live-out live-out-extra)
-              (append compressed-live-in live-in-extra)
               reg-map-back id))
 
     (define (decompress-state-space program reg-map)

@@ -28,7 +28,7 @@
                         [printer printer] [validator validator]
                         [search-type search-type] [mode mode]
                         [window window]))
-  (send parallel optimize code live-out #f
+  (send parallel optimize code live-out
         #:assume assume
         #:dir dir #:cores cores 
         #:time-limit time-limit #:size size 

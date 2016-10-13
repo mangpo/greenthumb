@@ -184,8 +184,6 @@
       (define lines (file->lines file))
       (define live-out (map (lambda (x) (or (string->number x) x))
                             (string-split (first lines) ",")))
-      (define live-in (map (lambda (x) (or (string->number x) x))
-                           (string-split (second lines) ",")))
-      (values live-out live-in))
+      live-out)
 
     ))

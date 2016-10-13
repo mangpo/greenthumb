@@ -64,10 +64,9 @@
       (f x indent))
 
     ;; Default: no compression
-    (define (compress-state-space program live-out live-in)
+    (define (compress-state-space program live-out)
       (values program
               live-out
-              live-in
               #f
               (config-from-string-ir program)))
 

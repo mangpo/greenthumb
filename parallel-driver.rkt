@@ -25,7 +25,7 @@
     (define (get-class-name x) (format "~a-~a%" isa x))
     
     ;; Optimize code
-    (define (optimize-inner code-org live-out-org live-in-org rootdir cores time-limit prog-size 
+    (define (optimize-inner code-org live-out-org rootdir cores time-limit prog-size 
                             assume input-file start-prog)
       ;;(raise "done")
       (pretty-display (format "SEACH TYPE: ~a size=~a" search-type prog-size))
@@ -35,14 +35,12 @@
       
       (pretty-display ">>> select code:")
       (send printer print-syntax code-org)
-      (pretty-display (format ">>> live-in-org: ~a" live-in-org))
       (pretty-display (format ">>> live-out-org: ~a" live-out-org))
 
       ;; Use the fewest number of registers possible.
-      (define-values (code live-out live-in map-back machine-config) 
-        (send printer compress-state-space code-org live-out-org live-in-org))
+      (define-values (code live-out map-back machine-config) 
+        (send printer compress-state-space code-org live-out-org))
       (pretty-display (format ">>> machine-config: ~a" machine-config))
-      (pretty-display (format ">>> live-in: ~a" live-in))
       (pretty-display (format ">>> live-out: ~a" live-out))
       (pretty-display `(map-back ,map-back))
 
@@ -52,7 +50,6 @@
       ;; (set! machine-config (send validator proper-machine-config 
       ;;   		       (send printer encode code) machine-config))
       (pretty-display (format ">>> machine-config: ~a" machine-config))
-      (pretty-display (format ">>> live-in: ~a" live-in))
       (pretty-display (format ">>> live-out: ~a" live-out))
 
       (define dir-id 0)
@@ -372,7 +369,7 @@
         decompressed-code)
       )
 
-    (define (optimize code-org live-out live-in
+    (define (optimize code-org live-out 
                       #:assume [assume #f]
                       #:dir [dir "output"] 
                       #:cores [cores 8]
@@ -381,7 +378,7 @@
                       #:input-file [input-file #f]
                       #:start-prog [start-prog #f])
       (if (> (vector-length code-org) 0)
-          (optimize-inner code-org live-out live-in dir cores time-limit size assume input-file start-prog)
+          (optimize-inner code-org live-out dir cores time-limit size assume input-file start-prog)
           code-org))
 
     ))
