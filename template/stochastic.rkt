@@ -1,11 +1,12 @@
 #lang racket
 
-(require "../stochastic.rkt")
+(require "../stochastic.rkt" "$-machine.rkt")
 (provide $-stochastic%)
 
 (define $-stochastic%
   (class stochastic%
     (super-new)
+    (inherit-field machine)
     (inherit pop-count32 pop-count64 correctness-cost-base)
     (override correctness-cost)
 

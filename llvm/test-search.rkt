@@ -118,7 +118,7 @@ store i32 %1, i32* %2
                       ))
 #;(send stoch superoptimize encoded-code 
       constraint ;; constraint
-      "./driver-0" 3600)
+      "./driver-0" 3600 #f)
 
 ;; Step 4: create enumerative search
 (define backward (new llvm-forwardbackward% [machine machine] 

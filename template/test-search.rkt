@@ -3,7 +3,7 @@
 (require "../inst.rkt"
          "$-parser.rkt" "$-machine.rkt" "$-printer.rkt"
          "$-simulator-rosette.rkt" 
-         ;;"$-simulator-racket.rkt"
+         "$-simulator-racket.rkt"
          "$-validator.rkt"
          "$-symbolic.rkt"
          ;;"$-stochastic.rkt"
@@ -13,7 +13,7 @@
 (define parser (new $-parser%))
 (define machine (new $-machine% [config ?]))
 (define printer (new $-printer% [machine machine]))
-;;(define simulator-racket (new $-simulator-racket% [machine machine]))
+(define simulator-racket (new $-simulator-racket% [machine machine]))
 (define simulator-rosette (new $-simulator-rosette% [machine machine]))
 (define validator (new $-validator% [machine machine] [simulator simulator-rosette]))
 
@@ -46,7 +46,7 @@ code here
       (vector-append encoded-prefix encoded-code encoded-postfix))
 
 ;; Phase 0: create constriant (live-out in program state format)
-(define constraint ?)
+(define constraint (progstate ?))
 
 ;; Phase A: create symbolic search (step 4)
 (define symbolic (new $-symbolic% [machine machine]
@@ -72,6 +72,7 @@ code here
       constraint ;; live-out
       "./driver-0" 
       3600 ;; time limit in seconds
+      #f ;; size limit
       )
 
 

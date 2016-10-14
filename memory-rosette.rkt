@@ -83,12 +83,13 @@
     ;;;;;;;;;;;;;;;;;;;; lookup & update ;;;;;;;;;;;;;;;;;;;;
     (define (lookup storage addr)
       (define (loop index)
-        (let ([pair (vector-ref storage index)])
-          (and (pair? pair)
-               (if (equal? addr (car pair))
-                   (cdr pair)
-                   (loop (add1 index)))
-               )))
+        (and (< index (vector-length storage))
+             (let ([pair (vector-ref storage index)])
+               (and (pair? pair)
+                    (if (equal? addr (car pair))
+                        (cdr pair)
+                        (loop (add1 index)))
+                    ))))
       (loop 0))
 
     
@@ -97,20 +98,20 @@
 
     (define (modify storage addr val)
       (define (loop index)
-        (let ([pair (vector-ref storage index)])
-          (and (pair? pair)
-               (if (equal? addr (car pair))
-                   (begin
-                     (vector-set! storage index (cons addr val))
-                     #t)
-                   (loop (add1 index)))
-               )))
+        (and (< index (vector-length storage))
+             (let ([pair (vector-ref storage index)])
+               (and (pair? pair)
+                    (if (equal? addr (car pair))
+                        (begin
+                          (vector-set! storage index (cons addr val))
+                          #t)
+                        (loop (add1 index)))
+                    ))))
       (loop 0))
     
     ;;;;;;;;;;;;;;;;;;;; load ;;;;;;;;;;;;;;;;;;;;
     
     (define (load-spec addr)
-      ;;(pretty-display `(load-spec ,addr ,init ,update))
       (or (lookup update addr)
           (lookup init addr)
           (init-new-val addr)))

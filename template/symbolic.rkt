@@ -11,6 +11,6 @@
 
     ;; Num of instructions that can be synthesized within a minute.
     ;; Try setting it to 3 to start and adjust it later.
-    (define (len-limit) ?)
+    (define (len-limit) 3)
     
     ))

@@ -103,7 +103,7 @@
            (cond
             [(number? v) (vector-set! reg-live v #t)]
             [(equal? v 'memory) (set! mem-live #t)]))
-      (progstate reg-live memlive))
+      (progstate reg-live mem-live))
     
     ;; Return program state config from a given program in string-IR format.
     ;; program: string IR format
@@ -117,8 +117,8 @@
       (define max-reg 0)
       (for* ([x program]
 	     [arg (inst-args x)])
-            (when (equal? "r" (substring x 0 1))
-                  (let ([id (string->number (substring x 1))])
+            (when (equal? "r" (substring arg 0 1))
+                  (let ([id (string->number (substring arg 1))])
                     (when (> id max-reg) (set! max-reg id)))))
       (add1 max-reg))
     |#
