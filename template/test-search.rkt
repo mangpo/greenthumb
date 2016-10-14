@@ -42,8 +42,8 @@ code here
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))
 
-(send machine reset-arg-ranges)
-(send machine analyze-args encoded-prefix encoded-code encoded-postfix #f #f)
+(send validator adjust-memory-config
+      (vector-append encoded-prefix encoded-code encoded-postfix))
 
 ;; Phase 0: create constriant (live-out in program state format)
 (define constraint ?)

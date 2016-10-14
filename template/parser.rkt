@@ -19,7 +19,7 @@
     (init-field [compress? #f])
     
     (define-tokens a (WORD NUM REG)) ;; add more tokens
-    (define-empty-tokens b (EOF HOLE)) ;; add more tokens
+    (define-empty-tokens b (EOF HOLE COMMA)) ;; add more tokens
 
     (define-lex-abbrevs
       (digit10 (char-range "0" "9"))
@@ -37,7 +37,9 @@
     ;; Complete lexer
     (set! asm-lexer
       (lexer-src-pos
+       ? ;; add more tokens
        ("?"        (token-HOLE))
+       (","        (token-COMMA))
        (reg        (token-REG lexeme))
        (snumber10  (token-NUM lexeme))
        (identifier (token-WORD lexeme))
@@ -47,7 +49,7 @@
     ;; Complete parser
     (set! asm-parser
       (parser
-       (start code)
+       (start program)
        (end EOF)
        (error
         (lambda (tok-ok? tok-name tok-value start-pos end-pos)
@@ -60,6 +62,8 @@
        (src-pos)
        (grammar
 
+        ? ;; add more grammar rules
+        
         (arg  ((REG) $1)
               ((NUM) $1))
 
@@ -68,11 +72,17 @@
         
         (instruction
          ((WORD args)    (inst $1 (list->vector $2)))
-         ((HOLE)         (inst #f #f)))
+         
+         ;; when parsing ?, return (inst #f #f) as an unknown instruction
+         ;; (a place holder for synthesis)
+         ((HOLE)         (inst #f #f))) 
         
         (code   
          (() (list))
          ((instruction code) (cons $1 $2)))
+
+        (program
+         ((code) (list->vector $1)))
        )))
 
 

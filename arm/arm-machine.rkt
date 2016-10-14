@@ -372,19 +372,18 @@
       )
 
     ;; Inform about the order of argument for load instruction
-    (define (update-progstate-ins-load my-inst addr mem state)
-      (define state-base (kill-outs my-inst state))
+    (define (update-progstate-ins-load my-inst addr mem state-base)
       (define op (vector-ref (inst-op my-inst) 0))
       (define opcode-name (get-base-opcode-name op))
       (define args (inst-args my-inst))
-      (define offset (vector-ref args 2))
       (cond
        [(equal? 'ldr# opcode-name)
+        (define offset (vector-ref args 2))
         (update-progstate-ins
          my-inst (list (finitize (- addr offset) bitwidth) offset mem) state-base)]
        [(equal? 'ldr opcode-name)
-        (define fp (vector-ref (progstate-regs state) (vector-ref args 1)))
-        (set! offset (vector-ref (progstate-regs state) offset))
+        (define fp (vector-ref (progstate-regs state-base) (vector-ref args 1)))
+        (define offset (vector-ref (progstate-regs state-base) offset))
 
         (cond
          [fp

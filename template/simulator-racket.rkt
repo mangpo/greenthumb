@@ -81,14 +81,14 @@
           (define a (vector-ref args 1))
           (prepare-mem)
           ;; When referencing memory object, use send* instead of send to make it compatible with Rosette.
-          (vector-set! out d (send* mem load (vector-ref out a))))
+          (vector-set! regs-out d (send* mem load (vector-ref regs-out a))))
 
         (define (store)
           (define val (vector-ref args 0))
           (define addr (vector-ref args 1))
           (prepare-mem)
           ;; When referencing memory object, use send* instead of send to make it compatible with Rosette.
-          (send* mem store (vector-ref out addr) (vector-ref out val)))
+          (send* mem store (vector-ref regs-out addr) (vector-ref regs-out val)))
 
         (cond
          [(equal? op-name `nop)   (void)]
@@ -97,14 +97,15 @@
          [(equal? op-name `shl#)  (rri bvshl)]
          [(equal? op-name `store) (store)]
          [(equal? op-name `load)  (load)]
-         [else (assert #f (format "simulator: undefine instruction ~a" op))])
+         [else (assert #f (format "simulator: undefine instruction ~a" op))]))
+      ;; end interpret-inst
 
-        (for ([x program]) (interpret-inst x))
+      (for ([x program]) (interpret-inst x))
 
-        ;; If mem = #f (never reference mem), set mem before returning.
-        (unless mem (set! mem (progstate-memory state)))
-        (progstate regs-out mem)
-        )
+      ;; If mem = #f (never reference mem), set mem before returning.
+      (unless mem (set! mem (progstate-memory state)))
+      (progstate regs-out mem)
+      )
 
     ;; Estimate performance cost of a given program.
     (define (performance-cost program)
@@ -112,7 +113,8 @@
 
       ;; Example:
       (define cost 0)
-      (for ([x code])
+      (for ([x program])
+           ;; GreenThumb set nop-id automatically from opcode `nop
 	   (unless (= (inst-op x) nop-id) (set! cost (add1 cost))))
       cost)
 

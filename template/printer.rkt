@@ -26,23 +26,32 @@
       
       ;; Example
       (define opcode-name (inst-op x))
-      (define args (inst-args x))
-      (define last-arg (vector-ref args (sub1 (vector-length args))))
 
-      ;; If last arg is not a register, append "#" to opcode-name.
-      ;; This is for distinguishing instructions that take (reg reg reg) vs (reg reg const).
-      ;; They need distinct opcode names.
-      (unless (equal? (substring last-arg 0 1) "r")
-            (set! opcode-name (string-append opcode-name "#")))
+      (cond
+       [opcode-name
+        (define args (inst-args x))
+        (define last-arg (vector-ref args (sub1 (vector-length args))))
 
-      ;; A function to convert argument in string format to number.
-      (define (convert-arg arg)
-        (if (equal? (substring arg 0 1) "r")
-            (string->number (substring arg 1))
-            (string->number arg)))
-      
-      (inst (send machine get-opcode-id opcode-name)
-            (vector-map convert-arg args)))
+        ;; If last arg is not a register, append "#" to opcode-name.
+        ;; This is for distinguishing instructions that take (reg reg reg) vs (reg reg const).
+        ;; They need distinct opcode names.
+        (unless (equal? (substring last-arg 0 1) "r")
+                (set! opcode-name (string-append opcode-name "#")))
+
+        ;; A function to convert argument in string format to number.
+        (define (convert-arg arg)
+          (if (equal? (substring arg 0 1) "r")
+              (string->number (substring arg 1))
+              (string->number arg)))
+
+        (inst (send machine get-opcode-id (string->symbol opcode-name))
+              ;; get-opcode-id takes symbol (not string) as argument
+              (vector-map convert-arg args))]
+
+       ;; opcode-name is #f, x is an unknown instruction (a place holder for synthesis)
+       ;; just return x in this case
+       [else x]))
+
             
 
     ;; Convert an instruction x from encoded-IR to string-IR format.
@@ -51,7 +60,8 @@
       
       ;; Example
       (define opcode-id (inst-op x))
-      (define opcode-name (send machine get-opcode-name opcode-id))
+      ;; get-opcode-name returns symbol, so we need to convert it to string
+      (define opcode-name (symbol->string (send machine get-opcode-name opcode-id)))
       (define str-len (string-length opcode-name))
       (define arg-types (send machine get-arg-types opcode-id))
       (define args (inst-args x))

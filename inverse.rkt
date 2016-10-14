@@ -109,7 +109,8 @@
              (lambda (x) x)
              (flatten
               (for/list ([actual-addr (send mem get-addr-with-val out-val)])
-                        (send machine update-progstate-ins-load my-inst actual-addr mem state)))))
+                        (let ([new-state (send machine kill-outs my-inst state)])
+                          (send machine update-progstate-ins-load my-inst actual-addr mem new-state))))))
 
           (when
            ref

@@ -6,7 +6,7 @@
 (require rosette/solver/smt/z3)
 (require rosette/solver/kodkod/kodkod)
 
-(provide validator% sym-input rand-input)
+(provide validator% sym-input get-rand-func)
 
 ;; min & max are inclusive.
 (define (sym-input #:min [min #f] #:max [max #f] #:const [const #f])
@@ -18,29 +18,22 @@
     (when max (assert (<= input max)))
     input]))
 
-    
-(define (rand-input #:min [min-v #f] #:max [max-v #f] #:const [const #f])
-  (cond
-   [const const]
-   [(and min-v max-v) (random-from-list (range min-v (add1 max-v)))]
-   [else
-    (let* ([rand (random (min 4294967087 (<< 1 random-input-bit bit)))]
-           [half (arithmetic-shift                           
-                  (min 4294967087 (<< 1 random-input-bit bit))   
-                  -1)])
-      ;; (if (>= rand (<< 1 (sub1 bit)))
-      ;;     (- rand (<< 1 bit))
-      (if (>= rand half)
-          (- half rand)
-          rand))]
-   ))
-
-(define (rand-from-const #:min [min-v #f] #:max [max-v #f] #:const [const #f])
-  (cond
-   [const const]
-   [(and min-v max-v) (random-from-list (range min-v (add1 max-v)))]
-   [else (vector-ref const-range (random const-range-len))]
-   ))
+(define (get-rand-func bit)
+  (lambda (#:min [min-v #f] #:max [max-v #f] #:const [const #f])
+    (cond
+     [const const]
+     [(and min-v max-v) (random-from-list (range min-v (add1 max-v)))]
+     [else
+      (let* ([rand (random (min 4294967087 (<< 1 bit bit)))]
+             [half (arithmetic-shift                           
+                    (min 4294967087 (<< 1 bit bit))   
+                    -1)])
+        ;; (if (>= rand (<< 1 (sub1 bit)))
+        ;;     (- rand (<< 1 bit))
+        (if (>= rand half)
+            (- half rand)
+            rand))]
+     )))
 
 (define validator%
   (class object%
@@ -112,12 +105,36 @@
     (define const-range 
       (for/vector ([i (sub1 random-input-bit)]) (arithmetic-shift 1 i)))
     (define const-range-len (vector-length const-range))
+    
+        
+    (define (rand-func #:min [min-v #f] #:max [max-v #f] #:const [const #f])
+      (cond
+       [const const]
+       [(and min-v max-v) (random-from-list (range min-v (add1 max-v)))]
+       [else
+        (let* ([rand (random (min 4294967087 (<< 1 random-input-bit bit)))]
+               [half (arithmetic-shift                           
+                      (min 4294967087 (<< 1 random-input-bit bit))   
+                      -1)])
+          ;; (if (>= rand (<< 1 (sub1 bit)))
+          ;;     (- rand (<< 1 bit))
+          (if (>= rand half)
+              (- half rand)
+              rand))]
+       ))
+
+    (define (rand-from-const #:min [min-v #f] #:max [max-v #f] #:const [const #f])
+      (cond
+       [const const]
+       [(and min-v max-v) (random-from-list (range min-v (add1 max-v)))]
+       [else (vector-ref const-range (random const-range-len))]
+       ))
 
 
     (define (generate-input-states-fast n spec assumption #:db [db #f])
       (define m (if db n (quotient (add1 n) 2)))
       (define inputs-random
-        (for/list ([i m]) (send machine get-state rand-input)))
+        (for/list ([i m]) (send machine get-state rand-func)))
       (define inputs-random-const
         (for/list ([i (- n m)]) (send machine get-state rand-from-const)))
       (define inputs (append inputs-random inputs-random-const))
@@ -184,7 +201,7 @@
       
       (define m (if db n (quotient (add1 n) 2)))
       ;; Random
-      (define input-random (for/list ([i m]) (generate-one-input rand-input)))
+      (define input-random (for/list ([i m]) (generate-one-input rand-func)))
       ;; Random in const list
       (define input-random-const (for/list ([i (- n m)]) (generate-one-input rand-from-const)))
       

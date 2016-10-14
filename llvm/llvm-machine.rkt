@@ -116,12 +116,12 @@
 
     ;; Inform about the order of argument for load instruction
     (define (update-progstate-ins-load my-inst addr mem state)
-      (define state-base (kill-outs my-inst state))
-      (update-progstate-ins my-inst (list addr mem) state-base))
+      ;; Put addr before mem  => input 0 is addr, input 1 is memory.
+      (update-progstate-ins my-inst (list addr mem) state))
 
     ;; Inform about the order of argument for store instruction
     (define (update-progstate-ins-store my-inst addr val state)
-      ;; Put val before addr => arg 0 is val, arg 1 is address.
+      ;; Put val before addr => input 0 is val, input 1 is address.
       (update-progstate-ins my-inst (list val addr) state))
 
     ))

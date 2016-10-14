@@ -32,8 +32,7 @@
     
     ;; Required methods to be implemented.
     ;; See comments at the point of method declaration in llvm/llvm-machine.rkt for example.
-    (abstract update-progstate-ins-load update-progstate-ins-store
-              progstate-structure)
+    (abstract progstate-structure)
 
     ;; Provided default methods. Can be overriden if needed.
     (public
@@ -64,7 +63,8 @@
      get-progstate-ins-types get-progstate-outs-types
      get-progstate-ins-vals get-progstate-outs-vals
      get-all-progstate-types get-progstate-type-min-max-const
-     update-progstate-ins update-progstate-del-mem kill-outs
+     update-progstate-ins update-progstate-ins-load update-progstate-ins-store
+     update-progstate-del-mem kill-outs
      is-cannonical
      
      ;; TODO: clean-up
@@ -79,7 +79,8 @@
     (define (window-size) 100)
     (define (get-config) config)
     (define (set-config info) (set! config info))
-    
+
+    ;; opcode: opcode name as symbol (not string)
     (define (get-opcode-id opcode)
       (if (symbol? opcode)
           (vector-member opcode opcodes)
@@ -689,8 +690,8 @@
       (define types (instclass-args class))
       (get-progstate-at state outs types args))
 
-    ;; For building table & inverse interpret
-    ;; Update if the entry in the state = val or the entry is #f.
+    ;; For building inverse behavior table & inverse interpret
+    ;; Update sate if the entry in the state = val or the entry is #f.
     (define (update-progstate-ins my-inst vals state)
       (define new-state (clone-state state))
       (define opcode-id (inst-op my-inst))
@@ -749,6 +750,12 @@
          (let ([info (hash-ref statetypes-info out)])
            ((statetype-set info) new-state #f))]))
       new-state)
+
+    (define (update-progstate-ins-load my-inst addr mem state)
+      (raise "update-progstate-ins-load: unimplemented. Need to extend this function."))
+
+    (define (update-progstate-ins-store my-inst addr val state)
+      (raise "update-progstate-ins-store: unimplemented. Need to extend this function."))
 
     ;; Return #t if args of a given opcode is cannonical.
     ;; args is cannonical if arg-a's ID <= arg-b's ID
