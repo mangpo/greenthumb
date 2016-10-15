@@ -84,11 +84,14 @@
     ;; The string will be used as a piece of code the search driver generates as
     ;; the live-out argument to the method superoptimize of 
     ;; stochastics%, forwardbackward%, and symbolic%.
+    ;; The string should be evaluated to a program state that contains 
+    ;; #t and #f, where #t indicates that the corresponding element is live.
     (define/override (output-constraint-string live-out)
       ? ;; modify this funcion.
       
       ;; Example:
-      ;; If live-out is a list/vector/pair, we can just print it out.
+      ;; Method encode-live is implemented below, returning
+      ;; live infomation in a program state format.
       (format "(send printer encode-live '~a)" live-out))
 
     ;; Convert liveness infomation to the same format as program state.

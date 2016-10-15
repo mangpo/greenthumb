@@ -180,8 +180,8 @@
                                        (exact->inexact (/ (vector-ref accept-stat i) (vector-ref propose-stat i)))
                                        0))))
       (newline)
-      (pretty-display (format "acceptance-rate:\t~a" 
-                              (exact->inexact (/ accepted proposed))))
+      ;; (pretty-display (format "acceptance-rate:\t~a" 
+      ;;                         (exact->inexact (/ accepted proposed))))
       (pretty-display (format "accept-count:\t~a" accept-count))
       (pretty-display (format "accept-higher-count:\t~a" accept-higher-count))
       ;; (pretty-display (format "accept-higher-percent:\t~a" 

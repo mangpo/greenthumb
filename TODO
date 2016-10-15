@@ -5,34 +5,25 @@ Correctness
 
 1. Revisit
    - remove (debug-inst) in forwardbackward & live-in in stoch
-   - template
-     = more skeleton for parser:info-from-file, printer:output-constraint-string
 
-2. May need to override these functions
-3. Documentation 
-   - config:
-     = when testing (new machine% [config ?])
-     = when using parallel driver, printer:compress-state-space
-     = config can be use in program-structor, define-arg-type
-   - efficient memory access. memory access operates in a granularity of # of bits defined
-   - update-progstate-ins-load -store
-   - want stack, contact me
-   - say that (get) & (set) is used for update-live, update-live-backward, and inverse
-     (get-arg-ranges) & (get-valid-opcode)
-   - #:try-cmp? in enumerator, (try-cmp?) in forwardbackward
-   - limited size of memory & queue
-   - make connection between (get-flag) and (filther-with-flags)
-   - define-progstate-stype #:const #:min #:max
-   - define-instruction-class #:args #:ins #:outs #:commute #:required
-   - default arg-type: const, bit => reduce-precision
-   - combine-live & update-live (GA)
-   - mask-in & get-pruning-info
-   - (reduce-precesion) in forwardbackward
-   - opcodes name, encode, decode in printer
 4. Increase precision in enum
    - synthesize constrants
    - in reduced-bitwidth domain: try all 4-bit constants
    - e.g. Preston load1
+5. Advance usage
+   - reg-sp links to reg
+   - multiple opcodes in an instruction
+     = define-instruction-class #:args #:ins #:outs #:commute #:required
+   - enum: get-pruning-info, filter-with-pruning-info
+   - arm: inverse interpret, update-progstate-ins-load -store
+   - #:try-cmp? in enumerator, (try-cmp?) in forwardbackward
+   - define-progstate-stype #:const
+   - combine-live & update-live (GA)
+   - mask-in & get-pruning-info
+   - (reduce-precesion) in forwardbackward
+6. Special objects
+   - efficient memory access. memory access operates in a granularity of # of bits defined
+   - limited size of queue
 
 Profile:
 preston/program/ex1 on kaopad

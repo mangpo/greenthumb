@@ -45,7 +45,9 @@ code here
 (send validator adjust-memory-config
       (vector-append encoded-prefix encoded-code encoded-postfix))
 
-;; Phase 0: create constriant (live-out in program state format)
+;; Phase 0: create constriant (live-out in program state format).
+;; constraint should be a program state that contains #t and #f,
+;; where #t indicates the corresponding element in the program state being live.
 (define constraint (progstate ?))
 
 ;; Phase A: create symbolic search (step 4)
