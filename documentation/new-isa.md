@@ -223,14 +223,16 @@ suggests a correctness cost to be the number of non-matching bits between the li
 `stochastic%` provides the method `(correctness-cost-base state1 state2 live diff-bits)` to calculate the suggested correctness cost when
 each of `state1` and `state2` is a vector of values, given a lambda function `diff-bits` that counts number of non-matching bits between two values. Thus, we use `correctness-cost-base` for the register part of `armdemo` program state. 
 
-The memory object `memory-racket%` also provides the method `(correctness-cost other-memory diff-bits bitwidth)`. For each memory location that has beeen modified, it counts the number of non-matching bits of the values from the two memory objects. Thus, we call this method for the memory part of `armdemo` program state. For more complicated load and store instructions, see [Customize Inverse Interpreter for Load/Store Instructions in Advanced Usage](advanced-usage.md#inverse-load-store).
+The memory object `memory-racket%` also provides the method `(correctness-cost other-memory diff-bits bitwidth)`. For each memory location that has beeen modified, it counts the number of non-matching bits of the values from the two memory objects. Thus, we call this method for the memory part of `armdemo` program state. 
+
 Once we implement this method, uncomment the stochastic search section in `test-search.rkt` and run it to test the stochastic search.
 
 
 <a name="step6"></a>
 
 **Step 6: Enumerative Search**
-If our ISA has memory accessing instructions, we must extend the method `update-progstate-ins-load` and `update-progstate-ins-store` of the class `machine%`. This function is used for executing memory instruction backward, in particular, for modifying the input parts of a program state. See comments and examples in the generated code. Once we implement these methods, uncomment the enumerative search section in `test-search.rkt` and run it to test the enumerative search.
+If our ISA has memory accessing instructions, we must extend the method `update-progstate-ins-load` and `update-progstate-ins-store` of the class `machine%`. This function is used for executing memory instruction backward, in particular, for modifying the input parts of a program state. See comments and examples in the generated code. For more complicated load and store instructions, see [Customize Inverse Interpreter for Load/Store Instructions in Advanced Usage](advanced-usage.md#inverse-load-store).
+Once we implement these methods, uncomment the enumerative search section in `test-search.rkt` and run it to test the enumerative search.
 
 #### Tips on Testing the Superoptimizer
 Set `code` definition to a program with only a newly added instruction and another dummy instruction (such as add 0) to create an obviously inefficient program. Add or remove `?` in `sketch` definition to define how many instructions an output program may contain; one `?` represents one instruction.
