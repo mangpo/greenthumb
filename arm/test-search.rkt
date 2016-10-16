@@ -9,7 +9,7 @@
          )
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine% [config 6]))
+(define machine (new arm-machine% [config 3]))
 
 (define printer (new arm-printer% [machine machine]))
 (define simulator-racket (new arm-simulator-racket% [machine machine]))
@@ -39,33 +39,8 @@
 
 (define code
 (send parser ir-from-string "
-        str     r0, [r4, #-24]
-        ldr     r3, [r4, #-24]
-        rsb     r3, r3, #0
-        mov     r2, r3
-        ldr     r3, [r4, #-24]
-        and     r3, r2, r3
-        str     r3, [r4, #-20]
-        ldr     r2, [r4, #-24]
-        ldr     r3, [r4, #-20]
-        add     r3, r2, r3
-        str     r3, [r4, #-16]
-        ldr     r2, [r4, #-24]
-        ldr     r3, [r4, #-16]
-        eor     r3, r2, r3
-        str     r3, [r4, #-12]
-        ldr     r0, [r4, #-12]
-        ldr     r1, [r4, #-20]
-        bl      __aeabi_uidiv
-        mov     r3, r0
-        str     r3, [r4, #-8]
-        ldr     r3, [r4, #-8]
-        mov     r3, r3, lsr #2
-        str     r3, [r4, #-8]
-        ldr     r2, [r4, #-8]
-        ldr     r3, [r4, #-16]
-        orr     r3, r2, r3
-        mov     r0, r3
+        cmp     r0, r1
+        movcc   r0, r1
 "))
 
 

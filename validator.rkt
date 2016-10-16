@@ -78,6 +78,7 @@
     ;; config: machine config
     (define (adjust-memory-config encoded-code)
       (pretty-display (format "solver = ~a" (current-solver)))
+      (init-memory-size)
       (define (solve-until-valid)
         (clear-asserts)
 	(current-bitwidth bit)
@@ -96,6 +97,7 @@
 
       (define t1 (current-seconds))
       (solve-until-valid)
+      (finalize-memory-size)
       (pretty-display "Finish adjusting memory config.")
       (define t2 (current-seconds))
       (pretty-display `(t ,(- t2 t1)))

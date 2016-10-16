@@ -11,7 +11,7 @@
     (super-new)
     (inherit-field machine report-mutations)
     (override encode-inst decode-inst print-syntax-inst
-              output-constraint-string output-assume-string)
+              output-constraint-string output-assume-string config-from-string-ir)
     (set! report-mutations (vector-append report-mutations '#(rotate)))
 
     (define UP (get-field UP machine))
@@ -53,5 +53,6 @@
       (if live-out
           (format "(send machine output-constraint '~a)" live-out)
           #f))
+    (define (config-from-string-ir program) #f)
 
     ))

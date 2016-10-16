@@ -1,13 +1,17 @@
 #lang s-exp rosette
 
 (require "special.rkt" "memory-racket.rkt" "ops-rosette.rkt")
-(provide memory-rosette% increase-memory-size)
+(provide memory-rosette% init-memory-size increase-memory-size finalize-memory-size)
 
 (define memory-size 1)
+(define (init-memory-size)
+  (set! memory-size 1))
 (define (increase-memory-size)
   (when (> memory-size 100) (raise "memory-rosette: memory size is too large."))
   (pretty-display (format "Increse memory size to ~a" (* 2 memory-size)))
   (set! memory-size (* 2 memory-size)))
+(define (finalize-memory-size)
+  (set! memory-size (add1 memory-size)))
 
 (define memory-rosette%
   (class* special% (equal<%> printable<%>)

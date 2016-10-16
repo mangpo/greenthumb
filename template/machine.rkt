@@ -114,7 +114,7 @@
       ;; Put addr before mem  => input 0 is addr, input 1 is memory.
       ;; If store instruction takes more than one input argument for address, we have to do more work.
       ;; See arm-machine.rkt for example.
-      (update-progstate-ins my-inst (list addr mem) state-base))
+      (update-progstate-ins my-inst (list addr mem) state))
     
     ;; This function is used as part of enumerative search when it executes store instruction backward.
     ;; GreenThumb automatically looks up a possible address (addr) and a stored value (val)
