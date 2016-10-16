@@ -51,12 +51,14 @@ We define such information in the class `armdemo-machine%`, which extends the cl
 **Step 1.1: bitwidth** 
 First, we define how many bits are used to represent the smallest unit of value by setting the field `bitwidth`. Since we are supporting ARM 32-bit arithmetic and logical instructions, we set bitwidth to 32.
 
+<a name="step1.2"></a>
+
 **Step 1.2: program state structure** 
 Next, we must define the structure of program state (machine state/CPU state) and types of elements a program state contains. Say our `armdemo` processor contains 32-bit registers and memory (no flags). Therefore, there are two types of elements in our program state: register and memory. For each type of program state element, we need to name it using Racket [symbol](https://docs.racket-lang.org/reference/symbols.html). For the demo, we name register type `'reg`. For memory, GreenThumb provides [special objects](special-objects.md) including memory, so the name of memory type can be obtained by call `(get-memory-type)`.
 
 Now that we have names of all elements in our program state, we are ready to define the structure of a program state by overriding `progstate-structure` method. The program state structure must be defined in terms of program state elements' types.
 For example, we define `armdemo` program state as follows:
-```
+```racket
  (define (progstate-structure)
    (progstate (for/vector ([i config]) 'reg)
               (get-memory-type)))
@@ -68,6 +70,7 @@ Notice that in an actual processor, the number of registers is usually fixed, bu
 In general, a program state must be a **mutable object**, so we use vectors instead of lists. This is important to make the bidirectional search strategy work for the enumerative superoptimizer.
 
 <a name="step1.3"></a>
+
 **Step 1.3: program state element type** 
 Next, we have to provide more information about each type of a program state element. In particular, we have to tell GreenThumb how to obtain and set a value of a specific program state element and what the valid values of such element. We do this by calling:
 ```
@@ -95,6 +98,8 @@ We use `#:min` and `#:max` for elements that do not take all values of the defin
 
 These get and set functions are used for many tasks in the stochastic and enumerative search such as interpreting an instruction backward, updating liveness forward and backward, obtaining valid instruction operands, and obtaining value instructions.
 
+<a name="step1.4"></a>
+
 **Step 1.4: instruction operand type** 
 Next, we must define operand types of instructions. In particular, we have to tell GreenThumb which values the stochastic and enumerative superoptimizer should try when synthesizing an instruction. We do this by calling:
 ```
@@ -111,6 +116,8 @@ Note that lists of values we define here are values the stochastic and enumerati
 Furthermore, notice that `'reg` is used as both a program state element type and an instruction operand type. When this happens, the value of an instruction operand of type `'reg` will be used as the additional argument for the get and set functions when accessing a program state element of type `'reg` (as described in [Step 1.3](#step1.3)). If we name this operand type differently, GreenThumb will not be able to pass the value of the operand to the get and set functions.
 
 For other operand types, we may name them freely. However, GreenThumb treats `'const` and `'bit` specially. In particular, the enumerative search works in a reduced-bitwidth domain (4 bits instead of 32 bits). Therefore, the enumerative search converts the input source code into the reduced-bitwidth version. If an operand has type `'const` or `'bit`, GreenThumb will convert the constant appropriately for its kind. For example, value 31 of type `'bit` will be converted to 3; shifting by 31 bits in 32-bit domain is equivalent to shifting by 3 bits in 4-bit domain. Large numbers of type `'const` will be converted into 4-bit numbers by masking the lower 4 bits. If an operand has a type other than `'const` or `'bit`, GreenThumb will preserve its same value during conversion.
+
+<a name="step1.5"></a>
 
 **Step 1.5: instruction classes** 
 First, we need to inform GreenThumb how many opcodes there are in an instruction by calling:

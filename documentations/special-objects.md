@@ -1,7 +1,14 @@
 # Special Objects for Program State
 
-GreenThumb provides a few special objects to be used as parts of a program state. Each of the special object has two implementations; one in Racket (xxx-racket.rkt) and another in Rosette (xxx-rosette.rkt). From a developer's point of view, there is no different between the two implementations; their APIs are pretty much the same. Deverlopers may need to manipulate these objects in a few functions, including `interpret` function (in `simulator-racket.rkt` and `simulator-rosette.rkt`) and `correctness-cost` function (in `stochastic.rkt`). In the scenario that the developers override `interpret-inst` function (inverse interpreter) in `inverse.rkt`, they may have to manipulate these objects as well. We now describe APIs to manipulate these objects.
+GreenThumb provides the following special objects to be used as parts of a program state:
+- [Memory Object](#memory)
+- [Input Queue Object](#input-memory)
+- [Onput Queue Object](#output-memory)
 
+
+Each of the special object has two implementations; one in Racket (xxx-racket.rkt) and another in Rosette (xxx-rosette.rkt). From a developer's point of view, there is no different between the two implementations; their APIs are pretty much the same. Deverlopers may need to manipulate these objects in a few functions, including `interpret` function (in `simulator-racket.rkt` and `simulator-rosette.rkt`) and `correctness-cost` function (in `stochastic.rkt`). In the scenario that the developers override `interpret-inst` function (inverse interpreter) in `inverse.rkt`, they may have to manipulate these objects as well. We now describe APIs to manipulate these objects.
+
+<a name="memory"></a>
 ## 1. Memory Object
 ##### (`memory-rosette%` and `memory-racket%`)
 This object is use to represent memory space. It can store unbounded amount of data. A memory object stores content as collections of pairs; each pair contains an address and a memory value. An address and a value in a memory object have the same bitwidth as defined in `machine%`.
@@ -26,6 +33,7 @@ In fact, a memory object maintains two collections of pairs. The first collectio
 ##### 1.4 Equivalence
 In GreenThumb, two memory objects are equivalent, if their modified contents are the same; this is, if their `update`s contain the same sets of pairs.
 
+<a name="input-queue"></a>
 ## 2. Input Queue Object
 ##### (`queue-in-rosette%` and `queue-in-racket%`)
 This object represents values received from external environments such as values sent from other cores, and values received from sensors. Currently, this object uses a vector of size 4 to store received values. Increase the size in `queue-in-rosette%` and `queue-in-racket%` if necessary.
@@ -43,6 +51,7 @@ This object represents values received from external environments such as values
 ##### 2.4 Equivalence
 In GreenThumb, two input queue objects are equivalent, if the same number of values are popped from the two objects.
 
+<a name="output-queue"></a>
 ## 3. Output Queue Object
 ##### (`queue-out-rosette%` and `queue-out-racket%`)
 This object represents values sent to external environments such as values sent to other cores or sensors. Currently, this object uses a vector of size 4 to store sent values. Increase the size in `queue-in-rosette%` and `queue-in-racket%` if necessary.

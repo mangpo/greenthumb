@@ -1,11 +1,10 @@
 # Adding More Instructions to an Existing Superoptimizer
 
 ## Getting Started
-1. Set up GreenThumb (see the top-level [README](../README.md)).
-2. Try to get the ARM cooperative superoptimizer running (see the top-level [README](../README.md)). 
+1. Set up GreenThumb (see the top-level [README](../README.md#setup)).
+2. Try to get the ARM cooperative superoptimizer running (see the top-level [README](../README.md#running)). 
 3. Familiarize yourself with the structure of GreenThumb by
    - Read [Greenthumb: Superoptimizer Construction Framework (CC'16)](http://www.eecs.berkeley.edu/~mangpo/www/papers/greenthumb_cc2016.pdf).
-   - Read Section 'Brief Instructions' in [Extending GreenThumb to New ISA](new-isa.md).
    - Skim through [Extending GreenThumb to a New ISA](new-isa.md). No need to try it out. Just read.
 
 This instruction will walk you through how to add a new instruction to any superoptimizer built using GreenThumb. However, this documentation will use LLVM IR, which corresponds to directory `llvm` in this repo, as a concrete example. 
@@ -78,11 +77,11 @@ We may need to modify our program state representation, `progstate` in `llvm-mac
 - add more arguments to `progstate` macro for flags
 - modify the method `progstate-structure` to include flags
 
-See **Step 1.2 & 1.3** in [Extending GreenThumb to a New ISA](new-isa.md) for more details.
+See [Steps 1.2 & 1.3 of Extending GreenThumb to a New ISA](new-isa.md#step1.2) for more details.
 To support `mul`, we do not need to change our program state.
 
 ### 2. Opcodes
-Add `'mul` to `'rrr-commute` instruction class. If the new instruction does not belong to any existing instruction class, we have to define a new instruction class in `llvm-machin.rkt` by calling `define-instruction-class`. If we need a new operand type, call `define-arg-type`.  See **Step 1.4 & 1.5** in [Extending GreenThumb to a New ISA](new-isa.md) for more details.
+Add `'mul` to `'rrr-commute` instruction class. If the new instruction does not belong to any existing instruction class, we have to define a new instruction class in `llvm-machin.rkt` by calling `define-instruction-class`. If we need a new operand type, call `define-arg-type`.  See [Steps 1.4 & 1.5 of Extending GreenThumb to a New ISA](new-isa.md#step1.4) for more details.
 
 ### 3. Parser & Printer
 If the new instruction does not follow the default instruction format `%var0 = opcode %var1, %var2, ...` or `store %var1, %var2`, we have to modify the parser in `llvm-parser.rkt` to parse the instruction, and the methods `encode-inst`, `decode-inst`, and `print-syntax-inst` in `llvm-printer.rkt`. To support `mul`, we do not need to alter the parser and printer. See **Section B** and **Step 2** in [Extending GreenThumb to a New ISA](new-isa.md) for more details.
