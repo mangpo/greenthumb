@@ -15,12 +15,12 @@ add r0, r0, r0
 ldr r0, [sp, #24]
 ```
 We can treat registers r0 and sp as the same operand type, but it is unlikely that r0 will be used as an memory address like sp. Therefore, when we synthesize an instruction, we may not want to try putting r0 as an address operand. To do so, we need different instruction operand types for registers, but they both should link to the same program state element `'reg`. GreenThumb supports this by allowing developers to explicitly link an instruction operand type to a program state element type:
-```
+```racket
 (define-arg-type <operand-type> (lambda (config) <a list of values>) #:progstate <progstate-type>)
 ```
 
 For ARM, we define:
-```
+```racket
 (define-arg-type 'reg (lambda (config) (range config)) #:progstate 'reg)
 (define-arg-type 'reg-sp (lambda (config) '(13)) #:progstate 'reg)       ;; sp = r13
 
@@ -34,7 +34,7 @@ Notice that the second operand of `'ldr#` is `'reg-sp`.
 <a name="multiple-opcodes"></a>
 ### Instruction with Multiple Opcodes
 So far, we assume that an instruction can contain only one opcode, but in some ISAs, this is not the case. An ARM instruction has upto 3 opcodes: a base opcode, a conditional suffix, and an optional shift opcode (e.g. `addeq r0, r0, r1, asr #1`). GreenThumb allows developers to define instructions with multiple opcodes using the same `define-instruction-class`. Typically, when an instruction consists of one opcode, we define the instruction using:
-```
+```racket
 (init-machine-description 1)
 (define-instruction-class 
   <class name> <a list of opcodes>
@@ -42,7 +42,7 @@ So far, we assume that an instruction can contain only one opcode, but in some I
   #:commute <optional pair of commutative operands>)
 ```
 When an instruction consists of `n` opcodes, we define the instruction using:
-```
+```racket
 (init-machine-description n)
 (define-instruction-class 
   <class name> (list l_0 l_1 .. l_n-1)
@@ -57,7 +57,7 @@ When an instruction consists of `n` opcodes, we define the instruction using:
 ```
 
 For example, in ARM ISA, the instructions `addeq r0, r0, r1, asr #1` and `add r0, r0, r1` are defined in this class:
-```
+```racket
 (define-instruction-class 'rrr-commute-shf
   (list '(add and orr eor) '(eq ne ls hi cc cs lt ge) '(asr lsl lsr ror))
   #:required '(#t #f #f)
@@ -66,7 +66,7 @@ For example, in ARM ISA, the instructions `addeq r0, r0, r1, asr #1` and `add r0
 `#:required` indicates which opcode types are required and optional. Since the second and third types of opcodes are optional, this instruction class include an instruction like `add r0, r0, r1`. The second entry `(z 0)` of `#:ins` indicates that when an instruction contains `eq ne ls hi cc cs lt` or `ge`, flag `z` in a program state is an input to this instruction. The first instruction operand is also considered as an input because if the conditional is evaluated to false, the value of the first operand remains the same.
 
 Consider another instruction class of ARM that includes `asreq r0, r0, r1` and `asr r0, r0, r1`:
-```
+```racket
 (define-instruction-class 'rrr
   (list '(asr lsl lsr ror sdiv udiv uxtah) '(eq ne ls hi cc cs lt ge))
   #:required '(#t #f)

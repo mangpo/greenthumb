@@ -22,16 +22,16 @@ The setup script generates example implementations of the required functions tha
 
 In this documentation, we will walk you through building a superoptimizer in 7 steps under multiple sections.
 
-[**Section A. ISA Basic Description**](#sec:A)
+[**Section A. ISA Basic Description**](#secA)
 - [**Step 1**](#step1): Extend `machine%`. 
 
-[**Section B. Program Intermediate Representations**](#sec:B)
+[**Section B. Program Intermediate Representations**](#secB)
 - [**Step 2**](#step2): Extend `parser%` and `printer%`. Test the parser and printer using `test-simulator.rkt`.
 
-[**Section C. ISA Semantics**](#sec:C)
+[**Section C. ISA Semantics**](#secC)
 - [**Step 3**](#step3): Extend `simulator-rosette%` and `simulator-racket%`. Test the simulators using `test-simulator.rkt`.
 
-[**Section D. Enabling Search**](#sec:D)
+[**Section D. Enabling Search**](#secD)
 - [**Step 4**](#step4): Extend `symbolic%`. Test the symbolic search using `test-searh.rkt`
 - [**Step 5**](#step5): Extend `stochastic%`. Test the stochastic search using `test-searh.rkt`
 - [**Step 6**](#step6): Extend `forwardbackward%`. Test the enumerative search using `test-searh.rkt`
@@ -40,7 +40,7 @@ In this documentation, we will walk you through building a superoptimizer in 7 s
    - methods `config-from-string-ir` and `output-string-constraint` of `armdemo-printer%`
    - method `len-limit` of `armdemo-symbolic%` and `armdemo-forwardbackward%`
 
-<a name="sec:A"></a>
+<a name="secA"></a>
 ### A. ISA Basic Description
 We must define the description of the ISA, including the list of opcodes, the ISA bitwidth, and the structure of the program state.
 
@@ -73,7 +73,7 @@ In general, a program state must be a **mutable object**, so we use vectors inst
 
 **Step 1.3: program state element type** 
 Next, we have to provide more information about each type of a program state element. In particular, we have to tell GreenThumb how to obtain and set a value of a specific program state element and what the valid values of such element. We do this by calling:
-```
+```racket
 (define-progstate-type <element-type>
   #:get <a function to get a value>
   #:set <a function to set a value>
@@ -81,13 +81,13 @@ Next, we have to provide more information about each type of a program state ele
   #:max <optional maximum valid value (inclusive)>)
 ```
 For memory type, we define:
-```
+```racket
 (define-progstate-type (get-memory-type)
   #:get (lambda (state) (progstate-memory state))
   #:set (lambda (state val) (set-progstate-memory! state val)))
 ```
 For register type, we define:
-```
+```racket
 (define-progstate-type 'reg 
   #:get (lambda (state arg) (vector-ref (progstate-regs state) arg))
   #:set (lambda (state arg val) (vector-set! (progstate-regs state) arg val)))
@@ -102,11 +102,11 @@ These get and set functions are used for many tasks in the stochastic and enumer
 
 **Step 1.4: instruction operand type** 
 Next, we must define operand types of instructions. In particular, we have to tell GreenThumb which values the stochastic and enumerative superoptimizer should try when synthesizing an instruction. We do this by calling:
-```
+```racket
 (define-arg-type <operand-type> (lambda (config) <a list of values>))
 ```
 For `armdemo`, there are 3 types of instruction operands: `'reg` (register), `'const` (32-bit constant), and `'bit` (shifting constant, so it's values are less than 32) defined as follows:
-```
+```racket
 (define-arg-type 'reg (lambda (config) (range config)))
 (define-arg-type 'const (lambda (config) '(0 1 -1 -2 -8)))
 (define-arg-type 'bit (lambda (config) '(0 1)))
@@ -121,21 +121,21 @@ For other operand types, we may name them freely. However, GreenThumb treats `'c
 
 **Step 1.5: instruction classes** 
 First, we need to inform GreenThumb how many opcodes there are in an instruction by calling:
-```
+```racket
 (init-machine-description <number of opcodes per an instruction>)
 ```
 For many ISAs, there is one opcode in an instruction. For the purpose of the demo, `armdemo` has one opcode in an instruction. However, in practice, `arm` has multiple opcodes in an instruction, including a base opcode, a conditional suffix, and an optional shift.
 
 We now define instructions in our ISA using the previously defined operand types and program state element types. 
 Instructions of a same class are defined together. Instructions are in the same class if their operands have the same types; and their inputs from and outputs to a program state have the same types. An instruction class can be defined as:
-```
+```racket
 (define-instruction-class 
   <class name> <a list of opcodes>
   #:args <a list of operand types> #:ins <a list of inputs> #:outs < a list of outputs> 
   #:commute <optional pair of commutative operands>)
 ```
 For example, we define:
-```
+```racket
 (define-instruction-class 'rrr-commute '(add xor)
   #:args '(reg reg reg) #:ins '(1 2) #:outs '(0) #:commute '(1 . 2))
 (define-instruction-class 'rri '(add#)
@@ -152,11 +152,11 @@ For instruction `add#`, we define `#:ins '(1)` instead of `#:ins '(1 2)`. This i
 For instruction `load`, we define `#:ins (list 1 (get-memory-type))` because there is an additional implicit input which is memory.
 
 Finally, we must call the following after defining all instruction classes.
-```
+```racket
 (finalize-machine-description)
 ```
 
-<a name="sec:B"></a>
+<a name="secB"></a>
 ### B. Program Intermediate Representations
 
 GreenThumb provides an instruction representation, defined as `(struct inst (op args))`. An instruction representation is a building block for constructing program representations. GreenThumb uses three levels of program representations:
@@ -168,14 +168,14 @@ lsl r0, r0, 3 ; r0 = r0 << 3
 ```
 
 **String IR** is an IR after parsing a source, which is a vector of `inst`. Each `inst` includes an opcode in its field `op` and a vector of arguments in its field `args`. Opcodes and arguments are represented as strings. The program `p` in the string-IR format is:
-```
+```racket
 (vector (inst "lsr" (vector "r0" "r0" "3"))
         (inst "lsl" (vector "r0" "r0" "3")))
 ```
 Note that programs are stored using Racket data structures. 
 
 **Encoded IR** is an IR after encoding a String IR. It is also a vector of `inst`, but its `op` and `args` fields contain integer IDs instead of strings. An opcode ID is an integer indexing into `opcodes` vector in machine%. A register ID 'X' is an integer that maps to register "rX". For constants, we simply convert strings to numbers. The program `p` in the encoded-IR format may looks like:
-```
+```racket
 (vector (inst 3 (vector 0 0 3))
         (inst 4 (vector 0 0 3)))
 ```
@@ -193,7 +193,7 @@ All components except `parser%` and `printer%` work with an encoded IR, because 
 Apart from being able to parse source code with complete instructions, the parser should be able to parse string "?" as `(inst #f #f)` for both String-IR and encoded-IR formats. This is used a place holder for an instruction to be synthesized during testing.
 See example code generated from the setup script how to implement these methods including handling "?". After implement these methods, use `test-simulator.rkt` to test the parser and printer. 
 
-<a name="sec:C"></a>
+<a name="secC"></a>
 ### C. ISA Semantics
 In order for GreenThumb to understand the semantics of the new ISA and evaluate the performance of different code fragments, we have to implement an functional simulator and define its performance model.
 
@@ -209,7 +209,7 @@ In order for GreenThumb to understand the semantics of the new ISA and evaluate 
 ##### Additional Note
 It might be easier to only modify `armdemo-simulator-rosette.rkt`. Once it works correctly, copy the entire file `armdemo-simulator-rosette.rkt` to `armdemo-simulator-racket.rkt`, and replace any appearance of rosette with racket.
 
-<a name="sec:D"></a>
+<a name="secD"></a>
 ### D. Enabling Search
 
 <a name="step4"></a>

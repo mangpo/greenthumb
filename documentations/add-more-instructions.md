@@ -18,11 +18,11 @@ We define LLVM as a 32-bit architecture. That means each variable is 32-bit. Thi
 
 #### Program State
 In our LLVM ISA, a program state is minimal. It only includes values of variables and memory in the program. We represent a LLVM program state as:
-```
+```racket
 (progstate (vector v0 v1 v2 ...) #(object:memory%))
 ```
 where `progstate` is a macro for vector. The following concrete program state:
-```
+```racket
 (progstate (vector 0 0 999) #(object:memory%))
 ```
 represents a state of program with three variables and unbounded memory. The first two variables (ID 0 and 1) are 0, and the third variable (ID 2) has value 999. Variables in a program we optimize are assigned to unique IDs starting from 0.
@@ -34,7 +34,7 @@ When checking the equivalence of two expressions, we need to specify which locat
 %out = shl nuw i32 %1, 3
 ```
 we do not care what the values of %in and %1 are at the end, but only care about the value of %out. In this case, the live-out only includes %out. Inside our framework, we use the same data structure that represents a program state to represent a liveness information. Instead of containing 32-bit numbers like program state, live-out contains boolean values. For example, say %in, %1, and %out have ID 0, 1, and 2 respectively. The live-out that only includes %out is represented by:
-```
+```racket
 (progstate (vector #f #f #t) #t)
 ```
 
@@ -48,7 +48,7 @@ We define ARM as a 32-bit architecture; each register is 32-bit.
 In ARM, a program state include registers, memory, and flag z.
 
 We represent an ARM program state as:
-```
+```racket
 (progstate (vector r0 r1 ...)  #(object:memory%) z)
 ```
 We use flag `z` to represent most condition flags (including N, C, Z, and V flags) as follows:
@@ -89,14 +89,14 @@ If the new instruction does not follow the default instruction format `%var0 = o
 ### 4. Simulator
 ##### Method `interpret`
 Modify the `interpret` method in `llvm-simulator-rosette.rkt` and `llvm-simulator-racket.rkt` to interpret the new instruction. To support `mul`, we need the case in the main conditional expression in `interpret`:
-```
+```racket
 [(inst-eq `mul)   (rrr bvmul)]
 ```
 Function `rrr` has already been defined. If you compare function `rrr` and `rri`, you will notice the difference between using the third argument as a variable and as a constant; r stands for variable (or register), and i stands for constant.
 Next, define `bvmul` outside `interpret` function:
-```
+```racket
 (define bvmul (bvop *))
- ```
+```
 Notice that `bvop` applies its argument lambda function to x and y, and then applies `finitize-bit` to the result. `(finitize-bit x)` calls `(finitize x bit)`, where the `finitize` function truncates overflowed `x` to `bit` bits and convert `x` to a signed number. Our convention is that every value in `progstate` has to be in the signed format (e.g. -1 instead of 2^32 - 1 for a 32-bit number). This is because we need the racket simulator to be consistent with the constraint solver we use, which works with signed numbers. Therefore, always call `finitize-bit` after performing an arithmetic operation.
 
 ##### Method `performance-cost`
