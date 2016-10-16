@@ -33,7 +33,7 @@ Notice that the second operand of `'ldr#` is `'reg-sp`.
 
 <a name="multiple-opcodes"></a>
 ### Instruction with Multiple Opcodes
-So far, we assume that an instruction can contain only one opcode, but in some ISAs, this is not the case. An ARM instruction has upto 3 opcodes: a base opcode, a conditional suffix, and an optional shift opcode (e.g. `addeq r0, r0, r1, asr #1`). GreenThumb allows developers to define instructions with multiple opcodes using the same `define-instruction-class`. Typically, when an instruction consists of one opcode, we define the instruction using:
+So far, we assume that an instruction can contain only one opcode, but in some ISAs, this is not the case. An ARM instruction has up to 3 opcodes: a base opcode, a conditional suffix, and an optional shift opcode (e.g. `addeq r0, r0, r1, asr #1`). GreenThumb allows developers to define instructions with multiple opcodes using the same `define-instruction-class`. Typically, when an instruction consists of one opcode, we define the instruction using:
 ```racket
 (init-machine-description 1)
 (define-instruction-class 

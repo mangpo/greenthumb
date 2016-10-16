@@ -8,7 +8,7 @@
 ## Step-by-Step Instruction
 The framework utilizes inheritance to provide retargetability. The top level directory contains the superclasses to be extended. File `xxx.rkt` contains the implementation of superclass `xxx%`. For the purpose of a demonstration, assume we want to construct a superoptimizer for simplified ARM (called `armdemo`). To extend the framework , we have to implement class `armdemo-xxx%` extending class `xxx%` (in `armdemo/armdemo-xxx.rkt` file).
 
-Before start implementing the extension, run the setup script with the name of the ISA:
+First, run the setup script with the name of the ISA:
 ```
 ./setup.py armdemo
 ```
@@ -42,22 +42,22 @@ In this documentation, we will walk you through building a superoptimizer in 7 s
 
 <a name="secA"></a>
 ### A. ISA Basic Description
-We must define the description of the ISA, including the list of opcodes, the ISA bitwidth, and the structure of the program state.
+We must define the description of the ISA, including its opcodes, the ISA bitwidth, and the structure of the program state.
 
 <a name="step1"></a>
-**Step 1: machine** 
+**Step 1: machine.** 
 We define such information in the class `armdemo-machine%`, which extends the class `machine%`. 
 
-**Step 1.1: bitwidth** 
+**Step 1.1: bitwidth.** 
 First, we define how many bits are used to represent the smallest unit of value by setting the field `bitwidth`. Since we are supporting ARM 32-bit arithmetic and logical instructions, we set bitwidth to 32.
 
 <a name="step1.2"></a>
 
-**Step 1.2: program state structure** 
-Next, we must define the structure of program state (machine state/CPU state) and types of elements a program state contains. Say our `armdemo` processor contains 32-bit registers and memory (no flags). Therefore, there are two types of elements in our program state: register and memory. For each type of program state element, we need to name it using Racket [symbol](https://docs.racket-lang.org/reference/symbols.html). For the demo, we name register type `'reg`. For memory, GreenThumb provides [special objects](special-objects.md) including memory, so the name of memory type can be obtained by call `(get-memory-type)`.
+**Step 1.2: program state structure.** 
+Next, we must define the structure of a program state (machine state/CPU state) and types of elements a program state contains. Say our `armdemo` processor contains 32-bit registers and memory (no flags). Therefore, there are two types of elements in our program state: register and memory. For each type of program state element, we need to name it using Racket [symbol](https://docs.racket-lang.org/reference/symbols.html). In this demo, we name register type `'reg`. For memory, GreenThumb provides special objects including memory, so the name of memory type can be obtained by calling `(get-memory-type)`. See more information about provided special objects [here](special-objects.md). 
 
-Now that we have names of all elements in our program state, we are ready to define the structure of a program state by overriding `progstate-structure` method. The program state structure must be defined in terms of program state elements' types.
-For example, we define `armdemo` program state as follows:
+Now we are ready to define the structure of a program state by overriding `progstate-structure` method. The program state structure must be defined in terms of program state elements' types.
+For example, we define an `armdemo` program state as follows:
 ```racket
  (define (progstate-structure)
    (progstate (for/vector ([i config]) 'reg)
@@ -65,14 +65,14 @@ For example, we define `armdemo` program state as follows:
 ```
 where `progstate` is defined at the top of `armdemo-machine.rkt` as a macro for creating a vector with two entries. The first entry of our program state contains a vector of register's values, and the second entry contains memory. 
 
-Notice that in an actual processor, the number of registers is usually fixed, but the number of registers in a piece of code we want to optimize is usually less than the number of available registers. Therefore, we use `config` to represent number of registers of interest. The smaller the number of registers (smaller program state in general) the faster the superoptimizer can run. Now, you may ask, how does `config` get set? We can manually set `config` when creating `armdemo-machine%` in `test-simulator.rkt` and `test-search.rkt`. We can also extract `config` from analyzing the code we want to optimize (which will be explained later in [Step 7.2](#step7.2))
+Notice that in an actual processor, the number of registers is fixed, but the number of registers in a piece of code we want to optimize is usually less than the number of available registers. Therefore, we use `config` to represent number of registers of interest. The smaller the number of registers (smaller program state in general) the smaller the search space. Now, you may ask, how does `config` get set? We can manually set `config` when creating `armdemo-machine%` in `test-simulator.rkt` and `test-search.rkt`. We can also extract `config` by analyzing the code we want to optimize (which will be explained later in [Step 7.2](#step7.2))
 
-In general, a program state must be a **mutable object**, so we use vectors instead of lists. This is important to make the bidirectional search strategy work for the enumerative superoptimizer.
+In general, a program state must be a **mutable object**, so we use vectors instead of lists (Racket list is immutable). This is crucial for the bidirectional search strategy in the enumerative superoptimizer.
 
 <a name="step1.3"></a>
 
-**Step 1.3: program state element type** 
-Next, we have to provide more information about each type of a program state element. In particular, we have to tell GreenThumb how to obtain and set a value of a specific program state element and what the valid values of such element. We do this by calling:
+**Step 1.3: program state element type.** 
+Next, we have to provide more information about each type of a program state element. In particular, we have to tell GreenThumb how to get and set a value of a specific program state element and what the valid values of such element. We do this by calling:
 ```racket
 (define-progstate-type <element-type>
   #:get <a function to get a value>
@@ -92,15 +92,15 @@ For register type, we define:
   #:get (lambda (state arg) (vector-ref (progstate-regs state) arg))
   #:set (lambda (state arg val) (vector-set! (progstate-regs state) arg val)))
 ```
-Since there are multiple elements of type register, the get and set functions take in a program state and an additional argument indicating which register it should reference. This additional argument is coming from operands in an instruction.
+Since there are multiple elements of type register, the get and set functions take in a program state and an additional argument `arg` indicating which register it should reference. This additional argument is coming from operands in an instruction.
 
-We use `#:min` and `#:max` for elements that do not take all values of the defined bitwidth. For example, if our program state includes a flag that only takes value 0 and 1, we can use `#:min` and `#:max` for such type of element. See `arm` for an example.
+We use `#:min` and `#:max` for elements that do not take all values of the defined bitwidth. For example, if our program state includes a flag that only takes value 0 and 1, we can use `#:min` and `#:max` for such type of element.
 
 These get and set functions are used for many tasks in the stochastic and enumerative search such as interpreting an instruction backward, updating liveness forward and backward, obtaining valid instruction operands, and obtaining value instructions.
 
 <a name="step1.4"></a>
 
-**Step 1.4: instruction operand type** 
+**Step 1.4: instruction operand type.** 
 Next, we must define operand types of instructions. In particular, we have to tell GreenThumb which values the stochastic and enumerative superoptimizer should try when synthesizing an instruction. We do this by calling:
 ```racket
 (define-arg-type <operand-type> (lambda (config) <a list of values>))
@@ -111,23 +111,23 @@ For `armdemo`, there are 3 types of instruction operands: `'reg` (register), `'c
 (define-arg-type 'const (lambda (config) '(0 1 -1 -2 -8)))
 (define-arg-type 'bit (lambda (config) '(0 1)))
 ```
-Note that lists of values we define here are values the stochastic and enumerative superoptimizers try during synthesizing candidate programs. Although`'const` actually range from 0 to 2^32-1, we do not want the stochastic and enumerative superoptimizers to try all 2^32 values, so instead we inform them to only try the values we specified here. Additionally, GreenThumb analyzes an input program to be optimized, and automatically adds more values to these lists if those values appear in the input program.
+Note that lists of values we define here are values the stochastic and enumerative superoptimizers try during synthesizing candidate programs. Although`'const` actually ranges from 0 to 2^32-1, we do not want the stochastic and enumerative superoptimizers to try all 2^32 values, so instead we inform them to only try the values we specified here. Additionally, GreenThumb analyzes an input program to be optimized, and automatically adds more values to these lists according to their operand types if those values appear in the input program.
 
-Furthermore, notice that `'reg` is used as both a program state element type and an instruction operand type. When this happens, the value of an instruction operand of type `'reg` will be used as the additional argument for the get and set functions when accessing a program state element of type `'reg` (as described in [Step 1.3](#step1.3)). If we name this operand type differently, GreenThumb will not be able to pass the value of the operand to the get and set functions.
+Furthermore, notice that `'reg` is used as both a program state element type and an instruction operand type. When this happens, the value of an instruction operand of type `'reg` will be used as the additional argument for the get and set functions when accessing a program state element of type `'reg` (as described in [Step 1.3](#step1.3)). If we name this operand type differently, GreenThumb may not be able to pass the value of the operand to the get and set functions. See [Section Connection between Instruction Operand and Program State Element in Advanced Usage], if you need to name the operand type differently.
 
-For other operand types, we may name them freely. However, GreenThumb treats `'const` and `'bit` specially. In particular, the enumerative search works in a reduced-bitwidth domain (4 bits instead of 32 bits). Therefore, the enumerative search converts the input source code into the reduced-bitwidth version. If an operand has type `'const` or `'bit`, GreenThumb will convert the constant appropriately for its kind. For example, value 31 of type `'bit` will be converted to 3; shifting by 31 bits in 32-bit domain is equivalent to shifting by 3 bits in 4-bit domain. Large numbers of type `'const` will be converted into 4-bit numbers by masking the lower 4 bits. If an operand has a type other than `'const` or `'bit`, GreenThumb will preserve its same value during conversion.
+For other operand types, we may name them freely. However, GreenThumb treats `'const` and `'bit` specially. In particular, the enumerative search works in a reduced-bitwidth domain (4 bits instead of 32 bits). Therefore, the enumerative search converts the input source code into the reduced-bitwidth version. If an operand has type `'const` or `'bit`, GreenThumb will convert the constant appropriately for its kind. For example, value 31 of type `'bit` will be converted to 3; shifting by 31 bits in 32-bit domain is equivalent to shifting by 3 bits in 4-bit domain. Large numbers of type `'const` will be converted into 4-bit numbers by masking the lower 4 bits. If an operand has a type other than `'const` or `'bit`, GreenThumb will preserve its value during conversion.
 
 <a name="step1.5"></a>
 
-**Step 1.5: instruction classes** 
-First, we need to inform GreenThumb how many opcodes there are in an instruction by calling:
+**Step 1.5: instruction classes.** Next, we define instructions in the ISA.
+We must inform GreenThumb how many opcodes there are in an instruction by calling:
 ```racket
 (init-machine-description <number of opcodes per an instruction>)
 ```
-For many ISAs, there is one opcode in an instruction. For the purpose of the demo, `armdemo` has one opcode in an instruction. However, in practice, `arm` has multiple opcodes in an instruction, including a base opcode, a conditional suffix, and an optional shift.
+For many ISAs, there is one opcode in an instruction. For the purpose of the demo, `armdemo` has one opcode in an instruction. However, in practice, `arm` has multiple opcodes in an instruction, including a base opcode, a conditional suffix, and an optional shift. See [Section Instruction with Multiple Opcodes in Advanced Usage], if there are more than one opcode in an instruction.
 
-We now define instructions in our ISA using the previously defined operand types and program state element types. 
-Instructions of a same class are defined together. Instructions are in the same class if their operands have the same types; and their inputs from and outputs to a program state have the same types. An instruction class can be defined as:
+Let's now define instructions in our ISA using the previously defined operand types and program state element types. 
+Instructions of a same class are defined together. Instructions are in the same class if their operands have the same types; and their inputs from and outputs to a program state also have the same types. An instruction class can be defined as:
 ```racket
 (define-instruction-class 
   <class name> <a list of opcodes>
@@ -138,20 +138,20 @@ For example, we define:
 ```racket
 (define-instruction-class 'rrr-commute '(add xor)
   #:args '(reg reg reg) #:ins '(1 2) #:outs '(0) #:commute '(1 . 2))
-(define-instruction-class 'rri '(add#)
+(define-instruction-class 'rri '(add# xor#)
   #:args '(reg reg const) #:ins '(1) #:outs '(0))
 (define-instruction-class 'load '(load)
   #:args '(reg reg) #:ins (list 1 (get-memory-type)) #:outs '(0))
 ```
 The lists given to `#:ins` and `#:outs` can contain numbers (which refer to operands from `#:args`) and program state element types. 
 
-For instructions `add` and `xor`, `#:ins '(1 2)` informs that these instructions take two inputs, the values of program state elements specified by operands 1 and 2 (index starting from 0). `#:outs '(0)` informs that their output is stored in the program state element specified by operand 0. `#:commute '(1 . 2)` informs that operands 1 and 2 are commutative.
+For instructions `add` and `xor`, `#:args '(reg reg reg)` informs that these instructions have 3 operands. `#:ins '(1 2)` informs that these instructions take two inputs, the values of program state elements specified by operands 1 and 2 (index starting from 0). `#:outs '(0)` informs that their output is stored in the program state element specified by operand 0. `#:commute '(1 . 2)` informs that operands 1 and 2 are commutative.
 
-For instruction `add#`, we define `#:ins '(1)` instead of `#:ins '(1 2)`. This is because although `'const` is an input to `add#`, but `'const` is not a part of program state. GreenThumb only needs to know about inputs to and outputs from an instruction that are parts of program state. However, we can still define `#:ins '(1 2)` for `add#`, and GreenThumb will remove `2` from the list automatically.
+For instruction `add#`, we define `#:ins '(1)` instead of `#:ins '(1 2)`. This is because although `'const` (operand 2) is an input to `add#`, but `'const` is not a part of program state. GreenThumb only needs to know about inputs to and outputs from an instruction that are parts of program state. However, we can still define `#:ins '(1 2)` for `add#`, and GreenThumb will remove `2` from the list automatically. Note that in fact, `add#` is not an ARM instruction; it corresponds to instruction `add rX, rX, immediate`. However, we need to distinguish `add rX, rX, immediate` from `add rX, rX, rX`. Therefore, we need to create a different opcode name for `add rX, rX, immediate`.
 
 For instruction `load`, we define `#:ins (list 1 (get-memory-type))` because there is an additional implicit input which is memory.
 
-Finally, we must call the following after defining all instruction classes.
+Finally, we must call the following function after defining all instruction classes.
 ```racket
 (finalize-machine-description)
 ```
@@ -172,14 +172,13 @@ lsl r0, r0, 3 ; r0 = r0 << 3
 (vector (inst "lsr" (vector "r0" "r0" "3"))
         (inst "lsl" (vector "r0" "r0" "3")))
 ```
-Note that programs are stored using Racket data structures. 
 
-**Encoded IR** is an IR after encoding a String IR. It is also a vector of `inst`, but its `op` and `args` fields contain integer IDs instead of strings. An opcode ID is an integer indexing into `opcodes` vector in machine%. A register ID 'X' is an integer that maps to register "rX". For constants, we simply convert strings to numbers. The program `p` in the encoded-IR format may looks like:
+**Encoded IR** is an IR after encoding a String IR. It is also a vector of `inst`, but its `op` and `args` fields contain integer IDs instead of strings. An opcode ID is an integer indexing into the `opcodes` vector in machine%. A register ID 'X' is an integer that maps to register "rX". For constants, we simply convert strings to numbers. The program `p` in the encoded-IR format may looks like:
 ```racket
 (vector (inst 3 (vector 0 0 3))
         (inst 4 (vector 0 0 3)))
 ```
-Note that "lsr r0, r0, 3" and "lsr r0, r0, r3" should have different opcode IDs. Our convention is to use `'lsr#` for the one with the constant operand and `'lsr` for the one with the register operand when defineing instruction classes ([Step 1.5]($step1.5)).
+Note that "lsr r0, r0, 3" and "lsr r0, r0, r3" should have different opcode IDs. Our convention is to use `'lsr#` for the one with the constant operand and `'lsr` for the one with the register operand when defining instruction classes ([Step 1.5]($step1.5)).
 
 All components except `parser%` and `printer%` work with an encoded IR, because it enables representing programs with bitvector logic formulas used in the symbolic search and equivalence validator (which verifies the equivalence of two programs).
 
@@ -190,8 +189,8 @@ All components except `parser%` and `printer%` work with an encoded IR, because 
 - class `armdemo-parser%`, which parses `armdemo` IR source code into string-IR format.
 - three methods in the class `armdemo-printer%`: `print-syntax-inst` prints string-IR program in source format; `encode-inst` converts string-IR to encoded-IR format; and `decode-inst` converts encoded-IR to string-IR format.
 
-Apart from being able to parse source code with complete instructions, the parser should be able to parse string "?" as `(inst #f #f)` for both String-IR and encoded-IR formats. This is used a place holder for an instruction to be synthesized during testing.
-See example code generated from the setup script how to implement these methods including handling "?". After implement these methods, use `test-simulator.rkt` to test the parser and printer. 
+Apart from being able to parse source code with complete instructions, the parser should be able to parse string "?" as `(inst #f #f)` for both String-IR and encoded-IR formats. This is used as a place holder for an instruction to be synthesized during testing.
+See example code generated from the setup script on how to implement these methods including handling "?". After implementing these methods, use `test-simulator.rkt` to test the parser and printer. 
 
 <a name="secC"></a>
 ### C. ISA Semantics
@@ -257,7 +256,7 @@ varies the window size used for the different search instances; in particular, i
 <a name="step7.2"></a>
 **Step 7.2: Liveness Information and Machine Config**
 To invoke the cooperative superoptimizer, we run `optimize.rkt` and pass in the filename of code to be optimized. Along with the file containing code to be optimized, the superoptimizer expects another file with the same name appended by ".info" that contains live-out infomation and additional information if necessary. Therefore, the superoptimizer needs to parse the info file, so we must implement:
-- the method `(info-from-file filename)` in `armdemo-parser.rkt` to parse live-out information from a given file. The file can contains more information including preconditions of the inputs.
+- the method `(info-from-file filename)` in `armdemo-parser.rkt` to parse live-out information from a given file. The file may contain more information such as preconditions of the inputs.
 - the method `(output-constraint-string live)` in `armdemo-printer.rkt`. The argument `live` that is passed to this method is an output from `info-from-file` method. This method should convert `live` into a string that is evaluated to a program state that contains #t and #f, where #t indicates that the corresponding element in the program state is live.
 
 The superoptimizer also needs to set the `config` field of the `machine%` class because we no longer create the machine object manually as in `test-search.rkt`. We must implement the method `(config-from-string-ir program)` to analyze a given program and returns a machine config. `program` is given in the string-IR format.

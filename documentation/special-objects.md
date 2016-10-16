@@ -6,13 +6,17 @@ GreenThumb provides the following special objects to be used as parts of a progr
 - [Onput Queue Object](#output-queue)
 
 
-Each of the special object has two implementations; one in Racket (xxx-racket.rkt) and another in Rosette (xxx-rosette.rkt). From a developer's point of view, there is no different between the two implementations; their APIs are pretty much the same. Deverlopers may need to manipulate these objects in a few functions, including `interpret` function (in `simulator-racket.rkt` and `simulator-rosette.rkt`) and `correctness-cost` function (in `stochastic.rkt`). In the scenario that the developers override `interpret-inst` function (inverse interpreter) in `inverse.rkt`, they may have to manipulate these objects as well. We now describe APIs to manipulate these objects.
+Each of the special object has two implementations; one in Racket (xxx-racket.rkt) and another in Rosette (xxx-rosette.rkt). From a developer's point of view, there is no different between the two implementations; their APIs are pretty much the same. Deverlopers may need to manipulate these objects in a few functions, including `interpret` function (in `simulator-racket.rkt` and `simulator-rosette.rkt`) and `correctness-cost` function (in `stochastic.rkt`). In the scenario that the developers override `interpret-inst` function (inverse interpreter) in `inverse.rkt`, they may have to manipulate these objects as well. We now describe APIs to manipulate these objects. Note that these provided methods should be invoked by:
+```racket
+(send* <object> <method-name> <arg> ...)
+```
+`send*` should be used instead of Racket primitive [send](https://docs.racket-lang.org/reference/ivaraccess.html#%28part._methodcalls%29). `send*` is a macro defined in `ops-rosette.rkt` and `ops-racket.rkt`.
 
 <a name="memory"></a>
 ## 1. Memory Object
 ##### (`memory-rosette%` and `memory-racket%`)
 This object is use to represent memory space. It can store unbounded amount of data. A memory object stores content as collections of pairs; each pair contains an address and a memory value. An address and a value in a memory object have the same bitwidth as defined in `machine%`.
-In fact, a memory object maintains two collections of pairs. The first collection called `init` contains initial memory content that is read. The second collection called `update` contains memory content that is modified.
+In fact, a memory object maintains two collections of pairs. The first collection called `init` contains initial memory content that is read. The second collection called `update` contains memory content that is modified. The program state element type of a memory object can be obtained by calling `(get-memory-type)`, which is defined in `special.rkt`.
 
 ##### 1.1 Useful Methods for `interpret` (in `simulator-racket/rosette.rkt`)
 - **(clone [ref #f])** returns a clone of this memory object. Before modifying a memory object in `interpret` function, developers need to clone it first. Modifying the memory object without cloning it will result in mutating the input program state. If the `interpret` function is invoked with the optional argument `ref` (an expected output state), developers must extract memory from `ref` and pass that as an argument to this `clone` method. A memory object that is created with a `ref` memory object is allowed to be read and modified only at the locations the `ref` memory object is read and modified. This significantly reduces the size of the search space the superoptimizer searches over.
@@ -36,7 +40,7 @@ In GreenThumb, two memory objects are equivalent, if their modified contents are
 <a name="input-queue"></a>
 ## 2. Input Queue Object
 ##### (`queue-in-rosette%` and `queue-in-racket%`)
-This object represents values received from external environments such as values sent from other cores, and values received from sensors. Currently, this object uses a vector of size 4 to store received values. Increase the size in `queue-in-rosette%` and `queue-in-racket%` if necessary.
+This object represents values received from external environments such as values sent from other cores, and values received from sensors. Currently, this object uses a vector of size 4 to store received values. Increase the size in `queue-in-rosette%` and `queue-in-racket%` if necessary. The program state element type of an input queue object can be obtained by calling `(get-queue-in-type)`, which is defined in `special.rkt`.
 
 ##### 2.1 Useful Methods for `interpret` (in `simulator-racket/rosette.rkt`)
 - **(clone [ref #f])**
@@ -54,7 +58,7 @@ In GreenThumb, two input queue objects are equivalent, if the same number of val
 <a name="output-queue"></a>
 ## 3. Output Queue Object
 ##### (`queue-out-rosette%` and `queue-out-racket%`)
-This object represents values sent to external environments such as values sent to other cores or sensors. Currently, this object uses a vector of size 4 to store sent values. Increase the size in `queue-in-rosette%` and `queue-in-racket%` if necessary.
+This object represents values sent to external environments such as values sent to other cores or sensors. Currently, this object uses a vector of size 4 to store sent values. Increase the size in `queue-in-rosette%` and `queue-in-racket%` if necessary. The program state element type of an input queue object can be obtained by calling `(get-queue-out-type)`, which is defined in `special.rkt`.
 
 ##### 3.1 Useful Methods for `interpret` (in `simulator-racket/rosette.rkt`)
 - **(clone [ref #f])**
