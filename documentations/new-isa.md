@@ -1,7 +1,7 @@
 # Extending GreenThumb to a New ISA
 
 ## Getting Started
-1. Set up GreenThumb (see the top-level [README](../README.md)).
+1. Set up GreenThumb (see the top-level [README](../README.md#setup)).
 2. Try to get the ARM cooperative superoptimizer running (see the top-level [README](../README.md)). 
 3. Read [Greenthumb: Superoptimizer Construction Framework (CC'16)](http://www.eecs.berkeley.edu/~mangpo/www/papers/greenthumb_cc2016.pdf).
    
@@ -13,7 +13,7 @@ Before start implementing the extension, run the setup script with the name of t
 ./setup.py armdemo
 ```
 The script will generate `armdemo` directory that contains
-- `armdemo-xxx.rkt` programs. A program `armdemo-xxx.rkt` is a skeleton code defining the class  `armdemo-xxx%` extending the superclass `xxx%`. The generated code also includes the declarations of the required methods the users have to implement along with comments explaning the methods and examples. 
+- `armdemo-xxx.rkt` programs. A program `armdemo-xxx.rkt` is a skeleton code defining the class  `armdemo-xxx%` extending the superclass `xxx%`. The generated code also includes the declarations of the required methods the users have to implement along with comments explaining the methods and examples. 
 - `test-simulator.rkt` program for testing the ISA simulator
 - `test-search.rkt` program for testing the individual search techniques
 - `main.rkt` and `optimize.rkt` programs for running the complete cooperative search launching multiple search instances
@@ -31,7 +31,7 @@ Now, we can start implementing our superoptimizer in the following order.
    - methods `config-from-string-ir` and `output-string-constraint` of `armdemo-printer%`
    - method `len-limit` of `armdemo-symbolic%` and `armdemo-forwardbackward%`
 
-Now, we can run our ARM cooperative superoptimizer, similar to the way we run the ARM superoptimizer in the earlier section, using the generated `optimize.rkt`. Note that even if we do not implement all search techniques, for instance, we only implement `armdemo-stochastic%`, we can still use `optimize.rkt` to run the stochastic search instaces in parallel, communicating to each other about the best program. 
+Now, we can run our ARM cooperative superoptimizer, similar to the way we run the ARM superoptimizer in the earlier section, using the generated `optimize.rkt`. Note that even if we do not implement all search techniques, for instance, we only implement `armdemo-stochastic%`, we can still use `optimize.rkt` to run the stochastic search instances in parallel, communicating to each other about the best program. 
 
 #### Caution
 GreenThumb relies on Rosette to verify correctness and perform symbolic search. Therefore, `simulator-rosette%` must be implemented in Rosette, which support most Racket operations but not all. For example, Rosette does not support any symbolic hash operation or some vector operations (e.g. vector-copy). If you wish to use some of these handy functions, take a look at provided functions in `ops-rosette.rkt`, which can be used instead of the original functions. We also provide the same functions but implemented more efficiently in `ops-racket.rkt`, which can be used in `simulator-racket%`.
@@ -61,7 +61,7 @@ For example, we define `armdemo` program state as follows:
 ```
 where `progstate` is defined at the top of `armdemo-machine.rkt` as a macro for creating a vector with two entries. The first entry of our program state contains a vector of register's values, and the second entry contains memory. 
 
-Notice that in an actual processor, the number of registers is usally fixed, but the number of registers in a piece of code we want to optimize is usually less than the number of available registers. Therefore, we use `config` to represent number of registers of interest. The smaller the number of registers (smaller program state in general) the faster the superoptimizer can run. Now, you may ask, how does `config` get set? We can manually set `config` when creating `armdemo-machine%` in `test-simulator.rkt` and `test-search.rkt`. We can also extract `config` from analyzing the code we want to optimize (which will be explained later in **Step 7**)
+Notice that in an actual processor, the number of registers is usually fixed, but the number of registers in a piece of code we want to optimize is usually less than the number of available registers. Therefore, we use `config` to represent number of registers of interest. The smaller the number of registers (smaller program state in general) the faster the superoptimizer can run. Now, you may ask, how does `config` get set? We can manually set `config` when creating `armdemo-machine%` in `test-simulator.rkt` and `test-search.rkt`. We can also extract `config` from analyzing the code we want to optimize (which will be explained later in **Step 7**)
 
 In general, a program state must be a **mutable object**, so we use vectors instead of lists. This is important to make the bidirectional search strategy work for the enumerative superoptimizer.
 
@@ -72,7 +72,7 @@ Next, we have to provide more information about each type of a program state ele
   #:get <a function to get a value>
   #:set <a function to set a value>
   #:min <optional minimum valid value (inclusive)>
-  #:max <optional maximum valid value (incluesive)>)
+  #:max <optional maximum valid value (inclusive)>)
 ```
 For memory type, we define:
 ```
@@ -90,10 +90,10 @@ Since there are multiple elements of type register, the get and set functions ta
 
 We use `#:min` and `#:max` for elements that do not take all values of the defined bitwidth. For example, if our program state includes a flag that only takes value 0 and 1, we can use `#:min` and `#:max` for such type of element. See `arm` for an example.
 
-These get and set funcions are used for many tasks in the stochastic and enumerative search such as interpreting an instruction backward, updating liveness forward and backward, obtaining valid instruction operands, and obtaining value instructions.
+These get and set functions are used for many tasks in the stochastic and enumerative search such as interpreting an instruction backward, updating liveness forward and backward, obtaining valid instruction operands, and obtaining value instructions.
 
 **Step 1.4: instruction operand type** 
-Next, we must define operand types of instructions. In particular, we have to tell GreenThumb which values the stochastic and enumerative superoptimizera should try when synthesizing an instruction. We do this by calling:
+Next, we must define operand types of instructions. In particular, we have to tell GreenThumb which values the stochastic and enumerative superoptimizer should try when synthesizing an instruction. We do this by calling:
 ```
 (define-arg-type <operand-type> (lambda (config) <a list of values>))
 ```
@@ -107,7 +107,7 @@ Note that lists of values we define here are values the stochastic and enumerati
 
 Furthermore, notice that `'reg` is used as both a program state element type and an instruction operand type. When this happens, the value of an instruction operand of type `'reg` will be used as the additional argument for the get and set functions when accessing a program state element of type `'reg` (as described in **Step 1.2**). If we name this operand type differently, GreenThumb will not be able to pass the value of the operand to the get and set functions.
 
-For other operand types, we may name them freely. However, GreenThumb treats `'const` and `'bit` specially. In particular, the enumerative search works in a reduced-bitwidth domain (4 bits instead of 32 bits). Therefore, the enuemrative search converts the input source code into the reduced-bitwidth version. If an operand has type `'const` or `'bit`, GreenThumb will convert the constant appropriately for its kind. For example, value 31 of type `'bit` will be converted to 3; shifting by 31 bits in 32-bit domain is equivalent to shifting by 3 bits in 4-bit domain. Large numbers of type `'const` will be converted into 4-bit numbers by masking the lower 4 bits. If an operand has a type other than `'const` or `'bit`, GreenThumb will preserve its same value during conversion.
+For other operand types, we may name them freely. However, GreenThumb treats `'const` and `'bit` specially. In particular, the enumerative search works in a reduced-bitwidth domain (4 bits instead of 32 bits). Therefore, the enumerative search converts the input source code into the reduced-bitwidth version. If an operand has type `'const` or `'bit`, GreenThumb will convert the constant appropriately for its kind. For example, value 31 of type `'bit` will be converted to 3; shifting by 31 bits in 32-bit domain is equivalent to shifting by 3 bits in 4-bit domain. Large numbers of type `'const` will be converted into 4-bit numbers by masking the lower 4 bits. If an operand has a type other than `'const` or `'bit`, GreenThumb will preserve its same value during conversion.
 
 **Step 1.5: instruction classes** 
 First, we need to inform GreenThumb how many opcodes there are in an instruction by calling:
@@ -137,7 +137,7 @@ The lists given to `#:ins` and `#:outs` can contain numbers (which refer to oper
 
 For instructions `add` and `xor`, `#:ins '(1 2)` informs that these instructions take two inputs, the values of program state elements specified by operands 1 and 2 (index starting from 0). `#:outs '(0)` informs that their output is stored in the program state element specified by operand 0. `#:commute '(1 . 2)` informs that operands 1 and 2 are commutative.
 
-For instruction `add#`, we define `#:ins '(1)` insetad of `#:ins '(1 2)`. This is because although `'const` is an input to `add#`, but `'const` is not a part of program state. GreenThumb only needs to know about inputs to and outputs from an instruction that are parts of program state. However, we can still define `#:ins '(1 2)` for `add#`, and GreenThumb will remove `2` from the list automatically.
+For instruction `add#`, we define `#:ins '(1)` instead of `#:ins '(1 2)`. This is because although `'const` is an input to `add#`, but `'const` is not a part of program state. GreenThumb only needs to know about inputs to and outputs from an instruction that are parts of program state. However, we can still define `#:ins '(1 2)` for `add#`, and GreenThumb will remove `2` from the list automatically.
 
 For instruction `load`, we define `#:ins (list 1 (get-memory-type))` because there is an additional implicit input which is memory.
 

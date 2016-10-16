@@ -26,6 +26,7 @@
         ;; Remove conditional so that we don't change the flag.
         (define ops-vec (vector-copy (inst-op my-inst)))
         (vector-set! ops-vec 1 -1) 
+        ;; Call super class's method to look up the inverse behavior tables.
         (super interpret-inst (inst ops-vec (inst-args my-inst)) state ref))
 
       (define op (vector-ref (inst-op my-inst) 0))

@@ -980,6 +980,7 @@
 		(when 
 		 out-vec
 		 (let ([prune (send enum get-pruning-info out-vec)]
+                       ;; TODO use out instead of out-vec
                        [s0 (current-milliseconds)])
 
                    ;; (when (debug-inst my-inst)

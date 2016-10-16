@@ -13,6 +13,7 @@ The top level directory contains ISA-independent files, which implement the supe
 - **Rosette**: Download [Rosette v1.1](https://github.com/emina/rosette/releases/tag/v1.1) and follow the instruction to install in Rosette's README file. Don't forget to put Z3 executable in rosette/bin, as GreenThumb depends on Z3 (but not CVC4).
 - **Python**
 
+<a name="setup"></a>
 ## Setting Up
 ```
 git clone https://github.com/mangpo/greenthumb.git
@@ -22,7 +23,7 @@ make
 
 `path.rkt` will be generated.
 
-
+<a name="running"></a>
 ## Running an Existing Superoptimizer
 For example, we will walk through how one can run the ARM supertoptimizer.
 

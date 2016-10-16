@@ -4,6 +4,11 @@ Correctness
   = SOLUTION: extract ins & outs from simulator!!!
 
 1. Revisit
+   - use out instead of out-vec to get pruning-info
+   - link to section in .md
+   - link from new ISA to advance usage
+   - remove prescreen
+   - test one more time
    - remove (debug-inst) in forwardbackward & live-in in stoch
 
 4. Increase precision in enum
@@ -11,19 +16,10 @@ Correctness
    - in reduced-bitwidth domain: try all 4-bit constants
    - e.g. Preston load1
 5. Advance usage
-   - reg-sp links to reg
-   - multiple opcodes in an instruction
-     = define-instruction-class #:args #:ins #:outs #:commute #:required
-   - enum: get-pruning-info, filter-with-pruning-info
-   - arm: inverse interpret, update-progstate-ins-load -store
-   - #:try-cmp? in enumerator, (try-cmp?) in forwardbackward
    - define-progstate-stype #:const
+   - sort-live
    - combine-live & update-live (GA)
-   - mask-in & get-pruning-info
    - (reduce-precesion) in forwardbackward
-6. Special objects
-   - efficient memory access. memory access operates in a granularity of # of bits defined
-   - limited size of queue
 
 Profile:
 preston/program/ex1 on kaopad
