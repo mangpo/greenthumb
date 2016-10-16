@@ -179,7 +179,7 @@ Note that programs are stored using Racket data structures.
 (vector (inst 3 (vector 0 0 3))
         (inst 4 (vector 0 0 3)))
 ```
-Note that "lsr r0, r0, 3" and "lsr r0, r0, r3" should have different opcode IDs. Our convention is to use `'lsr#` for the one with the constant operand and `'lsr` for the one with the register operand when defineing instruction classes (**Step 1.5**).
+Note that "lsr r0, r0, 3" and "lsr r0, r0, r3" should have different opcode IDs. Our convention is to use `'lsr#` for the one with the constant operand and `'lsr` for the one with the register operand when defineing instruction classes ([Step 1.5]($step1.5)).
 
 All components except `parser%` and `printer%` work with an encoded IR, because it enables representing programs with bitvector logic formulas used in the symbolic search and equivalence validator (which verifies the equivalence of two programs).
 

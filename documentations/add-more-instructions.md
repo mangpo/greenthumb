@@ -84,7 +84,7 @@ To support `mul`, we do not need to change our program state.
 Add `'mul` to `'rrr-commute` instruction class. If the new instruction does not belong to any existing instruction class, we have to define a new instruction class in `llvm-machin.rkt` by calling `define-instruction-class`. If we need a new operand type, call `define-arg-type`.  See [Steps 1.4 & 1.5 of Extending GreenThumb to a New ISA](new-isa.md#step1.4) for more details.
 
 ### 3. Parser & Printer
-If the new instruction does not follow the default instruction format `%var0 = opcode %var1, %var2, ...` or `store %var1, %var2`, we have to modify the parser in `llvm-parser.rkt` to parse the instruction, and the methods `encode-inst`, `decode-inst`, and `print-syntax-inst` in `llvm-printer.rkt`. To support `mul`, we do not need to alter the parser and printer. See **Section B** and **Step 2** in [Extending GreenThumb to a New ISA](new-isa.md) for more details.
+If the new instruction does not follow the default instruction format `%var0 = opcode %var1, %var2, ...` or `store %var1, %var2`, we have to modify the parser in `llvm-parser.rkt` to parse the instruction, and the methods `encode-inst`, `decode-inst`, and `print-syntax-inst` in `llvm-printer.rkt`. To support `mul`, we do not need to alter the parser and printer. See [Section B and Step 2 in [Extending GreenThumb to a New ISA](new-isa.md#secB) for more details.
 
 ### 4. Simulator
 ##### Method `interpret`

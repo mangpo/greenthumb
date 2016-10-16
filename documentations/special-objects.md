@@ -2,8 +2,8 @@
 
 GreenThumb provides the following special objects to be used as parts of a program state:
 - [Memory Object](#memory)
-- [Input Queue Object](#input-memory)
-- [Onput Queue Object](#output-memory)
+- [Input Queue Object](#input-queue)
+- [Onput Queue Object](#output-queue)
 
 
 Each of the special object has two implementations; one in Racket (xxx-racket.rkt) and another in Rosette (xxx-rosette.rkt). From a developer's point of view, there is no different between the two implementations; their APIs are pretty much the same. Deverlopers may need to manipulate these objects in a few functions, including `interpret` function (in `simulator-racket.rkt` and `simulator-rosette.rkt`) and `correctness-cost` function (in `stochastic.rkt`). In the scenario that the developers override `interpret-inst` function (inverse interpreter) in `inverse.rkt`, they may have to manipulate these objects as well. We now describe APIs to manipulate these objects.
