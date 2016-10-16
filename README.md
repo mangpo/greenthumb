@@ -143,9 +143,12 @@ For example, in `ARM` directory, run:
 raco make test-search.rkt ../parallel-driver.rkt
 ```
 
-## Advanced Usage
+## More Documentations
 - [Extending GreenThumb to a New ISA](documentations/new-isa.md)
 - [Adding more instructions to an existing superoptimizer](documentations/add-more-instructions.md)
+- [Special Objects for Program State](documentations/special-objects.md)
+- [Advanced Usage](documentations/advanced-usage.md)
+
 
 ## Inquery and Bug Report
 If you are interested in using GreenThumb, please feel free to contact mangpo [at] eecs.berkeley.edu.

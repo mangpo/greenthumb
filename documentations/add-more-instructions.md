@@ -98,7 +98,7 @@ Next, define `bvmul` outside `interpret` function:
 ```
 (define bvmul (bvop *))
  ```
-Notice that `bvop` applies its argument lambda function to x and y, and then applies `finitize-bit` to the result. `(finitize-bit x)` calls `(finitize x bit)`, where the `finitize` function truncates overflowed `x` to `bit` bits and convert `x` to a signed number. Our convention is that every value in `progstate` has to be in the signed format (e.g. -1 instead of 2^32 - 1 for a 32-bit number). This is because we need the racket simulator to be consistent with the constraint solver we use, which works with signed numbers.
+Notice that `bvop` applies its argument lambda function to x and y, and then applies `finitize-bit` to the result. `(finitize-bit x)` calls `(finitize x bit)`, where the `finitize` function truncates overflowed `x` to `bit` bits and convert `x` to a signed number. Our convention is that every value in `progstate` has to be in the signed format (e.g. -1 instead of 2^32 - 1 for a 32-bit number). This is because we need the racket simulator to be consistent with the constraint solver we use, which works with signed numbers. Therefore, always call `finitize-bit` after performing an arithmetic operation.
 
 ##### Method `performance-cost`
 Currently, we have a very simple performance model. The performance cost of a program is equal the number of instructions in the program excluding `nop`. Modify this method for a more precise performance model.

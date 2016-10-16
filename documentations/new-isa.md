@@ -2,11 +2,11 @@
 
 ## Getting Started
 1. Set up GreenThumb (see the top-level [README](../README.md#setup)).
-2. Try to get the ARM cooperative superoptimizer running (see the top-level [README](../README.md)). 
+2. Try to get the ARM cooperative superoptimizer running (see the top-level [README](../README.md#running)). 
 3. Read [Greenthumb: Superoptimizer Construction Framework (CC'16)](http://www.eecs.berkeley.edu/~mangpo/www/papers/greenthumb_cc2016.pdf).
    
-## Brief Instruction
-The framework utilizes inheritance to provide retargetability. The top level directory contains the superclasses to be extended. File `xxx.rkt` contains the implementation of superclass `xxx%`. Assume (without loss of generality) that we want to construct a superoptimizer for simplified ARM (called `armdemo`). To extend the framework , we have to implement class `armdemo-xxx%` extending class `xxx%` (in `armdemo/armdemo-xxx.rkt` file).
+## Step-by-Step Instruction
+The framework utilizes inheritance to provide retargetability. The top level directory contains the superclasses to be extended. File `xxx.rkt` contains the implementation of superclass `xxx%`. For the purpose of a demonstration, assume we want to construct a superoptimizer for simplified ARM (called `armdemo`). To extend the framework , we have to implement class `armdemo-xxx%` extending class `xxx%` (in `armdemo/armdemo-xxx.rkt` file).
 
 Before start implementing the extension, run the setup script with the name of the ISA:
 ```
@@ -18,31 +18,33 @@ The script will generate `armdemo` directory that contains
 - `test-search.rkt` program for testing the individual search techniques
 - `main.rkt` and `optimize.rkt` programs for running the complete cooperative search launching multiple search instances
 
-Now, we can start implementing our superoptimizer in the following order.
+The setup script generates example implementations of the required functions that accompany this documentation. The generated code includes `?` hooks that indicate locations that developers need to modify. If you use DrRacket as an editor, it will complain about `?`, and you can easily jump to `?`. For the purpose of the demo, if we remove those `?`s and simply use the example code, this demo should work out of the box.
 
-- **Step 1**: Extend `machine%`. Open `armdemo/armdemo-machine.rkt` and complete the implementation before the "for enumerative  search" section.
-- **Step 2**: Extend `parser%` and `printer%`. Complete the implementation before the "for cooperative search" section. Use `test-simulator.rkt` to test the parser and the printer.
-- **Step 3**: Extend `simulator-rosette%`. Use `test-simulator.rkt` and uncomment the next test in `test-simulator.rkt` to run the ISA simulator in Rosette. Then, copy the required methods implemented for `simulator-rosette%` to `simulator-racket%`. Use `test-simulator.rkt` to run the ISA simulator in Racket.
-- **Step 4**: Extend `symbolic%`. Then, use `test-search.rkt` to test the symbolic search on a small code fragment.
-- **Step 5**: Extend `stochastic%`. Then, uncomment the stochastic search section in `test-search.rkt` and run it.
-- **Step 6**: Extend `forwardbackward%` to enable the enumerative search. Then, uncomment the enumerative search section in `test-search.rkt` and run it.
-- **Step 7**: To enable the cooperative search, we need to implement a few more methods:
+In this documentation, we will walk you through building a superoptimizer in 7 steps under multiple sections.
+
+[**Section A. ISA Basic Description**](#sec:A)
+- [**Step 1**](#step1): Extend `machine%`. 
+
+[**Section B. Program Intermediate Representations**](#sec:B)
+- [**Step 2**](#step2): Extend `parser%` and `printer%`. Test the parser and printer using `test-simulator.rkt`.
+
+[**Section C. ISA Semantics**](#sec:C)
+- [**Step 3**](#step3): Extend `simulator-rosette%` and `simulator-racket%`. Test the simulators using `test-simulator.rkt`.
+
+[**Section D. Enabling Search**](#sec:D)
+- [**Step 4**](#step4): Extend `symbolic%`. Test the symbolic search using `test-searh.rkt`
+- [**Step 5**](#step5): Extend `stochastic%`. Test the stochastic search using `test-searh.rkt`
+- [**Step 6**](#step6): Extend `forwardbackward%`. Test the enumerative search using `test-searh.rkt`
+- [**Step 7**](#step7): Enalbe the cooperative search by implementing:
    - method `info-from-file` of `armdemo-parser%`
    - methods `config-from-string-ir` and `output-string-constraint` of `armdemo-printer%`
    - method `len-limit` of `armdemo-symbolic%` and `armdemo-forwardbackward%`
 
-Now, we can run our ARM cooperative superoptimizer, similar to the way we run the ARM superoptimizer in the earlier section, using the generated `optimize.rkt`. Note that even if we do not implement all search techniques, for instance, we only implement `armdemo-stochastic%`, we can still use `optimize.rkt` to run the stochastic search instances in parallel, communicating to each other about the best program. 
-
-#### Caution
-GreenThumb relies on Rosette to verify correctness and perform symbolic search. Therefore, `simulator-rosette%` must be implemented in Rosette, which support most Racket operations but not all. For example, Rosette does not support any symbolic hash operation or some vector operations (e.g. vector-copy). If you wish to use some of these handy functions, take a look at provided functions in `ops-rosette.rkt`, which can be used instead of the original functions. We also provide the same functions but implemented more efficiently in `ops-racket.rkt`, which can be used in `simulator-racket%`.
-
-## Step-By-Step Instruction
-Now we explain how to support `armdomo` step-by-step. First of all, run `./setup.py armdemo`.
-The setup script generates example implementations of the required functions that accompany this documentation. The generated code includes `?` hooks that indicate locations that developers need to modify. If you use DrRacket as an editor, it will complain about `?`, and you can easily jump to `?`. For the purpose of the demo, if we remove those `?`s and simply use the example code, this demo should work out of the box.
-
+<a name="sec:A"></a>
 ### A. ISA Basic Description
 We must define the description of the ISA, including the list of opcodes, the ISA bitwidth, and the structure of the program state.
 
+<a name="step1"></a>
 **Step 1: machine** 
 We define such information in the class `armdemo-machine%`, which extends the class `machine%`. 
 
@@ -61,10 +63,11 @@ For example, we define `armdemo` program state as follows:
 ```
 where `progstate` is defined at the top of `armdemo-machine.rkt` as a macro for creating a vector with two entries. The first entry of our program state contains a vector of register's values, and the second entry contains memory. 
 
-Notice that in an actual processor, the number of registers is usually fixed, but the number of registers in a piece of code we want to optimize is usually less than the number of available registers. Therefore, we use `config` to represent number of registers of interest. The smaller the number of registers (smaller program state in general) the faster the superoptimizer can run. Now, you may ask, how does `config` get set? We can manually set `config` when creating `armdemo-machine%` in `test-simulator.rkt` and `test-search.rkt`. We can also extract `config` from analyzing the code we want to optimize (which will be explained later in **Step 7**)
+Notice that in an actual processor, the number of registers is usually fixed, but the number of registers in a piece of code we want to optimize is usually less than the number of available registers. Therefore, we use `config` to represent number of registers of interest. The smaller the number of registers (smaller program state in general) the faster the superoptimizer can run. Now, you may ask, how does `config` get set? We can manually set `config` when creating `armdemo-machine%` in `test-simulator.rkt` and `test-search.rkt`. We can also extract `config` from analyzing the code we want to optimize (which will be explained later in [Step 7.2](#step7.2))
 
 In general, a program state must be a **mutable object**, so we use vectors instead of lists. This is important to make the bidirectional search strategy work for the enumerative superoptimizer.
 
+<a name="step1.3"></a>
 **Step 1.3: program state element type** 
 Next, we have to provide more information about each type of a program state element. In particular, we have to tell GreenThumb how to obtain and set a value of a specific program state element and what the valid values of such element. We do this by calling:
 ```
@@ -105,7 +108,7 @@ For `armdemo`, there are 3 types of instruction operands: `'reg` (register), `'c
 ```
 Note that lists of values we define here are values the stochastic and enumerative superoptimizers try during synthesizing candidate programs. Although`'const` actually range from 0 to 2^32-1, we do not want the stochastic and enumerative superoptimizers to try all 2^32 values, so instead we inform them to only try the values we specified here. Additionally, GreenThumb analyzes an input program to be optimized, and automatically adds more values to these lists if those values appear in the input program.
 
-Furthermore, notice that `'reg` is used as both a program state element type and an instruction operand type. When this happens, the value of an instruction operand of type `'reg` will be used as the additional argument for the get and set functions when accessing a program state element of type `'reg` (as described in **Step 1.2**). If we name this operand type differently, GreenThumb will not be able to pass the value of the operand to the get and set functions.
+Furthermore, notice that `'reg` is used as both a program state element type and an instruction operand type. When this happens, the value of an instruction operand of type `'reg` will be used as the additional argument for the get and set functions when accessing a program state element of type `'reg` (as described in [Step 1.3](#step1.3)). If we name this operand type differently, GreenThumb will not be able to pass the value of the operand to the get and set functions.
 
 For other operand types, we may name them freely. However, GreenThumb treats `'const` and `'bit` specially. In particular, the enumerative search works in a reduced-bitwidth domain (4 bits instead of 32 bits). Therefore, the enumerative search converts the input source code into the reduced-bitwidth version. If an operand has type `'const` or `'bit`, GreenThumb will convert the constant appropriately for its kind. For example, value 31 of type `'bit` will be converted to 3; shifting by 31 bits in 32-bit domain is equivalent to shifting by 3 bits in 4-bit domain. Large numbers of type `'const` will be converted into 4-bit numbers by masking the lower 4 bits. If an operand has a type other than `'const` or `'bit`, GreenThumb will preserve its same value during conversion.
 
@@ -146,6 +149,7 @@ Finally, we must call the following after defining all instruction classes.
 (finalize-machine-description)
 ```
 
+<a name="sec:B"></a>
 ### B. Program Intermediate Representations
 
 GreenThumb provides an instruction representation, defined as `(struct inst (op args))`. An instruction representation is a building block for constructing program representations. GreenThumb uses three levels of program representations:
@@ -172,6 +176,9 @@ Note that "lsr r0, r0, 3" and "lsr r0, r0, r3" should have different opcode IDs.
 
 All components except `parser%` and `printer%` work with an encoded IR, because it enables representing programs with bitvector logic formulas used in the symbolic search and equivalence validator (which verifies the equivalence of two programs).
 
+
+<a name="step2"></a>
+
 **Step 2: Parser and Printer** Since `parser%` and `printer%` are responsible for converting sources to encoded IRs and vice versa, we must extend them by implementing:
 - class `armdemo-parser%`, which parses `armdemo` IR source code into string-IR format.
 - three methods in the class `armdemo-printer%`: `print-syntax-inst` prints string-IR program in source format; `encode-inst` converts string-IR to encoded-IR format; and `decode-inst` converts encoded-IR to string-IR format.
@@ -179,17 +186,30 @@ All components except `parser%` and `printer%` work with an encoded IR, because 
 Apart from being able to parse source code with complete instructions, the parser should be able to parse string "?" as `(inst #f #f)` for both String-IR and encoded-IR formats. This is used a place holder for an instruction to be synthesized during testing.
 See example code generated from the setup script how to implement these methods including handling "?". After implement these methods, use `test-simulator.rkt` to test the parser and printer. 
 
+<a name="sec:C"></a>
 ### C. ISA Semantics
 In order for GreenThumb to understand the semantics of the new ISA and evaluate the performance of different code fragments, we have to implement an functional simulator and define its performance model.
 
+
+<a name="step3"></a>
+
 **Step 3: Simulator** We must implement the methods `interpret` and `performance-cost` of the classes `armdemo-simulator-racket%` and `armdemo-simulator-rosette%`. The implementations of these two classes are in fact identical except that the former is implemented in `#lang racket`, while the latter in `#lang s-exp rosette`. The Racket simulator is used to interpret sequences of instructions on concrete inputs in the stochastic and enumerative search. The Rosette simulator is used by the symbolic search and equivalence validator. Although the Rosette simulator can also be used in the stochastic and enumerative search, it is slower than the Racket simulator. See example code generated from the setup script how to implement these methods. After implement these methods, use `test-simulator.rkt` to test the simulator. uncomment more code to test this.
 
-##### Additional Notes
+##### Cautions
+1. Rosette supports most Racket operations but not all. For example, Rosette does not support any symbolic hash operation or some vector operations (e.g. vector-copy). If you wish to use some of these handy functions, take a look at provided functions in `ops-rosette.rkt`, which can be used instead of the original functions. We also provide the same functions but implemented more efficiently in `ops-racket.rkt`, which can be used in `simulator-racket%`.
+2. Notice the provided function `(finitize-bit x)`.  `(finitize-bit x)` calls `(finitize x bit)`, where the `finitize` function truncates overflowed `x` to `bit` bits and convert `x` to a signed number. Our convention is that every value in `progstate` has to be in the signed format (e.g. -1 instead of 2^32 - 1 for a 32-bit number). This is because we need the racket simulator to be consistent with the constraint solver we use, which works with signed numbers. Therefore, always call `finitize-bit` after performing an arithmetic operation.
+
+##### Additional Note
 It might be easier to only modify `armdemo-simulator-rosette.rkt`. Once it works correctly, copy the entire file `armdemo-simulator-rosette.rkt` to `armdemo-simulator-racket.rkt`, and replace any appearance of rosette with racket.
 
+<a name="sec:D"></a>
 ### D. Enabling Search
+
+<a name="step4"></a>
 **Step 4: Symbolic Search** Once the simulator is working. The symbolic search should work right out of the box! Use `test-search.rkt` to test the symbolic search on a small code fragment. Make sure to test the search for every instruction.
 
+
+<a name="step5"></a>
 **Step 5: Stochastic Search**
 We need to extend the method `(correctness-cost state1 state2 live)` of the class `stochastic%`. [STOKE (ASPLOS'13)](https://raw.githubusercontent.com/StanfordPL/stoke/develop/docs/papers/asplos13.pdf)
 suggests a correctness cost to be the number of non-matching bits between the live outputs of program states `state1` and `state2` with rewards for correct (or nearly correct) values in wrong locations. 
@@ -200,6 +220,9 @@ each of `state1` and `state2` is a vector of values, given a lambda function `di
 The memory object `memory-racket%` also provides the method `(correctness-cost other-memory diff-bits bitwidth)`. For each memory location that has beeen modified, it counts the number of non-matching bits of the values from the two memory objects. Thus, we call this method for the memory part of `armdemo` program state.
 
 Once we implement this method, uncomment the stochastic search section in `test-search.rkt` and run it to test the stochastic search.
+
+
+<a name="step6"></a>
 
 **Step 6: Enumerative Search**
 If our ISA has memory accessing instructions, we must extend the method `update-progstate-ins-load` and `update-progstate-ins-store` of the class `machine%`. This function is used for executing memory instruction backward, in particular, for modifying the input parts of a program state. See comments and examples in the generated code. Once we implement these methods, uncomment the enumerative search section in `test-search.rkt` and run it to test the enumerative search.
@@ -214,6 +237,9 @@ Run each of the symbolic, stochastic, and enumerative search at a time.
 
 To test that the backward search of the enumerative search works properly, run the enumerative search again but on a larger program (four instructions) that can be optimized to three instructions. This is because the enumerative search only performs the backward search when it tries to synthesize programs with three instructions or more. Make sure to add more `?` in `sketch` definition if an output program contains more instructions.
 
+
+<a name="step7"></a>
+
 **Step 7: Cooperative Search**
 To get the coopeative search working, we have to do the following.
 
@@ -221,6 +247,7 @@ To get the coopeative search working, we have to do the following.
 To help a search instance determine an appropriate size of a window in the context-aware window decomposition, we must implement the method `(len-limit)` of `armdemo-forwardbackward%` and `armdemo-symbolic%` to return L, the size of code fragment (the number of instructions) that can be synthesized within one minute. The cooperative search
 varies the window size used for the different search instances; in particular, it uses L, 2L, 3L, and 4L window sizes.
 
+<a name="step7.2"></a>
 **Step 7.2: Liveness Information and Machine Config**
 To invoke the cooperative superoptimizer, we run `optimize.rkt` and pass in the filename of code to be optimized. Along with the file containing code to be optimized, the superoptimizer expects another file with the same name appended by ".info" that contains live-out infomation and additional information if necessary. Therefore, the superoptimizer needs to parse the info file, so we must implement:
 - the method `(info-from-file filename)` in `armdemo-parser.rkt` to parse live-out information from a given file. The file can contains more information including preconditions of the inputs.
@@ -229,4 +256,5 @@ To invoke the cooperative superoptimizer, we run `optimize.rkt` and pass in the 
 The superoptimizer also needs to set the `config` field of the `machine%` class because we no longer create the machine object manually as in `test-search.rkt`. We must implement the method `(config-from-string-ir program)` to analyze a given program and returns a machine config. `program` is given in the string-IR format.
 
 **Step 7.3: Running the Cooperative Search**
-Run the superoptimizer using `armdemo/optimize.rkt`. The usage of `armdemo/optimize.rkt` is the same as the usage of `arm/optimizer.rkt` as explained in the top-level [README](../README.md).
+Run the superoptimizer using `armdemo/optimize.rkt`. The usage of `armdemo/optimize.rkt` is the same as the usage of `arm/optimizer.rkt` as explained in the top-level [README](../README.md#running).
+Note that even if we do not implement all search techniques, for instance, we only implement `armdemo-stochastic%`, we can still use `optimize.rkt` to run the stochastic search instances in parallel, communicating to each other about the best program. 
