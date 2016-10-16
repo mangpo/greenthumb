@@ -223,8 +223,7 @@ suggests a correctness cost to be the number of non-matching bits between the li
 `stochastic%` provides the method `(correctness-cost-base state1 state2 live diff-bits)` to calculate the suggested correctness cost when
 each of `state1` and `state2` is a vector of values, given a lambda function `diff-bits` that counts number of non-matching bits between two values. Thus, we use `correctness-cost-base` for the register part of `armdemo` program state. 
 
-The memory object `memory-racket%` also provides the method `(correctness-cost other-memory diff-bits bitwidth)`. For each memory location that has beeen modified, it counts the number of non-matching bits of the values from the two memory objects. Thus, we call this method for the memory part of `armdemo` program state.
-
+The memory object `memory-racket%` also provides the method `(correctness-cost other-memory diff-bits bitwidth)`. For each memory location that has beeen modified, it counts the number of non-matching bits of the values from the two memory objects. Thus, we call this method for the memory part of `armdemo` program state. For more complicated load and store instructions, see [Customize Inverse Interpreter for Load/Store Instructions in Advanced Usage](advanced-usage.md#connect-operand-progstate).
 Once we implement this method, uncomment the stochastic search section in `test-search.rkt` and run it to test the stochastic search.
 
 

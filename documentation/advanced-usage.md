@@ -2,12 +2,11 @@
 - [Connection between Instruction Operand and Program State Element](#connect-operand-progstate)
 - [Instruction with Multiple Opcodes](#multiple-opcodes)
 - [Additional Pruning in Enumerative Search](#pruning)
-- [Customize Inverse Interpreter](#inverse)
 - [Customize Inverse Interpreter for Load/Store Instructions](#inverse-load-store)
 
 <a name="connect-operand-progstate"></a>
 ### Connection between Instruction Operand and Program State Element
-As described in [Step 1.4 of Extending GreenThumb to a New ISA](new-isa.md#step1.4), if an instruction operand type is the same as a program state element type, the operand from an instruction will be used for get and set the program state element. However, sometimes we may want to define multiple instruction types that connects to the same program state element type. 
+As described in [Step 1.4 of Extending GreenThumb to a New ISA](new-isa.md#step1.4), if an instruction operand type is the same as a program state element type, the operand from an instruction will be used for getting and setting the program state element. However, sometimes we may want to define multiple instruction operand types that connects to the same program state element type. 
 
 For example, consider these two instructions from ARM:
 ```
@@ -38,7 +37,7 @@ So far, we assume that an instruction can contain only one opcode, but in some I
 (init-machine-description 1)
 (define-instruction-class 
   <class name> <a list of opcodes>
-  #:args <a list of operand types> #:ins <a list of inputs> #:outs < a list of outputs> 
+  #:args <a list of operand types> #:ins <a list of inputs> #:outs <a list of outputs> 
   #:commute <optional pair of commutative operands>)
 ```
 When an instruction consists of `n` opcodes, we define the instruction using:
@@ -47,7 +46,7 @@ When an instruction consists of `n` opcodes, we define the instruction using:
 (define-instruction-class 
   <class name> (list l_0 l_1 .. l_n-1)
   #:required (list r_0 r_1 ... r_n-1)
-  #:args (list a_0 a_1 ... a_n-1) #:ins (list i_0 i_1 ... i_n-1) #:outs < a list of outputs> 
+  #:args (list a_0 a_1 ... a_n-1) #:ins (list i_0 i_1 ... i_n-1) #:outs <a list of outputs> 
   #:commute <optional pair of commutative operands>)
   
 ;; l_x = a list of opcodes type x
@@ -55,15 +54,15 @@ When an instruction consists of `n` opcodes, we define the instruction using:
 ;; a_x = a list of operands for opcodes type x
 ;; i_x = a list of inputs for opcodes type x
 ```
-
-For example, in ARM ISA, the instructions `addeq r0, r0, r1, asr #1` and `add r0, r0, r1` are defined in this class:
+This definition will define instructions with all combinations of opcodes from `l_0`, `l_1`, ..., `l_n-1`.
+For example, in ARM ISA, the instructions `addeq r0, r0, r1, asr #1` and `orrhi r0, r0, r1m lsl #1` are defined in this class:
 ```racket
 (define-instruction-class 'rrr-commute-shf
   (list '(add and orr eor) '(eq ne ls hi cc cs lt ge) '(asr lsl lsr ror))
   #:required '(#t #f #f)
   #:args '((reg reg reg) () (reg)) #:ins '((1 2) (z 0) (3)) #:outs '(0) #:commute '(1 . 2))
 ```
-`#:required` indicates which opcode types are required and optional. Since the second and third types of opcodes are optional, this instruction class include an instruction like `add r0, r0, r1`. The second entry `(z 0)` of `#:ins` indicates that when an instruction contains `eq ne ls hi cc cs lt` or `ge`, flag `z` in a program state is an input to this instruction. The first instruction operand is also considered as an input because if the conditional is evaluated to false, the value of the first operand remains the same.
+`#:required` indicates which opcode types are required and optional. Since the second and third types of opcodes are optional, this instruction class include an instruction like `add r0, r0, r1` as well. The second entry `(z 0)` of `#:ins` indicates that when an instruction contains `eq ne ls hi cc cs lt` or `ge`, flag `z` in a program state is an input to this instruction. The first instruction operand is also considered as an input because if the conditional is evaluated to false, the value of the first operand remains the same.
 
 Consider another instruction class of ARM that includes `asreq r0, r0, r1` and `asr r0, r0, r1`:
 ```racket
@@ -84,22 +83,22 @@ GreenThumb allows developers to filter out instructions to try by extending the 
 
 **`(get-pruning-info state)`** takes in a program state and return an information that may be useful for pruning. The output of this method will be passed to `filter-with-pruning-info`. The default implementation returns #f.
 
-**`(filter-with-pruning-info opcode-pool prune-in prune-out-list #:no-args [no-args #f] #:try-cmp [try-cmp #f])`** takes in a list of opcode IDs (`opcode-pool`), the pruning info of an input state (`prune-in`) and a list of the pruning info of output states (`prune-out-list`). This method should return a list of opcode IDs from `opcode-pool` that can potentially transition an input state whose pruning info is `prune-in` to any state of output states whose pruning info are in `prune-out-list`. If an input state is unknown, `prune-in` = #f. If output states are unknown, `prune-out-list` = #f.
+**`(filter-with-pruning-info opcode-pool prune-in prune-out-list #:no-args [no-args #f] #:try-cmp [try-cmp #f])`** takes in a list of opcode IDs (`opcode-pool`), the pruning info of an input state (`prune-in`) and a list of the pruning info of output states (`prune-out-list`). This method should return a list of opcode IDs from `opcode-pool` that can potentially transition an input state whose pruning info is `prune-in` to one of the output states whose pruning info are `prune-out-list`. If an input state is unknown, `prune-in` = #f. If output states are unknown, `prune-out-list` = #f.
 
-For example, we extend `get-pruning-info` of `arm-enumerator%` to return the `z` flag of a given program state. We then extend `filter-with-pruning-info` so that if `prune-in` (the z flag of an input state) is *not* in `prune-out-list` (a list z flags of output states), we should return instructions that can potentially change the z flag. Therefore, we filter out opcode IDs that are not correspond to `tst` or `cmp`. We also implement another pruning strategy when `prune-in` (z flag) is -1 (unknown), we should not use any conditional suffix, so we filter out opcode IDs that has conditional suffix. See `arm-enumerator.rkt` for the implementation.
+For example, we extend `get-pruning-info` of `arm-enumerator%` to return the `z` flag of a given program state. We then extend `filter-with-pruning-info` so that if `prune-in` (the z flag of the input state) is *not* in `prune-out-list` (a list of z flags of the output states), we should return instructions that can potentially change the z flag. Therefore, we filter out opcode IDs that are not correspond to `tst` or `cmp` in this scenario. We also implement another pruning strategy when `prune-in` (z flag) is -1 (unknown), we should not use any conditional suffix, so we filter out opcode IDs that has conditional suffix. See `arm-enumerator.rkt` for the implementation.
 
-The optional argument `no-args` is set to #t, when the enumerative search uses this method to enumerate instructions to generate tables that memorize inverse behaviors. The optional argument `try-cmp` is set to #t, when the enumerative search wants to try compare instructions (e.g. `cmp` and `tst`).
+The optional argument `no-args` is set to #t, when the enumerative search uses this method to enumerate instructions to generate tables that memorize inverse behaviors. The optional argument `try-cmp` is set to #t, when the enumerative search wants to try compare instructions (e.g. `cmp` and `tst`); don't filter out compare instructions. If `try-cmp` is set to #f, we should filter out compare instructions.
 
 <a name="inverse"></a>
 ### Customize Inverse Interpreter
-Developers may want to implement their own function for interpreting an instruction backward. For example, when we use the default inverse interpret function for ARM, the enumerative search took a very long time to generate the tables that memorize inverse behaviors of instructions. This is because for each combination of a base opcode and an optional shift, there are many conditional suffixes; as a result, the default implementation generates inverse behaviors for them all despite the fact that a conditional suffix behave the same regardless of the base opcode. 
+Developers may want to implement their own function for interpreting an instruction backward. For example, when we use the default inverse interpret function for ARM, the enumerative search took a very long time to generate the tables that memorize inverse behaviors of instructions. This is because for each combination of a base opcode and an optional shift, there are many conditional suffixes; as a result, the default implementation generates inverse behaviors for them all despite the fact that a conditional suffix behave the same regardless of a base opcode. 
 
 Therefore, we made two modifications:
-1. We only generate tables of inverse behaviors of instructions without a conditional suffix. To do this, we simply extend `filter-with-pruning-info` of `arm-enumerator%` such that when the argument `no-args` is set to #t, we only return opcodes without a conditional suffix. 
-2. Since we don't memorize inverse behaviors of conditional opcodes, we have to implement their inverse behaviors manually by extending the `interpret-inst` method of the `inverse%` class. See `arm-inverser.rkt` for the implementation. Keep in mind that the inverse interpretation of an instruction happens in the reduced-bitwidth domain (4-bit).
+- We only generate tables of inverse behaviors of instructions without a conditional suffix. To do this, we simply extend `filter-with-pruning-info` of `arm-enumerator%` such that when the argument `no-args` is set to #t, we only return opcodes without a conditional suffix. 
+- Since we don't memorize inverse behaviors of conditional opcodes, we have to implement their inverse behaviors manually by extending the `interpret-inst` method of the `inverse%` class. See `arm-inverser.rkt` for the implementation. Keep in mind that the inverse interpretation of an instruction happens in the reduced-bitwidth domain (4-bit).
 
 <a name="inverse-load-store"></a>
 ### Customize Inverse Interpreter for Load/Store Instructions
-Recall that we have to extend the methods `update-progstate-ins-load` and `update-progstate-ins-store` of the class `machine%` to enable the enumerative search to interpret load and store instructions backward. For LLVM and our demo version of ARM, the implementations of these two methods are straightforward, but it is more complicated in `arm`.
+Recall that we have to extend the methods `update-progstate-ins-load` and `update-progstate-ins-store` of the class `machine%` to enable the enumerative search to interpret load and store instructions backward. For `llvm` and `armdemo`, the implementations of these two methods are straightforward, but it is more complicated in `arm`.
 
-Consider an LLVM load instruction `%1 = load i32, i32* %0` and the method `(update-progstate-ins-load my-inst addr mem state)`. In this method, the address is given, so we can simply set `%0` to `addr`. However, consider an ARM load instruction `ldr r0 [sp, r1]`. Given an address, we can't simply set `sp` to `addr`, but we need to set `sp` and `r1` to the values such that their sum is `addr`. See `arm-machine.rkt` how we implement these methods for ARM. Keep in mind that the inverse interpretation of an instruction happens in the reduced-bitwidth domain (4-bit).
+Consider an LLVM load instruction `%1 = load i32, i32* %0` and the method `(update-progstate-ins-load my-inst addr mem state)`. In this method, the address `addr` is given, so we can simply set `%0` to `addr`. However, consider an ARM load instruction `ldr r0 [sp, r1]`. Given an address, we can't simply set `sp` to `addr`, but we need to set `sp` and `r1` to all combination of values whose sum is `addr`. See `arm-machine.rkt` on how we implement these methods for ARM. Keep in mind that the inverse interpretation of an instruction happens in the reduced-bitwidth domain (4-bit).
