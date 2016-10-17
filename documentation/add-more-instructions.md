@@ -72,7 +72,7 @@ We use `progstate` to represent liveness similar to in LLVM.
 To support more instructions, we need to modify several files as we will explain in this section.
 
 ### 1. Program State
-We may need to modify our program state representation, `progstate` in `llvm-machine.rkt` to support more instructions. For example, in order to support flags (e.g. carry flag), we will need to modify our program state representation in `llvm-machinr.rkt`:
+We may need to modify our program state representation, `progstate` in `llvm-machine.rkt` to support more instructions. For example, in order to support flags (e.g. carry flag), we will need to modify our program state representation in `llvm-machine.rkt`:
 - define a new program state element type by calling `define-progstate-type`
 - add more arguments to `progstate` macro for flags
 - modify the method `progstate-structure` to include flags
@@ -111,7 +111,7 @@ Test if the simulator interpret the new instruction correctly by using `test-sim
 - Then, uncomment out Phase B--E (one by one). Run again to make sure that it does not throw any exception. If an error occurs, there is something wrong.
 
 ##### Additional Notes
-If we have to make many modifications to the simulator, it might be easier to only modify `llvm-simulator-rosette.rkt`. Once it works correctly, copy the entire file `llve-demo-simulator-rosette.rkt` to `llvm-simulator-racket.rkt`, and replace **any appearance** of `rosette` with `racket`.
+If we have to make many modifications to the simulator, it might be easier to only modify `llvm-simulator-rosette.rkt`. Once it works correctly, copy the entire file `llve-simulator-rosette.rkt` to `llvm-simulator-racket.rkt`, and replace **any appearance** of `rosette` with `racket`.
 
 ##### Testing the Superoptimizer
 
@@ -123,4 +123,4 @@ Run each of the symbolic, stochastic, and enumerative search at a time.
 - The symbolic and enumerative search should return with an optimized program quickly (for program with one instruction).
 - For the stochastic search, we might have to wait a little longer. If we don't see it printing `FOUND!!!` within a minute, something may be wrong.
 
-To test that the backward search of the enumerative search works properly, run the enumerative search again but on a larger program (four instructions) that can be optimized to three instructions. This is because the enumerative search only performs the backward search when it tries to synthesize programs with three instructions or more. Make sure to add `?` in `sketch` definition if an output program contains more instructions
+To test that the backward search of the enumerative search works properly, run the enumerative search again but on a larger program (four instructions) that can be optimized to three instructions. This is because the enumerative search only performs the backward search when it tries to synthesize programs with three instructions or more. Make sure to add `?` in `sketch` definition if an output program contains more instructions.
