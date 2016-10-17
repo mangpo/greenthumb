@@ -9,7 +9,7 @@
   (class printer%
     (super-new)
     (inherit-field machine)
-    (override encode-inst decode-inst print-syntax-inst
+    (override encode-inst decode-inst print-syntax-inst print-encode-info
               ;; Required method for cooperative search
               config-from-string-ir output-constraint-string)
 
@@ -41,6 +41,9 @@
     (define name2num (make-hash))
     (define num2name (make-vector 100))
     (define n 0)
+
+    (define (print-encode-info)
+      (pretty-display (format "Encode info (name->num): ~a" name2num)))
 
     (define-syntax-rule (char1=% x) (equal? (substring x 0 1) "%"))
 				  
@@ -158,8 +161,7 @@
 		  (set! vars (cons arg vars))))
       (add1 (length vars)))
     
-    ;; Convert live-out (which is one of the outputs from 
-    ;; parser::info-from-file) into string. 
+    ;; Convert live-out (the output from parser::info-from-file) into string. 
     (define (output-constraint-string live-out) 
       (format "(send printer encode-live '~a)" live-out))
 

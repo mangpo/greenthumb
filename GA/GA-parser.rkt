@@ -26,7 +26,7 @@
 		  [x (string-split line)])
 		 (string->inst x)))
 
-    (define/public (info-from-file file)
+    (define/override (info-from-file file)
       (define lines (file->lines file))
       (define live-out
 	(for/list ([ele (string-split (first lines) ",")])
@@ -34,18 +34,17 @@
 		    (if (= (length toks) 2)
 			(cons (string->symbol (first toks)) (string->number (second toks)))
 			(string->symbol (first toks))))))
-      (define recv (string->number (second lines)))
       (define assume 
-	(if (equal? "-" (string-trim (third lines)))
+	(if (equal? "-" (string-trim (second lines)))
 	    #f
-	    (for/list ([ele (string-split (third lines) ",")])
+	    (for/list ([ele (string-split (second lines) ",")])
 		      (let ([toks (string-split ele)])
 			(cons (string->symbol (first toks)) (string->number (second toks)))))))
       (define input-file
-	(if (equal? "-" (string-trim (fourth lines)))
+	(if (equal? "-" (string-trim (third lines)))
 	    #f 
-	    (fourth lines)))
+	    (third lines)))
 	
-      (values live-out recv assume input-file))
+      (values live-out assume input-file))
       
     ))

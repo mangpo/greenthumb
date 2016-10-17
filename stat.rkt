@@ -49,7 +49,7 @@
       ;;   (thunk
       ;;    (pretty-display (format "~a,~a" iter-count current-cost))))
       (set! iter-count (add1 iter-count))
-      (and (= (modulo iter-count 30000) 0) ;;46 s
+      (and (= (modulo iter-count 30000) 0) ;;30000
 	   (let-values ([(cost len time id) (get-best-info dir)])
              (print-stat-to-file)
              (and cost len))))
@@ -106,7 +106,7 @@
 	    (define info-file (format "~a/best.info" dir))
 	    (define-values (cost-r len-r time-r id-r) (get-best-info dir))
             
-	    (when (or (not cost-r) (<= cost cost-r))
+	    (when (or (not cost-r) (< cost cost-r))
 		(pretty-display "FOUND!!!")
 		(with-output-to-file #:exists 'append (format "~a/summary" dir)
 		  (thunk
@@ -180,8 +180,8 @@
                                        (exact->inexact (/ (vector-ref accept-stat i) (vector-ref propose-stat i)))
                                        0))))
       (newline)
-      (pretty-display (format "acceptance-rate:\t~a" 
-                              (exact->inexact (/ accepted proposed))))
+      ;; (pretty-display (format "acceptance-rate:\t~a" 
+      ;;                         (exact->inexact (/ accepted proposed))))
       (pretty-display (format "accept-count:\t~a" accept-count))
       (pretty-display (format "accept-higher-count:\t~a" accept-higher-count))
       ;; (pretty-display (format "accept-higher-percent:\t~a" 

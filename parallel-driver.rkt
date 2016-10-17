@@ -25,8 +25,9 @@
     (define (get-class-name x) (format "~a-~a%" isa x))
     
     ;; Optimize code
-    (define (optimize-inner code-org live-out-org live-in-org rootdir cores time-limit prog-size 
-                            assume extra-info input-file start-prog)
+    (define (optimize-inner code-org live-out-org rootdir cores time-limit prog-size 
+                            assume input-file start-prog)
+      ;;(raise "done")
       (pretty-display (format "SEACH TYPE: ~a size=~a" search-type prog-size))
       ;;(define path (format "~a/driver" dir))
       (system (format "rm -r ~a" rootdir))
@@ -34,22 +35,21 @@
       
       (pretty-display ">>> select code:")
       (send printer print-syntax code-org)
-      (pretty-display (format ">>> live-in-org: ~a" live-in-org))
       (pretty-display (format ">>> live-out-org: ~a" live-out-org))
 
       ;; Use the fewest number of registers possible.
-      (define-values (code live-out live-in map-back machine-info) 
-        (send printer compress-reg-space code-org live-out-org live-in-org))
-      (pretty-display (format ">>> machine-info: ~a" machine-info))
+      (define-values (code live-out map-back machine-config) 
+        (send printer compress-state-space code-org live-out-org))
+      (pretty-display (format ">>> machine-config: ~a" machine-config))
+      (pretty-display (format ">>> live-out: ~a" live-out))
       (pretty-display `(map-back ,map-back))
 
       (pretty-display ">>> compressed-code:")
       (send printer print-syntax code)
-      ;; machine-info from compress-reg-space is only accurate for reg but not memory. This will adjust the rest of the machine info.
-      (set! machine-info (send validator proper-machine-config 
-			       (send printer encode code) machine-info extra-info))
-      (pretty-display (format ">>> machine-info: ~a" machine-info))
-      (pretty-display (format ">>> live-in: ~a" live-in))
+      ;; machine-config from compress-state-space is only accurate for reg but not memory. This will adjust the rest of the machine info.
+      ;; (set! machine-config (send validator proper-machine-config 
+      ;;   		       (send printer encode code) machine-config))
+      (pretty-display (format ">>> machine-config: ~a" machine-config))
       (pretty-display (format ">>> live-out: ~a" live-out))
 
       (define dir-id 0)
@@ -65,11 +65,13 @@
             (format "(file \"~a/~a\")" srcpath (required-module file)))
           (define required-files
             (string-join
-             (map req '(parser machine printer
-                               simulator-racket simulator-rosette
-                               validator
-                               stochastic symbolic forwardbackward
-                               enumerator inverse))))
+             (map req (append '(parser machine printer
+                                       simulator-racket simulator-rosette
+                                       validator)
+                              (match search-type
+                               [`stoch '(stochastic)]
+                               [`solver '(symbolic)]
+                               [`enum '(forwardbackward enumerator inverse)])))))
           (with-output-to-file 
               #:exists 'truncate (format "~a-~a.rkt" path id)
               (thunk
@@ -77,7 +79,7 @@
                (pretty-display (format "(require ~a)" required-files))
                (pretty-display (format "(define machine (new ~a [config ~a]))"
                                        (get-class-name "machine")
-                                       (send printer set-config-string machine-info)))
+                                       (send printer set-config-string machine-config)))
                (pretty-display (format "(define printer (new ~a [machine machine]))" (get-class-name "printer")))
                (pretty-display (format "(define parser (new ~a))" (get-class-name "parser")))
                (pretty-display (format "(define simulator-racket (new ~a [machine machine]))" (get-class-name "simulator-racket")))
@@ -121,10 +123,9 @@
                      (pretty-display (format "(define encoded-start-code (send printer encode start-code))"))
                      )
                (pretty-display 
-                (format "(send search superoptimize encoded-code ~a ~a \"~a-~a\" ~a ~a ~a #:assume ~a #:input-file ~a #:start-prog ~a #:prefix encoded-prefix #:postfix encoded-postfix)" 
+                (format "(send search superoptimize encoded-code ~a \"~a-~a\" ~a ~a #:assume ~a #:input-file ~a #:start-prog ~a #:prefix encoded-prefix #:postfix encoded-postfix)" 
                         (send printer output-constraint-string live-out)
-                        (send printer output-constraint-string live-in)
-                        path id time-limit prog-size extra-info
+                        path id time-limit prog-size 
                         (send printer output-assume-string assume)
                         (if input-file (string-append "\"" input-file "\"") #f)
                         (if start-prog "encoded-start-code" #f)
@@ -151,12 +152,13 @@
           (define stats
             (for/list ([id cores])
                       (let ([name (format "~a-~a.stat" path id)])
-                        (and (file-exists? name)+
-                             (create-stat-from-file name printer)))))=
+                        (and (file-exists? name)
+                             (create-stat-from-file name printer)))))
           (with-handlers* 
            ([exn? (lambda (e) (pretty-display "Error: print stat"))])
            (when (> cores-stoch 0)
-                 (print-stat-all (filter identity (take stats cores-stoch)) printer)))
+                 (print-stat-all (filter identity (take stats cores-stoch)) printer))
+           )
 
           (define-values (cost len time id) (get-best-info dir))
           (pretty-display (format "current-time:\t~a" (- (current-seconds) t)))
@@ -171,12 +173,12 @@
         (define cores-stoch
           (cond
            [(equal? search-type `stoch) cores]
-           [(equal? search-type `hybrid) (min 3 (floor (* (/ 2 6) cores)))]
+           [(equal? search-type `hybrid) (min 3 (floor (* (/ 2 6) cores)))] ;;(min 3 (floor (* (/ 2 6) cores)))]
            [else 0]))
         (define cores-enum
           (cond
            [(equal? search-type `enum) cores]
-           [(equal? search-type `hybrid) (floor (* (/ 3 6) cores))]
+           [(equal? search-type `hybrid) (floor (* (/ 3 6) cores))] ;;(floor (* (/ 3 6) cores))]
            [else 0]
            ))
         (define cores-solver 
@@ -203,15 +205,18 @@
 
         (define processes-stoch
           (if (equal? search-type `hybrid)
-              ;; (let ([n 3])
-              ;;   (append (for/list ([id n]) 
-              ;;                     (create-and-run id `opt `stoch))
-              ;;           (for/list ([id (- cores-stoch n)]) 
-              ;;                     (create-and-run (+ n id) `syn `stoch))))
-              (begin
-                (when (> cores-stoch 0)
-                      (pretty-display (format "ID ~a-~a: stoch (optimize)" 0 (sub1 cores-stoch))))
-                (for/list ([id cores-stoch]) (create-and-run id `opt `stoch)))
+              (let ([n (min 3 cores-stoch)])
+                (pretty-display (format "ID ~a-~a: stoch (optimize)" 0 (sub1 n)))
+                (when (> cores-stoch n)
+                      (pretty-display (format "ID ~a-~a: stoch (synthesize)" n  (sub1 cores-stoch))))
+                (append (for/list ([id n]) 
+                                  (create-and-run id `opt `stoch))
+                        (for/list ([id (- cores-stoch n)]) 
+                                  (create-and-run (+ n id) `syn `stoch))))
+              ;; (begin
+              ;;   (when (> cores-stoch 0)
+              ;;         (pretty-display (format "ID ~a-~a: stoch (optimize)" 0 (sub1 cores-stoch))))
+              ;;   (for/list ([id cores-stoch]) (create-and-run id `opt `stoch)))
               (for/list ([id cores-stoch]) (create-and-run id mode `stoch))))
 
         (define processes-solver
@@ -246,9 +251,9 @@
           (cond
            [(or (equal? search-type `hybrid)
                 (and (equal? search-type `enum) (equal? mode `partial)))
-            (define n1 1)
+            (define n1 (min 1 cores-enum))
             (define n2 (floor (* (/ 8 16) cores-enum)))
-            (define n3 1)
+            (define n3 (min 1 cores-enum))
             (define n4 (if (< (+ n1 n2 n3) cores-enum) (ceiling (* (/ 2 16) cores-enum)) 0))
             (define n5 (if (< (+ n1 n2 n3 n4) cores-enum) (ceiling (* (/ 1 16) cores-enum)) 0))
             (set! n3 (- cores-enum n1 n2 n4 n5))
@@ -297,7 +302,7 @@
            ([exn:break? (lambda (e) (kill-all) (sleep 5))])
            (update-stats)
            (kill-all)))
-	
+
         ;; STEP 2: wait until timeout or optimal program is found.
         (result)
 
@@ -356,7 +361,7 @@
 
       (system "pkill -u mangpo java")
       (system "pkill -u mangpo z3")
-      (let ([decompressed-code (send printer decompress-reg-space output-code map-back)])
+      (let ([decompressed-code (send printer decompress-state-space output-code map-back)])
         (newline)
         (pretty-display "OUTPUT")
         (pretty-display "------")
@@ -364,18 +369,16 @@
         decompressed-code)
       )
 
-    (define (optimize code-org live-out live-in
+    (define (optimize code-org live-out 
                       #:assume [assume #f]
-                      #:extra-info [extra-info #f]
                       #:dir [dir "output"] 
                       #:cores [cores 8]
                       #:time-limit [time-limit 3600]
                       #:size [size #f]
                       #:input-file [input-file #f]
                       #:start-prog [start-prog #f])
-
       (if (> (vector-length code-org) 0)
-          (optimize-inner code-org live-out live-in dir cores time-limit size assume extra-info input-file start-prog)
+          (optimize-inner code-org live-out dir cores time-limit size assume input-file start-prog)
           code-org))
 
     ))

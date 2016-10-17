@@ -38,7 +38,7 @@ def main(isa):
     for c in ["machine", "simulator-racket"]:
         create(isa,c,"template/class-constructor.rkt","racket")
         
-    for c in ["parser", "printer", "stochastic", "forwardbackward", "enumerator", "inverse"]:
+    for c in ["parser", "printer", "stochastic", "forwardbackward"]:
         create(isa,c,"template/class.rkt","racket")
         
         
@@ -46,7 +46,7 @@ def main(isa):
     for c in ["simulator-rosette", "validator"]:
         create(isa,c,"template/class-constructor.rkt","s-exp rosette")
         
-    for c in ["symbolic"]:
+    for c in ["symbolic", "inverse", "enumerator"]:
         create(isa,c,"template/class.rkt","s-exp rosette")
 
 if __name__ == "__main__":

@@ -27,6 +27,9 @@
         masked
         (bitwise-ior mask masked))))
 
+(define-syntax-rule (get-field* f o) (get-field f o))
+(define-syntax-rule (is-a?* o type) (is-a? o type))
+(define-syntax-rule (send* o f ...) (send o f ...))
 
 ;;;;;;;;;;;;;;;;;;;;; assert ;;;;;;;;;;;;;;;;;;;;;;;;
 (define-syntax-rule (assert-return c message val) val)

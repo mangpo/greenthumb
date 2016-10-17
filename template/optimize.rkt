@@ -53,11 +53,8 @@
    filename))
 
 (define parser (new $-parser%))
-(define-values (live-out live-in) (send parser info-from-file (string-append file-to-optimize ".info")))
+(define live-out (send parser info-from-file (string-append file-to-optimize ".info")))
 (define code (send parser ir-from-file file-to-optimize))
 
-(optimize code
-          live-out
-          live-in
-          (search-type) (mode)
+(optimize code live-out (search-type) (mode)
           #:dir (dir) #:cores (cores) #:time-limit (time-limit))

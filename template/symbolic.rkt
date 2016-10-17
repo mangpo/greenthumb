@@ -1,19 +1,16 @@
 #lang s-exp rosette
 
-(require "../symbolic.rkt" "../inst.rkt")
+(require "../symbolic.rkt")
 
 (provide $-symbolic%)
 
 (define $-symbolic%
   (class symbolic%
     (super-new)
-    (inherit sym-op sym-arg)
-    (override len-limit gen-sym-inst)
+    (override len-limit)
 
     ;; Num of instructions that can be synthesized within a minute.
-    (define (len-limit) ?)
-
-    ;; A maximal structure of inst with (sym-op) for opcode and
-    ;; (sym-arg) for arguments.
-    (define (gen-sym-inst) ?)
+    ;; Try setting it to 3 to start and adjust it later.
+    (define (len-limit) 3)
+    
     ))

@@ -1,15 +1,15 @@
 #lang s-exp rosette
 
 (require "arm-validator.rkt" "arm-machine.rkt" "arm-printer.rkt"
-         "arm-parser.rkt" "arm-inst.rkt" "../inst.rkt"
+         "arm-parser.rkt" "../inst.rkt"
          "arm-simulator-rosette.rkt" 
          "arm-simulator-racket.rkt"
          "arm-symbolic.rkt" "arm-stochastic.rkt" 
-         "arm-forwardbackward.rkt" "arm-enumerator.rkt" "arm-inverse.rkt")
-
+         "arm-forwardbackward.rkt" "arm-enumerator.rkt" "arm-inverse.rkt"
+         )
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine% [config (list 3 0 0)]))
+(define machine (new arm-machine% [config 3]))
 
 (define printer (new arm-printer% [machine machine]))
 (define simulator-racket (new arm-simulator-racket% [machine machine]))
@@ -39,32 +39,49 @@
 
 (define code
 (send parser ir-from-string "
-	cmp	r0, r1
-	movge	r0, r1
-	ubfx	r0, r0, #15, #16
+        cmp     r0, r1
+        movcc   r0, r1
 "))
 
 
 (define sketch
 (send parser ir-from-string "
-? ? ?
+? ?
 "))
+;; p13 -O0
+;; z3: >5 min, java: 12 s
+;; rsb r1, r0, r0, lsr 1
+;; orr r0, r0, r1, asr 31
+;; p25 -O3
+;; z3: >5 min, java: 9 s
+
+(define constraint (send printer encode-live '(0)))
 
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))
 (define encoded-code (send printer encode code))
 (define encoded-sketch (send printer encode sketch))
 
+(send validator adjust-memory-config (vector-append encoded-prefix encoded-code encoded-postfix))
 
-  (send backward synthesize-window
-        encoded-code ;; spec
-        3 ;encoded-sketch ;; sketch = spec in this case
-        encoded-prefix encoded-postfix
-        (constraint machine [reg 0] [mem] [z #f]) #f #f 3600)
-#|(send stoch superoptimize encoded-code 
-      (constraint machine [reg 0] [mem]) ;; constraint
-      (constraint machine [reg 0] [mem]) ;; live-in
-      "./driver-0" 3600 #f)|#
+#;(send symbolic synthesize-window
+      encoded-code ;; spec
+      encoded-sketch ;; sketch
+      encoded-prefix encoded-postfix
+      constraint ;; live-out
+      3 ;; upperbound cost, #f = no upperbound
+      3600 ;; time limit in seconds
+      )
 
-;(require profile)
-;(profile-thunk f)
+#;(send stoch superoptimize encoded-code 
+      constraint ;; constraint
+      "./driver-0" 3600 #f)
+
+(send backward synthesize-window
+      encoded-code ;; spec
+      encoded-sketch ;; sketch => start from searching from length 1, number => only search for that length
+      encoded-prefix encoded-postfix
+      constraint ;; live-out
+      #f ;; upperbound cost, #f = no upperbound
+      3600 ;; time limit in seconds
+      )

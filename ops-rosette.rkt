@@ -21,6 +21,15 @@
                   (bitwise-ior mask masked)  
                   masked))]))
 
+(define-syntax-rule (get-field* f o)
+  (for/all ([i o]) (get-field f i)))
+
+(define-syntax-rule (is-a?* o type)
+  (for/all ([i o]) (is-a? i type)))
+
+(define-syntax-rule (send* o f ...)
+  (for/all ([i o]) (send i f ...)))
+
 ;;;;;;;;;;;;;;;;;;;;; vector ;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Use vector-copy! instead of vector-copy.

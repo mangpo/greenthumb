@@ -3,7 +3,7 @@
 (require "../inst.rkt"
          "$-parser.rkt" "$-machine.rkt" "$-printer.rkt"
          "$-simulator-rosette.rkt" 
-         ;;"$-simulator-racket.rkt"
+         "$-simulator-racket.rkt"
          "$-validator.rkt"
          "$-symbolic.rkt"
          ;;"$-stochastic.rkt"
@@ -13,7 +13,7 @@
 (define parser (new $-parser%))
 (define machine (new $-machine% [config ?]))
 (define printer (new $-printer% [machine machine]))
-;;(define simulator-racket (new $-simulator-racket% [machine machine]))
+(define simulator-racket (new $-simulator-racket% [machine machine]))
 (define simulator-rosette (new $-simulator-rosette% [machine machine]))
 (define validator (new $-validator% [machine machine] [simulator simulator-rosette]))
 
@@ -42,9 +42,13 @@ code here
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))
 
+(send validator adjust-memory-config
+      (vector-append encoded-prefix encoded-code encoded-postfix))
 
-;; Phase 0: create constriant (live-out)
-(define constraint ?)
+;; Phase 0: create constriant (live-out in program state format).
+;; constraint should be a program state that contains #t and #f,
+;; where #t indicates the corresponding element in the program state being live.
+(define constraint (progstate ?))
 
 ;; Phase A: create symbolic search (step 4)
 (define symbolic (new $-symbolic% [machine machine]
@@ -56,7 +60,6 @@ code here
       encoded-sketch
       encoded-prefix encoded-postfix
       constraint ;; live-out
-      #f ;; extra parameter (not use most of the time)
       #f ;; upperbound cost, #f = no upperbound
       3600 ;; time limit in seconds
       )
@@ -69,10 +72,9 @@ code here
                       ))
 #;(send stoch superoptimize encoded-code 
       constraint ;; live-out
-      ? ;; live-in
       "./driver-0" 
       3600 ;; time limit in seconds
-      #f   ;; extra parameter (not use most of the time)
+      #f ;; size limit
       )
 
 
@@ -88,7 +90,6 @@ code here
       encoded-sketch
       encoded-prefix encoded-postfix
       constraint ;; live-out
-      #f ;; extra parameter (not use most of the time)
       #f ;; upperbound cost, #f = no upperbound
       3600 ;; time limit in seconds
       )
