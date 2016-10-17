@@ -49,6 +49,8 @@
      no-assumption clean-code 
      get-state clone-state display-state state-eq?
      get-opcode-id get-opcode-name
+     progstate->vector vector->progstate
+     get-states-from-file parse-state-text
 
      ;; For stochastic & enumerative search
      update-live update-live-backward
@@ -66,10 +68,6 @@
      update-progstate-ins update-progstate-ins-load update-progstate-ins-store
      update-progstate-del-mem kill-outs
      is-cannonical
-     
-     ;; TODO: clean-up
-     progstate->vector vector->progstate
-     get-states-from-file parse-state-text
      )
 
     (define (get-constructor) (raise "Please implement machine:get-constructor"))

@@ -144,10 +144,10 @@ raco make test-search.rkt ../parallel-driver.rkt
 ```
 
 ## More Documentations
-- [Extending GreenThumb to a New ISA](documentations/new-isa.md)
-- [Adding more instructions to an existing superoptimizer](documentations/add-more-instructions.md)
-- [Special Objects for Program State](documentations/special-objects.md)
-- [Advanced Usage](documentations/advanced-usage.md)
+- [Extending GreenThumb to a New ISA](documentation/new-isa.md)
+- [Adding more instructions to an existing superoptimizer](documentation/add-more-instructions.md)
+- [Special Objects for Program State](documentation/special-objects.md)
+- [Advanced Usage](documentation/advanced-usage.md)
 
 
 ## Inquery and Bug Report

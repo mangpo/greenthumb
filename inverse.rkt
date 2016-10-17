@@ -156,7 +156,7 @@
          [else #f])
         ]
 
-       [else (raise "interpret-inst-backward")] ;; TODO
+       [else (raise "interpret-inst-backward: unknow case.")] ;; TODO
        ))
     
     ))
