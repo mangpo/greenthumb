@@ -143,7 +143,7 @@ For example, in `ARM` directory, run:
 raco make test-search.rkt ../parallel-driver.rkt
 ```
 
-## More Documentations
+## More Documentation
 - [Extending GreenThumb to a New ISA](documentation/new-isa.md)
 - [Adding more instructions to an existing superoptimizer](documentation/add-more-instructions.md)
 - [Special Objects for Program State](documentation/special-objects.md)
