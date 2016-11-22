@@ -13,8 +13,8 @@
     (inherit-field asm-parser asm-lexer)
     (init-field [compress? #f] [no-rename (list)])
 
-    (define-tokens a (VAR WORD NUM))
-    (define-empty-tokens b (EOF EQ COMMA HOLE))
+    (define-tokens a (VAR WORD NUM ITYPE))
+    (define-empty-tokens b (EOF EQ COMMA HOLE LT GT X))
 
     (define-lex-abbrevs
       (digit10 (char-range "0" "9"))
@@ -26,7 +26,8 @@
       (identifier (re-seq identifier-characters 
                           (re-* identifier-characters-ext)))
 
-      (var (re-: "%" (re-+ (re-or identifier-characters digit10))))
+      (var   (re-: "%" (re-+ (re-or identifier-characters digit10))))
+      (itype (re-: "i" (re-+ digit10) (re-? "*")))
       
       )
 
@@ -34,9 +35,13 @@
       (lexer-src-pos
        (","        (token-COMMA))
        ("="        (token-EQ))
+       ("<"        (token-LT))
+       (">"        (token-GT))
+       ("x"        (token-X))
        ("?"        (token-HOLE))
        (snumber10  (token-NUM lexeme))
        (var        (token-VAR lexeme))
+       (itype      (token-ITYPE lexeme))
        (identifier (token-WORD lexeme))
        (whitespace   (position-token-token (asm-lexer input-port)))
        ((eof) (token-EOF))))
@@ -57,25 +62,27 @@
        (src-pos)
        (grammar
         (words
-         (() (list))
+         ((WORD) (list $1))
          ((WORD words) (cons $1 $2)))
         
         (arg
          ((VAR) $1)
          ((NUM) $1))
-        
-        (term
-         ((words arg) (append $1 (list $2))))
-        
-        (terms 
-         ((term)             (list $1))
-         ((term COMMA terms) (cons $1 $3)))
+
+        (arg-list
+         ((arg) (list $1))
+         ((arg COMMA arg-list) (cons $1 $3)))
+
+        (type
+         ((ITYPE) $1)
+         ((LT NUM X ITYPE GT) (cons $2 $4)))
         
         (instruction
          ((HOLE)         (inst #f #f))
-         ((terms)        (convert2store $1))
-         ((VAR EQ WORD WORD COMMA term) (convert2load $3 $1 $6))
-         ((VAR EQ terms) (convert2inst $1 (car $3) (cdr $3))))
+         ((WORD type arg COMMA type arg) (convert2store $1 $2 $3 $5 $6))
+         ((VAR EQ words type COMMA type arg) (convert2load $3 $4 $1 $6 $7))
+         ((VAR EQ words type arg-list) (convert2inst $3 $4 $1 $5))
+         )
         
         (inst-list 
          (() (list))
@@ -94,53 +101,32 @@
 
     ))
 
-(define (convert2inst lhs term1 terms)
+(define (convert2inst ops type lhs args)
   (define op
-    (if (equal? (first term1) "icmp")
-	(second term1)
-	(first term1)))
-
-  (define type (second (reverse term1)))
-  (define out (last term1))
+    (if (equal? (first ops) "icmp")
+	(second ops)
+	(first ops))) ;; TODO: currently ignore terms like nuw
   
   (unless (equal? type "i32")
 	  (raise "Currently only support i32 type."))
-
-  (define args
-    (for/list ([term terms])
-	      (when (> (length term) 1)
-		    (unless (equal? (car term) "i32")
-			    (raise "Currently only support i32 type.")))
-	      (last term)))
   
-  (inst op (list->vector (cons lhs (cons out (map last terms))))))
+  (inst op (list->vector (cons lhs args))))
 
-(define (convert2store terms)
-  (define term1 (first terms))
-  (define term2 (second terms))
-
-  (define op (first term1))
-  (define type1 (second term1))
-  (define val (last term1))
-
-  (define type2 (first term2))
-  (define addr (last term2))
-
-  (unless (equal? type1 "i32")
+(define (convert2store op val-type val-arg p-type p-arg)
+  (unless (equal? val-type "i32")
+	  (raise "Currently only support i32 type."))
+  (unless (equal? p-type "i32*")
 	  (raise "Currently only support i32 type."))
 
-  (unless (equal? type2 "i32*")
+  (inst op (vector val-arg p-arg)))
+
+(define (convert2load ops dest-type dest-arg p-type p-arg)
+  (unless (equal? dest-type "i32")
+	  (raise "Currently only support i32 type."))
+  (unless (equal? p-type "i32*")
 	  (raise "Currently only support i32 type."))
 
-  (inst op (vector val addr)))
-
-(define (convert2load op dest term)
-  (define type (first term))
-
-  (unless (equal? type "i32*")
-	  (raise "Currently only support i32 type."))
-
-  (inst op (vector dest (last term))))
+  (inst (car ops) (vector dest-arg p-arg)))
 
 (define all-names (set))      
 

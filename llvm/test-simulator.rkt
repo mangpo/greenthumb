@@ -3,7 +3,7 @@
 (require "llvm-parser.rkt" "llvm-printer.rkt" "llvm-machine.rkt"
          "llvm-simulator-rosette.rkt"
          "llvm-simulator-racket.rkt"
-         "../memory-racket.rkt")
+         "../memory-racket.rkt" "../validator.rkt")
 
 ;; Phase 0: Set up bitwidth for Rosette
 (current-bitwidth 32)
@@ -41,9 +41,6 @@ store i32 %1, i32* %2
 
 ;; Phase C: Interpret concrete program with symbolic inputs
 (pretty-display "Phase C: interpret concrete program with symbolic inputs.")
-(define (sym-input)
-  (define-symbolic* in number?)
-  in)
 
 (define input-state-sym (send machine get-state sym-input))
 (define out-sym (send simulator-rosette interpret encoded-code input-state-sym))
