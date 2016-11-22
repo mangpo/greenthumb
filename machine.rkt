@@ -7,7 +7,7 @@
 (define debug #f)
 (struct instclass (opcodes pool args ins outs commute) #:mutable)
 (struct argtype (validfunc valid statetype) #:mutable)
-(struct statetype (get set min max const))
+(struct statetype (get set min max const structure))
 
 (define machine%
   (class object%
@@ -145,6 +145,16 @@
     (define (reset-opcode-pool) (void))
 
     (define (get-state init #:concrete [concrete #t])
+      (define (recursive-init structure init-min init-max init-const)
+        (define (inner x)
+          (cond
+           [(symbol? x) (init #:min init-min #:max init-max #:const init-const)]
+           [(vector? x) (for/vector ([xi x]) (inner xi))]
+           [(list? x) (for/list ([xi x]) (inner xi))]
+           [(pair? x) (cons (inner (car x)) (inner (cdr x)))]
+           [else (raise "Program state uses unknown data strucutures (beyound vector, list, and pair)")]))
+        (inner structure))
+      
       (define progstate (progstate-structure))
 
       (define (inner x)
@@ -157,7 +167,10 @@
           (new (if concrete queue-out-racket% queue-out-rosette%) [get-fresh-val init])]
          [(symbol? x)
           (define info (hash-ref statetypes-info x))
-          (init #:min (statetype-min info) #:max (statetype-max info) #:const (statetype-const info))]
+          (recursive-init (statetype-structure info)
+                          (statetype-min info)
+                          (statetype-max info)
+                          (statetype-const info))]
          [(vector? x) (for/vector ([xi x]) (inner xi))]
          [(list? x) (for/list ([xi x]) (inner xi))]
          [(pair? x) (cons (inner (car x)) (inner (cdr x)))]
@@ -380,8 +393,9 @@
           (map (lambda (x) (vector-member x opcodes)) opcodes-groups)))
 
     (define (define-progstate-type name #:get [get #f] #:set [set #f]
-              #:min [min #f] #:max [max #f] #:const [const #f])
-      (hash-set! statetypes-info name (statetype get set min max const)))
+              #:min [min #f] #:max [max #f] #:const [const #f]
+              #:structure [st 'x])
+      (hash-set! statetypes-info name (statetype get set min max const st)))
 
     (define (define-arg-type name validfunc #:progstate [state name])
       (hash-set! argtypes-info name (argtype validfunc #f state)))

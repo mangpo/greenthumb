@@ -39,3 +39,8 @@
   (if (= len 1)
       (vector-ref vec 0)
       (inner)))
+
+
+(struct pointer (type))
+(define-syntax-rule (pointer-type? p t)
+  (and (pointer? p) (equal? (pointer-type p) t)))

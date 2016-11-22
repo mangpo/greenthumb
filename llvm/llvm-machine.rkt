@@ -2,7 +2,20 @@
 
 (require "../machine.rkt" "../special.rkt")
 
-(provide llvm-machine%)
+(provide llvm-machine% (all-defined-out))
+
+;; define progstate macro
+(define-syntax-rule
+  (progstate var vec4 mem)
+  (vector var vec4 mem))
+
+(define-syntax-rule (progstate-var x) (vector-ref x 0))
+(define-syntax-rule (progstate-vec4 x) (vector-ref x 1))
+(define-syntax-rule (progstate-memory x) (vector-ref x 2))
+
+(define-syntax-rule (set-progstate-var! x v) (vector-set! x 0 v))
+(define-syntax-rule (set-progstate-vec4! x v) (vector-set! x 1 v))
+(define-syntax-rule (set-progstate-memory! x v) (vector-set! x 2 v))
 
 (define llvm-machine%
   (class machine%
@@ -24,21 +37,30 @@
     ;;;;;;;;;;;;;;;;;;;;; program state ;;;;;;;;;;;;;;;;;;;;;;;;
 
     (define (progstate-structure)
-      (vector (for/vector ([i config]) 'var)
-              (get-memory-type)))
+      (progstate (for/vector ([i (car config)]) 'var)
+                 (for/vector ([i (cdr config)]) 'vec4)
+                 (get-memory-type)))
 
+    ;; keep track of liveness at the level of program state element unit
     (define-progstate-type
       'var 
-      #:get (lambda (state arg) (vector-ref (vector-ref state 0) arg))
-      #:set (lambda (state arg val) (vector-set! (vector-ref state 0) arg val)))
+      #:get (lambda (state arg) (vector-ref (progstate-var state) arg))
+      #:set (lambda (state arg val) (vector-set! (progstate-var state) arg val)))
+
+    (define-progstate-type
+      'vec4
+      #:structure (for/vector ([i 4]) 'x) ;; a vector contains 4 primitive elements
+      #:get (lambda (state arg) (vector-ref (progstate-vec4 state) arg))
+      #:set (lambda (state arg val) (vector-set! (progstate-vec4 state) arg val)))
 
     (define-progstate-type
       (get-memory-type)
-      #:get (lambda (state) (vector-ref state 1))
-      #:set (lambda (state val) (vector-set! state 1 val)))
+      #:get (lambda (state) (progstate-memory state))
+      #:set (lambda (state val) (set-progstate-memory! state val)))
 
     ;;;;;;;;;;;;;;;;;;;;; instruction classes ;;;;;;;;;;;;;;;;;;;;;;;;
-    (define-arg-type 'var (lambda (config) (range config)))
+    (define-arg-type 'var (lambda (config) (range (car config))))
+    (define-arg-type 'vec4 (lambda (config) (range (cdr config))))
     (define-arg-type 'const (lambda (config) '(0 1 -1 -2 -8)))
     (define-arg-type 'bit (lambda (config) '(0 1)))
     
@@ -49,6 +71,15 @@
      'rrr-commute
      '(and or xor add)
      #:args '(var var var)
+     #:ins '(1 2)
+     #:outs '(0)
+     #:commute '(1 . 2)
+     )
+
+    (define-instruction-class
+     'rrr-commute-vec4
+     '(and_v4 add_v4)
+     #:args '(vec4 vec4 vec4)
      #:ins '(1 2)
      #:outs '(0)
      #:commute '(1 . 2)

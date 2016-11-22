@@ -14,7 +14,7 @@
     (init-field [compress? #f] [no-rename (list)])
 
     (define-tokens a (VAR WORD NUM ITYPE))
-    (define-empty-tokens b (EOF EQ COMMA HOLE LT GT X))
+    (define-empty-tokens b (EOF EQ COMMA HOLE LT GT X STAR))
 
     (define-lex-abbrevs
       (digit10 (char-range "0" "9"))
@@ -39,6 +39,7 @@
        (">"        (token-GT))
        ("x"        (token-X))
        ("?"        (token-HOLE))
+       ("*"        (token-STAR))
        (snumber10  (token-NUM lexeme))
        (var        (token-VAR lexeme))
        (itype      (token-ITYPE lexeme))
@@ -73,15 +74,28 @@
          ((arg) (list $1))
          ((arg COMMA arg-list) (cons $1 $3)))
 
-        (type
-         ((ITYPE) $1)
+        (base-type
+         ((ITYPE) (convert-type $1))
          ((LT NUM X ITYPE GT) (cons $2 $4)))
+
+        (type
+         ((base-type) $1)
+         ((base-type STAR) (pointer $1)))
+
+        (type-arg
+         ((type arg) (cons $1 $2)))
+
+        (type-arg-list
+         ((type-arg) $1)
+         ((type-arg COMMA type-arg-list) (cons $1 $3)))
         
         (instruction
          ((HOLE)         (inst #f #f))
          ((WORD type arg COMMA type arg) (convert2store $1 $2 $3 $5 $6))
          ((VAR EQ words type COMMA type arg) (convert2load $3 $4 $1 $6 $7))
          ((VAR EQ words type arg-list) (convert2inst $3 $4 $1 $5))
+         ((VAR EQ words type-arg-list) (convert2inst $3 $1 $4))
+         ;; <result> = shufflevector <4 x i32> %v1, <4 x i32> %v2, <4 x i32> <i32 0, i32 4, i32 1, i32 5>
          )
         
         (inst-list 
@@ -101,21 +115,47 @@
 
     ))
 
+(define (convert-type t)
+  (define len (string-length t))
+  (if (equal? "*" (substring t (sub1 len) len))
+      (pointer (substring t 0 (sub1 len)))
+      t))
+
 (define (convert2inst ops type lhs args)
   (define op
     (if (equal? (first ops) "icmp")
 	(second ops)
 	(first ops))) ;; TODO: currently ignore terms like nuw
+
+  (define args-vec (list->vector (cons lhs args)))
+  (cond
+   [(equal? type "i32") (inst op args-vec)]
+   [(and (pair? type) (equal? (cdr type) "i32")) (inst (format "~a_v~a" op (car type)) args-vec)]
+   [else (raise "Currently only support i32 type.")]))
+
+(define (convert2inst-type-arg ops lhs type-arg-list)
   
-  (unless (equal? type "i32")
-	  (raise "Currently only support i32 type."))
+  (define op
+    (if (equal? (first ops) "icmp")
+	(second ops)
+	(first ops))) ;; TODO: currently ignore terms like nuw
+
+  (define types
+    (for/list
+     ([type-arg type-arg-list])
+     (let ([type (car type-arg)])
+       (cond
+        [(equal? type "i32") "s"]
+        [(and (pair? type) (equal? (cdr type "i32"))) (format "v~a" (car type))]
+        [else (raise "Currently only support i32 type.")]))))
   
-  (inst op (list->vector (cons lhs args))))
+  (inst (format "~a_~a" op (string-join "_" types))
+        (list->vector (cons lhs (map cdr type-arg-list)))))
 
 (define (convert2store op val-type val-arg p-type p-arg)
   (unless (equal? val-type "i32")
 	  (raise "Currently only support i32 type."))
-  (unless (equal? p-type "i32*")
+  (unless (pointer-type? p-type "i32")
 	  (raise "Currently only support i32 type."))
 
   (inst op (vector val-arg p-arg)))
@@ -123,7 +163,7 @@
 (define (convert2load ops dest-type dest-arg p-type p-arg)
   (unless (equal? dest-type "i32")
 	  (raise "Currently only support i32 type."))
-  (unless (equal? p-type "i32*")
+  (unless (pointer-type? p-type "i32")
 	  (raise "Currently only support i32 type."))
 
   (inst (car ops) (vector dest-arg p-arg)))

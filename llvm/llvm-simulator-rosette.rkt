@@ -1,6 +1,6 @@
 #lang s-exp rosette
 
-(require "../simulator-rosette.rkt" "../ops-rosette.rkt" "../inst.rkt")
+(require "../simulator-rosette.rkt" "../ops-rosette.rkt" "../inst.rkt" "llvm-machine.rkt")
 (provide llvm-simulator-rosette%)
 
 (define llvm-simulator-rosette%
@@ -44,20 +44,29 @@
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
     (define (interpret program state [ref #f])
-      (define out (vector-copy (vector-ref state 0)))
-      (define mem (vector-ref state 1))
-      (set! mem (and mem (send* mem clone (and ref (vector-ref ref 1)))))
+      (define out (vector-copy (progstate-var state)))
+      (define out-vec4
+        (for/vector ([vec (progstate-vec4 state)])
+                    (vector-copy vec)))
+      (define mem (progstate-memory state))
+      (set! mem (and mem (send* mem clone (and ref (progstate-memory ref)))))
 
       (define (interpret-step step)
         (define op (inst-op step))
         (define args (inst-args step))
 
+        (define (apply-scalar f val1 val2)
+          (cond
+           [(vector? val1)
+            (for/vector ([v1 val1] [v2 val2]) (f v1 v2))]
+           [else (f val1 val2)]))
+
         ;; sub add
-        (define (rrr f)
+        (define (rrr f [out out])
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
           (define b (vector-ref args 2))
-          (define val (f (vector-ref out a) (vector-ref out b)))
+          (define val (apply-scalar f (vector-ref out a) (vector-ref out b)))
           (vector-set! out d val))
         
         ;; subi addi
@@ -111,6 +120,10 @@
          [(inst-eq `lshr) (rrr bvushr)]
          [(inst-eq `ashr) (rrr bvshr)]
          [(inst-eq `shl)  (rrr bvshl)]
+
+         ;; rrr (vector)
+         [(inst-eq `add_v4) (rrr bvadd out-vec4)]
+         [(inst-eq `and_v4) (rrr bitwise-and out-vec4)]
          
          ;; rri
          [(inst-eq `add#) (rri bvadd)]
@@ -146,7 +159,7 @@
       (for ([x program])
            (interpret-step x))
 
-      (vector out mem)
+      (vector out out-vec4 mem)
       )
 
     (define (performance-cost program)

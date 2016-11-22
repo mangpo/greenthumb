@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../simulator-racket.rkt" "../ops-racket.rkt" "../inst.rkt")
+(require "../simulator-racket.rkt" "../ops-racket.rkt" "../inst.rkt" "llvm-machine.rkt")
 (provide llvm-simulator-racket%)
 
 (define llvm-simulator-racket%
@@ -44,9 +44,10 @@
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
     (define (interpret program state [ref #f])
-      (define out (vector-copy (vector-ref state 0)))
-      (define mem (vector-ref state 1))
-      (set! mem (and mem (send mem clone (and ref (vector-ref ref 1)))))
+      (define out (vector-copy (progstate-var state)))
+      (define out-vec4 (vector-copy (progstate-vec4 state)))
+      (define mem (progstate-memory state))
+      (set! mem (and mem (send mem clone (and ref (progstate-memory ref)))))
 
       (define (interpret-step step)
         (define op (inst-op step))
@@ -146,7 +147,7 @@
       (for ([x program])
            (interpret-step x))
 
-      (vector out mem)
+      (vector out out-vec4 mem)
       )
 
     (define (performance-cost code)

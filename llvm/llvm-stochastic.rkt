@@ -20,13 +20,13 @@
     ;; state1: expected in progstate format
     ;; state2: actual in progstate format
     (define (correctness-cost state1 state2 constraint)
-      (+ (correctness-cost-base (vector-ref state1 0)
-                                (vector-ref state2 0)
-                                (vector-ref constraint 0)
+      (+ (correctness-cost-base (progstate-var state1)
+                                (progstate-var state2)
+                                (progstate-var constraint)
                                 diff-cost)
          (if (vector-ref constraint 1)
-             (send (vector-ref state1 1) correctness-cost
-                   (vector-ref state2 1) diff-cost bit)
+             (send (progstate-memory state1) correctness-cost
+                   (progstate-memory state2) diff-cost bit)
              0)))
 
     ))

@@ -370,7 +370,9 @@
 	 [(and (vector? x) (vector? pred)) 
 	  (for/vector ([i x] [p pred]) (extract-live p i))]
          [(vector? x) 
-	  (for/vector ([i x]) (extract-live pred i))]
+	  (for/or ([i x]) (extract-live pred i))]
+         ;; [(vector? x) 
+	 ;;  (for/vector ([i x]) (extract-live pred i))]
          ;; [(boolean? pred) ;;(pretty-display `(return ,pred)) 
 	 ;;  pred]
          [(pair? x) 

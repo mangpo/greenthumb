@@ -1,3 +1,10 @@
+TODO
+- point-wise var, const
+- test get-live-in
+- symbolic, stoch
+- backward
+- llvm config (cons var vec4)
+
 Features
 - vector
   = point-wise vector
