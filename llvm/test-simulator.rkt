@@ -11,18 +11,23 @@
 ;; Phase A: Test machine, parser, printer (step 1 & 2)
 (pretty-display "Phase A: test machine, parser, and printer.")
 (define parser (new llvm-parser%))
-(define machine (new llvm-machine% [config (cons 4 4)]))
+(define machine (new llvm-machine% [config (cons 4 1)]))
 (define printer (new llvm-printer% [machine machine]))
 
 ;; clear 3 lowest bits.
 (define code
 (send parser ir-from-string "
-%1 = add <4 x i32> %1, %2
+%1 = load i32, i32* %2
+%1 = add i32 %1, 1
+store i32 %1, i32* %2
+%v = add <4 x i32> %v, <i32 0, i32 1, i32 2, i32 3>
 "))
 
 ;%1 = load i32, i32* %2
 ;%1 = add i32 %1, 1
 ;store i32 %1, i32* %2
+
+;%1 = add <4 x i32> %1, %2
 
 (send printer print-struct code)
 (send printer print-syntax code)

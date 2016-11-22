@@ -4,6 +4,7 @@ TODO
 - symbolic, stoch
 - backward
 - llvm config (cons var vec4)
+- document #:structure, get-sym-inst
 
 Features
 - vector

@@ -63,6 +63,9 @@
     (define-arg-type 'vec4 (lambda (config) (range (cdr config))))
     (define-arg-type 'const (lambda (config) '(0 1 -1 -2 -8)))
     (define-arg-type 'bit (lambda (config) '(0 1)))
+    (define-arg-type 'const-vec4
+      (lambda (config) (list (vector 0 0 0 0)
+                             (vector 1 1 1 1))))
     
     (init-machine-description 1)
     (define-instruction-class 'nop '(nop))
@@ -78,7 +81,7 @@
 
     (define-instruction-class
      'rrr-commute-vec4
-     '(and_v4 add_v4)
+     '(add_v4)
      #:args '(vec4 vec4 vec4)
      #:ins '(1 2)
      #:outs '(0)
@@ -98,6 +101,13 @@
      #:args '(var var const)
      ;; Input arguments that related to program state + additional input related to program state
      ;; Exclude the 3rd argument because it is not related to program state.
+     #:ins '(1)   
+     #:outs '(0))
+
+    (define-instruction-class
+     'rri-vec4
+     '(add_v4#)
+     #:args '(vec4 vec4 const-vec4)
      #:ins '(1)   
      #:outs '(0))
 

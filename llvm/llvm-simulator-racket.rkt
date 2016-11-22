@@ -45,28 +45,36 @@
     ;; state: initial progstate
     (define (interpret program state [ref #f])
       (define out (vector-copy (progstate-var state)))
-      (define out-vec4 (vector-copy (progstate-vec4 state)))
+      (define out-vec4
+        (for/vector ([vec (progstate-vec4 state)])
+                    (vector-copy vec)))
       (define mem (progstate-memory state))
-      (set! mem (and mem (send mem clone (and ref (progstate-memory ref)))))
+      (set! mem (and mem (send* mem clone (and ref (progstate-memory ref)))))
 
       (define (interpret-step step)
         (define op (inst-op step))
         (define args (inst-args step))
 
+        (define (apply-scalar f val1 val2)
+          (cond
+           [(vector? val1)
+            (for/vector ([v1 val1] [v2 val2]) (f v1 v2))]
+           [else (f val1 val2)]))
+
         ;; sub add
-        (define (rrr f)
+        (define (rrr f [out out])
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
           (define b (vector-ref args 2))
-          (define val (f (vector-ref out a) (vector-ref out b)))
+          (define val (apply-scalar f (vector-ref out a) (vector-ref out b)))
           (vector-set! out d val))
         
         ;; subi addi
-        (define (rri f)
+        (define (rri f [out out])
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
           (define b (vector-ref args 2))
-          (define val (f (vector-ref out a) b))
+          (define val (apply-scalar f (vector-ref out a) b))
           (vector-set! out d val))
         
         ;; subi addi
@@ -87,12 +95,12 @@
         (define (load)
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
-          (vector-set! out d (send mem load (vector-ref out a))))
+          (vector-set! out d (send* mem load (vector-ref out a))))
 
         (define (store)
           (define val (vector-ref args 0))
           (define addr (vector-ref args 1))
-          (send mem store (vector-ref out addr) (vector-ref out val))) 
+          (send* mem store (vector-ref out addr) (vector-ref out val))) 
       
         (define-syntax inst-eq
           (syntax-rules ()
@@ -112,6 +120,9 @@
          [(inst-eq `lshr) (rrr bvushr)]
          [(inst-eq `ashr) (rrr bvshr)]
          [(inst-eq `shl)  (rrr bvshl)]
+
+         ;; rrr (vector)
+         [(inst-eq `add_v4) (rrr bvadd out-vec4)]
          
          ;; rri
          [(inst-eq `add#) (rri bvadd)]
@@ -124,6 +135,9 @@
          [(inst-eq `lshr#) (rri bvushr)]
          [(inst-eq `ashr#) (rri bvshr)]
          [(inst-eq `shl#)  (rri bvshl)]
+         
+         ;; rri (vector)
+         [(inst-eq `add_v4#) (rri bvadd out-vec4)]
          
          ;; rir
          ;; [(inst-eq `_add) (rir bvadd)]
@@ -150,9 +164,9 @@
       (vector out out-vec4 mem)
       )
 
-    (define (performance-cost code)
+    (define (performance-cost program)
       (define cost 0)
-      (for ([x code])
+      (for ([x program])
 	   (unless (= (inst-op x) nop-id) (set! cost (add1 cost))))
       cost)
     

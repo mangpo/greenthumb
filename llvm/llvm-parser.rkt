@@ -65,10 +65,18 @@
         (words
          ((WORD) (list $1))
          ((WORD words) (cons $1 $2)))
+
+        (type-num
+         ((ITYPE NUM) (cons $1 $2)))
+
+        (type-num-list
+         ((type-num) (list $1))
+         ((type-num COMMA type-num-list) (cons $1 $3)))
         
         (arg
          ((VAR) $1)
-         ((NUM) $1))
+         ((NUM) $1)
+         ((LT type-num-list GT) $2))
 
         (arg-list
          ((arg) (list $1))
@@ -121,16 +129,33 @@
       (pointer (substring t 0 (sub1 len)))
       t))
 
+(define (compress-vector-args args type-ref)
+  (for/list
+    ([arg args])
+    (cond
+     [(string? arg) arg]
+     [(list? arg)
+      (for/vector ([type-num arg])
+                  (let ([type (car type-num)]
+                        [num (cdr type-num)])
+                    ;; check type
+                    (unless (equal? type-ref type)
+                            (raise (format "Type mismatch at constant vector ~a." arg)))
+                    ;; only keep number
+                    num))]
+     [else (raise (format "Cannot parse operand ~a." arg))])))
+
 (define (convert2inst ops type lhs args)
   (define op
     (if (equal? (first ops) "icmp")
 	(second ops)
 	(first ops))) ;; TODO: currently ignore terms like nuw
 
-  (define args-vec (list->vector (cons lhs args)))
   (cond
-   [(equal? type "i32") (inst op args-vec)]
-   [(and (pair? type) (equal? (cdr type) "i32")) (inst (format "~a_v~a" op (car type)) args-vec)]
+   [(equal? type "i32") (inst op (list->vector (cons lhs args)))]
+   [(and (pair? type) (equal? (cdr type) "i32"))   
+    (inst (format "~a_v~a" op (car type))
+          (list->vector (cons lhs (compress-vector-args args "i32"))))]
    [else (raise "Currently only support i32 type.")]))
 
 (define (convert2inst-type-arg ops lhs type-arg-list)
@@ -222,6 +247,7 @@
                  (let ([arg (vector-ref args i)])
                    (cond
                     [(or (= i 0) ;; output of this inst
+                         (vector? arg) ;; constant vector
 			 (not (equal? (substring arg 0 1) "%")) ;; constant
                          (set-member? all-names arg) ;; name is in the set
                          ;;(use-after arg i)
