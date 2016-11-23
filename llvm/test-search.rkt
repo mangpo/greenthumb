@@ -78,9 +78,10 @@ store i32 %1, i32* %2
 
 (define code
 (send parser ir-from-string "
-%out = add <4 x i32> %1, <i32 0, i32 0, i32 0, i32 0>
-%out = add <4 x i32> %1, <i32 0, i32 1, i32 2, i32 3>
+%out = add <4 x i32> %1, %2
 "))
+
+;%out = add <4 x i32> %1, <i32 0, i32 1, i32 2, i32 3>
 
 ;; Define search space of candidate programs.
 ;; # of ?'s = # of instructions in a candidate program.
@@ -108,7 +109,7 @@ store i32 %1, i32* %2
                       [parser parser]
                       [validator validator] [simulator simulator-rosette]))
 
-(send symbolic synthesize-window
+#;(send symbolic synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch
       encoded-prefix encoded-postfix
@@ -134,7 +135,7 @@ store i32 %1, i32* %2
                       [inverse% llvm-inverse%]
                       [enumerator% llvm-enumerator%]
                       [syn-mode `linear]))
-#;(send backward synthesize-window
+(send backward synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch => start from searching from length 1, number => only search for that length
       encoded-prefix encoded-postfix

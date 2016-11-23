@@ -131,6 +131,10 @@
           (for/vector ([s state]
                        [l (in-naturals)])
                       (and (< l live) s))]
+         [(is-a? state memory-racket%)
+          (if live state (send state clone-init))]
+         [(is-a? state special%) state]
+         [(boolean? live) (and live state)] ;; TODO: add this case
          [(list? state)
           (for/list ([s state]
                      [l live])
@@ -141,9 +145,6 @@
                       (f s l))]
          [(pair? state)
           (cons (f (car state) (car live)) (f (cdr state) (cdr live)))]
-         [(is-a? state memory-racket%)
-          (if live state (send state clone-init))]
-         [(is-a? state special%) state]
          [else (and live state)]))
       (if live
           (f state live)

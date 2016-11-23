@@ -25,6 +25,7 @@
      [statetypes-info (make-hash)]    ;; Map from state type to state type info
      [groups-of-opcodes #f]
      [max-number-of-args 0]
+     [vector2scalar (make-hash)]
 
      ;; Fields to be set by method 'analyze-opcode'
      [opcode-pool #f]        ;; Opcodes to be considered during synthesis.
@@ -223,6 +224,7 @@
     ;;      where sublist i corresponds to opcodes in group i.
     ;;      (see ARM for an example)
     (define (define-instruction-class name class-opcodes
+              #:scalar [scalar #f] #:vector-width [vector-width #f]
               #:args [args '()] #:ins [ins '()] #:outs [outs '()] #:commute [commute #f]
               #:required [required (list)])
       (unless opcodes
@@ -242,6 +244,8 @@
       (cond
        ;; if opcodes is a list of lists
        [(> groups-of-opcodes 1)
+        (when scalar
+              (raise "define-instruction-class does not support defining vector instructions with opcode groups > 1."))
         (when (symbol? (car class-opcodes))
               (set! class-opcodes (list class-opcodes))
               (set! args (list args))
@@ -290,7 +294,17 @@
         ;; insert instruction class
         (set! classes-info
               (cons (instclass class-opcodes #f (list->vector args) ins outs commute)
-                    classes-info))])
+                    classes-info))
+
+        ;; map vector opcode to scalar opcode
+        (when scalar
+              (unless
+               (= (length class-opcodes) (length scalar))
+               (raise "Number of vector opcodes is not equal to number of corresponding scalar opcodes."))
+              (for ([v class-opcodes]
+                    [s scalar])
+                   (hash-set! vector2scalar v (cons s vector-width))))
+        ])
       
       ;;(pretty-display (format "[DEFINE] class=~a | args=~a ins=~a outs=~a" name args ins outs))
       )
@@ -444,6 +458,15 @@
                        (when nop-ops-vec (raise "'nop' cannot be in multiple instruction classes."))
                        (set! nop-ops-vec ops-vec)))
             (set! nop-id nop-ops-vec))
+
+      ;; convert to id domain
+      (define new-vector2scalar (make-hash))
+      (for ([pair (hash->list vector2scalar)])
+           (hash-set! new-vector2scalar (get-opcode-id (car pair))
+                        (cons
+                         (get-opcode-id (cadr pair))
+                         (cddr pair))))
+      (set! vector2scalar new-vector2scalar)
 
       (when debug
             (pretty-display `(opcodes ,opcodes))

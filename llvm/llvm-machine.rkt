@@ -82,6 +82,7 @@
     (define-instruction-class
      'rrr-commute-vec4
      '(add_v4)
+     #:scalar '(add) #:vector-width 4
      #:args '(vec4 vec4 vec4)
      #:ins '(1 2)
      #:outs '(0)
@@ -107,6 +108,7 @@
     (define-instruction-class
      'rri-vec4
      '(add_v4#)
+     #:scalar '(add#) #:vector-width 4
      #:args '(vec4 vec4 const-vec4)
      #:ins '(1)   
      #:outs '(0))
