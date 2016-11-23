@@ -78,6 +78,7 @@ store i32 %1, i32* %2
 
 (define code
 (send parser ir-from-string "
+%out = add <4 x i32> %1, <i32 0, i32 0, i32 0, i32 0>
 %out = add <4 x i32> %1, %2
 "))
 

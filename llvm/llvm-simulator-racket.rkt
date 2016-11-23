@@ -47,7 +47,7 @@
       (define out (vector-copy (progstate-var state)))
       (define out-vec4
         (for/vector ([vec (progstate-vec4 state)])
-                    (vector-copy vec)))
+                    (and vec (vector-copy vec))))
       (define mem (progstate-memory state))
       (set! mem (and mem (send* mem clone (and ref (progstate-memory ref)))))
 
@@ -56,26 +56,41 @@
         (define args (inst-args step))
 
         (define (apply-scalar f val1 val2)
-          (cond
-           [(vector? val1)
-            (for/vector ([v1 val1] [v2 val2]) (f v1 v2))]
-           [else (f val1 val2)]))
+          (for/vector ([i (vector-length val1)])
+                      (f (vector-ref val1 i) (vector-ref val2 i))))
 
         ;; sub add
-        (define (rrr f [out out])
+        (define (rrr f)
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
           (define b (vector-ref args 2))
-          (define val (apply-scalar f (vector-ref out a) (vector-ref out b)))
+          (define val (f (vector-ref out a) (vector-ref out b)))
+          (vector-set! out d val))
+
+        ;; sub add
+        (define (rrr-vec f)
+          (define d (vector-ref args 0))
+          (define a (vector-ref args 1))
+          (define b (vector-ref args 2))
+          (define val (apply-scalar f (vector-ref out-vec4 a) (vector-ref out-vec4 b)))
+          (vector-set! out-vec4 d val)
+          )
+        
+        ;; subi addi
+        (define (rri f)
+          (define d (vector-ref args 0))
+          (define a (vector-ref args 1))
+          (define b (vector-ref args 2))
+          (define val (f (vector-ref out a) b))
           (vector-set! out d val))
         
         ;; subi addi
-        (define (rri f [out out])
+        (define (rri-vec f)
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
           (define b (vector-ref args 2))
-          (define val (apply-scalar f (vector-ref out a) b))
-          (vector-set! out d val))
+          (define val (apply-scalar f (vector-ref out-vec4 a) b))
+          (vector-set! out-vec4 d val))
         
         ;; subi addi
         (define (rir f)
@@ -122,7 +137,7 @@
          [(inst-eq `shl)  (rrr bvshl)]
 
          ;; rrr (vector)
-         [(inst-eq `add_v4) (rrr bvadd out-vec4)]
+         [(inst-eq `add_v4) (rrr-vec bvadd)]
          
          ;; rri
          [(inst-eq `add#) (rri bvadd)]
@@ -137,7 +152,7 @@
          [(inst-eq `shl#)  (rri bvshl)]
          
          ;; rri (vector)
-         [(inst-eq `add_v4#) (rri bvadd out-vec4)]
+         [(inst-eq `add_v4#) (rri-vec bvadd)]
          
          ;; rir
          ;; [(inst-eq `_add) (rir bvadd)]

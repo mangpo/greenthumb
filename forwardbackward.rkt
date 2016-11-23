@@ -45,12 +45,12 @@
             change-inst change-inst-list
             mask-in get-live-mask prescreen)
 
-    ;; (define (debug-inst my-inst)
-    ;;   (and (equal? (inst-op my-inst) 3)))
+    (define (debug-inst my-inst)
+      (and (equal? (inst-op my-inst) 5)))
     
-    (define debug #f)
-    (define verbo #f)
-    (define info #f)
+    (define debug #t)
+    (define verbo #t)
+    (define info #t)
     (define ce-limit 100)
 
     ;; Actual bitwidth
@@ -866,9 +866,9 @@
 	     (vector-set! cache i (make-hash)))
 
         (define (outer my-classes candidates level)
-	  ;; (when (debug-inst my-inst)
-          ;;       (newline)
-	  ;; 	(pretty-display `(outer ,level ,candidates)))
+	  (when (debug-inst my-inst)
+                (newline)
+	  	(pretty-display `(outer ,level ,candidates)))
 	  (define my-classes-bw-level (vector-ref my-classes-bw level))
 	  (define cache-level (vector-ref cache level))
           (define real-hash my-classes)
@@ -934,9 +934,9 @@
             (define t1 (current-milliseconds))
             (set! t-intersect (+ t-intersect (- t1 t0)))
             (set! c-intersect (add1 c-intersect))
-	    ;; (when (debug-inst my-inst)
-            ;;        (pretty-display `(inner ,level ,(length inters-fw)))
-            ;;       )
+	    (when (debug-inst my-inst)
+                   (pretty-display `(inner ,level ,(length inters-fw)))
+                  )
 
             (for ([inter inters-fw])
               (let ([t0 (current-milliseconds)]
@@ -955,9 +955,9 @@
                                    ce-out-level)))]
                            [s2 (current-milliseconds)]
                            )
-                      ;; (when (debug-inst my-inst)
-                      ;;       (pretty-display `(inter ,level ,inter))
-                      ;;       (pretty-display `(out ,out)))
+                      (when (debug-inst my-inst)
+                            (pretty-display `(inter ,level ,inter))
+                            (pretty-display `(out ,out)))
                             
 		      (set! out-vec (and out (mask-in (send machine progstate->vector out) my-live2)))
 		      ;;(set! out-vec (and out (send machine progstate->vector out)))
@@ -970,10 +970,10 @@
 		  (set! c-interpret (add1 c-interpret))
                   )
 
-                ;; (when (debug-inst my-inst)
-                ;;       (pretty-display `(my-live2 ,my-live2))
-                ;;       ;;(pretty-display `(out-vec ,out-vec))
-                ;;       )
+                (when (debug-inst my-inst)
+                      (pretty-display `(my-live2 ,my-live2))
+                      ;;(pretty-display `(out-vec ,out-vec))
+                      )
 
 		(when 
 		 out-vec
@@ -981,8 +981,8 @@
                        ;; TODO use out instead of out-vec?
                        [s0 (current-milliseconds)])
 
-                   ;; (when (debug-inst my-inst)
-                   ;;       (pretty-display `(prune ,prune ,(hash-has-key? my-classes-bw-level prune))))
+                   (when (debug-inst my-inst)
+                         (pretty-display `(prune ,prune ,(hash-has-key? my-classes-bw-level prune))))
 		   (when
 		    (hash-has-key? my-classes-bw-level prune)
 		    (let* ([pairs (hash->list (hash-ref my-classes-bw-level prune))]
@@ -991,10 +991,10 @@
 			   (let* ([t0 (current-milliseconds)]
 				  [live-mask (car pair)]
 				  [classes (cdr pair)]
-                                  ;; [_ (when (debug-inst my-inst)
-                                  ;;          (pretty-display `(live-mask ,level ,live-mask))
-                                  ;;          (pretty-display `(KEYS ,level ,(hash-keys classes)))
-                                  ;;          )]
+                                  [_ (when (debug-inst my-inst)
+                                           (pretty-display `(live-mask ,level ,live-mask))
+                                           (pretty-display `(KEYS ,level ,(hash-keys classes)))
+                                           )]
 				  [out-vec-masked 
 				   (if (or (and try-cmp (not (equal? live-mask my-live2)))
                                            (not my-live2))
@@ -1003,9 +1003,9 @@
 				  [t1 (current-milliseconds)]
 				  [has-key (and out-vec-masked
                                                 (hash-has-key? classes out-vec-masked))]
-                                  ;; [_ (when (debug-inst my-inst)
-                                  ;;          (pretty-display `(out-vec-maked ,level ,out-vec-masked))
-                                  ;;          (pretty-display `(has-key ,level ,has-key)))]
+                                  [_ (when (debug-inst my-inst)
+                                           (pretty-display `(out-vec-maked ,level ,out-vec-masked))
+                                           (pretty-display `(has-key ,level ,has-key)))]
 				  [progs-set (and has-key (hash-ref classes out-vec-masked))]
 				  [t2 (current-milliseconds)]
 				  [new-candidates
@@ -1020,20 +1020,20 @@
                              (set! c-mask (add1 c-mask))
 			     (when
 			      (and new-candidates (not (empty? new-candidates)))
-                              ;; (when (debug-inst my-inst)
-                              ;;       (pretty-display `(pass!!! ,level ,(= 1 (- ce-count level)))))
+                              (when (debug-inst my-inst)
+                                    (pretty-display `(pass!!! ,level ,(= 1 (- ce-count level)))))
 			      (if (= 1 (- ce-count level))
 				  (begin
-                                    ;; (when (debug-inst my-inst)
-                                    ;;       (pretty-display `(check-eqv-leaf ,level ,ce-count)))
+                                    (when (debug-inst my-inst)
+                                          (pretty-display `(check-eqv-leaf ,level ,ce-count)))
 				    (check-eqv (hash-ref real-hash inter)
 					       (map id->real-progs new-candidates)
 					       my-inst ce-count)
 				    (set! ce-count ce-count-extra)
 				    )
 				  (let (
-                                        ;; [_ (when (debug-inst my-inst)
-                                        ;;          (pretty-display `(call-outer ,(add1 level))))]
+                                        [_ (when (debug-inst my-inst)
+                                                 (pretty-display `(call-outer ,(add1 level))))]
                                         [a (outer (hash-ref real-hash inter)
 						  new-candidates
 						  (add1 level))])

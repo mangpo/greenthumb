@@ -47,7 +47,7 @@
       (define out (vector-copy (progstate-var state)))
       (define out-vec4
         (for/vector ([vec (progstate-vec4 state)])
-                    (vector-copy vec)))
+                    (and vec (vector-copy vec))))
       (define mem (progstate-memory state))
       (set! mem (and mem (send* mem clone (and ref (progstate-memory ref)))))
 
