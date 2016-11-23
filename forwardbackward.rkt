@@ -45,12 +45,12 @@
             change-inst change-inst-list
             mask-in get-live-mask prescreen)
 
-    (define (debug-inst my-inst)
-      (and (equal? (inst-op my-inst) 5)))
+    (define (debug-inst my-inst) #f)
+      ;;(and (equal? (inst-op my-inst) 10)))
     
-    (define debug #t)
-    (define verbo #t)
-    (define info #t)
+    (define debug #f)
+    (define verbo #f)
+    (define info #f)
     (define ce-limit 100)
 
     ;; Actual bitwidth

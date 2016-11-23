@@ -1,15 +1,11 @@
 TODO
-- point-wise var, const
-- test get-live-in
-- symbolic, stoch
-- backward
 - llvm config (cons var vec4)
 - document #:structure, get-sym-inst
 
 Features
 - vector
   = point-wise vector
-  = shuffle, extract, insert
+  = shuffle, extract, insert (exercise)
 - various data type, i32, i16, i8
 - aggregate type
   = multidimensional arrays

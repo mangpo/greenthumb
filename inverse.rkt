@@ -111,7 +111,7 @@
         (define key (cons scalar (cdr (send machine get-inst-key my-inst))))
         (define out-vals (send machine get-progstate-outs-vals my-inst state))
         (define state-base (send machine kill-outs my-inst state))
-        (pretty-display `(old ,key ,out-vals))
+        ;;(pretty-display `(old ,key ,out-vals))
 
         (define all-in-vals-list
           (for/list ([i width])
@@ -121,20 +121,25 @@
                                        [(number? k) k]
                                        [(vector? k) (vector-ref k i)]))]
                            [new-out-vals (for/list ([o out-vals]) (vector-ref o i))]
-                           [mapping (hash-ref behaviors-bw key)])
-                      (pretty-display `(new ,new-key ,new-out-vals))
+                           [mapping (hash-ref behaviors-bw new-key)])
+                      ;;(pretty-display `(new ,new-key ,new-out-vals))
                       (and (hash-has-key? mapping new-out-vals)
                            (hash-ref mapping new-out-vals)))))
+        ;;(pretty-display `(all ,all-in-vals-list))
                     
         (define not-false (for/and ([x all-in-vals-list]) (list? x)))
+        (define ret
         (cond
          [not-false
-          (for/list ([vector-ingredient (all-combination-list all-in-vals-list)])
-                    (let ([my-ins (get-list-of-vectors vector-ingredient)])
-                      (send machine update-progstate-ins my-inst my-ins state-base)))
+          (filter
+           identity
+           (for/list ([vector-ingredient (all-combination-list all-in-vals-list)])
+                     (let ([my-ins (get-list-of-vectors vector-ingredient)])
+                       (send machine update-progstate-ins my-inst my-ins state-base))))
           ]
-         [else #f])
-        (raise "done")
+         [else #f]))
+        ;;(pretty-display `(ret ,ret))
+        ret
         ]
 
        ;; load

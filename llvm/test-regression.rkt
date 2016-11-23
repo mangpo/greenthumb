@@ -11,7 +11,7 @@
   (pretty-display (format "TEST = ~a" id))
 
   (define parser (new llvm-parser%))
-  (define machine (new llvm-machine% [config 3]))
+  (define machine (new llvm-machine% [config (cons 3 3)]))
 
   (define printer (new llvm-printer% [machine machine]))
   (define simulator-racket (new llvm-simulator-racket% [machine machine]))
@@ -67,14 +67,14 @@
 (test 'clear3bits "
 %1 = lshr i32 %in, 3
 %out = shl nuw i32 %1, 3
-" 1 '#((%out) #f) #:sym #t)
+" 1 '#((%out) () #f) #:sym #t)
 
 (test 'loadstore "
 %1 = load i32, i32* %2
 %1 = add i32 %1, 0
 %1 = add i32 %1, 3
 store i32 %1, i32* %2
-" 3 '#(() #t) #:sym #t)
+" 3 '#(() () #t) #:sym #t)
 
 (test 'p24 "
 %9 = add i32 %in, -1
@@ -89,4 +89,21 @@ store i32 %1, i32* %2
 %out = ashr i32 %9, 16
 %out = or i32 %out, %9
 %out = add i32 %out, 1
-" 4 '#((%out) #f))
+" 4 '#((%out) () #f))
+
+(test 'vec1 "
+%out = add <4 x i32> %1, <i32 0, i32 0, i32 0, i32 0>
+%out = add <4 x i32> %1, <i32 0, i32 1, i32 2, i32 3>
+%out = add <4 x i32> %out, <i32 -1, i32 -1, i32 -1, i32 -1>
+%out = add <4 x i32> %out, %2
+" 3 '#(() (%out) #f))
+
+(test 'vec2 "
+%out = add <4 x i32> %1, %1
+%out = add <4 x i32> %out, %1
+%out = add <4 x i32> %out, %1
+%out = add <4 x i32> %out, %1
+%out = add <4 x i32> %out, %1
+%out = add <4 x i32> %out, %1
+%out = add <4 x i32> %out, %1
+" 3 '#(() (%out) #f))

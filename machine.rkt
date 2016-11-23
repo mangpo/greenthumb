@@ -647,7 +647,7 @@
            (analyze-args-inst x))
 
       (when debug
-            (pretty-display `(analyze-args, argtypes-info))
+            (pretty-display `(analyze-args))
             (for ([pair (hash->list argtypes-info)])
                  (let ([name (car pair)]
                        [info (cdr pair)])

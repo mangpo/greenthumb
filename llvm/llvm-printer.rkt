@@ -150,7 +150,7 @@
       (define numbers
 	(filter 
 	 number?
-	 (map (lambda (x) (and (string? x) (string->number (substring x 1))))
+	 (map (lambda (x) (and (string? x) (string->number (substring x 2))))
 	      (vector->list num2name))))
       (format "%~a~a" prefix (add1 (foldl max 0 numbers))))
     
@@ -176,8 +176,8 @@
         (define new-args
           (for/vector ([arg args] [type types])
                       (cond
-                       [(equal? type 'var) (num->name arg num2name "")]
-                       [(equal? type 'vec4) (num->name arg num2name-vec4 "")]
+                       [(equal? type 'var) (num->name arg num2name "x")]
+                       [(equal? type 'vec4) (num->name arg num2name-vec4 "v")]
                        [(equal? type 'const-vec4) (vector-map number->string arg)]
                        [else (number->string arg)])))
 

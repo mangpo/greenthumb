@@ -26,11 +26,12 @@
 "))
 
 
-#;(define code
+(define code
 (send parser ir-from-string "
 %1 = lshr i32 %in, 3
 %out = shl nuw i32 %1, 3
 "))
+;%out = and i32 %in, -8
 
 #;(define code
 (send parser ir-from-string "
@@ -76,10 +77,11 @@ store i32 %1, i32* %2
   %out = add nsw i32 %11, 1
 "))
 
-(define code
+#;(define code
 (send parser ir-from-string "
-%out = add <4 x i32> %1, <i32 0, i32 0, i32 0, i32 0>
-%out = add <4 x i32> %1, %2
+%out = add <4 x i32> %1, <i32 0, i32 1, i32 2, i32 3>
+%out = add <4 x i32> %out, <i32 -1, i32 -1, i32 -1, i32 -1>
+%out = add <4 x i32> %out, %2
 "))
 
 ;%out = add <4 x i32> %1, <i32 0, i32 1, i32 2, i32 3>
@@ -103,7 +105,7 @@ store i32 %1, i32* %2
 (send machine analyze-args encoded-prefix encoded-code encoded-postfix #f #f)
 
 ;; Step 1: use printer to convert liveout into progstate format
-(define constraint (send printer encode-live (vector '() '(%out) #t)))
+(define constraint (send printer encode-live (vector '(%out) '() #t)))
 
 ;; Step 2: create symbolic search
 (define symbolic (new llvm-symbolic% [machine machine] [printer printer]

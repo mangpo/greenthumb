@@ -20,7 +20,7 @@
 (define llvm-machine%
   (class machine%
     (super-new)
-    (inherit-field bitwidth random-input-bits config)
+    (inherit-field bitwidth random-input-bits config argtypes-info)
     (inherit init-machine-description define-instruction-class finalize-machine-description
              define-progstate-type define-arg-type
              update-progstate-ins kill-outs)
@@ -166,6 +166,37 @@
     (define (update-progstate-ins-store my-inst addr val state)
       ;; Put val before addr => input 0 is val, input 1 is address.
       (update-progstate-ins my-inst (list val addr) state))
+
+    ;; Include all numbers in const-vec4 in const and vice.
+    ;; In x is in const, then (vector x x x x) is in const-vec4.
+    (define/override (analyze-args prefix code postfix live-in-list live-out)
+      (super analyze-args prefix code postfix live-in-list live-out)
+      (define const-vec4 (hash-ref argtypes-info 'const-vec4))
+      (define const (hash-ref argtypes-info 'const))
+
+      (define const-vec4-unique (list->set (flatten (map vector->list (argtype-valid const-vec4)))))
+      (define const-vec4-list (argtype-valid const-vec4))
+      (define const-list (argtype-valid const))
+
+      (for ([c const-list])
+           (let ([vec (vector c c c c)])
+           (unless (member vec const-vec4-list)
+                   (set! const-vec4-list (cons vec const-vec4-list)))))
+
+      (for ([c const-vec4-unique])
+           (unless (member c const-list)
+                   (set! const-list (cons c const-list))))
+
+      (set-argtype-valid! const-vec4 const-vec4-list)
+      (set-argtype-valid! const const-list)
+
+      (when #t
+            (pretty-display `(analyze-args))
+            (for ([pair (hash->list argtypes-info)])
+                 (let ([name (car pair)]
+                       [info (cdr pair)])
+                   (pretty-display `(ARG ,name ,(argtype-valid info))))))
+      )
 
     ))
       
