@@ -35,7 +35,7 @@ Notice that the second operand of `'ldr#` is `'reg-sp`.
 ### Vector Instructions
 
 ##### Program State Element for Vector Register/Variable
-Typically, we define a program state element as a primitive entity with the same number of bits as the defined bitwidth ([Step 1.1 of Extending GreenThumb to a New ISA](new-isa.md#step1.1)). In this section, we describe how to define a program state element as a collection of primitive entities. For example, we will define a program state element type `vec4` (vector register with 4 lanes) to be a vector of 4 primitive entities. To do so, we simply pass an additional argument `#:structure` when calling `define-progstate-type` ([Step 1.3 of Extending GreenThumb to a New ISA](new-isa.md#step1.1)) as follows:
+Typically, we define a program state element as a primitive entity with the same number of bits as the defined bitwidth ([Step 1.1 of Extending GreenThumb to a New ISA](new-isa.md#step1.1)). In this section, we describe how to define a program state element as a collection of primitive entities. For example, we will define a program state element type `vec4` (vector register with 4 lanes) to be a vector of 4 primitive entities. To do so, we simply pass an additional argument `#:structure` when calling `define-progstate-type` ([Step 1.3 of Extending GreenThumb to a New ISA](new-isa.md#step1.3)) as follows:
 ```racket
  (define-progstate-type
       'vec4
