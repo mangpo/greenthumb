@@ -1,9 +1,8 @@
 TODO
-- document #:structure, get-sym-inst
+- check that vector class has corresponding scalar version
 
 Features
 - vector
-  = point-wise vector
   = shuffle, extract, insert (exercise)
 - various data type, i32, i16, i8
 - aggregate type
