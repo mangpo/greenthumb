@@ -19,13 +19,15 @@ We define LLVM as a 32-bit architecture. That means each variable is 32-bit. Thi
 #### Program State
 In our LLVM ISA, a program state is minimal. It only includes values of variables and memory in the program. We represent a LLVM program state as:
 ```racket
-(progstate (vector v0 v1 v2 ...) #(object:memory%))
+(progstate (vector x0 x1 x2 ...)
+           (vector (vector v00 v01 v02 v03) ...)
+           #(object:memory%))
 ```
 where `progstate` is a macro for vector. The following concrete program state:
 ```racket
-(progstate (vector 0 0 999) #(object:memory%))
+(progstate (vector 0 0 999) (vector (vector 3 3 3 3)) #(object:memory%))
 ```
-represents a state of program with three variables and unbounded memory. The first two variables (ID 0 and 1) are 0, and the third variable (ID 2) has value 999. Variables in a program we optimize are assigned to unique IDs starting from 0.
+represents a state of program with three 32-bit variables, and one 4 x 32-bit vector variables, and an unbounded memory. The first two variables (ID 0 and 1) are 0, and the third variable (ID 2) has value 999. The vector variable (ID 0) is <1, 1, 1, 1>.  Variables of a particular type in a program we optimize are assigned to unique IDs starting from 0. Note that the framework treats IDs of normal variables and vector variables as they are in different spaces, so a normal variable with ID 0 and a vector variable with ID 0 refer to different variables.
 
 #### Liveness Information
 When checking the equivalence of two expressions, we need to specify which locations in the output program states that need to be equal. Essentially, we only care about the live parts of the output program state (live-out). For example, when optimize the following code:
@@ -35,7 +37,18 @@ When checking the equivalence of two expressions, we need to specify which locat
 ```
 we do not care what the values of %in and %1 are at the end, but only care about the value of %out. In this case, the live-out only includes %out. Inside our framework, we use the same data structure that represents a program state to represent a liveness information. Instead of containing 32-bit numbers like program state, live-out contains boolean values. For example, say %in, %1, and %out have ID 0, 1, and 2 respectively. The live-out that only includes %out is represented by:
 ```racket
-(progstate (vector #f #f #t) #t)
+(progstate (vector #f #f #t) (vector) #t)
+```
+
+Here is another sample with vector instructions. 
+```
+%out = add <4 x i32> %1, %1
+%out = add <4 x i32> %out, %1
+%out = add <4 x i32> %out, %1
+```
+We would like to find an equivalent program with respect to a vector variable `%out` (ID 1), so the live-out is:
+```racket
+(progstate (vector) (vector #f #t) #t)
 ```
 
 If live-out at memory field is set to #t, output memory of a spec program and a candidate program have to be equivalent. Their memory are equivalent if their entire memory are the same. Currently, we do not support checking equivalence on just some parts of memory if we use the provided memory object.

@@ -1,5 +1,6 @@
 # Advanced Usage
 - [Connection between Instruction Operand and Program State Element](#connect-operand-progstate)
+- [Vector Instructions](#vector)
 - [Instruction with Multiple Opcodes](#multiple-opcodes)
 - [Additional Pruning in Enumerative Search](#pruning)
 - [Customize Inverse Interpreter for Load/Store Instructions](#inverse-load-store)
@@ -29,6 +30,25 @@ For ARM, we define:
   #:args '(reg reg-sp addr) #:ins `(1 ,(get-memory-type)) #:outs '(0))
 ```
 Notice that the second operand of `'ldr#` is `'reg-sp`.
+
+<a name="vector"></a>
+### Vector Instructions
+Typically, when define a program state element is a primitive entity with the same number of bits as the define bitwidth ([Step 1.1 of Extending GreenThumb to a New ISA](new-isa.md#step1.1)). In this section, we describe how to define a program state element as a collection of primitive entities. For example, we will define a program state element type `vec4` to be a vector of four primitive entities. To do so, we simply pass an additional argument when calling `define-progstate-type` ([Step 1.3 of Extending GreenThumb to a New ISA](new-isa.md#step1.1)) as follows:
+```
+ (define-progstate-type
+      'vec4
+      #:structure (for/vector ([i 4]) 'x) ;; a vector contains 4 primitive elements
+      #:get ...
+      #:set ...)
+```
+The expression passed to `#:structure` should evaluate to a collection of `'x` where `'x` represents a primitive entity. 
+
+TODO: 
+- define-instruction-class
+ - #:scalar (groups-of-opcodes = 1 only)
+ - backward if no scalar
+- const-vec4
+- see llvm as an example
 
 <a name="multiple-opcodes"></a>
 ### Instruction with Multiple Opcodes
