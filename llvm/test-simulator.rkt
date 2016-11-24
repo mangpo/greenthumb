@@ -20,7 +20,6 @@
 %1 = load i32, i32* %2
 %1 = add i32 %1, 1
 store i32 %1, i32* %2
-%v = add <4 x i32> %v, <i32 0, i32 1, i32 2, i32 3>
 "))
 
 ;%1 = load i32, i32* %2
@@ -29,6 +28,8 @@ store i32 %1, i32* %2
 
 ;%1 = add <4 x i32> %1, %2
 
+#;(define-values (compressed-code compressed-live-out xxx config)
+  (send printer compress-state-space code '#((%out) () #t)))
 (send printer print-struct code)
 (send printer print-syntax code)
 

@@ -691,6 +691,10 @@
 
       (for/list ([in ins]) (if (number? in) (vector-ref types in) in)))
 
+    (define/public (get-progstate-ins-outs opcode-id)
+      (define class (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id)))
+      (values (instclass-ins class) (instclass-outs class)))
+
     (define (get-progstate-outs-types my-inst)
       (define opcode-id (inst-op my-inst))
       (define class (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id)))

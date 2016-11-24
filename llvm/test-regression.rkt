@@ -30,6 +30,7 @@
   
   (define code (send parser ir-from-string code-str))
   (define encoded-code (send printer encode code))
+  (send printer print-struct encoded-code)
   (send validator adjust-memory-config encoded-code)
   
   (define sketch (for/vector ([i size]) (send symbolic gen-sym-inst)))
