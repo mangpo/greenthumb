@@ -33,8 +33,10 @@ Notice that the second operand of `'ldr#` is `'reg-sp`.
 
 <a name="vector"></a>
 ### Vector Instructions
+
+##### Program State Element for Vector Register/Variable
 Typically, we define a program state element as a primitive entity with the same number of bits as the defined bitwidth ([Step 1.1 of Extending GreenThumb to a New ISA](new-isa.md#step1.1)). In this section, we describe how to define a program state element as a collection of primitive entities. For example, we will define a program state element type `vec4` (vector register with 4 lanes) to be a vector of 4 primitive entities. To do so, we simply pass an additional argument `#:structure` when calling `define-progstate-type` ([Step 1.3 of Extending GreenThumb to a New ISA](new-isa.md#step1.1)) as follows:
-```
+```racket
  (define-progstate-type
       'vec4
       #:structure (for/vector ([i 4]) 'x) ;; a vector contains 4 primitive entities
@@ -43,8 +45,24 @@ Typically, we define a program state element as a primitive entity with the same
 ```
 The expression passed to `#:structure` should evaluate to a collection of `'x`, where `'x` represents a primitive entity.
 
-Now we can define an intruction class for vector add `vadd` and vector multiply `vmul` as follows:
+##### Instruction Operand for Vector Register/Variable
+Next, before defining vector instructions, we need to define an instruction operand type associated with vector registers ([Step 1.4 of Extending GreenThumb to a New ISA](new-isa.md#step1.4)). In this example, we define:
+```racket
+(define-arg-type 'reg  (lambda (config) (range (car config))))  ;; # of scalar registers = (car config)
+(define-arg-type 'vec4 (lambda (config) (range (cdr config)))) ;; # of vector registers = (cdr config)
 ```
+##### Instruction Operand for Vector Constant
+A scalar instruction may contain constants, while a vector instruction may contain vector constants. Therefore, we may need another type of instruction operand type. For example, in LLVM, we can add a vector variable to a vector of ones: `%out = add <4 x i32> %in, <i32 1, i32 1, i32 1, i32 1>`. In this case, we define an operand type for vector constants as:
+```racket
+(define-arg-type 'const-vec4
+  (lambda (config) (list (vector 0 0 0 0)
+                         (vector 1 1 1 1))))
+```
+Recall that the stochastic search and enumerative search will try to construct instructions from the values from this list, but the symbolic search is not.
+
+##### Instruction Class for Vector Instruction
+Now we can define an intruction class for vector add `vadd` and vector multiply `vmul` as follows:
+```racket
 (define-instruction-class
  'rrr-commute-vec4
  '(vadd vmul)
@@ -56,27 +74,19 @@ This is similar to defining instruction classes for scalar instructions except t
 
 **Important note:** This vector support only works when there is one opcode per instruction (i.e. `(init-machine-description 1)`). If there are more than one opcodes per instruction, please contact mangpo@eecs.berkeley.edu
 
-##### Vector Constants
-A scalar instruction may contain constants, while a vector instruction may contain vector constants. Therefore, we may need another type of instruction operand type. For example, in LLVM, we can add a vector variable to a vector of ones: `%out = add <4 x i32> %in, <i32 1, i32 1, i32 1, i32 1>`. In this case, we define an operand type for vector constants as:
-```
-(define-arg-type 'const-vec4
-  (lambda (config) (list (vector 0 0 0 0)
-                         (vector 1 1 1 1))))
-```
-Recall that the stochastic search and enumerative search will try to construct instructions from the values from this list, but the symbolic search is not.
 
 ##### Instruction Skeleton (For Symbolic Search)
 Typically, the framework automatically infers an instruction skeleton from the defined instruction classes by treating all instruction operands to be primitive numbers. However, vector instructions may contain non-primitive numbers as operands, such as vector constants; a register/variable (either scalar or vector) is considered to be a primitive number because we use a single ID which is a number to represent a register/variable. Becase of vector constants, we have to manually provide the instruction skeleton by overriding the method `(gen-sym-inst)` of the class `symbolic%`. The skeleton can be constructed by using the provided lambda functions `sym-op` and `sym-arg`. The framework expects a program skeleton to be an `inst` with `(sym-op)` as its opcode and `(sym-arg)` as its arguments.
 
 For example, the default `(gen-sym-inst)` for scalar instructions may look like:
-```
+```racket
 (define/override (gen-sym-inst)
   (define n (get-field max-number-of-args machine))
   (inst (sym-op)
         (for/vector ([i n]) (sym-arg))))
 ```
 However, `(sym-arg)` represents a privitive number. Since we know that the first operand cannot be is always a register/variable (either scalar or vector), vector constants cannot be the first operand. Therefore, we define the first entry of operands (or arguments) to be `(sym-arg)` as before, but the rest are `(sym-arg-vec)`; we define `(sym-arg-vec)` to either be `(sym-arg)` or a vector of four `(sym-arg)`s.
-```
+```racket
 (define/override (gen-sym-inst)
   (define n (get-field max-number-of-args machine))
   (inst (sym-op)
