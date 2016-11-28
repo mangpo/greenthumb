@@ -107,8 +107,8 @@
             ([arg args])
             ;; If arg is `var, assign fresh ID.
             (cond
-             [(number? arg) arg]
-             [else (set! in (add1 in)) in])))
+             [(symbol? arg) (set! in (add1 in)) in]
+             [else arg])))
          
          (define (enumerate opcode-id ranges)
            ;; Get all combinations of args

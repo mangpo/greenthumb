@@ -48,11 +48,11 @@ We must define the description of the ISA, including its opcodes, the ISA bitwid
 **Step 1: machine.** 
 We define such information in the class `armdemo-machine%`, which extends the class `machine%`. 
 
+<a name="step1.1"></a>
 **Step 1.1: bitwidth.** 
 First, we define how many bits are used to represent the smallest unit of value by setting the field `bitwidth`. Since we are supporting ARM 32-bit arithmetic and logical instructions, we set bitwidth to 32.
 
 <a name="step1.2"></a>
-
 **Step 1.2: program state structure.** 
 Next, we must define the structure of a program state (machine state/CPU state) and types of elements a program state contains. Say our `armdemo` processor contains 32-bit registers and memory (no flags). Therefore, there are two types of elements in our program state: register and memory. For each type of program state element, we need to name it using Racket [symbol](https://docs.racket-lang.org/reference/symbols.html). In this demo, we name register type `'reg`. For memory, GreenThumb provides special objects including memory, so the name of memory type can be obtained by calling `(get-memory-type)`. See more information about provided special objects [here](special-objects.md). 
 

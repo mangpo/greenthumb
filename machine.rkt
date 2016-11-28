@@ -7,7 +7,7 @@
 (define debug #f)
 (struct instclass (opcodes pool args ins outs commute) #:mutable)
 (struct argtype (validfunc valid statetype) #:mutable)
-(struct statetype (get set min max const))
+(struct statetype (get set min max const structure))
 
 (define machine%
   (class object%
@@ -25,6 +25,7 @@
      [statetypes-info (make-hash)]    ;; Map from state type to state type info
      [groups-of-opcodes #f]
      [max-number-of-args 0]
+     [vector2scalar (make-hash)]
 
      ;; Fields to be set by method 'analyze-opcode'
      [opcode-pool #f]        ;; Opcodes to be considered during synthesis.
@@ -145,6 +146,16 @@
     (define (reset-opcode-pool) (void))
 
     (define (get-state init #:concrete [concrete #t])
+      (define (recursive-init structure init-min init-max init-const)
+        (define (inner x)
+          (cond
+           [(symbol? x) (init #:min init-min #:max init-max #:const init-const)]
+           [(vector? x) (for/vector ([xi x]) (inner xi))]
+           [(list? x) (for/list ([xi x]) (inner xi))]
+           [(pair? x) (cons (inner (car x)) (inner (cdr x)))]
+           [else (raise "Program state uses unknown data strucutures (beyound vector, list, and pair)")]))
+        (inner structure))
+      
       (define progstate (progstate-structure))
 
       (define (inner x)
@@ -157,7 +168,10 @@
           (new (if concrete queue-out-racket% queue-out-rosette%) [get-fresh-val init])]
          [(symbol? x)
           (define info (hash-ref statetypes-info x))
-          (init #:min (statetype-min info) #:max (statetype-max info) #:const (statetype-const info))]
+          (recursive-init (statetype-structure info)
+                          (statetype-min info)
+                          (statetype-max info)
+                          (statetype-const info))]
          [(vector? x) (for/vector ([xi x]) (inner xi))]
          [(list? x) (for/list ([xi x]) (inner xi))]
          [(pair? x) (cons (inner (car x)) (inner (cdr x)))]
@@ -210,6 +224,7 @@
     ;;      where sublist i corresponds to opcodes in group i.
     ;;      (see ARM for an example)
     (define (define-instruction-class name class-opcodes
+              #:scalar [scalar #f] #:vector-width [vector-width #f]
               #:args [args '()] #:ins [ins '()] #:outs [outs '()] #:commute [commute #f]
               #:required [required (list)])
       (unless opcodes
@@ -229,6 +244,8 @@
       (cond
        ;; if opcodes is a list of lists
        [(> groups-of-opcodes 1)
+        (when scalar
+              (raise "define-instruction-class does not support defining vector instructions with opcode groups > 1."))
         (when (symbol? (car class-opcodes))
               (set! class-opcodes (list class-opcodes))
               (set! args (list args))
@@ -277,7 +294,17 @@
         ;; insert instruction class
         (set! classes-info
               (cons (instclass class-opcodes #f (list->vector args) ins outs commute)
-                    classes-info))])
+                    classes-info))
+
+        ;; map vector opcode to scalar opcode
+        (when scalar
+              (unless
+               (= (length class-opcodes) (length scalar))
+               (raise "Number of vector opcodes is not equal to number of corresponding scalar opcodes."))
+              (for ([v class-opcodes]
+                    [s scalar])
+                   (hash-set! vector2scalar v (cons s vector-width))))
+        ])
       
       ;;(pretty-display (format "[DEFINE] class=~a | args=~a ins=~a outs=~a" name args ins outs))
       )
@@ -380,8 +407,9 @@
           (map (lambda (x) (vector-member x opcodes)) opcodes-groups)))
 
     (define (define-progstate-type name #:get [get #f] #:set [set #f]
-              #:min [min #f] #:max [max #f] #:const [const #f])
-      (hash-set! statetypes-info name (statetype get set min max const)))
+              #:min [min #f] #:max [max #f] #:const [const #f]
+              #:structure [st 'x])
+      (hash-set! statetypes-info name (statetype get set min max const st)))
 
     (define (define-arg-type name validfunc #:progstate [state name])
       (hash-set! argtypes-info name (argtype validfunc #f state)))
@@ -430,6 +458,15 @@
                        (when nop-ops-vec (raise "'nop' cannot be in multiple instruction classes."))
                        (set! nop-ops-vec ops-vec)))
             (set! nop-id nop-ops-vec))
+
+      ;; convert to id domain
+      (define new-vector2scalar (make-hash))
+      (for ([pair (hash->list vector2scalar)])
+           (hash-set! new-vector2scalar (get-opcode-id (car pair))
+                        (cons
+                         (get-opcode-id (cadr pair))
+                         (cddr pair))))
+      (set! vector2scalar new-vector2scalar)
 
       (when debug
             (pretty-display `(opcodes ,opcodes))
@@ -610,7 +647,7 @@
            (analyze-args-inst x))
 
       (when debug
-            (pretty-display `(analyze-args, argtypes-info))
+            (pretty-display `(analyze-args))
             (for ([pair (hash->list argtypes-info)])
                  (let ([name (car pair)]
                        [info (cdr pair)])
@@ -653,6 +690,10 @@
       (define types (instclass-args class))
 
       (for/list ([in ins]) (if (number? in) (vector-ref types in) in)))
+
+    (define/public (get-progstate-ins-outs opcode-id)
+      (define class (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id)))
+      (values (instclass-ins class) (instclass-outs class)))
 
     (define (get-progstate-outs-types my-inst)
       (define opcode-id (inst-op my-inst))

@@ -15,7 +15,7 @@
     (init-field [pure-symbolic #t]
                 [bit (get-field bitwidth machine)])
     (override synthesize-window)
-    (public synthesize-from-sketch evaluate-inst gen-sym-inst)
+    (public synthesize-from-sketch evaluate-inst gen-sym-inst sym-op sym-arg)
 
     ;; Create symbolic opcode using Rosette symbolic variable.
     (define (sym-op)

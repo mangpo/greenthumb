@@ -11,7 +11,9 @@
   (pretty-display (format "Increse memory size to ~a" (* 2 memory-size)))
   (set! memory-size (* 2 memory-size)))
 (define (finalize-memory-size)
-  (set! memory-size (add1 memory-size)))
+  (set! memory-size (add1 memory-size))
+  (pretty-display (format "Finalize memory size ~a" memory-size))
+  )
 
 (define memory-rosette%
   (class* special% (equal<%> printable<%>)

@@ -36,28 +36,31 @@
     
     ;; Generate inverse table behavior for my-inst.
     (define (gen-inverse-behavior my-inst)
-      (define ins-types (send machine get-progstate-ins-types my-inst))
-      (define outs-types (send machine get-progstate-outs-types my-inst))
-      (when
-       (not (member (get-memory-type) (append ins-types outs-types)))
-       ;; Inverse table behavior
-       (define behavior-bw (make-hash))
-       (define state (send machine get-state
-                           (lambda (#:min [min #f] #:max [max #f] #:const [const #f]) #f)))
-       (define ins-range-list
-         (for/list ([type (send machine get-progstate-ins-types my-inst)])
-                   (get-val-range type)))
+      (unless
+       (hash-has-key? (get-field vector2scalar machine) (inst-op my-inst))
+       ;; Generate inverse behavior only if there is no scalar version of this opcode.
+       (define ins-types (send machine get-progstate-ins-types my-inst))
+       (define outs-types (send machine get-progstate-outs-types my-inst))
+       (when
+        (not (member (get-memory-type) (append ins-types outs-types)))
+        ;; Inverse table behavior
+        (define behavior-bw (make-hash))
+        (define state (send machine get-state
+                            (lambda (#:min [min #f] #:max [max #f] #:const [const #f]) #f)))
+        (define ins-range-list
+          (for/list ([type (send machine get-progstate-ins-types my-inst)])
+                    (get-val-range type)))
 
-       (for ([in-vals (all-combination-list ins-range-list)])
-            (let* ([in-state (send machine update-progstate-ins my-inst in-vals state)]
-                   [out-state (with-handlers*
-                               ([exn? (lambda (e) #f)])
-                               (send simulator interpret (vector my-inst) in-state))])
-              (when out-state
-                    (define out-vals (send machine get-progstate-outs-vals my-inst out-state))
-                    (hash-insert-all-combinations behavior-bw out-vals in-vals))))
+        (for ([in-vals (all-combination-list ins-range-list)])
+             (let* ([in-state (send machine update-progstate-ins my-inst in-vals state)]
+                    [out-state (with-handlers*
+                                ([exn? (lambda (e) #f)])
+                                (send simulator interpret (vector my-inst) in-state))])
+               (when out-state
+                     (define out-vals (send machine get-progstate-outs-vals my-inst out-state))
+                     (hash-insert-all-combinations behavior-bw out-vals in-vals))))
 
-       (hash-set! behaviors-bw (send machine get-inst-key my-inst) behavior-bw)))
+        (hash-set! behaviors-bw (send machine get-inst-key my-inst) behavior-bw))))
 
     (define (hash-insert-all-combinations table out-vals in-vals)
       ;; keep all
@@ -80,9 +83,12 @@
       (define args (inst-args my-inst))
       (define ins-types (send machine get-progstate-ins-types my-inst))
       (define outs-types (send machine get-progstate-outs-types my-inst))
+      (define is-vector (hash-has-key? (get-field vector2scalar machine) (inst-op my-inst)))
 
       (cond
-       [(not (member (get-memory-type) (append ins-types outs-types)))
+       ;; lookup table
+       [(and (not (member (get-memory-type) (append ins-types outs-types)))
+             (not is-vector))
         (define key (send machine get-inst-key my-inst))
         (define out-vals (send machine get-progstate-outs-vals my-inst state))
         (define state-base (send machine kill-outs my-inst state))
@@ -94,6 +100,47 @@
               (lambda (x) x)
               (for/list ([in-vals in-vals-list])
                         (send machine update-progstate-ins my-inst in-vals state-base))))]
+
+       ;; vector instruction
+       ;; TODO: this code only work with groups-of-opcodes = 1
+       [(and is-vector (not (member (get-memory-type) (append ins-types outs-types))))
+        (define scalar-width (hash-ref (get-field vector2scalar machine) (inst-op my-inst)))
+        (define width (cdr scalar-width))
+        (define scalar (car scalar-width))
+        ;; replace opcode-id with the scalar version.
+        (define key (cons scalar (cdr (send machine get-inst-key my-inst))))
+        (define out-vals (send machine get-progstate-outs-vals my-inst state))
+        (define state-base (send machine kill-outs my-inst state))
+        ;;(pretty-display `(old ,key ,out-vals))
+
+        (define all-in-vals-list
+          (for/list ([i width])
+                    (let* ([new-key
+                            (for/list ([k key])
+                                      (cond
+                                       [(number? k) k]
+                                       [(vector? k) (vector-ref k i)]))]
+                           [new-out-vals (for/list ([o out-vals]) (vector-ref o i))]
+                           [mapping (hash-ref behaviors-bw new-key)])
+                      ;;(pretty-display `(new ,new-key ,new-out-vals))
+                      (and (hash-has-key? mapping new-out-vals)
+                           (hash-ref mapping new-out-vals)))))
+        ;;(pretty-display `(all ,all-in-vals-list))
+                    
+        (define not-false (for/and ([x all-in-vals-list]) (list? x)))
+        (define ret
+        (cond
+         [not-false
+          (filter
+           identity
+           (for/list ([vector-ingredient (all-combination-list all-in-vals-list)])
+                     (let ([my-ins (get-list-of-vectors vector-ingredient)])
+                       (send machine update-progstate-ins my-inst my-ins state-base))))
+          ]
+         [else #f]))
+        ;;(pretty-display `(ret ,ret))
+        ret
+        ]
 
        ;; load
        [(member (get-memory-type) ins-types)
@@ -158,5 +205,12 @@
 
        [else (raise "interpret-inst-backward: unknow case.")] ;; TODO
        ))
+
+    (define (get-list-of-vectors x)
+      (if (empty? (car x))
+          (list)
+          (let ([first-es (map car x)]
+                [rest-es (map cdr x)])
+            (cons (list->vector first-es) (get-list-of-vectors rest-es)))))
     
     ))

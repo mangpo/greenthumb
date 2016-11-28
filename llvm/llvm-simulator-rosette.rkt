@@ -1,6 +1,6 @@
 #lang s-exp rosette
 
-(require "../simulator-rosette.rkt" "../ops-rosette.rkt" "../inst.rkt")
+(require "../simulator-rosette.rkt" "../ops-rosette.rkt" "../inst.rkt" "llvm-machine.rkt")
 (provide llvm-simulator-rosette%)
 
 (define llvm-simulator-rosette%
@@ -53,13 +53,20 @@
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
     (define (interpret program state [ref #f])
-      (define out (vector-copy (vector-ref state 0)))
-      (define mem (vector-ref state 1))
-      (set! mem (and mem (send* mem clone (and ref (vector-ref ref 1)))))
+      (define out (vector-copy (progstate-var state)))
+      (define out-vec4
+        (for/vector ([vec (progstate-vec4 state)])
+                    (and vec (vector-copy vec))))
+      (define mem (progstate-memory state))
+      (set! mem (and mem (send* mem clone (and ref (progstate-memory ref)))))
 
       (define (interpret-step step)
         (define op (inst-op step))
         (define args (inst-args step))
+
+        (define (apply-scalar f val1 val2)
+          (for/vector ([i (vector-length val1)])
+                      (f (vector-ref val1 i) (vector-ref val2 i))))
 
         ;; sub add
         (define (rrr f)
@@ -68,6 +75,15 @@
           (define b (vector-ref args 2))
           (define val (f (vector-ref out a) (vector-ref out b)))
           (vector-set! out d val))
+
+        ;; sub add
+        (define (rrr-vec f)
+          (define d (vector-ref args 0))
+          (define a (vector-ref args 1))
+          (define b (vector-ref args 2))
+          (define val (apply-scalar f (vector-ref out-vec4 a) (vector-ref out-vec4 b)))
+          (vector-set! out-vec4 d val)
+          )
         
         ;; subi addi
         (define (rri f)
@@ -76,6 +92,14 @@
           (define b (vector-ref args 2))
           (define val (f (vector-ref out a) b))
           (vector-set! out d val))
+        
+        ;; subi addi
+        (define (rri-vec f)
+          (define d (vector-ref args 0))
+          (define a (vector-ref args 1))
+          (define b (vector-ref args 2))
+          (define val (apply-scalar f (vector-ref out-vec4 a) b))
+          (vector-set! out-vec4 d val))
         
         ;; subi addi
         (define (rir f)
@@ -124,6 +148,9 @@
          [(inst-eq `lshr) (rrr bvushr)]
          [(inst-eq `ashr) (rrr bvshr)]
          [(inst-eq `shl)  (rrr bvshl)]
+
+         ;; rrr (vector)
+         [(inst-eq `add_v4) (rrr-vec bvadd)]
          
          ;; rri
          [(inst-eq `add#) (rri bvadd)]
@@ -139,6 +166,9 @@
          [(inst-eq `lshr#) (rri bvushr)]
          [(inst-eq `ashr#) (rri bvshr)]
          [(inst-eq `shl#)  (rri bvshl)]
+         
+         ;; rri (vector)
+         [(inst-eq `add_v4#) (rri-vec bvadd)]
          
          ;; rir
          [(inst-eq `_add) (rir bvadd)]
@@ -163,7 +193,7 @@
       (for ([x program])
            (interpret-step x))
 
-      (vector out mem)
+      (vector out out-vec4 mem)
       )
 
     (define (performance-cost program)

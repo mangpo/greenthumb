@@ -1,3 +1,14 @@
+TODO
+- check that vector class has corresponding scalar version
+
+Features
+- vector
+  = shuffle, extract, insert (exercise)
+- various data type, i32, i16, i8
+- aggregate type
+  = multidimensional arrays
+  = structure type
+
 Correctness
 - how to prevent users from making a mistake on machine description (ins & outs).
   = e.g. putting arg 0 to be output of str# => backward can't find solution.

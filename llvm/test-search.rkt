@@ -9,8 +9,8 @@
          "llvm-enumerator.rkt" "llvm-inverse.rkt"
          )
 
-(define parser (new llvm-parser% [compress? #t]))
-(define machine (new llvm-machine% [config 4]))
+(define parser (new llvm-parser%))
+(define machine (new llvm-machine% [config (cons 3 2)]))
 (define printer (new llvm-printer% [machine machine]))
 (define simulator-racket (new llvm-simulator-racket% [machine machine]))
 (define simulator-rosette (new llvm-simulator-rosette% [machine machine]))
@@ -26,11 +26,12 @@
 "))
 
 
-#(define code
+#;(define code
 (send parser ir-from-string "
 %1 = lshr i32 %in, 3
 %out = shl nuw i32 %1, 3
 "))
+;%out = and i32 %in, -8
 
 #;(define code
 (send parser ir-from-string "
@@ -82,7 +83,6 @@ store i32 %1, i32* %2
 %in = add i32 %in, %1
 %out = add i32 %in, %1
 "))
-;? ?
 
 #;(define code
 (send parser ir-from-string "
@@ -91,7 +91,24 @@ store i32 %1, i32* %2
 %2 = sub i32 %2, %in
 %2 = sub i32 %2, %in
 %2 = sub i32 %2, %in
-%out = sub i32 %2, %in
+%out = sub i32 %2, %in"))
+
+#;(define code
+(send parser ir-from-string "
+%out = add <4 x i32> %1, <i32 0, i32 1, i32 2, i32 3>
+%out = add <4 x i32> %out, <i32 -1, i32 -1, i32 -1, i32 -1>
+%out = add <4 x i32> %out, %2
+"))
+
+#;(define code
+(send parser ir-from-string "
+%out = add <4 x i32> %1, %1
+%out = add <4 x i32> %out, %1
+%out = add <4 x i32> %out, %1
+%out = add <4 x i32> %out, %1
+%out = add <4 x i32> %out, %1
+%out = add <4 x i32> %out, %1
+%out = add <4 x i32> %out, %1
 "))
 
 ;; Define search space of candidate programs.
@@ -107,19 +124,20 @@ store i32 %1, i32* %2
 (define encoded-sketch (send printer encode sketch))
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))
+(send validator adjust-memory-config encoded-code)
 
 (send machine reset-arg-ranges)
 (send machine analyze-args encoded-prefix encoded-code encoded-postfix #f #f)
 
 ;; Step 1: use printer to convert liveout into progstate format
-(define constraint (send printer encode-live (vector '(%out) #f)))
+(define constraint (send printer encode-live (vector '(%out) '() #t)))
 
 ;; Step 2: create symbolic search
 (define symbolic (new llvm-symbolic% [machine machine] [printer printer]
                       [parser parser]
                       [validator validator] [simulator simulator-rosette]))
 
-(send symbolic synthesize-window
+#;(send symbolic synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch
       encoded-prefix encoded-postfix
@@ -145,7 +163,7 @@ store i32 %1, i32* %2
                       [inverse% llvm-inverse%]
                       [enumerator% llvm-enumerator%]
                       [syn-mode `linear]))
-#;(send backward synthesize-window
+(send backward synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch => start from searching from length 1, number => only search for that length
       encoded-prefix encoded-postfix
