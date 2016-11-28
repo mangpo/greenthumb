@@ -1,4 +1,4 @@
-#lang s-exp racket
+#lang racket
 
 (require "../simulator-racket.rkt" "../ops-racket.rkt" "../inst.rkt")
 (provide llvm-simulator-racket%)
