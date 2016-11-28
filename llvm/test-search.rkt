@@ -26,7 +26,7 @@
 "))
 
 
-(define code
+#(define code
 (send parser ir-from-string "
 %1 = lshr i32 %in, 3
 %out = shl nuw i32 %1, 3
@@ -76,12 +76,30 @@ store i32 %1, i32* %2
   %out = add nsw i32 %11, 1
 "))
 
+(define code
+(send parser ir-from-string "
+%in = add i32 %in, %1
+%in = add i32 %in, %1
+%out = add i32 %in, %1
+"))
+;? ?
+
+#;(define code
+(send parser ir-from-string "
+%2 = add i32 %in, %in
+%2 = add i32 %2, %2
+%2 = sub i32 %2, %in
+%2 = sub i32 %2, %in
+%2 = sub i32 %2, %in
+%out = sub i32 %2, %in
+"))
+
 ;; Define search space of candidate programs.
 ;; # of ?'s = # of instructions in a candidate program.
 ;; ? represents one instruction.
 (define sketch
 (send parser ir-from-string "
-?
+? ?
 "))
 
 
@@ -107,7 +125,7 @@ store i32 %1, i32* %2
       encoded-prefix encoded-postfix
       constraint ;; live-out
       #f ;; upperbound cost, #f = no upperbound
-      3600 ;; time limit in seconds
+      60 ;; time limit in seconds
       )
 
 ;; Step 3: create stochastic search

@@ -47,7 +47,7 @@
 
     (define-instruction-class
      'rrr-commute
-     '(and or xor add)
+     '(and or xor add mul)
      #:args '(var var var)
      #:ins '(1 2)
      #:outs '(0)
@@ -56,14 +56,14 @@
 
     (define-instruction-class
      'rrr
-     '(sub shl lshr ashr)
+     '(sub shl lshr ashr udiv sdiv urem srem)
      #:args '(var var var)
      #:ins '(1 2)
      #:outs '(0))
 
     (define-instruction-class
      'rri
-     '(and# or# xor# add# sub#)
+     '(and# or# xor# add# sub# mul# udiv# sdiv# urem# srem#)
      #:args '(var var const)
      ;; Input arguments that related to program state + additional input related to program state
      ;; Exclude the 3rd argument because it is not related to program state.
@@ -79,14 +79,14 @@
 
     (define-instruction-class
      'rir
-     '(_sub _shl _lshr _ashr)
+     '(_sub _shl _lshr _ashr _udiv _sdiv _urem _srem)
      #:args '(var const var)
      #:ins '(2)
      #:outs '(0))
 
     (define-instruction-class
      'rir
-     '(_sub _shl _lshr _ashr)
+     '(_sub _shl _lshr _ashr _udiv _sdiv _urem _srem)
      #:args '(var const var)
      #:ins '(2)
      #:outs '(0))

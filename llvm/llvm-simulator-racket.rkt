@@ -1,4 +1,4 @@
-#lang racket
+#lang s-exp racket
 
 (require "../simulator-racket.rkt" "../ops-racket.rkt" "../inst.rkt")
 (provide llvm-simulator-racket%)
@@ -24,9 +24,18 @@
 
     (define bvadd  (bvop +))
     (define bvsub  (bvop -))
+    (define bvmul  (bvop *))
     (define bvshl  (bvop shl))
     (define bvshr  (bvop >>))
     (define bvushr (bvop ushr))
+
+    (define bvsdiv (bvop quotient))
+    (define (bvudiv n d)
+      (if (< d 0)
+          (if (< n d) 1 0)
+          (let* ([q (shl (quotient (ushr n 2) d) 2)]
+                 [r (- n (* q d))])
+            (finitize-bit (if (or (> r d) (< r 0)) q (add1 q))))))
 
     (define (clz x)
       (let ([mask (shl 1 (sub1 bit))]
@@ -46,7 +55,7 @@
     (define (interpret program state [ref #f])
       (define out (vector-copy (vector-ref state 0)))
       (define mem (vector-ref state 1))
-      (set! mem (and mem (send mem clone (and ref (vector-ref ref 1)))))
+      (set! mem (and mem (send* mem clone (and ref (vector-ref ref 1)))))
 
       (define (interpret-step step)
         (define op (inst-op step))
@@ -86,12 +95,12 @@
         (define (load)
           (define d (vector-ref args 0))
           (define a (vector-ref args 1))
-          (vector-set! out d (send mem load (vector-ref out a))))
+          (vector-set! out d (send* mem load (vector-ref out a))))
 
         (define (store)
           (define val (vector-ref args 0))
           (define addr (vector-ref args 1))
-          (send mem store (vector-ref out addr) (vector-ref out val))) 
+          (send* mem store (vector-ref out addr) (vector-ref out val))) 
       
         (define-syntax inst-eq
           (syntax-rules ()
@@ -103,6 +112,10 @@
          [(inst-eq `nop) (void)]
          [(inst-eq `add) (rrr bvadd)]
          [(inst-eq `sub) (rrr bvsub)]
+
+         [(inst-eq `mul) (rrr bvmul)]
+         [(inst-eq `sdiv) (rrr bvsdiv)]
+         [(inst-eq `udiv) (rrr bvudiv)]
          
          [(inst-eq `and) (rrr bitwise-and)]
          [(inst-eq `or)  (rrr bitwise-ior)]
@@ -116,6 +129,9 @@
          [(inst-eq `add#) (rri bvadd)]
          [(inst-eq `sub#) (rri bvsub)]
          
+         [(inst-eq `mul#) (rri bvmul)]
+
+         
          [(inst-eq `and#) (rri bitwise-and)]
          [(inst-eq `or#)  (rri bitwise-ior)]
          [(inst-eq `xor#) (rri bitwise-xor)]
@@ -125,8 +141,9 @@
          [(inst-eq `shl#)  (rri bvshl)]
          
          ;; rir
-         ;; [(inst-eq `_add) (rir bvadd)]
+         [(inst-eq `_add) (rir bvadd)]
          [(inst-eq `_sub) (rir bvsub)]
+         [(inst-eq `_mul) (rir bvmul)]
          
          ;; [(inst-eq `_and) (rir bitwise-and)]
          ;; [(inst-eq `_or)  (rir bitwise-ior)]
@@ -149,10 +166,10 @@
       (vector out mem)
       )
 
-    (define (performance-cost code)
+    (define (performance-cost program)
       (define cost 0)
-      (for ([x code])
-	   (unless (= (inst-op x) nop-id) (set! cost (add1 cost))))
+      (for ([x program])
+     (unless (= (inst-op x) nop-id) (set! cost (add1 cost))))
       cost)
     
     ))

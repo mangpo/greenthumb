@@ -18,7 +18,7 @@
 (define code
 (send parser ir-from-string "
 %1 = load i32, i32* %2
-%1 = add i32 %1, 1
+%1 = udiv i32 %1, 2
 store i32 %1, i32* %2
 "))
 
