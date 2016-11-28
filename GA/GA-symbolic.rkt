@@ -7,12 +7,9 @@
 (define GA-symbolic%
   (class symbolic%
     (super-new)
-    (inherit sym-op sym-arg)
-    (override len-limit window-size gen-sym-inst)
+    (override len-limit window-size)
 
     (define (len-limit) 8)
     (define (window-size) 14)
-    
-    (define (gen-sym-inst)  (inst (sym-op) (sym-arg)))
 
     ))

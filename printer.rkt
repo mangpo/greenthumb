@@ -11,17 +11,22 @@
     (public encode decode 
             print-struct print-struct-inst
             print-syntax print-syntax-inst
-            compress-reg-space decompress-reg-space
+            compress-state-space decompress-state-space
             config-from-string-ir set-config-string
-            output-constraint-string output-assume-string)
+            output-constraint-string output-assume-string
+            print-encode-info)
     ;; Required methods to be intialized when extended. See arm/arm-printer.rkt.
     (abstract encode-inst decode-inst)
 
     (define (encode code)
-      (traverse code inst? encode-inst))
+      (define ret (vector-map (lambda (x) (encode-inst x)) code))
+      (print-encode-info)
+      ret)
 
     (define (decode code)
-      (traverse code inst? decode-inst))
+      (vector-map (lambda (x) (decode-inst x)) code))
+
+    (define (print-encode-info) (void))
 
     (define (print-struct-inst x [indent ""])
       (pretty-display (format "~a(inst ~a ~a)" 
@@ -42,17 +47,6 @@
        
        [(inst? x) (print-struct-inst x indent)]
        
-       [(block? x)
-        (print-struct (block-body x) indent)]
-       
-       [(label? x)
-        (pretty-display (format "~a(label ~a" indent (label-name x)))
-        (print-struct (label-body x) (inc indent))
-        (pretty-display (format "~a)" indent))]
-       
-       [(program? x)
-        (print-struct (program-code x))]
-       
        [else
         (pretty-display (format "~a~a" indent x))]))
 
@@ -65,38 +59,27 @@
          [(or (list? x) (vector? x))
           (for ([i x]) (f i indent))]
          
-         [(block? x)
-          (when (block-info x)
-                (pretty-display (format "~a; ~a" indent (block-info x))))
-          (f (block-body x) indent)]
-         
-         [(label? x)
-          (when (label-name x) 
-                (pretty-display (format "~a~a" indent (label-name x))))
-          (f (label-body x) (inc indent))]
-         
-         [(program? x)
-          (f (program-code x))]
-         
          [else
           (pretty-display (format "~a~a" indent x))]))
       (f x indent))
 
     ;; Default: no compression
-    (define (compress-reg-space program live-out live-in)
+    (define (compress-state-space program live-out)
       (values program
               live-out
-              live-in
               #f
               (config-from-string-ir program)))
 
-    (define (decompress-reg-space program reg-map) program)
-    (define (config-from-string-ir program) (send machine get-config))
-    (define (output-constraint-string live-out) live-out)
+    (define (decompress-state-space program reg-map) program)
+    (define (config-from-string-ir program)
+      (raise "config-from-string-ir: unimplemented. Need to extend this function."))
+    (define (output-constraint-string live-out)
+      (raise "config-from-string-ir: unimplemented. Need to extend this function."))
     (define (output-assume-string x) x)
     
     (define (set-config-string x)
       (cond
+       [(boolean? x) (format "~a" x)]
        [(number? x) (number->string x)]
        [(or (list? x) (vector? x))
         (string-join

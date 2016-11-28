@@ -11,7 +11,7 @@
 (provide optimize)
 
 ;; Main function to perform superoptimization on multiple cores.
-(define (optimize code live-out live-in search-type mode
+(define (optimize code live-out search-type mode
                   #:dir [dir "output"] 
                   #:cores [cores 4]
                   #:time-limit [time-limit 3600]
@@ -29,7 +29,7 @@
                         [search-type search-type] [mode mode]
                         [window window]))
 
-  (send parallel optimize code live-out live-in
+  (send parallel optimize code live-out
         #:dir dir #:cores cores 
         #:time-limit time-limit #:size size #:input-file input-file)
   )

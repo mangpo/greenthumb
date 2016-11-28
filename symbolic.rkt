@@ -1,7 +1,8 @@
 #lang s-exp rosette
 
-(require "inst.rkt" "machine.rkt" "decomposer.rkt")
+(require "inst.rkt" "machine.rkt" "decomposer.rkt" "validator.rkt")
 (require rosette/solver/kodkod/kodkod)
+(require rosette/solver/smt/z3)
 
 (provide symbolic%)
 
@@ -14,8 +15,7 @@
     (init-field [pure-symbolic #t]
                 [bit (get-field bitwidth machine)])
     (override synthesize-window)
-    (public synthesize-from-sketch evaluate-inst sym-op sym-arg)
-    (abstract gen-sym-inst)
+    (public synthesize-from-sketch evaluate-inst gen-sym-inst)
 
     ;; Create symbolic opcode using Rosette symbolic variable.
     (define (sym-op)
@@ -27,6 +27,15 @@
     (define (sym-arg)
       (define-symbolic* arg number?)
       arg)
+
+    (define groups (get-field groups-of-opcodes machine))
+    (define args (get-field max-number-of-args machine))
+    (define (gen-sym-inst)
+      (if (= groups 1)
+          (inst (sym-op)
+                (for/vector ([arg args]) (sym-arg)))
+          (inst (for/vector ([op groups]) (sym-op))
+                (for/vector ([arg args]) (sym-arg)))))
     
     (define ninsts (vector-length (get-field opcodes machine)))
 
@@ -37,11 +46,6 @@
       ;;(pretty-display "done interpret spec")
       res
       )
-    
-    (define (sym-input)
-      (define-symbolic* input number?)
-      input
-      )
 
     ;; Superoptimize program
     ;; >>> INPUTS >>>
@@ -50,7 +54,7 @@
     ;; constraint: constraint on the output state
     ;; cost: upperbound (exclusive) of the cost of the output program, #f is no upperbound
     ;; assume: input assumption
-    (define (synthesize-window spec sketch prefix postfix constraint extra 
+    (define (synthesize-window spec sketch prefix postfix constraint 
 			       cost time-limit
 			       #:hard-prefix [hard-prefix (vector)] 
 			       #:hard-postfix [hard-postfix (vector)]
@@ -62,17 +66,17 @@
           (synthesize-from-sketch 
            (vector-append prefix spec postfix) 
 	   (vector-append prefix sketch postfix)
-	   constraint extra cost time-limit
+	   constraint cost time-limit
             #:hard-prefix hard-prefix #:hard-postfix hard-postfix 
             #:assume assumption)
           (synthesize-window-mix 
-           spec sketch prefix postfix constraint extra cost time-limit
+           spec sketch prefix postfix constraint cost time-limit
             #:hard-prefix hard-prefix #:hard-postfix hard-postfix 
             #:assume assumption)))
 
     ;; Randomly guess opcodes, then uses symbolic search to solve the rest.
     ;; Caution: this function mutates sketch at symbolic instructions
-    (define (synthesize-window-mix spec sketch prefix postfix constraint extra 
+    (define (synthesize-window-mix spec sketch prefix postfix constraint 
                                    [cost #f] [time-limit 3600]
                                    #:hard-prefix [hard-prefix (vector)] 
                                    #:hard-postfix [hard-postfix (vector)]
@@ -93,7 +97,7 @@
          (synthesize-from-sketch 
           (vector-append prefix spec postfix)
 	  (vector-append prefix sketch postfix)
-	  constraint extra cost time-limit
+	  constraint cost time-limit
           #:hard-prefix hard-prefix #:hard-postfix hard-postfix 
           #:assume assumption)
          ))
@@ -106,7 +110,7 @@
 
 
     ;; Query kodkod or SMT solver to find a candidate.
-    (define (synthesize-from-sketch spec sketch constraint extra 
+    (define (synthesize-from-sketch spec sketch constraint  
 				    [cost #f]
 				    [time-limit 3600]
                                     #:hard-prefix [hard-prefix (vector)] 
@@ -123,62 +127,84 @@
 	    (newline)
             (send printer print-struct hard-postfix)
 	    (newline)
+            (pretty-display `(assumption ,assumption))
 	    )
 
       (current-bitwidth bit)
       
 
-      (define start-state (send machine get-state sym-input extra))
+      (define start-state (send machine get-state sym-input #:concrete #f))
       (define spec-state #f)
       (define sketch-state #f)
       (define spec-cost #f)
       (define sketch-cost #f)
-      ;; (pretty-display "========= start state")
-      ;; (send machine display-state start-state)
       
       (define (interpret-spec!)
-        (when debug (pretty-display "========== interpret spec"))
+        (when debug
+              (newline)
+              (pretty-display "========== interpret spec"))
         (set! spec-state 
               (interpret-spec (vector-append hard-prefix spec hard-postfix)
                               start-state assumption))
+        ;;(pretty-display `(interpret-spec ,spec-state))
         )
       
       (define (compare-spec-sketch)
-        (when debug (pretty-display "=========== interpret sketch"))
+        (when debug
+              (newline)
+              (pretty-display "=========== interpret sketch"))
         (set! sketch-state 
               (send simulator interpret (vector-append hard-prefix sketch hard-postfix)
                     start-state spec-state))
+        ;;(pretty-display `(interpret-spec ,sketch-state))
         (when debug (pretty-display "check output"))
         ;; (set! spec-cost (send simulator performance-cost spec))
         (set! sketch-cost (send simulator performance-cost sketch))
         (when cost (assert (< sketch-cost cost) "cost"))
         (send validator assert-state-eq spec-state sketch-state constraint)
-        (when debug (pretty-display "=========== done compare-spec-sketch"))
+        (when debug
+              (newline)
+              (pretty-display "=========== done compare-spec-sketch")
+              (pretty-display "=========== start state (again)")
+              (send machine display-state start-state)
+              )
         )
       
       ;; Collect input variables and contruct their init values.
-      (define-values (sym-vars inputs)
-        (send validator generate-inputs-inner 2 spec start-state assumption))
+      ;;(define inputs (send validator generate-input-states-slow 1 spec assumption #:raw #t))
+      (send simulator interpret spec start-state)
+      (define sym-vars (send validator get-sym-vars start-state))
+      (clear-asserts)
 
+      ;; (when debug
+      ;;       (pretty-display "Test calculate performance-cost with symbolic instructions...")
+      ;;       (send simulator performance-cost sketch)
+      ;;       (pretty-display "Test simulate with symbolic instructions...")
+      ;;       (send simulator interpret sketch start-state)
+      ;;       (pretty-display "Passed!"))
+      
       (when debug
-            (pretty-display "Test calculate performance-cost with symbolic instructions...")
-            (send simulator performance-cost sketch)
-            (pretty-display "Test simulate with symbolic instructions...")
-            (send simulator interpret sketch start-state)
-            (pretty-display "Passed!"))
-
+            (pretty-display "========= start state")
+            (send machine display-state start-state)
+            (pretty-display `(sym-vars ,sym-vars))
+            ;;(pretty-display `(inputs ,inputs))
+            )
+      
       (define model 
         (timeout
          time-limit
          (synthesize 
           #:forall sym-vars
-          #:init (drop inputs 1)
+          ;;#:init inputs
           #:assume (interpret-spec!)
           #:guarantee (compare-spec-sketch))
          )
         )
-      
-      (when debug (pretty-display ">>> done synthesize"))
+
+      (when debug
+            (pretty-display ">>> done synthesize")
+            (pretty-display `(model ,model))
+            )
       (define final-program (evaluate-program sketch model))
       (when debug (pretty-display ">>> done evaluate program"))
       (define final-cost (evaluate sketch-cost model))
@@ -205,6 +231,6 @@
             (evaluate (inst-args x) model)))
     
     (define (evaluate-program code model)
-      (traverse code inst? (lambda (x) (evaluate-inst x model))))
+      (vector-map (lambda (x) (evaluate-inst x model)) code))
 
     ))

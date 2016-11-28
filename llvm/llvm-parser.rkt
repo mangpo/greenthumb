@@ -85,14 +85,12 @@
          ((inst-list) (if compress? (rename (list->vector $1) no-rename) (list->vector $1))))
        )))
 
-    (define/public (info-from-file file)
+    (define/override (info-from-file file)
       (define lines (file->lines file))
       (define live-out (string-split (first lines) ","))
-      (define live-in (string-split (second lines) ","))
       (set! compress? #t)
-      (set! all-names (list->set (append live-in live-out)))
-      (values (vector live-out #t)
-              (vector live-in #t)))
+      (set! all-names (list->set live-out))
+      (vector live-out #t))
 
     ))
 

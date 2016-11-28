@@ -63,10 +63,10 @@
 
 (define parser (new GA-parser%))
 (define code (send parser ir-from-file file-to-optimize))
-(define-values (live-out recv assume input-file) (send parser info-from-file (string-append file-to-optimize ".info")))
+(define-values (live-out assume input-file) (send parser info-from-file (string-append file-to-optimize ".info")))
 
-(pretty-display `(live-out ,live-out ,recv  ,assume ,input-file))
-(optimize code live-out (search-type) (mode) recv
+(pretty-display `(live-out ,live-out ,assume ,input-file))
+(optimize code live-out (search-type) (mode) 
 	  #:assume assume
           #:dir (dir) #:cores (cores) 
           #:time-limit (time-limit) #:size (size) #:window (window)

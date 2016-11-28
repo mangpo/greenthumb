@@ -11,7 +11,7 @@
     (super-new)
     ;; Required fields to be intialized when extended.
     (init-field [asm-parser #f] [asm-lexer #f])
-    (public ir-from-string ir-from-file)
+    (public ir-from-string ir-from-file info-from-file)
     
     (define (lex-this input)
       (lambda ()
@@ -31,6 +31,12 @@
            (let ((input (open-input-file file)))
              (port-count-lines! input)
              (ast input))))
+
+    ;; Read from file and convert file content info into the format we want.
+    ;; Info usually includes live-out information.
+    ;; It can also contain extra information such as precondition of the inputs.
+    (define (info-from-file filename)
+      (raise "info-from-file: unimplemented. Need to extend this function."))
 
     ))
 

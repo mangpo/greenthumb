@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../simulator.rkt" "../ops-racket.rkt" "GA-ops-racket.rkt"
+(require "../simulator.rkt" "../ops-racket.rkt"  "GA-ops-racket.rkt"
          "../inst.rkt"
          "../machine.rkt" "GA-machine.rkt")
 (provide GA-simulator-racket%)
@@ -24,37 +24,14 @@
     (define RIGHT (get-field RIGHT machine))
     (define IO (get-field IO machine))
 
-    ;; Creates a policy that determines what kind of communication is allowed 
-    ;; during interpretation.  The policy is a procedure that takes as input a 
-    ;; comm pair and the current comm list.  If the policy allows 
-    ;; the given pair to be added to the list, the pair is inserted at the beginning 
-    ;; of the list and the result is returned.  If the policy doesn't allow the pair 
-    ;; to be added to the list, then an assertion error is thrown.
-    (define-syntax comm-policy
-      (syntax-rules (all at-most)
-	[(comm-policy all) cons]         ; allow everything
-	[(comm-policy at-most state)     ; allow only prefixes of the communication sequence observed in the given state 
-	 (let ([limit (reverse (progstate-comm state))])
-	   (lambda (p comm)
-	     (for*/all ([c comm])        ; this is not needed for correctness, but improves performance
-		       (let* ([len (length c)]
-			      [limit-p (list-ref limit len)])
-			 (assert (< len (length limit)) 'comm-length)  
-			 (assert (equal? (first p) (first limit-p)) `comm-data)
-			 (assert (equal? (second p) (second limit-p)) `comm-port)
-			 (assert (equal? (third p) (third limit-p)) `comm-read-write)
-			 (cons limit-p c)))))])) ; can return (cons p c) here, but this is more efficient. 
-					; it is correct because we assert that p == limit-p.
-
-
     ;; Interpret a given program from a given state.
     ;; code
     ;; state: initial progstate
     ;; policy: a procedure that enforces a communication policy (see the definition of comm-policy above)
-    (define (interpret code state [policy #f])
-      (set! policy (if policy
-		       (comm-policy at-most policy)
-		       (comm-policy all)))
+    (define (interpret code state [ref #f])
+      ;; (set! policy (if policy
+      ;;   	       (comm-policy at-most policy)
+      ;;   	       (comm-policy all)))
       
       (define a (progstate-a state))
       (define b (progstate-b state))
@@ -65,11 +42,10 @@
       (define data-body (vector-copy (stack-body (progstate-data state))))
       (define return-sp (stack-sp (progstate-return state)))
       (define return-body (vector-copy (stack-body (progstate-return state))))
-      (define memory (vector-copy (progstate-memory state)))
+      (define memory #f)
+      (define recv #f)
+      (define comm #f)
       
-      (define recv (progstate-recv state))
-      (define comm (progstate-comm state))
-
       ;; Pushes a value to the given stack's body.
       (define-syntax-rule (push-stack! x-sp x-body value)
 	(begin
@@ -113,18 +89,24 @@
       (define (read-memory addr)
         (define ret #f)
 	(define (read port)
-	  (let ([val (car recv)])
-	    (set! comm (policy (list val port 0) comm))
-	    (set! recv (cdr recv))
-	    val))
+          (unless comm
+                  (set! comm (send (progstate-comm state) clone (and ref (progstate-comm ref))))
+                  (set! recv (send (progstate-recv state) clone (and ref (progstate-recv ref)))))
+          (let ([val (send recv pop)])
+            (send comm push (list val port 0))
+            val))
 	(cond
 	 [(equal? addr UP)    (set! ret (read UP))]
 	 [(equal? addr DOWN)  (set! ret (read DOWN))]
 	 [(equal? addr LEFT)  (set! ret (read LEFT))]
 	 [(equal? addr RIGHT) (set! ret (read RIGHT))]
 	 [(equal? addr IO)    (set! ret (read IO))]
-	 [else 
-          (set! ret (vector-ref memory addr))])
+	 [else
+          ;;(pretty-display `(memory-load ,addr))
+          (unless memory
+                  (set! memory (send (progstate-memory state) clone (and ref (progstate-memory ref)))))
+          (assert (and (>= addr 0) (< addr (min 64 (sub1 (arithmetic-shift 1 (sub1 bit)))))))
+          (set! ret (send memory load addr))])
         ret)
       
       ;; Write to the given memeory address or communication
@@ -133,15 +115,21 @@
       (define (set-memory! addr val)
 	(when debug (pretty-display `(set-memory! ,addr ,val)))
 	(define (write port)
-          (set! comm (policy (list val port 1) comm)))
+          (unless comm
+                  (set! comm (send (progstate-comm state) clone (and ref (progstate-comm ref))))
+                  (set! recv (send (progstate-recv state) clone (and ref (progstate-recv ref)))))
+          (send comm push (list val port 1)))
 	(cond
 	 [(equal? addr UP)    (write UP)]
 	 [(equal? addr DOWN)  (write DOWN)]
 	 [(equal? addr LEFT)  (write LEFT)]
 	 [(equal? addr RIGHT) (write RIGHT)]
 	 [(equal? addr IO)    (write IO)]
-	 [else 
-	  (vector-set! memory addr val)]))
+	 [else
+          (unless memory
+                  (set! memory (send (progstate-memory state) clone (and ref (progstate-memory ref)))))
+          (assert (and (>= addr 0) (< addr (min 64 (sub1 (arithmetic-shift 1 (sub1 bit)))))))
+          (send memory store addr val)]))
 
       (define (clip x) (finitize x bit))
 
@@ -181,17 +169,18 @@
 
       (define (interpret-step inst-const)
 	(define inst (inst-op inst-const))
-	(define const (inst-args inst-const))
+        (define args (inst-args inst-const))
+	(define const (and args (> (vector-length args) 0) (vector-ref args 0)))
 	(when debug (pretty-display `(interpret-step ,inst ,const)))
 	(define-syntax-rule (inst-eq x) (equal? x (vector-ref opcodes inst)))
 	(cond
 	 [(inst-eq `@p)   (push! const)]
 	 [(inst-eq `@+)   (mem-to-stack a)
-	                  (set! a (add1 a))]
+	                  (set! a (clip (add1 a)))]
 	 [(inst-eq `@b)   (mem-to-stack b)]
 	 [(inst-eq `@)    (mem-to-stack a)]
 	 [(inst-eq `!+)   (stack-to-mem a)
-	                  (set! a (add1 a))]
+	                  (set! a (clip (add1 a)))]
 	 [(inst-eq `!b)   (stack-to-mem b)]
 	 [(inst-eq `!)    (stack-to-mem a)]
 	 [(inst-eq `+*)   (if (= (bitwise-and #x1 a) 0)
@@ -224,55 +213,48 @@
 	 [(or (vector? x) (list? x))
 	  (for ([i x]) (interpret-struct i))]
 	 
-	 [(block? x)
-	  (interpret-struct (block-body x))]
+	 ;; [(block? x)
+	 ;;  (interpret-struct (block-body x))]
 
-	 [(forloop? x)
-	  (interpret-struct (forloop-init x))
-	  (r-push! (pop!))
-	  (for ([i (in-range (add1 r))])
-	       (interpret-struct (forloop-body x))
-	       (set! r (sub1 r)))
-	  (r-pop!)
-	  ]
+	 ;; [(forloop? x)
+	 ;;  (interpret-struct (forloop-init x))
+	 ;;  (r-push! (pop!))
+	 ;;  (for ([i (in-range (add1 r))])
+	 ;;       (interpret-struct (forloop-body x))
+	 ;;       (set! r (sub1 r)))
+	 ;;  (r-pop!)
+	 ;;  ]
 
-	 [(ift? x)
-	  (when (not (equal? t 0))
-		(interpret-struct (ift-t x)))]
+	 ;; [(ift? x)
+	 ;;  (when (not (equal? t 0))
+	 ;;        (interpret-struct (ift-t x)))]
 
-	 [(iftf? x)
-	  (if (not (equal? t 0))
-	      (interpret-struct (iftf-t x))
-	      (interpret-struct (iftf-f x)))]
+	 ;; [(iftf? x)
+	 ;;  (if (not (equal? t 0))
+	 ;;      (interpret-struct (iftf-t x))
+	 ;;      (interpret-struct (iftf-f x)))]
 
-	 [(-ift? x)
-	  (when (negative? t) ;(or (negative? t) (>= t (arithmetic-shift 1 (sub1 bit)))) ;; negative
-		(interpret-struct (-ift-t x)))]
+	 ;; [(-ift? x)
+	 ;;  (when (negative? t) ;(or (negative? t) (>= t (arithmetic-shift 1 (sub1 bit)))) ;; negative
+	 ;;        (interpret-struct (-ift-t x)))]
 
-	 [(-iftf? x)
-	  (if (negative? t) ;(or (negative? t) (>= t (arithmetic-shift 1 (sub1 bit)))) ;; negative
-	      (interpret-struct (-iftf-t x))
-	      (interpret-struct (-iftf-f x)))]
+	 ;; [(-iftf? x)
+	 ;;  (if (negative? t) ;(or (negative? t) (>= t (arithmetic-shift 1 (sub1 bit)))) ;; negative
+	 ;;      (interpret-struct (-iftf-t x))
+	 ;;      (interpret-struct (-iftf-f x)))]
 
 	 [else (raise (format "interpret-struct: unimplemented for ~a" x))]
 	 ))
       
-      (with-handlers*
-       ([exn:break? (lambda (e) (raise e))]
-        [exn? (lambda (e)
-                (raise (exn:state
-                        (exn-message e)
-                        (exn-continuation-marks e)
-                        (progstate a b r s t 
-                                   (stack data-sp data-body)
-                                  (stack return-sp return-body)
-                                   memory recv comm))))])
-       (interpret-struct code))
+      (interpret-struct code)
 
       (progstate a b r s t 
 		  (stack data-sp data-body)
 		  (stack return-sp return-body)
-		  memory recv comm)
+		  (or memory (progstate-memory state))
+                  (or recv (progstate-recv state))
+                  (or comm (progstate-comm state))
+                  )
       )
 
     (define (performance-cost code)
@@ -294,12 +276,12 @@
 	  (foldl (lambda (i all) (+ all (cost-struct i))) 0 x)]
 	 [(vector? x)
 	  (foldl (lambda (i all) (+ all (cost-struct i))) 0 (vector->list x))]
-	 [(block? x)   (cost-struct (block-body x))]
-	 [(forloop? x) (+ (cost-struct (forloop-init x)) (cost-struct (forloop-body x)))]
-	 [(ift? x)     (cost-struct (ift-t x))]
-	 [(iftf? x)    (+ (cost-struct (iftf-t x)) (cost-struct (iftf-f x)))]
-	 [(-ift? x)    (cost-struct (-ift-t x))]
-	 [(-iftf? x)   (+ (cost-struct (-iftf-t x)) (cost-struct (-iftf-f x)))]
+	 ;; [(block? x)   (cost-struct (block-body x))]
+	 ;; [(forloop? x) (+ (cost-struct (forloop-init x)) (cost-struct (forloop-body x)))]
+	 ;; [(ift? x)     (cost-struct (ift-t x))]
+	 ;; [(iftf? x)    (+ (cost-struct (iftf-t x)) (cost-struct (iftf-f x)))]
+	 ;; [(-ift? x)    (cost-struct (-ift-t x))]
+	 ;; [(-iftf? x)   (+ (cost-struct (-iftf-t x)) (cost-struct (-iftf-f x)))]
 	 [else (raise (format "cost-struct: unimplemented for ~a" x))]
 	 ))
 
