@@ -359,9 +359,7 @@
 			       (vector-copy code (vector-ref mid-positions (sub1 rounds)))))
 	    )
 
-      (let ([username (string-trim
-                       (with-output-to-string
-                           (system "whoami")))])
+      (let ([username (string-trim (read-line (first (process "whoami"))))])
         (system (format "pkill -u ~a java" username))
         (system (format "pkill -u ~a z3" username)))
       
