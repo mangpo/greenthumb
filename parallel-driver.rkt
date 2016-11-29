@@ -359,8 +359,12 @@
 			       (vector-copy code (vector-ref mid-positions (sub1 rounds)))))
 	    )
 
-      (system "pkill -u mangpo java")
-      (system "pkill -u mangpo z3")
+      (let ([username (string-trim
+                       (with-output-to-string
+                           (system "whoami")))])
+        (system (format "pkill -u ~a java" username))
+        (system (format "pkill -u ~a z3" username)))
+      
       (let ([decompressed-code (send printer decompress-state-space output-code map-back)])
         (newline)
         (pretty-display "OUTPUT")

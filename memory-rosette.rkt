@@ -8,7 +8,7 @@
   (set! memory-size 1))
 (define (increase-memory-size)
   (when (> memory-size 100) (raise "memory-rosette: memory size is too large."))
-  (pretty-display (format "Increse memory size to ~a" (* 2 memory-size)))
+  (pretty-display (format "Increase memory size to ~a" (* 2 memory-size)))
   (set! memory-size (* 2 memory-size)))
 (define (finalize-memory-size)
   (set! memory-size (add1 memory-size))
