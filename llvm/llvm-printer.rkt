@@ -103,7 +103,7 @@
 
     (define-syntax-rule (char1=% x) (and (string? x) (equal? (substring x 0 1) "%")))
 				  
-    ;; Convert an insstruction x from string-IR to encoded-IR format.
+    ;; Convert an instruction x from string-IR to encoded-IR format.
     (define (encode-inst x)
       (cond
        [(equal? (inst-op x) "nop") (inst (get-field nop-id machine) (vector))]
@@ -192,8 +192,8 @@
         (inst op new-args)]))
 
     ;; Convert liveness infomation to the same format as program state.
-    ;; x: #(a list of variables' names, live-mem)
-    ;; output: vector of #t and #f.
+    ;; x: (vector <list of variables> <list of vector variables> <memory: #t or #f>)
+    ;; output: liveness in program state format
     (define/public (encode-live x)
       (define config (send machine get-config))
       (define live (make-vector (car config) #f))

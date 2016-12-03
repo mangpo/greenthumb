@@ -48,7 +48,7 @@ The expression passed to `#:structure` should evaluate to a collection of `'x`, 
 ##### Instruction Operand for Vector Register/Variable
 Next, before defining vector instructions, we need to define an instruction operand type associated with vector registers ([Step 1.4 of Extending GreenThumb to a New ISA](new-isa.md#step1.4)). In this example, we define:
 ```racket
-(define-arg-type 'reg  (lambda (config) (range (car config))))  ;; # of scalar registers = (car config)
+(define-arg-type 'reg  (lambda (config) (range (car config)))) ;; # of scalar registers = (car config)
 (define-arg-type 'vec4 (lambda (config) (range (cdr config)))) ;; # of vector registers = (cdr config)
 ```
 ##### Instruction Operand for Vector Constant

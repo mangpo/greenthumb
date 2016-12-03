@@ -61,7 +61,7 @@
     ;;;;;;;;;;;;;;;;;;;;; instruction classes ;;;;;;;;;;;;;;;;;;;;;;;;
     (define-arg-type 'var (lambda (config) (range (car config))))
     (define-arg-type 'vec4 (lambda (config) (range (cdr config))))
-    (define-arg-type 'const (lambda (config) '(0 1 -1 -2 -8)))
+    (define-arg-type 'const (lambda (config) '(0 1 3 -1 -2 -8)))
     (define-arg-type 'bit (lambda (config) '(0 1)))
     (define-arg-type 'const-vec4
       (lambda (config) (list (vector 0 0 0 0)
@@ -118,13 +118,6 @@
      '(shl# lshr# ashr#)
      #:args '(var var bit)
      #:ins '(1)
-     #:outs '(0))
-
-    (define-instruction-class
-     'rir
-     '(_sub _shl _lshr _ashr _udiv _sdiv _urem _srem)
-     #:args '(var const var)
-     #:ins '(2)
      #:outs '(0))
 
     (define-instruction-class

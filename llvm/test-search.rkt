@@ -10,11 +10,12 @@
          )
 
 (define parser (new llvm-parser%))
-(define machine (new llvm-machine% [config (cons 3 2)]))
+(define machine (new llvm-machine% [config (cons 3 0)]))
 (define printer (new llvm-printer% [machine machine]))
 (define simulator-racket (new llvm-simulator-racket% [machine machine]))
 (define simulator-rosette (new llvm-simulator-rosette% [machine machine]))
-(define validator (new llvm-validator% [machine machine] [simulator simulator-rosette]))
+(define validator (new llvm-validator% [machine machine]
+                       [simulator simulator-rosette] [printer printer]))
 
 
 (define prefix 
@@ -79,9 +80,9 @@ store i32 %1, i32* %2
 
 (define code
 (send parser ir-from-string "
-%in = add i32 %in, %1
-%in = add i32 %in, %1
-%out = add i32 %in, %1
+%in = sub i32 %in, %1
+%in = sub i32 %in, %1
+%out = sub i32 %in, %1
 "))
 
 #;(define code
@@ -152,7 +153,7 @@ store i32 %1, i32* %2
                       [validator validator] [simulator simulator-rosette]
                       [syn-mode #t] ;; #t = synthesize, #f = optimize mode
                       ))
-#;(send stoch superoptimize encoded-code 
+(send stoch superoptimize encoded-code 
       constraint ;; constraint
       "./driver-0" 3600 #f)
 
@@ -163,7 +164,7 @@ store i32 %1, i32* %2
                       [inverse% llvm-inverse%]
                       [enumerator% llvm-enumerator%]
                       [syn-mode `linear]))
-(send backward synthesize-window
+#;(send backward synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch => start from searching from length 1, number => only search for that length
       encoded-prefix encoded-postfix
