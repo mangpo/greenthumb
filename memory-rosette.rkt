@@ -30,10 +30,7 @@
                 ;; don't initialize ref.
                 ;; Otherwise, initailize ref with memory object output from specification program.
                 [ref #f])
-    (public load store create-concrete clone
-            ;; internal use only
-            lookup-init lookup-update 
-            )
+    (public load store create-concrete clone)
 
     (define (cal-size l)
       (define ans 0)
