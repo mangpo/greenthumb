@@ -28,7 +28,7 @@
                 ;;    val)]
                 ;; If this memory object is for interpreting specification program,
                 ;; don't initialize ref.
-                ;; Otherwise, initailize ref with memory object output from specification program.
+                ;; Otherwise, initialize ref with memory object output from specification program.
                 [ref #f])
     (public load store create-concrete clone
             ;; internal use only
