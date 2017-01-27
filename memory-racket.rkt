@@ -41,17 +41,11 @@
     (define/public (equal-secondary-hash-code-of hash-code)
       (hash-code update))
       
-    ;; Clone a new memory object with the same init.
+    ;; Clone a new memory object with the same init and update.
     ;; Use this method to clone new memory for every program interpretation.
     (define (clone [ref #f])
       (new memory-racket% [ref ref] [init init]
            [update (make-hash (hash->list update))] [get-fresh-val get-fresh-val]))
-      
-    ;; ;; Clone a new memory object with the same update.
-    ;; ;; Use this method to clone new memory for every inverse program interpretation.
-    ;; (define (clone-all [ref #f])
-    ;;   (new memory-racket% [ref ref] [init init]
-    ;;        [update (make-hash (hash->list update))]))
     
     (define/public (clone-init)
       (new memory-racket% [ref ref] [init init]))
@@ -157,35 +151,19 @@
 (define (test1)
   (define mem (new memory-racket%))
   (send mem load 9) ;; expect error here
-  (send mem load 6)
-  (send mem store 2 222)
-  (send mem store 9 999)
-  (send mem load 9)
-  (send mem store 9 0)
-  (send mem load 9)
-  (pretty-display `(mem ,mem))
-
-  (define mem2 (send mem clone mem))
-  (send mem2 load 9)
-  (send mem2 load 6)
-  (send mem2 store 2 222)
-  (send mem2 store 9 999)
-  (send mem2 load 9)
-  (send mem2 store 9 0)
-  (send mem2 load 9)
-  (pretty-display `(mem2 ,mem2)))
+  )
 
 (define (test2)
   ;; test correctness-cost
   (define (diff-cost x y) (if (= x y) 0 1))
     
   (define mem (new memory-racket% [init (make-hash '((9 . 99) (6 . 66)))]))
+  (define mem2 (send mem clone mem))
   (send mem load 9)
   (send mem load 6)
   (send mem store 2 222)
   (send mem store 3 333)
 
-  (define mem2 (send mem clone mem))
   (send mem2 load 9)
   (send mem2 load 6)
   (send mem2 store 2 111)
@@ -195,12 +173,12 @@
   )
 
 (define (test3)
-  ;; test clone-all del lookup-update
+  ;; test clone del lookup-update
   (define mem (new memory-racket% [init (make-hash '((9 . 99) (6 . 66)))]))
   (send mem store 2 222)
   (send mem store 3 333)
 
-  (define mem2 (send mem clone-all))
+  (define mem2 (send mem clone))
   (send mem2 del 3)
   (assert (= 222 (send mem2 lookup-update 2)))
   (assert (equal? #f (send mem2 lookup-update 3)))
