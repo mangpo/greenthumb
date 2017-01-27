@@ -14,7 +14,7 @@
     (super-new)
     (init-field 
      ;; Required fields to be initialized when extending this class.
-     [bitwidth #f]          ;; Number of bits to represnet a number
+     [bitwidth #f]          ;; Number of bits to represent a number
      [random-input-bits #f] ;; Number of bits to generate random inputs. Often equal to 'bit'.
      [config #f]            ;; Machine configuration such as # of regs, memory size, etc.
      [opcodes #f]           ;; A vector of opcode names.
