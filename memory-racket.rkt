@@ -5,7 +5,7 @@
 
 
 ;; Mask method which should only be public for object of memory-racket%
-(define-local-public-member lookup-init)
+(define-local-member-name lookup-init)
 
 (define memory-racket%
   (class* special% (equal<%> printable<%>)
