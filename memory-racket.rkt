@@ -3,6 +3,10 @@
 (require "special.rkt" "ops-racket.rkt")
 (provide memory-racket%)
 
+
+;; Mask method which should only be public for object of memory-racket%
+(define-local-public-member lookup-init)
+
 (define memory-racket%
   (class* special% (equal<%> printable<%>)
     (super-new)
@@ -17,11 +21,8 @@
             ;; for backward interpret
             del lookup-update
             get-update-addr-val get-update-addr-with-val get-addr-with-val get-available-addr
-            get-live-mask
-            ;; internal use only
-            lookup-init
-            )
-
+            get-live-mask)
+    
     (define/public (custom-print port depth)
       (print `(memory% init: ,init update: ,update) port depth))
 
@@ -94,7 +95,7 @@
       (and (hash-has-key? storage addr)
            (hash-ref storage addr)))
     
-    (define (lookup-init addr) (lookup init addr))
+    (define/public (lookup-init addr) (lookup init addr))
     (define (lookup-update addr) (lookup update addr))
 
     (define (modify storage addr val)
