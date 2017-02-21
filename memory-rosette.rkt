@@ -15,6 +15,11 @@
   (pretty-display (format "Finalize memory size ~a" memory-size))
   )
 
+
+;; Mask method which should only be public for object of memory-racket%
+(define-local-member-name lookup-init)
+(define-local-member-name lookup-update)
+
 (define memory-rosette%
   (class* special% (equal<%> printable<%>)
     (super-new)
@@ -30,11 +35,8 @@
                 ;; don't initialize ref.
                 ;; Otherwise, initialize ref with memory object output from specification program.
                 [ref #f])
-    (public load store create-concrete clone
-            ;; internal use only
-            lookup-init lookup-update 
-            )
-
+    (public load store create-concrete clone)
+    
     (define (cal-size l)
       (define ans 0)
       (for ([x l])
@@ -99,8 +101,8 @@
       (loop 0))
 
     
-    (define (lookup-init addr) (lookup init addr))
-    (define (lookup-update addr) (lookup update addr))
+    (define/public (lookup-init addr) (lookup init addr))
+    (define/public (lookup-update addr) (lookup update addr))
 
     (define (modify storage addr val)
       (define (loop index)
