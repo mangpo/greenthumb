@@ -44,10 +44,10 @@ def main(isa):
         
     # # rosette
     for c in ["simulator-rosette", "validator"]:
-        create(isa,c,"template/class-constructor.rkt","s-exp rosette")
+        create(isa,c,"template/class-constructor.rkt","rosette")
         
     for c in ["symbolic", "inverse", "enumerator"]:
-        create(isa,c,"template/class.rkt","s-exp rosette")
+        create(isa,c,"template/class.rkt","rosette")
 
 if __name__ == "__main__":
     main(sys.argv[1])

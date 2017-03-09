@@ -1,4 +1,4 @@
-#lang s-exp rosette
+#lang rosette
 
 (require "special.rkt" "memory-racket.rkt" "ops-rosette.rkt")
 (provide memory-rosette% init-memory-size increase-memory-size finalize-memory-size)

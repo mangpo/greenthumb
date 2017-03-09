@@ -1,10 +1,7 @@
-#lang s-exp rosette
+#lang rosette
 
 (require  "inst.rkt" "machine.rkt" "memory-rosette.rkt" "queue-rosette.rkt" "special.rkt"
           "ops-rosette.rkt")
-
-(require rosette/solver/smt/z3)
-(require rosette/solver/kodkod/kodkod)
 
 (provide validator% sym-input get-rand-func)
 
@@ -24,9 +21,9 @@
      [const const]
      [(and min-v max-v) (random-from-list (range min-v (add1 max-v)))]
      [else
-      (let* ([rand (random (min 4294967087 (<< 1 bit bit)))]
+      (let* ([rand (random (min 4294967087 (arithmetic-shift 1 bit)))]
              [half (arithmetic-shift                           
-                    (min 4294967087 (<< 1 bit bit))   
+                    (min 4294967087 (arithmetic-shift 1 bit))   
                     -1)])
         ;; (if (>= rand (<< 1 (sub1 bit)))
         ;;     (- rand (<< 1 bit))
@@ -55,7 +52,7 @@
     (define ninsts (vector-length (get-field opcodes machine)))
     (define start-time #f)
 
-    (current-solver (new kodkod%))
+    ;;(current-solver (new kodkod%))
 
     ;; Default: no assumption
     (define (assume state assumption)
@@ -80,7 +77,7 @@
       (pretty-display (format "solver = ~a" (current-solver)))
       (init-memory-size)
       (define (solve-until-valid)
-        (clear-asserts)
+        (clear-asserts!)
 	(current-bitwidth bit)
         (define state (send machine get-state sym-input #:concrete #f))
         ;;(pretty-display `(state ,state))
@@ -114,9 +111,9 @@
        [const const]
        [(and min-v max-v) (random-from-list (range min-v (add1 max-v)))]
        [else
-        (let* ([rand (random (min 4294967087 (<< 1 random-input-bit bit)))]
+        (let* ([rand (random (min 4294967087 (arithmetic-shift 1 random-input-bit)))]
                [half (arithmetic-shift                           
-                      (min 4294967087 (<< 1 random-input-bit bit))   
+                      (min 4294967087 (arithmetic-shift 1 random-input-bit))   
                       -1)])
           ;; (if (>= rand (<< 1 (sub1 bit)))
           ;;     (- rand (<< 1 bit))
@@ -153,7 +150,7 @@
     (define/public (generate-input-states-slow n spec assumption #:db [db #f] #:raw [raw #f])
       (when debug
             (pretty-display `(generate-inputs-inner ,n ,assumption ,random-input-bit)))
-      (clear-asserts)
+      (clear-asserts!)
       (current-bitwidth bit)
       (define start-state (send machine get-state sym-input #:concrete #f))
 
@@ -169,7 +166,8 @@
           )
         (define sol (solve (assert-extra-and-interpret)))
         ;;(pretty-display `(state ,start-state))
-        (define restrict-pairs (solution->list sol))
+        ;;(define restrict-pairs (solution->list sol))
+        (define restrict-pairs (hash->list (model sol)))
         (set! first-solve #f)
         (unless (empty? restrict-pairs)
                 (set! sols (cons sol sols))
@@ -220,7 +218,7 @@
       (for ([sol sols])
            (define restrict-pairs (list))
            (set! first-solve #f)
-           (for ([pair (solution->list sol)])
+           (for ([pair (hash->list (model sol))])
                 ;; Filter only the ones that matter.
                 (when (hash-has-key? (car inputs) (car pair))
                       (set! restrict-pairs (cons pair restrict-pairs))))
@@ -274,7 +272,7 @@
 	    (pretty-display `(assumption ,assumption))
 	    )
       
-      (clear-asserts)
+      (clear-asserts!)
       (current-bitwidth bit)
       (define start-state (send machine get-state sym-input #:concrete #f))
       (define spec-state #f)
@@ -297,14 +295,14 @@
        ([exn:fail? 
          (lambda (e)
            (when debug (pretty-display "program-eq? SAME"))
-           (unsafe-clear-terms!)
+           (clear-terms!)
            (if (equal? (exn-message e) "verify: no counterexample found")
                #f
                (raise e)))])
        (let ([model (verify #:assume (interpret-spec!) #:guarantee (compare))])
          (when debug (pretty-display "program-eq? DIFF"))
          (let ([state (evaluate-state start-state model)])
-           (unsafe-clear-terms!)
+           (clear-terms!)
            state)
          )))
     
@@ -422,7 +420,8 @@
 
     ;; Evaluate symbolic progstate to concrete progstate based on solution 'sol'.
     (define (evaluate-state state sol)
-      (define sol-list (solution->list sol))
+      ;;(define sol-list (solution->list sol))
+      (define sol-list (hash->list (model sol)))
       (define sol-hash (make-hash sol-list))
       (define sym-vars (get-sym-vars state))
 

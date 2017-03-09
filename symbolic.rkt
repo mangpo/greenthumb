@@ -1,8 +1,6 @@
-#lang s-exp rosette
+#lang rosette
 
 (require "inst.rkt" "machine.rkt" "decomposer.rkt" "validator.rkt")
-(require rosette/solver/kodkod/kodkod)
-(require rosette/solver/smt/z3)
 
 (provide symbolic%)
 
@@ -116,8 +114,7 @@
                                     #:hard-prefix [hard-prefix (vector)] 
                                     #:hard-postfix [hard-postfix (vector)]
 				    #:assume [assumption (send machine no-assumption)])
-      (send (current-solver) shutdown)
-      (current-solver (new kodkod%))
+      (solver-shutdown (current-solver))
       (pretty-display "SUPERPOTIMIZE:")
       (pretty-display (format "solver = ~a" (current-solver)))
       (when debug
@@ -174,7 +171,7 @@
       ;;(define inputs (send validator generate-input-states-slow 1 spec assumption #:raw #t))
       (send simulator interpret spec start-state)
       (define sym-vars (send validator get-sym-vars start-state))
-      (clear-asserts)
+      (clear-asserts!)
 
       ;; (when debug
       ;;       (pretty-display "Test calculate performance-cost with symbolic instructions...")
@@ -216,7 +213,7 @@
       (pretty-display (format "limit cost = ~a" cost))
       (pretty-display (format "new cost = ~a" final-cost))
       (pretty-display "=====================================")
-      (clear-asserts)
+      (clear-asserts!)
       (clear-terms!)
 
       ;; Print to file

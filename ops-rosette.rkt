@@ -1,6 +1,4 @@
-#lang s-exp rosette
-
-(require (only-in rosette [<< sym/<<] [>>> sym/>>>]))
+#lang rosette
 
 (provide (all-defined-out))
 
@@ -8,18 +6,6 @@
   (begin
     (assert c message)
     val))
-
-(define-syntax-rule (<< x y bit) (sym/<< x y))
-(define-syntax-rule (>>> x y bit) (sym/>>> x y))
-
-(define (finitize num bit)
-  (match (coerce num number?)
-         [(? term? v) v]
-         [v (let* ([mask (arithmetic-shift -1 bit)]
-                   [masked (bitwise-and (bitwise-not mask) v)])
-              (if (bitwise-bit-set? masked (- bit 1))
-                  (bitwise-ior mask masked)  
-                  masked))]))
 
 (define-syntax-rule (get-field* f o)
   (for/all ([i o]) (get-field f i)))
@@ -94,6 +80,19 @@
 
 ;;;;;;;;;;;;;;;;;;;;; multiplication ;;;;;;;;;;;;;;;;;;;;;;;;
 (define (smmul u v bit)
+  (define uu (sign-extend u (bitvector (* 2 bit))))
+  (define vv (sign-extend v (bitvector (* 2 bit))))
+  (define res (bvmul uu vv))
+  (extract (sub1 (* 2 bit)) bit res))
+
+(define (ummul u v bit)
+  (define uu (zero-extend u (bitvector (* 2 bit))))
+  (define vv (zero-extend v (bitvector (* 2 bit))))
+  (define res (bvmul uu vv))
+  (extract (sub1 (* 2 bit)) bit res))
+
+#|
+(define (smmul u v bit)
   (define byte2 (quotient bit 2))
   (define low-mask (sub1 (arithmetic-shift 1 byte2)))
 
@@ -127,6 +126,8 @@
                   (sym/>>> (* u0 v0) byte2))
                byte2))
    bit))
+
+|#
 
 ;; (define (smmul x y bit) 
 ;;   (define p (*h x y))

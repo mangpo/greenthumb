@@ -1,4 +1,4 @@
-#lang s-exp rosette
+#lang rosette
 
 (require "queue-racket.rkt" "special.rkt" "ops-rosette.rkt")
 (provide queue-in-rosette% queue-out-rosette%)
