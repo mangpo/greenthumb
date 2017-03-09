@@ -16,7 +16,8 @@
   (define printer (new llvm-printer% [machine machine]))
   (define simulator-racket (new llvm-simulator-racket% [machine machine]))
   (define simulator-rosette (new llvm-simulator-rosette% [machine machine]))
-  (define validator (new llvm-validator% [machine machine] [simulator simulator-rosette]))
+  (define validator (new llvm-validator% [machine machine] [simulator simulator-rosette]
+                         [printer printer]))
 
   (define symbolic (new llvm-symbolic% [machine machine]
                         [printer printer] [parser parser]
@@ -45,6 +46,11 @@
     (unless out-sym (raise (format "TEST ~a: fail to synthesize [symbolic]" id)))
     (define ce-sym (send validator counterexample encoded-code out-sym constraint
                          #:assume (and assume (send machine constrain-stack assume))))
+
+    (newline)
+    (send printer print-syntax (send printer decode out-sym))
+    (pretty-display `(constraint ,constraint))
+    (pretty-display `(ce-sym ,ce-sym))
     (when ce-sym (raise (format "TEST ~a: counter-example [symbolic]" id))))
 
   (when enum

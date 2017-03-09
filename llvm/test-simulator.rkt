@@ -1,4 +1,4 @@
-#lang s-exp rosette
+#lang rosette
 
 (require "llvm-parser.rkt" "llvm-printer.rkt" "llvm-machine.rkt"
          "llvm-simulator-rosette.rkt"
@@ -11,15 +11,14 @@
 ;; Phase A: Test machine, parser, printer (step 1 & 2)
 (pretty-display "Phase A: test machine, parser, and printer.")
 (define parser (new llvm-parser%))
-(define machine (new llvm-machine% [config (cons 4 1)]))
+(define machine (new llvm-machine% [config (cons 3 3)]))
 (define printer (new llvm-printer% [machine machine]))
 
 ;; clear 3 lowest bits.
 (define code
 (send parser ir-from-string "
-%1 = load i32, i32* %2
-%1 = udiv i32 %1, 2
-store i32 %1, i32* %2
+%1 = lshr i32 %in, 3
+%out = shl i32 %1, 3
 "))
 
 ;%1 = load i32, i32* %2
@@ -39,9 +38,9 @@ store i32 %1, i32* %2
 
 ;; Phase B: Interpret concrete program with concrete inputs (step 3)
 (pretty-display "Phase B: interpret program using simulator writing in Rosette.")
-(define input-state (vector (vector 111 222 333 444)
-                            (for/vector ([i 4]) (for/vector ([j 4]) 1))
-                            (new memory-racket% [init (make-hash '((222 . 2222)))])
+(define input-state (vector #(536870911 0 0)
+                            #(#(0 0 0 0) #(0 0 0 0) #(0 0 0 0))
+                            (new memory-racket% [init (make-hash '())])
                             ))
 (define simulator-rosette (new llvm-simulator-rosette% [machine machine]))
 (define out (send simulator-rosette interpret encoded-code input-state))

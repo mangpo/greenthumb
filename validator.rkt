@@ -10,7 +10,7 @@
   (cond
    [const const]
    [else
-    (define-symbolic* input number?)
+    (define-symbolic* input integer?)
     (when min (assert (>= input min)))
     (when max (assert (<= input max)))
     input]))
@@ -262,19 +262,25 @@
     (define (counterexample spec program constraint
                             #:assume [assumption (send machine no-assumption)])
       ;;(pretty-display (format "solver = ~a" (current-solver)))
-      (when (and debug printer)
+      (when #t ;;(and debug printer)
+            (pretty-display "--------------------------------")
 	    (pretty-display `(counterexample ,bit))
 	    (pretty-display `(spec))
 	    (send printer print-syntax (send printer decode spec))
+	    (send printer print-struct spec)
 	    (pretty-display `(program))
 	    (send printer print-syntax (send printer decode program))
+	    (send printer print-struct program)
 	    (pretty-display `(constraint ,constraint))
 	    (pretty-display `(assumption ,assumption))
 	    )
-      
+
+      (solver-shutdown (current-solver))
+      (clear-terms!)
       (clear-asserts!)
       (current-bitwidth bit)
       (define start-state (send machine get-state sym-input #:concrete #f))
+      (pretty-display `(start-state ,start-state))
       (define spec-state #f)
       (define program-state #f)
       
@@ -291,20 +297,19 @@
         )
 
       ;; VERIFY
-      (with-handlers* 
-       ([exn:fail? 
-         (lambda (e)
-           (when debug (pretty-display "program-eq? SAME"))
-           (clear-terms!)
-           (if (equal? (exn-message e) "verify: no counterexample found")
-               #f
-               (raise e)))])
-       (let ([model (verify #:assume (interpret-spec!) #:guarantee (compare))])
-         (when debug (pretty-display "program-eq? DIFF"))
-         (let ([state (evaluate-state start-state model)])
-           (clear-terms!)
-           state)
-         )))
+      (pretty-display `(asserts ,(asserts)))
+      (define model (verify #:assume (interpret-spec!) #:guarantee (compare)))
+      (cond
+       [(sat? model)
+        (when debug (pretty-display "program-eq? DIFF"))
+        (let ([state (evaluate-state start-state model)])
+          ;;(clear-terms!)
+          state)]
+
+       [else
+        (when debug (pretty-display "program-eq? SAME"))
+        ;;(clear-terms!)
+        #f]))
     
     ;; Return live-in in progstate format.
     ;; live-out: progstate format

@@ -131,7 +131,7 @@
     ))
 
 (define (test1)
-  (define func (lambda () (define-symbolic* val number?) val))
+  (define func (lambda () (define-symbolic* val integer?) val))
   (define q-init (new queue-in-rosette% [get-fresh-val func]))
   (define q (send q-init clone))
   (pretty-display `(pop ,(send q pop)))
@@ -147,7 +147,7 @@
   )
 
 (define (test2)
-  (define func (lambda () (define-symbolic* val number?) val))
+  (define func (lambda () (define-symbolic* val integer?) val))
   (define q-init (new queue-out-rosette% [get-fresh-val func]))
   (define q (send q-init clone))
   (send q push 1)

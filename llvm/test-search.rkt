@@ -10,7 +10,7 @@
          )
 
 (define parser (new llvm-parser%))
-(define machine (new llvm-machine% [config (cons 3 0)]))
+(define machine (new llvm-machine% [config (cons 3 3)]))
 (define printer (new llvm-printer% [machine machine]))
 (define simulator-racket (new llvm-simulator-racket% [machine machine]))
 (define simulator-rosette (new llvm-simulator-rosette% [machine machine]))
@@ -27,7 +27,7 @@
 "))
 
 
-#;(define code
+(define code
 (send parser ir-from-string "
 %1 = lshr i32 %in, 3
 %out = shl nuw i32 %1, 3
@@ -78,13 +78,6 @@ store i32 %1, i32* %2
   %out = add nsw i32 %11, 1
 "))
 
-(define code
-(send parser ir-from-string "
-%in = sub i32 %in, %1
-%in = sub i32 %in, %1
-%out = sub i32 %in, %1
-"))
-
 #;(define code
 (send parser ir-from-string "
 %2 = add i32 %in, %in
@@ -117,8 +110,15 @@ store i32 %1, i32* %2
 ;; ? represents one instruction.
 (define sketch
 (send parser ir-from-string "
-? ?
+?
 "))
+
+(define answer
+(send parser ir-from-string "
+%out = and i32 %in, -8
+"))
+
+(define encoded-answer (send printer encode answer))
 
 
 (define encoded-code (send printer encode code))
@@ -137,15 +137,36 @@ store i32 %1, i32* %2
 (define symbolic (new llvm-symbolic% [machine machine] [printer printer]
                       [parser parser]
                       [validator validator] [simulator simulator-rosette]))
+(define ex 
+  (send validator counterexample encoded-code encoded-answer 
+        (send printer encode-live (vector '(%out) '() #f))))
 
-#;(send symbolic synthesize-window
+(pretty-display "Counterexample:")
+(if ex 
+  (send machine display-state ex)
+  (pretty-display "No"))
+(newline)
+
+(define-values (out-sym cost-sym)
+(send symbolic synthesize-window
       encoded-code ;; spec
       encoded-sketch ;; sketch
       encoded-prefix encoded-postfix
       constraint ;; live-out
       #f ;; upperbound cost, #f = no upperbound
-      60 ;; time limit in seconds
-      )
+      120 ;; time limit in seconds
+      ))
+
+
+(define ex2
+  (send validator counterexample encoded-code encoded-answer 
+        (send printer encode-live (vector '(%out) '() #f))))
+
+(pretty-display "Counterexample:")
+(if ex2 
+  (send machine display-state ex2)
+  (pretty-display "No"))
+(newline)
 
 ;; Step 3: create stochastic search
 (define stoch (new llvm-stochastic% [machine machine] [printer printer]
@@ -153,7 +174,7 @@ store i32 %1, i32* %2
                       [validator validator] [simulator simulator-rosette]
                       [syn-mode #t] ;; #t = synthesize, #f = optimize mode
                       ))
-(send stoch superoptimize encoded-code 
+#;(send stoch superoptimize encoded-code 
       constraint ;; constraint
       "./driver-0" 3600 #f)
 

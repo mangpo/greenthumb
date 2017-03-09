@@ -1,4 +1,4 @@
-#lang s-exp rosette
+#lang rosette
 
 (require "../simulator-rosette.rkt" "../ops-rosette.rkt" "../inst.rkt" "llvm-machine.rkt")
 (provide llvm-simulator-rosette%)
@@ -15,40 +15,38 @@
     (define nop-id (get-field nop-id machine))
     (define opcodes (get-field opcodes machine))
 
-    (define-syntax-rule (bvop op)     
-      (lambda (x y) (finitize-bit (op x y))))
+    (define-syntax-rule (binop op)
+      (lambda (x y)
+        (bitvector->integer
+         (op (integer->bitvector x (bitvector bit))
+             (integer->bitvector y (bitvector bit))))))
     
-    (define-syntax-rule (finitize-bit x) (finitize x bit))
-    (define (shl a b) (<< a b bit))
-    (define (ushr a b) (>>> a b bit))
-
-    (define bvadd  (bvop +))
-    (define bvsub  (bvop -))
-    (define bvmul  (bvop *))
-    (define bvshl  (bvop shl))
-    (define bvshr  (bvop >>))
-    (define bvushr (bvop ushr))
-
-    (define bvsdiv (bvop quotient))
-    (define (bvudiv n d)
-      (if (< d 0)
-          (if (< n d) 1 0)
-          (let* ([q (shl (quotient (ushr n 2) d) 2)]
-                 [r (- n (* q d))])
-            (finitize-bit (if (or (> r d) (< r 0)) q (add1 q))))))
-
-    (define (clz x)
-      (let ([mask (shl 1 (sub1 bit))]
+    (define iadd (binop bvadd))
+    (define isub (binop bvsub))
+    (define imul (binop bvmul))
+    (define isdiv (binop bvsdiv))
+    (define iudiv (binop bvudiv))
+    (define iand (binop bvand))
+    (define ior  (binop bvor))
+    (define ixor (binop bvxor))
+    (define ilshr (binop bvlshr))
+    (define iashr (binop bvashr))
+    (define ishl (binop bvshl))
+    
+    (define (clz xx)
+      (let ([x (integer->bitvector xx (bitvector bit))]
+            [mask (integer->bitvector (arithmetic-shift 1 (sub1 bit)) (bitvector bit))]
             [count 0]
             [still #t])
         (for ([i bit])
              (when still
-                   (let ([res (bitwise-and x mask)])
-                     (set! x (shl x 1))
-                     (if (= res 0)
+                   (let ([res (bvand x mask)])
+                     (set! x (bvshl x (bv 1 bit)))
+                     (if (equal? res (bv 0 bit))
                          (set! count (add1 count))
                          (set! still #f)))))
         count))
+
     
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
@@ -134,54 +132,54 @@
         (cond
          ;; rrr
          [(inst-eq `nop) (void)]
-         [(inst-eq `add) (rrr bvadd)]
-         [(inst-eq `sub) (rrr bvsub)]
+         [(inst-eq `add) (rrr iadd)]
+         [(inst-eq `sub) (rrr isub)]
 
-         [(inst-eq `mul) (rrr bvmul)]
-         [(inst-eq `sdiv) (rrr bvsdiv)]
-         [(inst-eq `udiv) (rrr bvudiv)]
+         [(inst-eq `mul) (rrr imul)]
+         [(inst-eq `sdiv) (rrr isdiv)]
+         [(inst-eq `udiv) (rrr iudiv)]
          
-         [(inst-eq `and) (rrr bitwise-and)]
-         [(inst-eq `or)  (rrr bitwise-ior)]
-         [(inst-eq `xor) (rrr bitwise-xor)]
+         [(inst-eq `and) (rrr iand)]
+         [(inst-eq `or)  (rrr ior)]
+         [(inst-eq `xor) (rrr ixor)]
          
-         [(inst-eq `lshr) (rrr bvushr)]
-         [(inst-eq `ashr) (rrr bvshr)]
-         [(inst-eq `shl)  (rrr bvshl)]
+         [(inst-eq `lshr) (rrr ilshr)]
+         [(inst-eq `ashr) (rrr iashr)]
+         [(inst-eq `shl)  (rrr ishl)]
 
          ;; rrr (vector)
-         [(inst-eq `add_v4) (rrr-vec bvadd)]
+         [(inst-eq `add_v4) (rrr-vec iadd)]
          
          ;; rri
-         [(inst-eq `add#) (rri bvadd)]
-         [(inst-eq `sub#) (rri bvsub)]
+         [(inst-eq `add#) (rri iadd)]
+         [(inst-eq `sub#) (rri isub)]
          
-         [(inst-eq `mul#) (rri bvmul)]
+         [(inst-eq `mul#) (rri imul)]
 
          
-         [(inst-eq `and#) (rri bitwise-and)]
-         [(inst-eq `or#)  (rri bitwise-ior)]
-         [(inst-eq `xor#) (rri bitwise-xor)]
+         [(inst-eq `and#) (rri iand)]
+         [(inst-eq `or#)  (rri ior)]
+         [(inst-eq `xor#) (rri ixor)]
 
-         [(inst-eq `lshr#) (rri bvushr)]
-         [(inst-eq `ashr#) (rri bvshr)]
-         [(inst-eq `shl#)  (rri bvshl)]
+         [(inst-eq `lshr#) (rri ilshr)]
+         [(inst-eq `ashr#) (rri iashr)]
+         [(inst-eq `shl#)  (rri ishl)]
          
          ;; rri (vector)
-         [(inst-eq `add_v4#) (rri-vec bvadd)]
+         [(inst-eq `add_v4#) (rri-vec iadd)]
          
          ;; rir
-         [(inst-eq `_add) (rir bvadd)]
-         [(inst-eq `_sub) (rir bvsub)]
-         [(inst-eq `_mul) (rir bvmul)]
+         [(inst-eq `_add) (rir iadd)]
+         [(inst-eq `_sub) (rir isub)]
+         [(inst-eq `_mul) (rir imul)]
          
          ;; [(inst-eq `_and) (rir bitwise-and)]
          ;; [(inst-eq `_or)  (rir bitwise-ior)]
          ;; [(inst-eq `_xor) (rir bitwise-xor)]
 
-         [(inst-eq `_lshr) (rir bvushr)]
-         [(inst-eq `_ashr) (rir bvshr)]
-         [(inst-eq `_shl)  (rir bvshl)]
+         [(inst-eq `_lshr) (rir ilshr)]
+         [(inst-eq `_ashr) (rir iashr)]
+         [(inst-eq `_shl)  (rir ishl)]
          
          [(inst-eq `ctlz)  (rr clz)]
 

@@ -17,13 +17,13 @@
 
     ;; Create symbolic opcode using Rosette symbolic variable.
     (define (sym-op)
-      (define-symbolic* op number?)
+      (define-symbolic* op integer?)
       (assert (and (>= op 0) (< op ninsts)))
       op)
     
     ;; Create symbolic operand using Rosette symbolic variable.
     (define (sym-arg)
-      (define-symbolic* arg number?)
+      (define-symbolic* arg integer?)
       arg)
 
     (define groups (get-field groups-of-opcodes machine))
@@ -115,6 +115,8 @@
                                     #:hard-postfix [hard-postfix (vector)]
 				    #:assume [assumption (send machine no-assumption)])
       (solver-shutdown (current-solver))
+      (clear-terms!)
+      (clear-asserts!)
       (pretty-display "SUPERPOTIMIZE:")
       (pretty-display (format "solver = ~a" (current-solver)))
       (when debug
@@ -186,7 +188,7 @@
             (pretty-display `(sym-vars ,sym-vars))
             ;;(pretty-display `(inputs ,inputs))
             )
-      
+
       (define model 
         (timeout
          time-limit
@@ -197,6 +199,9 @@
           #:guarantee (compare-spec-sketch))
          )
         )
+
+      (unless (sat? model)
+              (raise (exn:fail "synthesize: synthesis failed" (current-continuation-marks))))
 
       (when debug
             (pretty-display ">>> done synthesize")
@@ -214,7 +219,7 @@
       (pretty-display (format "new cost = ~a" final-cost))
       (pretty-display "=====================================")
       (clear-asserts!)
-      (clear-terms!)
+      ;;(clear-terms!)
 
       ;; Print to file
       (send stat update-best-correct final-program final-cost)
