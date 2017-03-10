@@ -61,6 +61,8 @@
       (define (interpret-step step)
         (define op (inst-op step))
         (define args (inst-args step))
+        (pretty-display `(step ,op ,args)) ;; buggy
+        ;;(pretty-display `(step ,op ,args ,(inst-eq `lshr#) ,(vector-ref opcodes op))) ;; okay
 
         (define (apply-scalar f val1 val2)
           (for/vector ([i (vector-length val1)])
@@ -161,7 +163,9 @@
          [(inst-eq `or#)  (rri ior)]
          [(inst-eq `xor#) (rri ixor)]
 
-         [(inst-eq `lshr#) (rri ilshr)]
+         [(inst-eq `lshr#)
+          (pretty-display `(interpret lshr#))
+          (rri ilshr)]
          [(inst-eq `ashr#) (rri iashr)]
          [(inst-eq `shl#)  (rri ishl)]
          
@@ -189,7 +193,9 @@
          [else (assert #f (format "simulator: undefine instruction ~a" op))]))
       
       (for ([x program])
-           (interpret-step x))
+           (interpret-step x)
+           (pretty-display `(out ,out))
+           )
 
       (vector out out-vec4 mem)
       )

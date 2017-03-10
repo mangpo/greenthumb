@@ -263,7 +263,7 @@
                             #:assume [assumption (send machine no-assumption)])
       ;;(pretty-display (format "solver = ~a" (current-solver)))
       (when #t ;;(and debug printer)
-            (pretty-display "--------------------------------")
+            (pretty-display "---------------- counterexample routine ----------------")
 	    (pretty-display `(counterexample ,bit))
 	    (pretty-display `(spec))
 	    (send printer print-syntax (send printer decode spec))
@@ -273,6 +273,8 @@
 	    (send printer print-struct program)
 	    (pretty-display `(constraint ,constraint))
 	    (pretty-display `(assumption ,assumption))
+            (newline)
+            (pretty-display "---------------- exe trace ----------------")
 	    )
 
       (solver-shutdown (current-solver))
@@ -285,6 +287,7 @@
       (define program-state #f)
       
       (define (interpret-spec!)
+        (pretty-display ">>> spec")
         (set! spec-state
               (if (procedure? spec)
                   (spec start-state) ;; TODO: handle assumption
@@ -292,12 +295,13 @@
         )
       
       (define (compare)
+        (pretty-display ">>> candidate")
         (set! program-state (send simulator interpret program start-state spec-state))
         (assert-state-eq spec-state program-state constraint)
+        (pretty-display `(asserts ,(asserts)))
         )
 
       ;; VERIFY
-      (pretty-display `(asserts ,(asserts)))
       (define model (verify #:assume (interpret-spec!) #:guarantee (compare)))
       (cond
        [(sat? model)
