@@ -1,4 +1,4 @@
-#lang s-exp rosette
+#lang rosette
 
 (require "../validator.rkt")
 (provide llvm-validator%)

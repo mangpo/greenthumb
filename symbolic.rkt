@@ -1,6 +1,7 @@
 #lang rosette
 
 (require "inst.rkt" "machine.rkt" "decomposer.rkt" "validator.rkt")
+(require rosette/base/core/equality)
 
 (provide symbolic%)
 
@@ -167,7 +168,6 @@
               (pretty-display "=========== start state (again)")
               (send machine display-state start-state)
               )
-        (pretty-display `(check before-solve ,(equal? `nop `lshr#)))
         )
       
       ;; Collect input variables and contruct their init values.
@@ -190,7 +190,6 @@
             ;;(pretty-display `(inputs ,inputs))
             )
 
-      (pretty-display `(check before-synthesize ,(equal? `nop `lshr#)))
       (define model 
         (timeout
          time-limit
@@ -201,7 +200,6 @@
           #:guarantee (compare-spec-sketch))
          )
         )
-      (pretty-display `(check after-synthesize ,(equal? `nop `lshr#)))
 
       (unless (sat? model)
               (raise (exn:fail "synthesize: synthesis failed" (current-continuation-marks))))

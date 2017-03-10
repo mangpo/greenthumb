@@ -1,4 +1,4 @@
-#lang s-exp rosette
+#lang rosette
 
 (require "llvm-validator.rkt" "llvm-machine.rkt" "llvm-printer.rkt"
          "llvm-parser.rkt" "../inst.rkt"
