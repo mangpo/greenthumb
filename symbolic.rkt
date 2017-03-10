@@ -167,6 +167,7 @@
               (pretty-display "=========== start state (again)")
               (send machine display-state start-state)
               )
+        (pretty-display `(check before-solve ,(equal? `nop `lshr#)))
         )
       
       ;; Collect input variables and contruct their init values.
@@ -189,6 +190,7 @@
             ;;(pretty-display `(inputs ,inputs))
             )
 
+      (pretty-display `(check before-synthesize ,(equal? `nop `lshr#)))
       (define model 
         (timeout
          time-limit
@@ -199,6 +201,7 @@
           #:guarantee (compare-spec-sketch))
          )
         )
+      (pretty-display `(check after-synthesize ,(equal? `nop `lshr#)))
 
       (unless (sat? model)
               (raise (exn:fail "synthesize: synthesis failed" (current-continuation-marks))))
@@ -223,7 +226,7 @@
 
       ;; Print to file
       (send stat update-best-correct final-program final-cost)
-
+      
       (values final-program final-cost)
       )
     
