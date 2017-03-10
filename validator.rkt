@@ -278,7 +278,7 @@
 	    )
 
       (solver-shutdown (current-solver))
-      (clear-terms!)
+      ;;(clear-terms!)
       (clear-asserts!)
       (current-bitwidth bit)
       (define start-state (send machine get-state sym-input #:concrete #f))

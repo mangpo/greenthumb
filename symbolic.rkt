@@ -115,7 +115,7 @@
                                     #:hard-postfix [hard-postfix (vector)]
 				    #:assume [assumption (send machine no-assumption)])
       (solver-shutdown (current-solver))
-      (clear-terms!)
+      ;;(clear-terms!)
       (clear-asserts!)
       (pretty-display "SUPERPOTIMIZE:")
       (pretty-display (format "solver = ~a" (current-solver)))

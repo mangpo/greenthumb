@@ -61,7 +61,7 @@
       (define (interpret-step step)
         (define op (inst-op step))
         (define args (inst-args step))
-        (pretty-display `(step ,op ,args)) ;; buggy
+        (pretty-display `(step ,op ,args ,(equal? `nop `lshr#))) ;; buggy
         ;;(pretty-display `(step ,op ,args ,(inst-eq `lshr#) ,(vector-ref opcodes op))) ;; okay
 
         (define (apply-scalar f val1 val2)
@@ -130,11 +130,14 @@
           (syntax-rules ()
             ((inst-eq x) (equal? x (vector-ref opcodes op)))
             ((inst-eq a b ...) (or (inst-eq a) (inst-eq b) ...))))
-        
+        (pretty-display `(cond))
         (cond
          ;; rrr
-         [(inst-eq `nop) (void)]
-         [(inst-eq `add) (rrr iadd)]
+         [(inst-eq `nop)
+          (pretty-display `(nop  ,(equal? `nop `lshr#)))
+          (void)]
+         [(inst-eq `add)
+          (rrr iadd)]
          [(inst-eq `sub) (rrr isub)]
 
          [(inst-eq `mul) (rrr imul)]
@@ -185,12 +188,14 @@
          [(inst-eq `_ashr) (rir iashr)]
          [(inst-eq `_shl)  (rir ishl)]
          
-         [(inst-eq `ctlz)  (rr clz)]
+         [(inst-eq `ctlz) (rr clz)]
 
          [(inst-eq `store) (store)]
-         [(inst-eq `load)  (load)]
+         [(inst-eq `load) (load)]
 
-         [else (assert #f (format "simulator: undefine instruction ~a" op))]))
+         [else
+          (pretty-display `(else))
+          (assert #f (format "simulator: undefine instruction ~a" op))]))
       
       (for ([x program])
            (interpret-step x)
