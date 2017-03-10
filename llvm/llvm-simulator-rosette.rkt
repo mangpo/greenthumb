@@ -130,7 +130,7 @@
           (syntax-rules ()
             ((inst-eq x) (equal? x (vector-ref opcodes op)))
             ((inst-eq a b ...) (or (inst-eq a) (inst-eq b) ...))))
-        (pretty-display `(cond))
+        
         (cond
          ;; rrr
          [(inst-eq `nop)
