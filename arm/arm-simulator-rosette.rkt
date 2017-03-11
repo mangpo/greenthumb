@@ -1,4 +1,4 @@
-#lang s-exp rosette
+#lang rosette
 
 (require "../simulator.rkt" "../ops-rosette.rkt" 
          "../inst.rkt"
@@ -21,173 +21,182 @@
     (define shf-opcodes (vector-ref opcodes 2))
     (define ninsts (vector-length base-opcodes))
 
-    (define (shl a b) (<< a b bit))
-    (define (ushr a b) (>>> a b bit))
-    (define (ror a b) (bitwise-ior (>>> a b bit) (<< a (- bit b) bit)))
-    (define-syntax-rule (finitize-bit x) (finitize x bit))
+    ;(define (shl a b) (<< a b bit))
+    ;(define (ushr a b) (>>> a b bit))
+    (define (ror a b) (bvor (bvlshr a b) (bvshl a (bvsub (bv bit bit) b))))
 
     (define byte0 0)
     (define byte1 (quotient bit 4))
     (define byte2 (* 2 byte1))
     (define byte3 (* 3 byte1))
     (define byte4 bit)
-    (define byte-mask (sub1 (arithmetic-shift 1 byte1)))
-    (define low-mask (sub1 (shl 1 byte2)))
-    (define high-mask (shl low-mask byte2))
-    (define mask (sub1 (arithmetic-shift 1 bit)))
+    
+    (define byte-mask (bv (sub1 (arithmetic-shift 1 byte1)) bit))
+    (define low-mask  (bv (sub1 (arithmetic-shift 1 byte2)) bit))
+    (define high-mask (bvshl low-mask (bv byte2 bit)))
+    (define mask      (bv (sub1 (arithmetic-shift 1 bit)) bit))
 
     ;; helper functions
     (define-syntax-rule (bool->num b) (if b 1 0))
+    (define-syntax-rule (i->bv x) (integer->bitvector x (bitvector bit)))
+    (define-syntax-rule (bv->i x) (bitvector->integer x))
+    (define-syntax-rule (finitize-bit x) (bv->i (i->bv x)))
 
-    (define-syntax-rule (bvop op)     
-      (lambda (x y) (finitize-bit (op x y))))
+    (define-syntax-rule (binop op)
+      (lambda (x y)
+        (bv->i (op (i->bv x) (i->bv y)))))
 
-    (define-syntax-rule (bvuop op)     
-      (lambda (x) (finitize-bit (op x))))
+    (define-syntax-rule (uop op)     
+      (lambda (x)
+        (bv->i (op (i->bv x)))))
 
-    (define-syntax-rule (bvcmp op) 
-      (lambda (x y) (bool->num (op x y))))
-
-    (define-syntax-rule (bvucmp op)   
-      (lambda (x y) 
-        (bool->num (if (equal? (< x 0) (< y 0)) (op x y) (op y x)))))
+    (define-syntax-rule (tinop op)
+      (lambda (x y z)
+        (bv->i
+         (op (i->bv x) (i->bv y) (i->bv z)))))
 
     (define-syntax-rule (bvshift op)
       (lambda (x y)
-        (finitize-bit (op x (bitwise-and #xff y)))))
+        (bv->i
+         (op (i->bv x) (bvand (bv #xff bit) (i->bv y))))))
 
     (define-syntax-rule (bvshift# op)
       (lambda (x y)
 	;;(pretty-display `(bvshift assert ,y))
 	(assert (and (>= y 0) (<= y bit)))
-        (finitize-bit (op x y))))
+        (bv->i (op (i->bv x) (i->bv y)))))
 
-    (define-syntax-rule (bvbit op)
-      (lambda (a b)
-        (if (and (>= b 0) (< b bit))
-            (finitize-bit (op a (shl 1 b)))
-            a)))
+    (define iadd (binop bvadd))
+    (define isub (binop bvsub))
+    (define irsub (binop (lambda (x y) (bvsub y x))))
 
-    (define bvadd (bvop +))
-    (define bvsub (bvop -))
-    (define bvrsub (bvop (lambda (x y) (- y x))))
+    (define inot (uop bvnot))
+    (define iand (binop bvand))
+    (define ior  (binop bvor))
+    (define ixor (binop bvxor))
+    (define iandn (binop (lambda (x y) (bvand x (bvnot y)))))
+    (define iorn (binop (lambda (x y) (bvor x (bvnot y)))))
 
-    (define bvnot (lambda (x) (finitize-bit (bitwise-not x))))
-    (define bvand (bvop bitwise-and))
-    (define bvor  (bvop bitwise-ior))
-    (define bvxor (bvop bitwise-xor))
-    (define bvandn (lambda (x y) (finitize-bit (bitwise-and x (bitwise-not y)))))
-    (define bviorn  (lambda (x y) (finitize-bit (bitwise-ior x (bitwise-not y)))))
+    (define irev (uop rev))
+    (define irev16 (uop rev16))
+    (define irevsh (uop revsh))
+    (define irbit (uop rbit))
 
-    (define bvrev (bvuop rev))
-    (define bvrev16 (bvuop rev16))
-    (define bvrevsh (bvuop revsh))
-    (define bvrbit (bvuop rbit))
+    (define ishl  (bvshift bvshl))
+    (define ishr  (bvshift bvashr))
+    (define iushr (bvshift bvlshr))
+    (define iror  (bvshift ror))
 
-    (define bvshl  (bvshift shl))
-    (define bvshr  (bvshift >>))
-    (define bvushr (bvshift ushr))
-    (define bvror  (bvshift ror))
+    (define ishl#  (bvshift# bvshl))
+    (define ishr#  (bvshift# bvashr))
+    (define iushr# (bvshift# bvlshr))
+    (define iror#  (bvshift# ror))
 
-    (define bvshl#  (bvshift# shl))
-    (define bvshr#  (bvshift# >>))
-    (define bvushr# (bvshift# ushr))
-    (define bvror#  (bvshift# ror))
+    (define uxtah (binop (lambda (x y) (bvand x (bvand y low-mask)))))
+    (define uxth (uop (lambda (x) (bvand x low-mask))))
+    (define uxtb (uop (lambda (x) (bvand x byte-mask))))
 
-    (define uxtah (bvop (lambda (x y) (+ x (bitwise-and y low-mask)))))
-    (define uxth (lambda (x) (finitize-bit (bitwise-and x low-mask))))
-    (define uxtb (lambda (x) (finitize-bit (bitwise-and x byte-mask))))
+    (define imul (binop bvmul))
+    (define imla (tinop (lambda (a b c) (bvand c (bvmul a b)))))
+    (define imls (tinop (lambda (a b c) (bvsub c (bvmul a b)))))
+    (define ismmla (tinop (lambda (a b c) (bvadd c (smmul a b)))))
+    (define ismmls (tinop (lambda (a b c) (bvsub c (smmul a b)))))
 
-    (define bvmul (bvop *))
-    (define bvmla (lambda (a b c) (finitize-bit (+ c (* a b)))))
-    (define bvmls (lambda (a b c) (finitize-bit (- c (* a b)))))
-    (define bvsmmla (lambda (a b c) (finitize-bit (+ c (bvsmmul a b)))))
-    (define bvsmmls (lambda (a b c) (finitize-bit (- c (bvsmmul a b)))))
+    (define ismmul (binop smmul))
+    (define iummul (binop ummul))
+    (define isdiv (binop bvsdiv))
+    (define iudiv (binop bvudiv))
 
-    (define (bvsmmul x y) (smmul x y bit))
-    (define (bvummul x y) (ummul x y bit))
-    (define bvsdiv (bvop quotient))
-    (define (bvudiv n d)
-      (if (< d 0)
-          (if (< n d) 1 0)
-          (let* ([q (shl (quotient (ushr n 2) d) 2)]
-                 [r (- n (* q d))])
-            (finitize-bit (if (or (> r d) (< r 0)) q (add1 q))))))
-      
-
-    (define (movlo to c)
-      (finitize-bit (bitwise-ior (bitwise-and to high-mask) c)))
-    
-    (define (movhi to c)
-      (finitize-bit (bitwise-ior (bitwise-and to low-mask) (shl c byte2))))
+    (define movlo (binop (lambda (to c) (bvor (bvand to high-mask)
+                                              (bvand c low-mask)))))
+    (define movhi (binop (lambda (to c) (bvor (bvand to low-mask)
+                                              (bvshl c (bv byte2 bit))))))
 
     (define (setbit d a width shift)
+      (define d* (i->bv d))
+      (define a* (i->bv a))
+      (define width* (i->bv width))
+      (define shift* (i->bv shift))
       (assert (and (>= shift 0) (< shift bit)))
       (assert (and (> width 0) (<= (+ width shift) bit)))
-      (let* ([mask (sub1 (shl 1 width))]
-             [keep (bitwise-and d (bitwise-not (shl mask shift)))]
-             [insert (bvshl# (bitwise-and a mask) shift)])
-        (finitize-bit (bitwise-ior keep insert))))
+      (let* ([mask (bvsub (bvshl (bv 1 bit) width*) (bv 1 bit))]
+             [keep (bvand d* (bvnot (bvshl mask shift*)))]
+             [insert (bvshl (bvand a* mask) shift*)])
+        (bv->i (bvor keep insert))))
 
     (define (clrbit d width shift)
+      (define d* (i->bv d))
+      (define width* (i->bv width))
+      (define shift* (i->bv shift))
       (assert (and (>= shift 0) (< shift bit)))
       (assert (and (> width 0) (<= (+ width shift) bit)))
-      (let* ([keep (bitwise-not (shl (sub1 (shl 1 width)) shift))])
-        (finitize-bit (bitwise-and keep d))))
+      (let* ([mask (bvsub (bvshl (bv 1 bit) width*) (bv 1 bit))]
+             [keep (bvnot (bvshl mask shift*))])
+        (bv->i (bvand keep d*))))
 
     (define (ext d a width shift)
+      (define d* (i->bv d))
+      (define a* (i->bv a))
+      (define width* (i->bv width))
+      (define shift* (i->bv shift))
       (assert (and (>= shift 0) (< shift bit)))
       (assert (and (> width 0) (<= (+ width shift) bit)))
-      (finitize-bit (bitwise-and (>> a shift) (sub1 (shl 1 width)))))
+      (bv->i (bvand (bvashr a* shift*)
+                    (bvsub (bv 1 bit) (bvshl bv 1 bit) width*))))
 
     (define (sext d a width shift)
+      (define d* (i->bv d))
+      (define a* (i->bv a))
+      (define width* (i->bv width))
+      (define shift* (i->bv shift))
+      (define com (bvsub (bv bit bit) width*))
       (assert (and (>= shift 0) (< shift bit)))
       (assert (and (> width 0) (<= (+ width shift) bit)))
-      (let ([keep (bitwise-and (>> a shift) (sub1 (shl 1 width)))])
-        (bitwise-ior
-         (if (= (bitwise-bit-field keep (sub1 width) width) 1)
-             (shl -1 width)
-             0)
-         (finitize-bit keep))))
+      (let ([keep (bvand (bvashr a* shift*)
+                         (bvsub (bv 1 bit) (bvshl bv 1 bit) width*))])
+        (bv->i (bvashr (bvshl keep com) com))))
 
-    (define (clz x)
-      (let ([mask (shl 1 (sub1 bit))]
+    (define (clz xx)
+      (let ([x (i->bv xx)]
+            [mask (i->bv (arithmetic-shift 1 (sub1 bit)))]
             [count 0]
             [still #t])
         (for ([i bit])
              (when still
-                   (let ([res (bitwise-and x mask)])
-                     (set! x (shl x 1))
-                     (if (= res 0)
+                   (let ([res (bvand x mask)])
+                     (set! x (bvshl x (bv 1 bit)))
+                     (if (equal? res (bv 0 bit))
                          (set! count (add1 count))
                          (set! still #f)))))
         count))
 
     (define (rev a)
-      (bitwise-ior 
-       (shl (bitwise-bit-field a byte0 byte1) byte3)
-       (shl (bitwise-bit-field a byte1 byte2) byte2)
-       (shl (bitwise-bit-field a byte2 byte3) byte1)
-       (bitwise-bit-field a byte3 byte4)))
-
+      (concat
+       (extract (sub1 byte1) byte0 a)
+       (extract (sub1 byte2) byte1 a)
+       (extract (sub1 byte3) byte2 a)
+       (extract (sub1 byte4) byte3 a)))
+    
     (define (rev16 a)
-      (bitwise-ior 
-       (shl (bitwise-bit-field a byte2 byte3) byte3)
-       (shl (bitwise-bit-field a byte3 byte4) byte2)
-       (shl (bitwise-bit-field a byte0 byte1) byte1)
-       (bitwise-bit-field a byte1 byte2)))
+      (concat
+       (extract (sub1 byte3) byte2 a)
+       (extract (sub1 byte4) byte3 a)
+       (extract (sub1 byte1) byte0 a)
+       (extract (sub1 byte2) byte1 a)))
 
     (define (revsh a)
-      (bitwise-ior 
-       (if (= (bitwise-bit-field a (sub1 byte1) byte1) 1) high-mask 0)
-       (shl (bitwise-bit-field a byte0 byte1) byte1)
-       (bitwise-bit-field a byte1 byte2)))
+      (sign-extend
+       (concat
+        (extract (sub1 byte1) byte0 a)
+        (extract (sub1 byte2) byte1 a))
+       (bitvector bit)))
 
-    (define (rbit a)
-      (let ([res 0])
+    (define (rbit aa)
+      (let ([a (i->bv aa)]
+            [res (bv 0 bit)])
         (for ([i bit])
-             (set! res (bitwise-ior (shl res 1) (bitwise-and a 1)))
-             (set! a (>> a 1)))
+             (set! res (bvor (bvshl res (bv 1 bit)) (bvand a (bv 1 bit))))
+             (set! a (bvlshr a (bv 1))))
         res))
 
     ;; Flag values
@@ -197,10 +206,10 @@
     ;; 3 - x > y same sign
     ;; 4 - x < 0
     ;; 5 - y < 0
-    (define (tst x y) (if (= (bitwise-and x y) 0) 0 1))
+    (define (tst x y) (if (bveq (bvand (i->bv x) (i->bv y)) 0) 0 1))
     (define (cmp x y)
-      (define my-x (finitize-bit x))
-      (define my-y (finitize-bit y))
+      (define my-x x)
+      (define my-y y)
       ;;(pretty-display `(cmp ,my-x ,my-y))
       (cond
        [(= my-x my-y) 0]
@@ -231,7 +240,7 @@
         (define op-name (vector-ref base-opcodes op))
         (define shfop-name (and (>= shfop 0) (vector-ref shf-opcodes shfop)))
         
-        ;; (pretty-display `(interpret-step ,ops-vec))
+        ;;(pretty-display `(interpret-step ,ops-vec ,op-name))
 
         (define-syntax-rule (inst-eq a ...)
           (or (equal? a op-name) ...))
@@ -255,16 +264,16 @@
             (cond
              [(or (equal? shfop #f) (equal? shfop -1))
               (set! val (vector-ref regs x))]
-             [(shf-inst-eq `lsr) (rr bvushr)]
-             [(shf-inst-eq `asr) (rr bvshr)]
-             [(shf-inst-eq `lsl) (rr bvshl)]
-             [(shf-inst-eq `ror) (rr bvror)]
+             [(shf-inst-eq `lsr) (rr iushr)]
+             [(shf-inst-eq `asr) (rr ishr)]
+             [(shf-inst-eq `lsl) (rr ishl)]
+             [(shf-inst-eq `ror) (rr iror)]
              
              ;; shift i
-             [(shf-inst-eq `lsr#) (ri bvushr#)]
-             [(shf-inst-eq `asr#) (ri bvshr#)]
-             [(shf-inst-eq `lsl#) (ri bvshl#)]
-             [(shf-inst-eq `ror#) (ri bvror#)]
+             [(shf-inst-eq `lsr#) (ri iushr#)]
+             [(shf-inst-eq `asr#) (ri ishr#)]
+             [(shf-inst-eq `lsl#) (ri ishl#)]
+             [(shf-inst-eq `ror#) (ri iror#)]
              [else
               (assert #f (format "undefine optional shift: ~a" shfop))]
              )
@@ -334,7 +343,8 @@
             (define a (args-ref args 1))
             (define b (check-imm (args-ref args 2)))
             (define val (f (vector-ref regs a) b))
-            (vector-set! regs d val))
+            (vector-set! regs d val)
+            )
 
           ;; lsr
           (define (rrb f)
@@ -404,57 +414,57 @@
           (cond
            ;; basic
            [(inst-eq `nop) (void)]
-           [(inst-eq `add) (rrr bvadd #t)]
-           [(inst-eq `sub) (rrr bvsub #t)]
-           [(inst-eq `rsb) (rrr bvrsub #t)]
+           [(inst-eq `add) (rrr iadd #t)]
+           [(inst-eq `sub) (rrr isub #t)]
+           [(inst-eq `rsb) (rrr irsub #t)]
 
-           [(inst-eq `and) (rrr bitwise-and #t)]
-           [(inst-eq `orr) (rrr bitwise-ior #t)]
-           [(inst-eq `eor) (rrr bitwise-xor #t)]
-           [(inst-eq `bic) (rrr bvandn #t)]
-           [(inst-eq `orn) (rrr bviorn #t)]
+           [(inst-eq `and) (rrr iand #t)]
+           [(inst-eq `orr) (rrr ior #t)]
+           [(inst-eq `eor) (rrr ixor #t)]
+           [(inst-eq `bic) (rrr iandn #t)]
+           [(inst-eq `orn) (rrr iorn #t)]
 
            ;; basic i
-           [(inst-eq `add#) (rri bvadd)]
-           [(inst-eq `sub#) (rri bvsub)]
-           [(inst-eq `rsb#) (rri bvrsub)]
+           [(inst-eq `add#) (rri iadd)]
+           [(inst-eq `sub#) (rri isub)]
+           [(inst-eq `rsb#) (rri irsub)]
 
-           [(inst-eq `and#) (rri bitwise-and)]
-           [(inst-eq `orr#) (rri bitwise-ior)]
-           [(inst-eq `eor#) (rri bitwise-xor)]
-           [(inst-eq `bic#) (rri bvandn)]
-           [(inst-eq `orn#) (rri bviorn)]
+           [(inst-eq `and#) (rri iand)]
+           [(inst-eq `orr#) (rri ior)]
+           [(inst-eq `eor#) (rri ixor)]
+           [(inst-eq `bic#) (rri iandn)]
+           [(inst-eq `orn#) (rri iorn)]
            
            ;; move
            [(inst-eq `mov) (rr identity #t)]
-           [(inst-eq `mvn) (rr bvnot #t)]
+           [(inst-eq `mvn) (rr inot #t)]
            
            ;; move i
            [(inst-eq `mov#) (ri identity)]
-           [(inst-eq `mvn#) (ri bvnot)]
+           [(inst-eq `mvn#) (ri inot)]
            [(inst-eq `movt#) (r!i movhi)]
            [(inst-eq `movw#) (r!i movlo)]
 
            ;; reverse
-           [(inst-eq `rev)   (rr bvrev)]
-           [(inst-eq `rev16) (rr bvrev16)]
-           [(inst-eq `revsh) (rr bvrevsh)]
-           [(inst-eq `rbit)  (rr bvrbit)]
+           [(inst-eq `rev)   (rr irev)]
+           [(inst-eq `rev16) (rr irev16)]
+           [(inst-eq `revsh) (rr irevsh)]
+           [(inst-eq `rbit)  (rr irbit)]
 
            ;; div & mul
-           [(inst-eq `mul)  (rrr bvmul)]
-           [(inst-eq `mla)  (rrrr bvmla)]
-           [(inst-eq `mls)  (rrrr bvmls)]
+           [(inst-eq `mul)  (rrr imul)]
+           [(inst-eq `mla)  (rrrr imla)]
+           [(inst-eq `mls)  (rrrr imls)]
 
-           [(inst-eq `smmul) (rrr bvsmmul)]
-           [(inst-eq `smmla) (rrrr bvsmmla)]
-           [(inst-eq `smmls) (rrrr bvsmmls)]
+           [(inst-eq `smmul) (rrr ismmul)]
+           [(inst-eq `smmla) (rrrr ismmla)]
+           [(inst-eq `smmls) (rrrr ismmls)]
 
-           [(inst-eq `smull) (ddrr bvmul bvsmmul)]
-           [(inst-eq `umull) (ddrr bvmul bvummul)]
+           [(inst-eq `smull) (ddrr imul ismmul)]
+           [(inst-eq `umull) (ddrr imul iummul)]
 
-           [(inst-eq `sdiv) (rrr bvsdiv)]
-           [(inst-eq `udiv) (rrr bvudiv)]
+           [(inst-eq `sdiv) (rrr isdiv)]
+           [(inst-eq `udiv) (rrr iudiv)]
 
            [(inst-eq `uxtah) (rrr uxtah)]
            [(inst-eq `uxth) (rr uxth)]
@@ -462,19 +472,19 @@
            
            ;; shift Rd, Rm, Rs
            ;; only the least significant byte of Rs is used.
-           [(inst-eq `lsr) (rrr bvushr)]
-           [(inst-eq `asr) (rrr bvshr)]
-           [(inst-eq `lsl) (rrr bvshl)]
-           [(inst-eq `ror) (rrr bvror)]
+           [(inst-eq `lsr) (rrr iushr)]
+           [(inst-eq `asr) (rrr ishr)]
+           [(inst-eq `lsl) (rrr ishl)]
+           [(inst-eq `ror) (rrr iror)]
            
            ;; shift i
-           [(inst-eq `lsr#) (rrb bvushr#)]
-           [(inst-eq `asr#) (rrb bvshr#)]
-           [(inst-eq `lsl#) (rrb bvshl#)]
-           [(inst-eq `ror#) (rrb bvror#)]
+           [(inst-eq `lsr#) (rrb iushr#)]
+           [(inst-eq `asr#) (rrb ishr#)]
+           [(inst-eq `lsl#) (rrb ishl#)]
+           [(inst-eq `ror#) (rrb iror#)]
 
            ;; bit
-           [(inst-eq `bfc)  (r!bb  clrbit)]
+           [(inst-eq `bfc)  (r!bb clrbit)]
            [(inst-eq `bfi)  (rrbb setbit)]
 
            ;; others
@@ -584,19 +594,21 @@
       (append (for/list ([i 12]) (arithmetic-shift #xff (* 2 i)))
               (list #xff000000 (- #xff000000))))
 
-    (define-syntax-rule (check-imm x) 
-      (assert-return 
-       (ormap (lambda (i) (= (bitwise-and x i) (bitwise-and x mask))) legal-imm) 
-       "illegal immediate"
-       x))
+    (define-syntax-rule (check-imm x)
+      (let ([xx (i->bv x)])
+        (assert-return 
+         (ormap (lambda (i) (bveq (bvand xx (bvand xx (bv i bit))) (bvand xx mask))) legal-imm) 
+         "illegal immediate"
+         x)))
 
-    (define-syntax-rule (check-imm-mov x) 
-      (assert-return 
-       (or (= (bitwise-and x #xffff) x)
-           (ormap (lambda (i) (= (bitwise-and x i) (bitwise-and x mask)))
-                  legal-imm))
-       "illegal mov immediate"
-       x))
+    (define-syntax-rule (check-imm-mov x)
+      (let ([xx (i->bv x)])
+        (assert-return 
+         (or (bveq (bvand xx (bv #xffff bit)) xx)
+             (ormap (lambda (i) (bveq (bvand xx (bv i bit)) (bvand xx mask)))
+                    legal-imm))
+         "illegal mov immediate"
+         x)))
 
     ))
   

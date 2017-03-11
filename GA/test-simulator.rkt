@@ -1,4 +1,4 @@
-#lang s-exp rosette
+#lang rosette
 
 (require "GA-parser.rkt" "GA-printer.rkt" "GA-machine.rkt" "GA-validator.rkt"
          "GA-simulator-racket.rkt" "GA-simulator-rosette.rkt"
@@ -18,6 +18,8 @@
                    "2 b! dup !b a! @+ @+ - over + -"))
 (define encoded-code1 (send printer encode code1))
 (define encoded-code2 (send printer encode code2))
+(send validator adjust-memory-config encoded-code1)
+(send validator adjust-memory-config encoded-code2)
 
 ;(define input
 ;   (cdar (send machine get-states-from-file "data-fff/inputs")))

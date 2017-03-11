@@ -24,6 +24,10 @@
     (define RIGHT (get-field RIGHT machine))
     (define IO (get-field IO machine))
 
+    (define-syntax-rule (i->bv x) (integer->bitvector x (bitvector bit)))
+    (define-syntax-rule (bv->i x) (bitvector->integer x))
+    (define-syntax-rule (clip x) (bv->i (i->bv x)))
+
     ;; Interpret a given program from a given state.
     ;; code
     ;; state: initial progstate
@@ -120,16 +124,15 @@
           (assert (and (>= addr 0) (< addr (min 64 (sub1 (arithmetic-shift 1 (sub1 bit)))))))
           (send* memory store addr val)]))
 
-      (define (clip x) (finitize x bit))
-
       (define (push-right-one x carry)
-	(clip (bitwise-ior (<< (bitwise-and #x1 carry) (sub1 bit) bit) (>>> x 1 bit))))
+	(bv->i (bvor (bvshl (bvand #x1 (i->bv carry)) (bv (sub1 bit) bit))
+                     (bvlshr (i->bv x) (bv 1 bit)))))
       
       ;; Treats T:A as a single 36 bit register and shifts it right by one
       ;; bit. The most signficicant bit (T17) is kept the same.
       (define (multiply-step-even!)
 	(let ([a-val (push-right-one a t)]
-	      [t-val (>> t 1)])
+	      [t-val (bv->i (bvshl (i->bv t) (bv 1 bit)))])
 	  (set! a a-val)
 	  (set! t t-val)))
       
@@ -138,7 +141,7 @@
       (define (multiply-step-odd!)
 	(let* ([sum (+ t s)]
 	       [a-val (push-right-one a sum)]
-	       [t-val (>> sum 1)])
+	       [t-val (bv->i (bvshl (i->bv sum) (bv 1 bit)))])
 	  (set! a a-val)
 	  (set! t t-val)))
 
@@ -160,7 +163,8 @@
 	(define inst (inst-op inst-const))
         (define args (inst-args inst-const))
 	(define const (and args (> (vector-length args) 0) (vector-ref args 0)))
-	;;(when debug (pretty-display `(interpret-step ,(vector-ref opcodes inst) ,const)))
+	;;(pretty-display `(interpret-step ,(vector-ref opcodes inst) ,const))
+        
 	(define-syntax-rule (inst-eq x) (equal? x (vector-ref opcodes inst)))
 	(cond
 	 [(inst-eq `@p)   (push! const)]
@@ -172,15 +176,15 @@
 	                  (set! a (clip (add1 a)))]
 	 [(inst-eq `!b)   (stack-to-mem b)]
 	 [(inst-eq `!)    (stack-to-mem a)]
-	 [(inst-eq `+*)   (if (= (bitwise-and #x1 a) 0)
+	 [(inst-eq `+*)   (if (bveq (bvand (bv #x1 bit) (i->bv a)) (bv 0 bit))
 	 		      (multiply-step-even!)
 	 		      (multiply-step-odd!))];
-	 [(inst-eq `2*)   (stack-1 (lambda (t) (clip (<< t 1 bit))))]
-	 [(inst-eq `2/)   (stack-1 (lambda (t) (>> t 1)))];; sign shiftx
-	 [(inst-eq `-)    (stack-1 bitwise-not)]
+	 [(inst-eq `2*)   (stack-1 (lambda (t) (bv->i (bvshl (i->bv t) (bv 1 bit)))))]
+	 [(inst-eq `2/)   (stack-1 (lambda (t) (bv->i (bvashr (i->bv t) (bv 1 bit)))))];; sign shiftx
+	 [(inst-eq `-)    (stack-1 (lambda (t) (bv->i (bvnot (i->bv t)))))]
 	 [(inst-eq `+)    (stack-2 (lambda (x y) (clip (+ x y))))]
-	 [(inst-eq `and)  (stack-2 bitwise-and)]
-	 [(inst-eq `or)   (stack-2 bitwise-xor)]
+	 [(inst-eq `and)  (stack-2 (lambda (t) (bv->i (bvand (i->bv t)))))]
+	 [(inst-eq `or)   (stack-2 (lambda (t) (bv->i (bvxor (i->bv t)))))]
 	 [(inst-eq `drop) (pop!)]
 	 [(inst-eq `dup)  (push! t)]
 	 [(inst-eq `pop)  (push! (r-pop!))]

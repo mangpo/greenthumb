@@ -116,7 +116,7 @@
       
 
     (define (movlo to c)
-      (finitize-bit (bitwise-ior (bitwise-and to high-mask) c)))
+      (finitize-bit (bitwise-ior (bitwise-and to high-mask) (bitwise-and c low-mask))))
     
     (define (movhi to c)
       (finitize-bit (bitwise-ior (bitwise-and to low-mask) (shl c byte2))))

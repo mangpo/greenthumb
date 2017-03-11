@@ -1,4 +1,4 @@
-#lang s-exp rosette
+#lang rosette
 
 (require "arm-validator.rkt" "arm-machine.rkt" "arm-printer.rkt"
          "arm-simulator-rosette.rkt" 

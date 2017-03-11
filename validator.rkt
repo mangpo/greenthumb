@@ -277,7 +277,7 @@
 	    )
 
       (solver-shutdown (current-solver))
-      ;;(clear-terms!)
+      (clear-terms!)
       (clear-asserts!)
       (current-bitwidth bit)
       (define start-state (send machine get-state sym-input #:concrete #f))
@@ -302,12 +302,12 @@
        [(sat? model)
         (when debug (pretty-display "program-eq? DIFF"))
         (let ([state (evaluate-state start-state model)])
-          ;;(clear-terms!)
+          (clear-terms!)
           state)]
 
        [else
         (when debug (pretty-display "program-eq? SAME"))
-        ;;(clear-terms!)
+        (clear-terms!)
         #f]))
     
     ;; Return live-in in progstate format.

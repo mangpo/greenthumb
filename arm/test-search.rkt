@@ -1,4 +1,4 @@
-#lang s-exp rosette
+#lang rosette
 
 (require "arm-validator.rkt" "arm-machine.rkt" "arm-printer.rkt"
          "arm-parser.rkt" "../inst.rkt"
@@ -9,7 +9,7 @@
          )
 
 (define parser (new arm-parser%))
-(define machine (new arm-machine% [config 3]))
+(define machine (new arm-machine% [config 4]))
 
 (define printer (new arm-printer% [machine machine]))
 (define simulator-racket (new arm-simulator-racket% [machine machine]))
@@ -40,13 +40,14 @@
 (define code
 (send parser ir-from-string "
         cmp     r0, r1
-        movcc   r0, r1
+        movcc   r0, r3
+        strne r0, [r2, #0]
 "))
 
 
 (define sketch
 (send parser ir-from-string "
-? ?
+? ? ?
 "))
 ;; p13 -O0
 ;; z3: >5 min, java: 12 s
@@ -55,7 +56,7 @@
 ;; p25 -O3
 ;; z3: >5 min, java: 9 s
 
-(define constraint (send printer encode-live '(0)))
+(define constraint (send printer encode-live '(memory)))
 
 (define encoded-prefix (send printer encode prefix))
 (define encoded-postfix (send printer encode postfix))

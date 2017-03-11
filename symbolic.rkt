@@ -116,7 +116,7 @@
                                     #:hard-postfix [hard-postfix (vector)]
 				    #:assume [assumption (send machine no-assumption)])
       (solver-shutdown (current-solver))
-      ;;(clear-terms!)
+      (clear-terms!)
       (clear-asserts!)
       (pretty-display "SUPERPOTIMIZE:")
       (pretty-display (format "solver = ~a" (current-solver)))
@@ -220,7 +220,7 @@
       (pretty-display (format "new cost = ~a" final-cost))
       (pretty-display "=====================================")
       (clear-asserts!)
-      ;;(clear-terms!)
+      (clear-terms!)
 
       ;; Print to file
       (send stat update-best-correct final-program final-cost)

@@ -1,4 +1,4 @@
-#lang s-exp rosette
+#lang rosette
 
 (require "GA-validator.rkt" "GA-machine.rkt" "GA-printer.rkt" "GA-simulator-rosette.rkt" 
          "GA-parser.rkt")

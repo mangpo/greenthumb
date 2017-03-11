@@ -120,11 +120,13 @@
     ;;;;;;;;;;;;;;;;;;;; load ;;;;;;;;;;;;;;;;;;;;
     
     (define (load-spec addr)
+      (pretty-display `(load-spec))
       (or (lookup update addr)
           (lookup init addr)
           (init-new-val addr)))
 
     (define (load-cand addr ref-mem)
+      (pretty-display `(load-cand))
       (or (lookup update addr)
           (send* ref-mem lookup-init addr) ;; TODO: (lookup init addr) should work too
           (assert #f "load illegal address")))

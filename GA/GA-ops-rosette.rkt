@@ -1,4 +1,4 @@
-#lang s-exp rosette
+#lang rosette
 
 (require "GA-machine.rkt")
 (provide (all-defined-out))

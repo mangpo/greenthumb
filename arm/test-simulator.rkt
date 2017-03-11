@@ -1,4 +1,4 @@
-#lang s-exp rosette
+#lang rosette
 
 (require "arm-machine.rkt"
          "arm-printer.rkt" "arm-parser.rkt"
@@ -21,7 +21,7 @@
   (if const const (random 10)))
 
 (define (func-sym #:min [min #f] #:max [max #f] #:const [const #f])
-  (define-symbolic* input number?)
+  (define-symbolic* input integer?)
   (if const const input))
 
 ;; Input machine state
@@ -48,10 +48,7 @@ orr r0, r0, r1, asr 31
 (define cost
   (send simulator-rosette performance-cost
         (for/vector ([i 2]) (send symbolic gen-sym-inst))))
-(define output-state
-  (send simulator-rosette interpret (for/vector ([i 2]) (send symbolic gen-sym-inst)) input-state))
 
-#|
 (define output-state
   (send simulator-rosette interpret encoded-code input-state))
 (pretty-display ">>> Input.")
@@ -59,16 +56,7 @@ orr r0, r0, r1, asr 31
 (newline)
 (pretty-display ">>> Output from simulator in rosette.")
 (send machine display-state output-state)
-(define mem1 (progstate-memory output-state))
-(send mem1 lookup-update 0)
 
-(define output-state2
-  (send simulator-rosette interpret encoded-code input-state output-state))
-(newline)
-(pretty-display ">>> Output2 from simulator in rosette.")
-(send machine display-state output-state2)
-(send validator assert-state-eq output-state output-state2 (send printer encode-live '(0)))
-|#
 
 ;; (pretty-display
 ;;  (send enum abstract 
