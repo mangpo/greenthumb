@@ -183,8 +183,8 @@
 	 [(inst-eq `2/)   (stack-1 (lambda (t) (bv->i (bvashr (i->bv t) (bv 1 bit)))))];; sign shiftx
 	 [(inst-eq `-)    (stack-1 (lambda (t) (bv->i (bvnot (i->bv t)))))]
 	 [(inst-eq `+)    (stack-2 (lambda (x y) (clip (+ x y))))]
-	 [(inst-eq `and)  (stack-2 (lambda (t) (bv->i (bvand (i->bv t)))))]
-	 [(inst-eq `or)   (stack-2 (lambda (t) (bv->i (bvxor (i->bv t)))))]
+	 [(inst-eq `and)  (stack-2 (lambda (x y) (bv->i (bvand (i->bv x) (i->bv y)))))]
+	 [(inst-eq `or)   (stack-2 (lambda (x y) (bv->i (bvxor (i->bv x) (i->bv y)))))]
 	 [(inst-eq `drop) (pop!)]
 	 [(inst-eq `dup)  (push! t)]
 	 [(inst-eq `pop)  (push! (r-pop!))]

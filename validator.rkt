@@ -292,17 +292,12 @@
         )
       
       (define (compare)
-        (pretty-display `(compare-begin))
         (set! program-state (send simulator interpret program start-state spec-state))
-        (pretty-display `(compare-after-interpret))
         (assert-state-eq spec-state program-state constraint)
-        (pretty-display `(compare-end))
         )
 
       ;; VERIFY
-      (pretty-display `(before-verify))
       (define model (verify #:assume (interpret-spec!) #:guarantee (compare)))
-      (pretty-display `(after-verify))
       (cond
        [(sat? model)
         (when debug (pretty-display "program-eq? DIFF"))
@@ -401,20 +396,26 @@
     ;; state1, state2, & pred: progstate format
     (define (assert-state-eq state1 state2 pred)
       (define (inner state1 state2 pred)
-        ;;(pretty-display `(assert-eq ,pred ,state1 ,state2))
+        ;;(pretty-display `(inner-eq ,pred ,state1 ,state2))
 	(cond
-         [(and pred (is-a?* state1 memory-rosette%))
+         [(and pred (or (is-a?* state1 memory-rosette%) (is-a?* state2 memory-rosette%)))
           (assert (equal? (get-field* update state1)
-                          (get-field* update state2)))]
+                          (get-field* update state2)))
+          ]
          
          [(and pred (or (is-a?* state1 queue-in-rosette%)
-                        (is-a?* state2 queue-out-rosette%)))
+                        (is-a?* state1 queue-out-rosette%)
+                        (is-a?* state2 queue-in-rosette%)
+                        (is-a?* state2 queue-out-rosette%)
+                        ))
           (assert (equal? (get-field* queue state1)
-                          (get-field* queue state2)))]
+                          (get-field* queue state2)))
+          ]
          
 	 [(equal? pred #t)
-          (for*/all ([i state2])
-                    (assert (equal? state1 i)))
+          (for*/all ([i state1])
+                    (for*/all ([j state2])
+                              (assert (equal? i j))))
           ]
 	 [(equal? pred #f)
 	  (void)]
@@ -422,7 +423,8 @@
 	  (for/and ([i pred]
 		    [s1 state1]
 		    [s2 state2])
-		   (inner s1 s2 i))])
+		   (inner s1 s2 i))
+          ])
 	)
       (inner state1 state2 pred)
       )

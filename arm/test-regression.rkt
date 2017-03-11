@@ -64,27 +64,27 @@
     (when ce-enum (raise (format "TEST ~a: counter-example [enumerative]" id))))
   )
 
-;; (test 'sym "
-;; rsb r1, r0, r0, lsr 1
-;; " 1 '(1) #:sym #t)
+(test 'sym "
+rsb r1, r0, r0, lsr 1
+" 1 '(1) #:sym #t)
 
-;; (test 'p13 "
-;; 	rsb	r3, r0, #0
-;; 	mov	r0, r0, asr #31
-;; 	orr	r0, r0, r3, asr #31
-;; " 2 '(0) #:cost 3)
+(test 'p13 "
+	rsb	r3, r0, #0
+	mov	r0, r0, asr #31
+	orr	r0, r0, r3, asr #31
+" 2 '(0) #:cost 3)
 
-;; (test 'p14 "
-;;         eor     r3, r1, r0
-;;         and     r0, r1, r0
-;;         add     r0, r0, r3, asr #1
-;; " 3 '(0))
+(test 'p14 "
+        eor     r3, r1, r0
+        and     r0, r1, r0
+        add     r0, r0, r3, asr #1
+" 3 '(0))
 
-;; (test 'p15 "
-;;         orr     r3, r1, r0
-;;         eor     r0, r1, r0
-;;         sub     r0, r3, r0, asr #1
-;; " 3 '(0))
+(test 'p15 "
+        orr     r3, r1, r0
+        eor     r0, r1, r0
+        sub     r0, r3, r0, asr #1
+" 3 '(0))
 
 (test 'p16 "
         cmp     r0, r1
