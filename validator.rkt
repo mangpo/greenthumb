@@ -292,12 +292,17 @@
         )
       
       (define (compare)
+        (pretty-display `(compare-begin))
         (set! program-state (send simulator interpret program start-state spec-state))
+        (pretty-display `(compare-after-interpret))
         (assert-state-eq spec-state program-state constraint)
+        (pretty-display `(compare-end))
         )
 
       ;; VERIFY
+      (pretty-display `(before-verify))
       (define model (verify #:assume (interpret-spec!) #:guarantee (compare)))
+      (pretty-display `(after-verify))
       (cond
        [(sat? model)
         (when debug (pretty-display "program-eq? DIFF"))
