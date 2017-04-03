@@ -1,31 +1,40 @@
 #lang racket
 
-(require "ops-racket.rkt")
+(require "special.rkt" "ops-racket.rkt")
 (provide memory-racket%)
 
+
+;; Mask method which should only be public for object of memory-racket%
+(define-local-member-name lookup-init)
+
 (define memory-racket%
-  (class* object% (equal<%>)
+  (class* special% (equal<%> printable<%>)
     (super-new)
-    (init-field [init (make-hash)]
+    (init-field [get-fresh-val #f]
+                [init (make-hash)]
                 [update (make-hash)]
                 ;; If this memory object is for interpreting specification program,
                 ;; don't initialize ref.
                 ;; Otherwise, initailize ref with memory object output from specification program.
-                [ref #f])
-    (public print load store clone update-equal? correctness-cost
+                [ref #f]) ;; TODO: do we ever use ref?
+    (public load store clone correctness-cost
             ;; for backward interpret
-            clone-all del lookup-update
-            get-update-addr-val get-update-addr-with-val get-addr-with-val
-            ;; internal use only
-            lookup-init
-            )
+            del lookup-update
+            get-update-addr-val get-update-addr-with-val get-addr-with-val get-available-addr
+            get-live-mask)
+    
+    (define/public (custom-print port depth)
+      (print `(memory% init: ,init update: ,update) port depth))
 
-    (define (print)
-      (pretty-display (format "init: ~a" init))
-      (pretty-display (format "update: ~a" update)))
+    (define/public (custom-write port)
+      (write `(memory% init: ,init update: ,update) port))
+
+    (define/public (custom-display port)
+      (display `(memory% init: ,init update: ,update) port))
 
     (define/public (equal-to? other recur)
-      (equal? update (get-field update other)))
+      (and (is-a? other memory-racket%)
+           (equal? update (get-field update other))))
 
     (define/public (equal-hash-code-of hash-code)
       (hash-code update))
@@ -33,18 +42,17 @@
     (define/public (equal-secondary-hash-code-of hash-code)
       (hash-code update))
       
-    ;; Clone a new memory object with the same init.
+    ;; Clone a new memory object with the same init and update.
     ;; Use this method to clone new memory for every program interpretation.
     (define (clone [ref #f])
-      (new memory-racket% [ref ref] [init init]))
-      
-    ;; Clone a new memory object with the same update.
-    ;; Use this method to clone new memory for every inverse program interpretation.
-    (define (clone-all [ref #f])
       (new memory-racket% [ref ref] [init init]
-           [update (make-hash (hash->list update))]))
-
-    (define (update-equal? other) (equal? update (get-field update other)))
+           [update (make-hash (hash->list update))] [get-fresh-val get-fresh-val]))
+    
+    (define/public (clone-init)
+      (new memory-racket% [ref ref] [init init]))
+      ;; (if (hash-empty? update)
+      ;;     this
+      ;;     (new memory-racket% [ref ref] [init init])))
 
     (define (correctness-cost other diff-cost bit)
       (define cost 0)
@@ -59,6 +67,8 @@
                                bit)))))
       cost)
 
+    (define (get-live-mask) (> (hash-count update) 0))
+
     ;;;;;;;;;;;;;;;;;;;; get addr & val ;;;;;;;;;;;;;;;;;;;;;
     (define (get-update-addr-val)
       (hash->list update))
@@ -67,24 +77,34 @@
       (map car (filter (lambda (x) (= (cdr x) val)) (hash->list update))))
 
     (define (get-addr-with-val val)
+      ;;(pretty-display `(val ,val))
       (append
        (map car (filter (lambda (x) (= (cdr x) val)) (hash->list update)))
        (map car (filter (lambda (x)
                           (and (= (cdr x) val)
                                (not (hash-has-key? update (car x)))))
                         (hash->list init)))))
-    
+
+    (define (get-available-addr ref)
+      (remove*
+       (hash-keys update)
+       (hash-keys (get-field update ref))))
 
     ;;;;;;;;;;;;;;;;;;;; lookup & update ;;;;;;;;;;;;;;;;;;;;
     (define (lookup storage addr)
       (and (hash-has-key? storage addr)
            (hash-ref storage addr)))
     
-    (define (lookup-init addr) (lookup init addr))
+    (define/public (lookup-init addr) (lookup init addr))
     (define (lookup-update addr) (lookup update addr))
 
     (define (modify storage addr val)
       (hash-set! storage addr val))
+
+    (define (init-new-val addr)
+      (define val (get-fresh-val))
+      (hash-set! init addr val)
+      val)
 
     ;;;;;;;;;;;;;;;;;;;; del ;;;;;;;;;;;;;;;;;;;;
     (define (del addr)
@@ -96,7 +116,8 @@
       ;;(pretty-display `(load-spec ,init ,(lookup init addr)))
       (or (lookup update addr)
           (lookup init addr)
-          (assert #f "load illegal address (spec)")))
+          (init-new-val addr)))
+          ;;(assert #f "load illegal address (spec)")))
 
     (define (load-cand addr ref-mem)
       (or (lookup update addr)
@@ -131,35 +152,19 @@
 (define (test1)
   (define mem (new memory-racket%))
   (send mem load 9) ;; expect error here
-  (send mem load 6)
-  (send mem store 2 222)
-  (send mem store 9 999)
-  (send mem load 9)
-  (send mem store 9 0)
-  (send mem load 9)
-  (send mem print)
-
-  (define mem2 (send mem clone mem))
-  (send mem2 load 9)
-  (send mem2 load 6)
-  (send mem2 store 2 222)
-  (send mem2 store 9 999)
-  (send mem2 load 9)
-  (send mem2 store 9 0)
-  (send mem2 load 9)
-  (send mem2 print))
+  )
 
 (define (test2)
   ;; test correctness-cost
   (define (diff-cost x y) (if (= x y) 0 1))
     
   (define mem (new memory-racket% [init (make-hash '((9 . 99) (6 . 66)))]))
+  (define mem2 (send mem clone mem))
   (send mem load 9)
   (send mem load 6)
   (send mem store 2 222)
   (send mem store 3 333)
 
-  (define mem2 (send mem clone mem))
   (send mem2 load 9)
   (send mem2 load 6)
   (send mem2 store 2 111)
@@ -169,12 +174,12 @@
   )
 
 (define (test3)
-  ;; test clone-all del lookup-update
+  ;; test clone del lookup-update
   (define mem (new memory-racket% [init (make-hash '((9 . 99) (6 . 66)))]))
   (send mem store 2 222)
   (send mem store 3 333)
 
-  (define mem2 (send mem clone-all))
+  (define mem2 (send mem clone))
   (send mem2 del 3)
   (assert (= 222 (send mem2 lookup-update 2)))
   (assert (equal? #f (send mem2 lookup-update 3)))
@@ -197,3 +202,16 @@
   (test2)
   (test3)
   (test4))
+
+(define (test-performance)
+  (define q (new memory-racket%))
+  (for/list ([i 1000000])
+    (send q clone-init)))
+
+#|
+(define t1 (current-milliseconds))
+(define ans (test-performance))
+(define t2 (current-milliseconds))
+(- t2 t1)
+|#
+

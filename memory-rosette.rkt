@@ -1,31 +1,67 @@
 #lang s-exp rosette
 
-(require "memory-racket.rkt")
-(provide memory-rosette%)
+(require "special.rkt" "memory-racket.rkt" "ops-rosette.rkt")
+(provide memory-rosette% init-memory-size increase-memory-size finalize-memory-size)
+
+(define memory-size 1)
+(define (init-memory-size)
+  (set! memory-size 1))
+(define (increase-memory-size)
+  (when (> memory-size 100) (raise "memory-rosette: memory size is too large."))
+  (pretty-display (format "Increase memory size to ~a" (* 2 memory-size)))
+  (set! memory-size (* 2 memory-size)))
+(define (finalize-memory-size)
+  (set! memory-size (add1 memory-size))
+  (pretty-display (format "Finalize memory size ~a" memory-size))
+  )
+
+
+;; Mask method which should only be public for object of memory-racket%
+(define-local-member-name lookup-init)
+(define-local-member-name lookup-update)
 
 (define memory-rosette%
-  (class object%
+  (class* special% (equal<%> printable<%>)
     (super-new)
-    (init-field [size 20]
-                [init (make-vector size)]
+    (init-field get-fresh-val
+                [size memory-size]
+                [init (make-vector size)] ;; TODO: change to list
                 [update (make-vector size)]
-                [get-fresh-val
-                 (lambda ()
-                   (define-symbolic* val number?)
-                   val)]
+                ;; [get-fresh-val
+                ;;  (lambda ()
+                ;;    (define-symbolic* val number?)
+                ;;    val)]
                 ;; If this memory object is for interpreting specification program,
                 ;; don't initialize ref.
-                ;; Otherwise, initailize ref with memory object output from specification program.
+                ;; Otherwise, initialize ref with memory object output from specification program.
                 [ref #f])
-    (public print load store create-concrete clone update-equal?
-            ;; internal use only
-            lookup-init lookup-update 
-            )
+    (public load store create-concrete clone)
+    
+    (define (cal-size l)
+      (define ans 0)
+      (for ([x l])
+           (when (pair? x) (set! ans (add1 ans))))
+      ans)
 
-    (define (print)
-      (pretty-display (format "init: ~a" init))
-      (pretty-display (format "update: ~a" update)))
+    (define/public (custom-print port depth)
+      (print `(memory% init: ,init update: ,update size: ,(cal-size update)) port depth))
 
+    (define/public (custom-write port)
+      (write `(memory% init: ,init update: ,update size: ,(cal-size update)) port))
+
+    (define/public (custom-display port)
+      (display `(memory% init: ,init update: ,update size: ,(cal-size update)) port))
+
+    (define/public (equal-to? other recur)
+      (and (is-a? other memory-rosette%)
+           (equal? update (get-field* update other))))
+
+    (define/public (equal-hash-code-of hash-code)
+      (hash-code update))
+
+    (define/public (equal-secondary-hash-code-of hash-code)
+      (hash-code update))
+      
     ;; Create concrete memory object by evaluating symbolic memory.
     (define (create-concrete eval)
       (new memory-racket% [init (make-hash (filter pair? (vector->list (eval init))))]))
@@ -33,13 +69,8 @@
     ;; Clone a new symbolic memory object with the same init.
     ;; Use this method to clone new memory for every program interpretation.
     (define (clone [ref #f])
-      (new memory-rosette% [ref ref] [init init]))
-
-    (define (update-equal? other)
-      (for/and ([pair update] #:break (not (pair? pair)))
-               (let ([addr (car pair)]
-                     [val (cdr pair)])
-                 (= val (send other lookup-update addr)))))
+      (new memory-rosette% [ref ref] [init init] [update (vector-copy update)]
+           [get-fresh-val get-fresh-val]))
 
     (define (init-new-val addr)
       (define (loop index)
@@ -60,41 +91,42 @@
     ;;;;;;;;;;;;;;;;;;;; lookup & update ;;;;;;;;;;;;;;;;;;;;
     (define (lookup storage addr)
       (define (loop index)
-        (let ([pair (vector-ref storage index)])
-          (and (pair? pair)
-               (if (equal? addr (car pair))
-                   (cdr pair)
-                   (loop (add1 index)))
-               )))
+        (and (< index (vector-length storage))
+             (let ([pair (vector-ref storage index)])
+               (and (pair? pair)
+                    (if (equal? addr (car pair))
+                        (cdr pair)
+                        (loop (add1 index)))
+                    ))))
       (loop 0))
 
     
-    (define (lookup-init addr) (lookup init addr))
-    (define (lookup-update addr) (lookup update addr))
+    (define/public (lookup-init addr) (lookup init addr))
+    (define/public (lookup-update addr) (lookup update addr))
 
     (define (modify storage addr val)
       (define (loop index)
-        (let ([pair (vector-ref storage index)])
-          (and (pair? pair)
-               (if (equal? addr (car pair))
-                   (begin
-                     (vector-set! storage index (cons addr val))
-                     #t)
-                   (loop (add1 index)))
-               )))
+        (and (< index (vector-length storage))
+             (let ([pair (vector-ref storage index)])
+               (and (pair? pair)
+                    (if (equal? addr (car pair))
+                        (begin
+                          (vector-set! storage index (cons addr val))
+                          #t)
+                        (loop (add1 index)))
+                    ))))
       (loop 0))
     
     ;;;;;;;;;;;;;;;;;;;; load ;;;;;;;;;;;;;;;;;;;;
     
     (define (load-spec addr)
-      ;;(pretty-display `(load-spec ,init ,(lookup init addr)))
       (or (lookup update addr)
           (lookup init addr)
           (init-new-val addr)))
 
     (define (load-cand addr ref-mem)
       (or (lookup update addr)
-          (send ref-mem lookup-init addr)
+          (send* ref-mem lookup-init addr) ;; TODO: (lookup init addr) should work too
           (assert #f "load illegal address")))
 
     (define (load addr)
@@ -111,7 +143,7 @@
     (define (store-cand addr val mem-ref)
       ;; legal to update if that address is used for spec.
       (cond
-        [(send mem-ref lookup-update addr)
+        [(send* mem-ref lookup-update addr)
          (store-spec addr val)]
         [else (assert #f "store illegal address")]))
       
@@ -124,24 +156,21 @@
     ))
 
 (define (test)
-  (define mem (new memory-rosette%))
-  (send mem load 9)
-  (send mem load 6)
+  (set! memory-size 2)
+  (define func (lambda () (define-symbolic* val number?) val))
+  (define mem (new memory-rosette% [get-fresh-val func]))
+  (assert (term? (send mem load 9)) "mem: load 9 = sym")
+  (assert (term? (send mem load 6)) "mem: load 6 = sym")
   (send mem store 2 222)
+  (assert (= (send mem load 2) 222) "mem: load 2 = 222")
   (send mem store 9 999)
-  (send mem load 9)
+  (assert (= (send mem load 9) 999) "mem: load 9 = 999")
   (send mem store 9 0)
-  (send mem load 9)
-  (send mem print)
+  (assert (= (send mem load 9) 0) "mem: load 9 = 0")
+  (pretty-display `(mem ,mem))
   
   (define mem2 (send mem clone mem))
-  (send mem2 load 9)
-  (send mem2 load 6)
-  (send mem2 store 2 222)
-  (send mem2 store 9 999)
-  (send mem2 load 9)
-  (send mem2 store 9 0)
-  (send mem2 load 9)
-  (send mem2 print))
-
-    
+  (assert (= (send mem2 load 9) 0) "mem2: load 9 = 0")
+  (assert (term? (send mem2 load 6)) "mem2: load 6 = sym")
+  (assert (= (send mem2 load 2) 222) "mem2: load 2 = 222")
+  (pretty-display `(mem2 ,mem2)))

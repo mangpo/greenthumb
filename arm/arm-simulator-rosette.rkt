@@ -1,7 +1,7 @@
 #lang s-exp rosette
 
 (require "../simulator.rkt" "../ops-rosette.rkt" 
-         "../inst.rkt" "arm-inst.rkt"
+         "../inst.rkt"
          "../machine.rkt" "arm-machine.rkt")
 (provide arm-simulator-rosette%)
 
@@ -15,12 +15,11 @@
         
     (define bit (get-field bitwidth machine))
 
-    (define nop-id (send machine get-opcode-id `nop))
     (define opcodes (get-field opcodes machine))
-    (define shf-opcodes (get-field shf-opcodes machine))
-    (define cond-opcodes (get-field cond-opcodes machine))
-    (define ninsts (vector-length opcodes))
-    (define n-shf-insts (vector-length shf-opcodes))
+    (define base-opcodes (vector-ref opcodes 0))
+    (define cond-opcodes (vector-ref opcodes 1))
+    (define shf-opcodes (vector-ref opcodes 2))
+    (define ninsts (vector-length base-opcodes))
 
     (define (shl a b) (<< a b bit))
     (define (ushr a b) (>>> a b bit))
@@ -215,34 +214,36 @@
     
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
-    (define (interpret program state [policy #f])
+    (define (interpret program state [ref #f])
       (define opcode-pool (get-field opcode-pool machine))
       ;;(pretty-display `(interpret))
       (define regs (vector-copy (progstate-regs state)))
-      (define memory (vector-copy (progstate-memory state)))
+      (define memory #f)
       (define z (progstate-z state))
-      (define fp (progstate-fp state))
 
       (define (interpret-step step)
-        (define op (inst-op step))
+        (define ops-vec (inst-op step))
         (define args (inst-args step))
-        (define cond-type (arm-inst-cond step))
-        (define shfop (arm-inst-shfop step))
-        ;;(pretty-display `(interpret-step ,z ,op ,cond-type))
+        
+        (define op (vector-ref ops-vec 0))
+        (define cond-type (vector-ref ops-vec 1))
+        (define shfop (vector-ref ops-vec 2))
+        (define op-name (vector-ref base-opcodes op))
+        (define shfop-name (and (>= shfop 0) (vector-ref shf-opcodes shfop)))
+        
+        ;; (pretty-display `(interpret-step ,ops-vec))
 
-        (define-syntax inst-eq
-          (syntax-rules ()
-            ((inst-eq x) (equal? x (vector-ref opcodes op)))
-            ((inst-eq a b ...) (or (inst-eq a) (inst-eq b) ...))))
+        (define-syntax-rule (inst-eq a ...)
+          (or (equal? a op-name) ...))
+        (define-syntax-rule (shf-inst-eq a ...)
+          (or (equal? a shfop-name) ...))
 
         (define-syntax-rule (args-ref args i) (vector-ref args i))
 
         (define (exec)
           (define (opt-shift x)
-            (define op (arm-inst-shfop step))
-            (define k (arm-inst-shfarg step))
-            (define-syntax-rule (shf-inst-eq xx) 
-              (equal? xx (vector-ref shf-opcodes op)))
+            (define len (vector-length args))
+            (define k (and (> len 0) (vector-ref args (sub1 len))))
 
             (define val #f)
             (define (rr f)
@@ -252,7 +253,7 @@
               (set! val (f (vector-ref regs x) k)))
 
             (cond
-             [(or (equal? op #f) (shf-inst-eq `nop))
+             [(or (equal? shfop #f) (equal? shfop -1))
               (set! val (vector-ref regs x))]
              [(shf-inst-eq `lsr) (rr bvushr)]
              [(shf-inst-eq `asr) (rr bvshr)]
@@ -265,7 +266,7 @@
              [(shf-inst-eq `lsl#) (ri bvshl#)]
              [(shf-inst-eq `ror#) (ri bvror#)]
              [else
-              (assert #f (format "undefine optional shift: ~a" op))]
+              (assert #f (format "undefine optional shift: ~a" shfop))]
              )
             val
             )
@@ -346,23 +347,31 @@
           ;; store
           (define (str reg-offset)
             (define d (args-ref args 0))
+            (define a (args-ref args 1))
             (define b (args-ref args 2))
             (define index 
               (if reg-offset
-                  (+ fp (vector-ref regs b))
-                  (+ fp b)))
+                  (+ (vector-ref regs a) (vector-ref regs b))
+                  (+ (vector-ref regs a) b)))
             (define val (vector-ref regs d))
-            (vector-set! memory index val))
+            (unless memory
+              (set! memory (send* (progstate-memory state) clone
+                                 (and ref (progstate-memory ref)))))
+            (send* memory store (finitize-bit index) val))
 
           ;; load
           (define (ldr reg-offset)
             (define d (args-ref args 0))
+            (define a (args-ref args 1))
             (define b (args-ref args 2))
             (define index 
               (if reg-offset
-                  (+ fp (vector-ref regs b))
-                  (+ fp b)))
-            (define val (vector-ref memory index))
+                  (+ (vector-ref regs a) (vector-ref regs b))
+                  (+ (vector-ref regs a) b)))
+            (unless memory
+              (set! memory (send* (progstate-memory state) clone
+                                 (and ref (progstate-memory ref)))))
+            (define val (send* memory load (finitize-bit index)))
             (vector-set! regs d val))
 
           ;; setbit
@@ -486,64 +495,67 @@
            [(inst-eq `tst#) (z=ri tst)]
            [(inst-eq `cmp#) (z=ri cmp)]
 
-           [else (assert #f "undefine instruction")]))
+           [else (assert #f "undefine instruction")]
+           ))
 
 	;; z: eq 0, ne 1, < 1, > 3
 	;; cond: eq 0, ne 1, ls 2, hi 3, cc 4, cs 5
 	(define-syntax-rule (assert-op) (assert (and (>= op 0) (< op ninsts))))
         (cond
-         [(or (equal? z -1) (equal? cond-type 0)
+         [(or (equal? z -1) (equal? cond-type -1)
               (inst-eq `tst `cmp `tst# `cmp#))
-	  (assert (and (>= cond-type 0) (<= cond-type 6)))
+	  (assert (and (>= cond-type -1) (< cond-type (vector-length cond-opcodes))))
           (exec)]
 
-	 [(equal? cond-type 1) ;; eq
+	 [(equal? cond-type 0) ;; eq
 	  (if (equal? z 0) (exec) (assert-op))]
 
-	 [(equal? cond-type 2) ;; ne
+	 [(equal? cond-type 1) ;; ne
 	  (if (member z (list 1 2 3 4 5)) (exec) (assert-op))]
 
-	 [(equal? cond-type 3) ;; ls (unsigned lower or same)
+	 [(equal? cond-type 2) ;; ls (unsigned lower or same)
 	  (if (member z (list 0 2 5)) (exec) (assert-op))]
 
-	 [(equal? cond-type 4) ;; hi (unsigned higher)
+	 [(equal? cond-type 3) ;; hi (unsigned higher)
 	  (if (member z (list 3 4)) (exec) (assert-op))]
 
-	 [(equal? cond-type 5) ;; cc/lo (unsigned lower)
+	 [(equal? cond-type 4) ;; cc/lo (unsigned lower)
 	  (if (member z (list 2 5)) (exec) (assert-op))]
 
-	 [(equal? cond-type 6) ;; cs/hs (unsigned higher or same)
+	 [(equal? cond-type 5) ;; cs/hs (unsigned higher or same)
 	  (if (member z (list 0 3 4)) (exec) (assert-op))]
 
-	 [(equal? cond-type 7) ;; lt (signed less than)
+	 [(equal? cond-type 6) ;; lt (signed less than)
 	  (if (member z (list 2 4)) (exec) (assert-op))]
 
-	 [(equal? cond-type 8) ;; ge (signed greater than or equal)
+	 [(equal? cond-type 7) ;; ge (signed greater than or equal)
 	  (if (member z (list 0 3 5)) (exec) (assert-op))]
 	 
          [else (assert #f (format "illegal cond-type ~a" cond-type))]
          )        
-        (assert (or (equal? shfop #f) (and (>= shfop 0) (< shfop n-shf-insts))))
+        (assert (and (>= shfop -1) (< shfop (vector-length shf-opcodes))))
         )
 
       (for ([x program])
            (interpret-step x))
       
-      (progstate regs memory z fp))
+      (progstate regs (or memory (progstate-memory state)) z))
 
     (define (performance-cost code)
       (define cost 0)
       (define-syntax-rule (add-cost x) (set! cost (+ cost x)))
       (for ([x code])
-           (let ([op (inst-op x)]
-                 [shfop (inst-shfop x)])
+           (let* ([ops-vec (inst-op x)]
+                  [op (vector-ref ops-vec 0)]
+                  [shfop (vector-ref ops-vec 2)]
+                  [op-name (vector-ref base-opcodes op)]
+                  [shfop-name (and (>= shfop 0) (vector-ref shf-opcodes shfop))]
+                  )
+
              (define-syntax-rule (inst-eq a ...)
- 	       (let ([opcode-name (vector-ref opcodes op)])
- 		 (or (equal? a opcode-name) ...)))
+               (or (equal? a op-name) ...))
              (define-syntax-rule (shf-inst-eq a ...)
- 	       (and shfop
- 		    (let ([opcode-name (vector-ref shf-opcodes shfop)])
- 		      (or (equal? a opcode-name) ...))))
+               (or (equal? a shfop-name) ...))
 
              (cond
               [(inst-eq `nop) (void)]
@@ -558,6 +570,7 @@
               ;;   [else (add-cost 1)])]
 
               ;; [(shf-inst-eq `lsr# `asr# `lsl# `ror#) (add-cost 2)]
+              
               [(and (inst-eq `add `sub `rsb `and `orr `eor `bic `orn `mov `mvn)
                     (shf-inst-eq `lsr `asr `lsl `ror))
                (add-cost 2)]

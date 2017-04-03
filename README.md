@@ -1,13 +1,11 @@
 # Greenthumb: Superoptimizer Construction Framework
 
 GreenThumb is an extensible framework for constructing superoptimizers. It is designed to be easily extended to a new target ISA using inheritance. GreenThumb is implemented in Racket.
-The top level directory contains ISA-independent files, which implement the superclasses to be extended. We have built superoptimizers for ARM, GreenArrays GA144 (GA), and a small subset of LLVM IR. Directories `arm`, `GA`, and `llvm-demo` contain ISA-sepcific files for ARM, GA, and LLVM IR respectively.
+The top level directory contains ISA-independent files, which implement the superclasses to be extended. We have built superoptimizers for ARM, GreenArrays GA144 (GA), and a small subset of LLVM IR. Directories `arm`, `GA`, and `llvm` contain ISA-specific files for ARM, GA, and LLVM IR respectively.
 
 ## References
 
-- [Video](https://youtu.be/3l7Z7kB5p3g) demonstrates how to build a LLVM IR superoptimizer using GreenThumb.
 - [Greenthumb: Superoptimizer Construction Framework (CC'16)](http://www.eecs.berkeley.edu/~mangpo/www/papers/greenthumb_cc2016.pdf) explains the framework overview.
-- [Greenthumb: Superoptimizer Construction Framework (Tech Report)](http://www.eecs.berkeley.edu/Pubs/TechRpts/2016/EECS-2016-8.pdf) explains the overview of how to extend the framework to support a new ISA.
 - [Scaling Up Superoptimization (ASPLOS'16)](http://www.eecs.berkeley.edu/~mangpo/www/papers/lens-asplos16.pdf) explains the search strategy provided by GreenThumb.
 
 ## Software Prerequisites
@@ -15,6 +13,7 @@ The top level directory contains ISA-independent files, which implement the supe
 - **Rosette**: Download [Rosette v1.1](https://github.com/emina/rosette/releases/tag/v1.1) and follow the instruction to install in Rosette's README file. Don't forget to put Z3 executable in rosette/bin, as GreenThumb depends on Z3 (but not CVC4).
 - **Python**
 
+<a name="setup"></a>
 ## Setting Up
 ```
 git clone https://github.com/mangpo/greenthumb.git
@@ -24,7 +23,7 @@ make
 
 `path.rkt` will be generated.
 
-
+<a name="running"></a>
 ## Running an Existing Superoptimizer
 For example, we will walk through how one can run the ARM supertoptimizer.
 
@@ -35,7 +34,7 @@ For example, we will walk through how one can run the ARM supertoptimizer.
 0
 0,1
 ```
-The first line indicates live-out registers, and the second line indicates live-in regsiters. In this example, a live-out register is R0, and live-in registers are R0 and R1. Note that currently the tool only supports R registers.
+The first line indicates live-out registers, and the second line indicates live-in registers. In this example, a live-out register is R0, and live-in registers are R0 and R1. Note that currently the tool only supports R registers. Live-in information is no longer used in GreenThumb 2.0.
 
 ### Run
 
@@ -46,9 +45,9 @@ racket optimize.rkt <search-type> <search-mode> -c <number-of-search-instances> 
   -t <time-limit-in-sec> <file_to_optimize>
 ```
 
-- `<search-type>` can be `--stoch` (stochastic search), `--solver` (symbolic search), `--enum` (enumerative search) or `--hybrid` (cooperative search).
-- When using `--solver` or `--enum`, `<search-mode>` is either 
-  - `-l` or `--linear`: optimizing by reducting cost decementally,
+- `<search-type>` can be `--stoch` (stochastic search), `--sym` (symbolic search), `--enum` (enumerative search) or `--hybrid` (cooperative search).
+- When using `--sym` or `--enum`, `<search-mode>` is either 
+  - `-l` or `--linear`: optimizing by reducing cost incrementally,
   - `-b` or `--binary`: optimizing by binary searching on the cost, or
   - `-p` or `--partial`: optimizing by synthesizing small parts of the given code using context-aware window decomposition. Option `--partial` is recommended.
 - When using `--stoch`, `<search-mode>` is either 
@@ -99,28 +98,27 @@ simulate time:  0.126095	<< (time spent on interpreting)/total
 check time:     0.054595	<< (time spent on checking actual outputs against expected outputs)/total
 validate time:  0.702649	<< (time spent on validating the correctness using solver)/total
 
-iterations/s:      5324.89
+iterations/s:      480.18
 best cost:         5       << best cost despite the correctness
 best correct cost: 5       << best performance cost considering the correctness
-best correct time: 27      << time in seconds to find the best correct proposal
+best correct time: 41      << time in seconds to find the best correct proposal
 
 Mutate     Proposed  Accepted  Accepted/Proposed
-opcode     0.217529  0.029182  0.134155
-operand    0.220791  0.000276  0.001250
-swap       0.061042  0.009864  0.161608
-inst       0.043268  0.000167  0.003859
-nop        0.175311  7.187534  0.000409
-shf        0.282056  0.008171  0.028971
-cond-type	 0.0       0.0       0
+opcode	   0.282484  0.058890  0.208473
+operand	   0.182736  0.018227  0.099747
+swap	   0.266824  0.092875  0.348078
+inst	   0.118275  0.017906  0.151396
+nop	       0.149678  0.015671  0.10470257303795003
 
 accept-count:        0.047734  << rate of accepting mutated programs
 accept-higher-count: 0.000457  << rate of accepting mutated programs with higher cost
 
 // This second part summarizes the charateristics of the best program found so far.
+// This section only appears if the superoptimizer found better program(s).
 =============== SUMMARY ===============
 cost:	3            << cost of the best program found so far
 len:	3            << length of the best program found so far
-time:	15           << time in seconds to find the best program
+time:	44           << time in seconds to find the best program
 output/0/driver-7    << the best program is found by driver-7 (enumerative search in this example).
 ```
 
@@ -140,9 +138,17 @@ To reduce the memory usage and the overhead of Racket translating program to byt
 raco make <list_of_flies_to_be_compiled>
 ```
 
-## Advanced Usage
-- [Extending GreenThumb to a New ISA](documentations/new-isa.md)
-- [Adding more instructions to an existing superoptimizer](documentations/add-more-instructions.md)
+For example, in `ARM` directory, run:
+```
+raco make test-search.rkt ../parallel-driver.rkt
+```
+
+## More Documentation
+- [Extending GreenThumb to a New ISA](documentation/new-isa.md)
+- [Adding more instructions to an existing superoptimizer](documentation/add-more-instructions.md)
+- [Special Objects for Program State](documentation/special-objects.md)
+- [Advanced Usage](documentation/advanced-usage.md)
+
 
 ## Inquery and Bug Report
-If you are interested in using GreenThumb, please feel free to contact mangpo [at] eecs.berkeley.edu. If there is enough interest, we can write a very detailed step-by-step tutorial!
+If you are interested in using GreenThumb, please feel free to contact mangpo [at] eecs.berkeley.edu.
