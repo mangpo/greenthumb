@@ -55,6 +55,10 @@
 ;; p25 -O3
 ;; z3: >5 min, java: 9 s
 
+;; p13 -O13, GreenThumb 2.0, kodkod
+;; no ror: 25 s
+;; ror: 46 s
+
 (define constraint (send printer encode-live '(0)))
 
 (define encoded-prefix (send printer encode prefix))

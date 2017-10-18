@@ -215,8 +215,8 @@
     ;; Interpret a given program from a given state.
     ;; state: initial progstate
     (define (interpret program state [ref #f])
-      (define opcode-pool (get-field opcode-pool machine))
       ;;(pretty-display `(interpret))
+      (define inst-choice (get-field inst-choice-name machine))
       (define regs (vector-copy (progstate-regs state)))
       (define memory #f)
       (define z (progstate-z state))
@@ -234,9 +234,13 @@
         ;; (pretty-display `(interpret-step ,ops-vec))
 
         (define-syntax-rule (inst-eq a ...)
-          (or (equal? a op-name) ...))
-        (define-syntax-rule (shf-inst-eq a ...)
-          (or (equal? a shfop-name) ...))
+	  (or (and (or (not inst-choice) (member a inst-choice))
+		   (equal? a op-name))
+	      ...))
+	(define-syntax-rule (shf-inst-eq a ...)
+	  (or (and (or (not inst-choice) (member a inst-choice))
+		   (equal? a shfop-name))
+	      ...))
 
         (define-syntax-rule (args-ref args i) (vector-ref args i))
 

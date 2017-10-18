@@ -29,6 +29,7 @@
     (override display-state get-constructor
               progstate-structure update-progstate-ins-load update-progstate-ins-store)
     (field [cmp-inst #f])
+    (init-field [inst-choice-name #f])
 
     (define (get-constructor) arm-machine%)
 
@@ -319,11 +320,11 @@
             (set! inst-choice (append inst-choice '(tst cmp tst# cmp#))))
 
       (define base-opcodes (vector opcodes 0))
-      ;;(pretty-display `(inst-choice ,inst-choice))
+      (set! inst-choice-name inst-choice)
+      (when debug (pretty-display `(inst-choice ,inst-choice-name)))
       (set! inst-choice (map (lambda (x) (get-base-opcode-id x)) inst-choice))
       (set! opcode-pool (filter (lambda (x) (member (vector-ref x 0) inst-choice)) opcode-pool))
       (update-classes-pool)
-      (when debug (pretty-display `(opcode-pool ,(length opcode-pool))))
       ;;(pretty-display (map (lambda (x) (get-opcode-name x)) opcode-pool))
       )
 
