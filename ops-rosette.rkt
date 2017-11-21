@@ -93,6 +93,8 @@
   (loop table))
 
 ;;;;;;;;;;;;;;;;;;;;; multiplication ;;;;;;;;;;;;;;;;;;;;;;;;
+;; kodkod: very slow
+;; z3: fast
 (define (smmul u v bit)
   (define byte2 (quotient bit 2))
   (define low-mask (sub1 (arithmetic-shift 1 byte2)))
@@ -128,6 +130,8 @@
                byte2))
    bit))
 
+;; kodkod: illegal
+;; z3: very slow
 ;; (define (smmul x y bit) 
 ;;   (define p (*h x y))
 ;;   (define t1 (bitwise-and (>> x (sub1 bit)) y))
