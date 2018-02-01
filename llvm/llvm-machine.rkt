@@ -72,14 +72,14 @@
 
     (define-instruction-class
      'rrr-commute
-     '(and or xor add mul)
+     '(and or xor add) ;mul
      #:args '(var var var)
      #:ins '(1 2)
      #:outs '(0)
      #:commute '(1 . 2)
      )
 
-    (define-instruction-class
+    #;(define-instruction-class
      'rrr-commute-vec4
      '(add_v4)
      #:scalar '(add) #:vector-width 4
@@ -89,23 +89,23 @@
      #:commute '(1 . 2)
      )
 
-    (define-instruction-class
+    #;(define-instruction-class
      'rrr
-     '(sub shl lshr ashr udiv sdiv urem srem)
+     '(sub shl lshr ashr udiv sdiv rem)
      #:args '(var var var)
      #:ins '(1 2)
      #:outs '(0))
 
     (define-instruction-class
      'rri
-     '(and# or# xor# add# sub# mul# udiv# sdiv# urem# srem#)
+     '(and# or# xor# add# sub# mul# udiv# sdiv# mod#)
      #:args '(var var const)
      ;; Input arguments that related to program state + additional input related to program state
      ;; Exclude the 3rd argument because it is not related to program state.
      #:ins '(1)   
      #:outs '(0))
 
-    (define-instruction-class
+    #;(define-instruction-class
      'rri-vec4
      '(add_v4#)
      #:scalar '(add#) #:vector-width 4
@@ -120,28 +120,28 @@
      #:ins '(1)
      #:outs '(0))
 
-    (define-instruction-class
+    #;(define-instruction-class
      'rir
      '(_sub _shl _lshr _ashr _udiv _sdiv _urem _srem)
      #:args '(var const var)
      #:ins '(2)
      #:outs '(0))
 
-    (define-instruction-class
+    #;(define-instruction-class
      'rr
      '(ctlz)
      #:args '(var var)
      #:ins '(1)
      #:outs '(0))
 
-    (define-instruction-class
+    #;(define-instruction-class
      'load
      '(load)
      #:args '(var var)
      #:ins (list 1 (get-memory-type))
      #:outs '(0))
 
-    (define-instruction-class
+    #;(define-instruction-class
      'store
      '(store)
      #:args '(var var)

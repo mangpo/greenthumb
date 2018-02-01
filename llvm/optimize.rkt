@@ -54,9 +54,10 @@
 
 (define parser (new llvm-parser%))
 (define live-out (send parser info-from-file (string-append file-to-optimize ".info")))
+(define assume (send parser assume-from-file (string-append file-to-optimize ".info")))
 (define code (send parser ir-from-file file-to-optimize))
 
 (optimize code
           live-out
           (search-type) (mode)
-          #:dir (dir) #:cores (cores) #:time-limit (time-limit))
+          #:dir (dir) #:cores (cores) #:time-limit (time-limit) #:assume assume)

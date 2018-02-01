@@ -17,10 +17,12 @@
 
     (define-syntax-rule (binop op)
       (lambda (x y)
+	(define ret
         (bitvector->integer
          (op (integer->bitvector x (bitvector bit))
-             (integer->bitvector y (bitvector bit))))))
-    
+             (integer->bitvector y (bitvector bit)))))
+	ret))
+	     
     (define iadd (binop bvadd))
     (define isub (binop bvsub))
     (define imul (binop bvmul))
@@ -32,6 +34,7 @@
     (define ilshr (binop bvlshr))
     (define iashr (binop bvashr))
     (define ishl (binop bvshl))
+    (define imod (binop bvsmod))
     
     (define (clz xx)
       (let ([x (integer->bitvector xx (bitvector bit))]
@@ -134,32 +137,32 @@
         (cond
          ;; rrr
          [(inst-eq `nop) (void)]
-         [(inst-eq `add)
-          (rrr iadd)]
+         [(inst-eq `add) (rrr iadd)]
          [(inst-eq `sub) (rrr isub)]
 
-         [(inst-eq `mul) (rrr imul)]
-         [(inst-eq `sdiv) (rrr isdiv)]
-         [(inst-eq `udiv) (rrr iudiv)]
+         ;; [(inst-eq `mul)  (rrr imul)]
+         ;; [(inst-eq `sdiv) (rrr isdiv)]
+         ;; [(inst-eq `udiv) (rrr iudiv)]
          
          [(inst-eq `and) (rrr iand)]
          [(inst-eq `or)  (rrr ior)]
          [(inst-eq `xor) (rrr ixor)]
-         
-         [(inst-eq `lshr) (rrr ilshr)]
-         [(inst-eq `ashr) (rrr iashr)]
-         [(inst-eq `shl)  (rrr ishl)]
+
+         ;; [(inst-eq `lshr) (rrr iushr)]
+         ;; [(inst-eq `ashr) (rrr iashr)]
+         ;; [(inst-eq `shl)  (rrr ishl)]
 
          ;; rrr (vector)
-         [(inst-eq `add_v4) (rrr-vec iadd)]
+         ;; [(inst-eq `add_v4) (rrr-vec bvadd)]
          
          ;; rri
          [(inst-eq `add#) (rri iadd)]
          [(inst-eq `sub#) (rri isub)]
-         
          [(inst-eq `mul#) (rri imul)]
+         [(inst-eq `sdiv#) (rri isdiv)]
+         [(inst-eq `udiv#) (rri iudiv)]
+         [(inst-eq `mod#)  (rri imod)]
 
-         
          [(inst-eq `and#) (rri iand)]
          [(inst-eq `or#)  (rri ior)]
          [(inst-eq `xor#) (rri ixor)]
@@ -169,25 +172,25 @@
          [(inst-eq `shl#)  (rri ishl)]
          
          ;; rri (vector)
-         [(inst-eq `add_v4#) (rri-vec iadd)]
+         ;; [(inst-eq `add_v4#) (rri-vec iadd)]
          
-         ;; rir
-         [(inst-eq `_add) (rir iadd)]
-         [(inst-eq `_sub) (rir isub)]
-         [(inst-eq `_mul) (rir imul)]
+         ;; ;; rir
+         ;; [(inst-eq `_add) (rir iadd)]
+         ;; [(inst-eq `_sub) (rir isub)]
+         ;; [(inst-eq `_mul) (rir imul)]
          
          ;; [(inst-eq `_and) (rir bitwise-and)]
          ;; [(inst-eq `_or)  (rir bitwise-ior)]
          ;; [(inst-eq `_xor) (rir bitwise-xor)]
 
-         [(inst-eq `_lshr) (rir ilshr)]
-         [(inst-eq `_ashr) (rir iashr)]
-         [(inst-eq `_shl)  (rir ishl)]
+         ;; [(inst-eq `_lshr) (rir ilshr)]
+         ;; [(inst-eq `_ashr) (rir iashr)]
+         ;; [(inst-eq `_shl)  (rir ishl)]
          
-         [(inst-eq `ctlz) (rr clz)]
+         ;; [(inst-eq `ctlz) (rr clz)]
 
-         [(inst-eq `store) (store)]
-         [(inst-eq `load) (load)]
+         ;; [(inst-eq `store) (store)]
+         ;; [(inst-eq `load) (load)]
 
          [else
           (assert #f (format "simulator: undefine instruction ~a" op))]))

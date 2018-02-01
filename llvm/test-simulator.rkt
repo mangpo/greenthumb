@@ -11,14 +11,22 @@
 ;; Phase A: Test machine, parser, printer (step 1 & 2)
 (pretty-display "Phase A: test machine, parser, and printer.")
 (define parser (new llvm-parser%))
-(define machine (new llvm-machine% [config (cons 3 3)]))
+(define machine (new llvm-machine% [config (cons 4 0)]))
 (define printer (new llvm-printer% [machine machine]))
 
 ;; clear 3 lowest bits.
 (define code
 (send parser ir-from-string "
-%1 = lshr i32 %in, 3
-%out = shl i32 %1, 3
+%0 = mul i32 %1, -1
+%2 = add i32 %3, %0
+%2 = add i32 %2, 1
+%2 = mod i32 %2, 6
+%2 = udiv i32 %2, 2
+%0 = mul i32 %0, 3
+%3 = mul i32 %3, 3
+%0 = add i32 %0, %2
+%0 = add i32 %0, %3
+%0 = mod i32 %0, 6
 "))
 
 ;%1 = load i32, i32* %2
@@ -38,15 +46,17 @@
 
 ;; Phase B: Interpret concrete program with concrete inputs (step 3)
 (pretty-display "Phase B: interpret program using simulator writing in Rosette.")
-(define input-state (vector #(536870911 0 0)
-                            #(#(0 0 0 0) #(0 0 0 0) #(0 0 0 0))
-                            (new memory-racket% [init (make-hash '())])
+
+(define input-state (vector (vector 0 31 0 5)
+                            (for/vector ([i 4]) (for/vector ([j 4]) 1))
+                            (new memory-racket% [init (make-hash)])
                             ))
 (define simulator-rosette (new llvm-simulator-rosette% [machine machine]))
 (define out (send simulator-rosette interpret encoded-code input-state))
 (send machine display-state out)
 (newline)
 
+#|
 ;; Phase C: Interpret concrete program with symbolic inputs
 (pretty-display "Phase C: interpret concrete program with symbolic inputs.")
 
@@ -55,7 +65,6 @@
 (newline)
 (send machine display-state out-sym)
 
-#|
 ;; Phase D: Duplicate rosette simulator to racket simulator
 (pretty-display "Phase D: interpret program using simulator writing in Racket.")
 (define simulator-racket (new llvm-simulator-racket% [machine machine]))

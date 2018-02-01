@@ -119,6 +119,25 @@
       (define live-out-vec4 (string-split (second lines) ","))
       (vector live-out-var live-out-vec4 #t))
 
+    (define/public (assume-from-file file)
+      (define lines (file->lines file))
+      (cond
+       [(> (length lines) 2)
+	(define assume (string-split (third lines) ","))
+	(define h (make-hash))
+	(for ([a assume])
+	     (let* ([tokens (string-split a)]
+		    [v (first tokens)]
+		    [op (second tokens)]
+		    [n (third tokens)])
+	       (if (hash-has-key? h v)
+		   (hash-set! h v (cons (cons op n) (hash-ref h v)))
+		   (hash-set! h v (list (cons op n))))))
+      
+	(hash->list h)]
+
+       [else #f]))
+
     ))
 
 (define (convert-type t)

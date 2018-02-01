@@ -12,7 +12,7 @@
     (inherit encode decode)
     (override encode-inst decode-inst print-syntax-inst print-encode-info
               ;; Required method for cooperative search
-              config-from-string-ir output-constraint-string)
+              config-from-string-ir output-constraint-string output-assume-string)
 
     ;; Print in LLVM IR format.
     ;; x: instruction
@@ -105,6 +105,7 @@
 				  
     ;; Convert an instruction x from string-IR to encoded-IR format.
     (define (encode-inst x)
+      (pretty-display `(encode-inst ,(inst-op x)))
       (cond
        [(equal? (inst-op x) "nop") (inst (get-field nop-id machine) (vector))]
        [(equal? (inst-op x) #f) x]
@@ -204,6 +205,19 @@
            (vector-set! live-vec4 (hash-ref name2num-vec4 (if (symbol? v) (symbol->string v) v)) #t))
       (vector live live-vec4 (vector-ref x 2)))
 
+    (define/public (encode-assume x)
+      (cond
+       [x
+	(define config (send machine get-config))
+	(define assume (make-vector (car config) #f))
+	(for ([pair x])
+	     (let ([v (car pair)]
+		   [c (cdr pair)])
+	       (vector-set! assume (hash-ref name2num (if (symbol? v) (symbol->string v) v)) c)))
+	(vector assume #f #f)]
+
+       [else #f]))
+
     ;;;;;;;;;;;;;;;;;;;;; For cooperative search ;;;;;;;;;;;;;;;;;;
     
     ;; Return program state config from a given program in string-IR format.
@@ -217,6 +231,11 @@
     ;; Convert live-out (the output from parser::info-from-file) into string. 
     (define (output-constraint-string live-out) 
       (format "(send printer encode-live '~a)" live-out))
+
+    (define (output-assume-string x)
+      (if x
+	  (format "(send printer encode-assume '~a)" x)
+	  #f))
 
     ;; Compress space by reusing variables.
     (define/override (compress-state-space program live-out)
