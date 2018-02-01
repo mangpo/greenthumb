@@ -105,7 +105,7 @@
 				  
     ;; Convert an instruction x from string-IR to encoded-IR format.
     (define (encode-inst x)
-      (pretty-display `(encode-inst ,(inst-op x)))
+      ;;(pretty-display `(encode-inst ,(inst-op x)))
       (cond
        [(equal? (inst-op x) "nop") (inst (get-field nop-id machine) (vector))]
        [(equal? (inst-op x) #f) x]
