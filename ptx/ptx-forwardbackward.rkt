@@ -1,0 +1,17 @@
+#lang racket
+
+(require "../forwardbackward.rkt")
+
+(provide ptx-forwardbackward%)
+
+(define ptx-forwardbackward%
+  (class forwardbackward%
+    (super-new)
+    (override len-limit)
+
+    ;; Number of instructions that can be synthesized within a minute.
+    ;; Try setting it to 5 to start and adjust it later.
+    (define (len-limit) 5)
+
+    ))
+
