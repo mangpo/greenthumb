@@ -83,7 +83,6 @@
         (clear-asserts)
 	(current-bitwidth bit)
         (define state (send machine get-state sym-input #:concrete #f))
-        ;;(pretty-display `(state ,state))
 
         (with-handlers* 
          ([exn:fail? 

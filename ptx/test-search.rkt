@@ -11,7 +11,7 @@
          )
 
 (define parser (new ptx-parser%))
-(define machine (new ptx-machine% [config ?]))
+(define machine (new ptx-machine% [config (cons 4 0)]))
 (define printer (new ptx-printer% [machine machine]))
 (define simulator-racket (new ptx-simulator-racket% [machine machine]))
 (define simulator-rosette (new ptx-simulator-rosette% [machine machine]))
@@ -28,11 +28,16 @@
 
 (define code
 (send parser ir-from-string "
-code here
+and.u32 %r0, %r0, 31;
+	mul.wide.u32 	%r2, %r1, %r0, -1431655765;
+	shr.u32 	%r1, %r1, 1;
+	mul.lo.s32 	%r1, %r1, 3;
+	sub.s32 	%r1, %r0, %r1;
 "))
 
 (define sketch
 (send parser ir-from-string "
+and.u32 %r0, %r0, 31;
 ?
 "))
 
@@ -48,7 +53,7 @@ code here
 ;; Phase 0: create constraint (live-out in program state format).
 ;; constraint should be a program state that contains #t and #f,
 ;; where #t indicates the corresponding element in the program state being live.
-(define constraint (progstate ?))
+(define constraint (progstate (vector #t #t #f #f) (vector)))
 
 ;; Phase A: create symbolic search (step 4)
 (define symbolic (new ptx-symbolic% [machine machine]
