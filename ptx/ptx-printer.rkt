@@ -77,6 +77,9 @@
 	 [(member opcode-name (list "and" "setp" "selp"))
 	  (format "~a.b32" opcode-name)]
 
+	 [(member opcode-name (list "not"))
+	  (format "~a.pred" opcode-name)]
+
 	 [else
 	  (format "~a.s32" opcode-name)]
 	 ))

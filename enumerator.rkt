@@ -101,14 +101,20 @@
       (define iterator
         (generator 
          ()
-         (define (finalize args)
-           (define in -1)
-           (for/list
-            ([arg args])
-            ;; If arg is `var, assign fresh ID.
-            (cond
-             [(symbol? arg) (set! in (add1 in)) in]
-             [else arg])))
+
+	 (define (finalize args)
+	   (define mem (make-hash))
+	   (for/list
+	    ([arg args])
+	    (cond
+	     [(not (symbol? arg)) arg]
+	     [(hash-has-key? mem arg)
+	      (define id (hash-ref mem arg))
+	      (hash-set! mem arg (add1 id))
+	      id]
+	     [else
+	      (hash-set! mem arg 1)
+	      0])))
          
          (define (enumerate opcode-id ranges)
            ;; Get all combinations of args

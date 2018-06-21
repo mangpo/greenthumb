@@ -148,6 +148,5 @@
            ;; GreenThumb set nop-id automatically from opcode `nop
 	   (unless (= (inst-op x) nop-id) (set! cost (add1 cost))))
       cost)
-
     ))
 

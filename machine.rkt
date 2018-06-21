@@ -511,7 +511,7 @@
     ;; live-in & live-out: vector/list/pair format
     ;; There are 3 modes.
     ;;  1) `basic (no restriction)
-    ;;  2) `no-args = ignore reigster operands. Return `var-o and `var-i for operand that is input variable and output variable respectively. This mode is only used for enumerative search.
+    ;;  2) `no-args = ignore register operands. Return `var-o and `var-i for operand that is input variable and output variable respectively. This mode is only used for enumerative search.
     (define (get-arg-ranges opcode-id entry live-in
                             #:live-out [live-out #f] #:mode [mode `basic])
       (define class (vector-ref classes-info (hash-ref opcode-id-to-class opcode-id)))

@@ -59,7 +59,7 @@
     (define-instruction-class 'nop '(nop))
     
     (define-instruction-class 'pr '(not)
-      #:args '(pred reg) #:ins '(1) #:outs '(0))
+      #:args '(pred pred) #:ins '(1) #:outs '(0))
     
     (define-instruction-class 'rr '(mov)
       #:args '(reg reg) #:ins '(1) #:outs '(0))
@@ -91,7 +91,7 @@
 
     (define-instruction-class 'rrrp '(selp)
       #:args '(reg reg reg pred) #:ins '(1 2 3) #:outs '(0))
-
+   
     ;; An example of an instruction that accesses memory
     #;(define-instruction-class 'load '(load)
       #:args '(reg reg) #:ins (list 1 (get-memory-type)) #:outs '(0))

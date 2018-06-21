@@ -35,7 +35,7 @@ In this documentation, we will walk you through building a superoptimizer in 7 s
 - [**Step 4**](#step4): Extend `symbolic%`. Test the symbolic search using `test-searh.rkt`
 - [**Step 5**](#step5): Extend `stochastic%`. Test the stochastic search using `test-searh.rkt`
 - [**Step 6**](#step6): Extend `forwardbackward%`. Test the enumerative search using `test-searh.rkt`
-- [**Step 7**](#step7): Enalbe the cooperative search by implementing:
+- [**Step 7**](#step7): Enable the cooperative search by implementing:
    - method `info-from-file` of `armdemo-parser%`
    - methods `config-from-string-ir` and `output-string-constraint` of `armdemo-printer%`
    - method `len-limit` of `armdemo-symbolic%` and `armdemo-forwardbackward%`

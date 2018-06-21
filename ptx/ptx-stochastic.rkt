@@ -23,10 +23,6 @@
     ;; constraint/live-out: program state that contains predicate
     ;;                      #t if the entry matters, #f otherwise.
     (define (correctness-cost state1 state2 constraint)
-      ? ;; modify this function
-
-      ;; Example:
-
       ;; progstate-regs is a vector. We can use provided method correctness-cost-base
       ;; to compute correctness cost of a vector against another vector.
       ;; This method takes into account of misalignment.
@@ -36,16 +32,14 @@
                                (progstate-regs state2)
                                (progstate-regs constraint)
                                diff-cost))
+      
+      (define cost-preds
+        (correctness-cost-base (progstate-preds state1)
+                               (progstate-preds state2)
+                               (progstate-preds constraint)
+                               diff-cost))
 
-      ;; To calcuate correctness cost of memory object againt another,
-      ;; simply call correctness-cost method of the memory object.
-      (define cost-mem
-        (if (progstate-memory constraint)
-             (send (progstate-memory state1) correctness-cost
-                   (progstate-memory state2) diff-cost bit)
-             0))
-
-      (+ cost-regs cost-mem))
+      (+ cost-regs cost-preds))
 
     ))
            
