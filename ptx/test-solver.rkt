@@ -10,25 +10,28 @@
 (current-solver (new z3%))
 
 (define parser (new ptx-parser% [compress? #f]))
-(define machine (new ptx-machine% [config (cons 4 0)] [bitwidth 32]))
+(define machine (new ptx-machine% [config (cons 16 2)] [bitwidth 32]))
 (define printer (new ptx-printer% [machine machine]))
 (define simulator-rosette (new ptx-simulator-rosette% [machine machine]))
 (define validator (new ptx-validator% [machine machine] [simulator simulator-rosette]))
 
 (define code
 (send parser ir-from-string "
-and.u32 %r0, 31;
+	and.u32 	%r0, %r0, 31;
 	mul.wide.u32 	%r2, %r1, %r0, -1431655765;
 	shr.u32 	%r1, %r1, 1;
 	mul.lo.s32 	%r1, %r1, 3;
 	sub.s32 	%r1, %r0, %r1;
+	and.u32 	%r1, %r1, 3;
 "))
 
 
 (define sketch
 (send parser ir-from-string "
-and.u32 %r0, 31;
-rem.u32 %r1, %r0, 3;
+and.b32 %r0, %r0, 31;
+mul.wide.u32 %r2, %r1, %r0, -1431655765;
+shr.u32 %r1, %r2, 7;
+and.u32 	%r1, %r1, 3;
 "))
 
 (define encoded-code (send printer encode code))
@@ -37,7 +40,10 @@ rem.u32 %r1, %r0, 3;
 
 (define ex 
   (send validator counterexample encoded-code encoded-sketch 
-        (progstate (vector #t #t #f #f) (vector))))
+        (progstate (vector #f #t #f #f
+                           #t #t #t #t
+                           #t #t #f #f
+                           #f #f #f #f) (vector #f #f))))
 
 (pretty-display "Counterexample:")
 (if ex 

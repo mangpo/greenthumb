@@ -11,7 +11,7 @@
          )
 
 (define parser (new ptx-parser%))
-(define machine (new ptx-machine% [config (cons 4 2)]))
+(define machine (new ptx-machine% [config (cons 16 2)]))
 (define printer (new ptx-printer% [machine machine]))
 (define simulator-racket (new ptx-simulator-racket% [machine machine]))
 (define simulator-rosette (new ptx-simulator-rosette% [machine machine]))
@@ -24,24 +24,41 @@
 
 (define postfix
 (send parser ir-from-string "
+and.b32 %r2, %r1, 1;
+setp.eq.s32 %p0, %r2, 0;
+selp.b32 %r10, %r4, %r6, %p0;
+selp.b32 %r11, %r5, %r7, %p0;
+selp.b32 %r12, %r6, %r8, %p0;
+selp.b32 %r13, %r7, %r9, %p0;
+selp.b32 %r14, %r8, %r4, %p0;
+selp.b32 %r15, %r9, %r5, %p0;
+and.b32 %r2, %r1, 2;
+setp.eq.s32 %p0, %r2, 0;
+selp.b32 %r4, %r10, %r14, %p0;
+selp.b32 %r5, %r11, %r15, %p0;
+selp.b32 %r6, %r12, %r10, %p0;
+selp.b32 %r7, %r13, %r11, %p0;
+selp.b32 %r8, %r14, %r12, %p0;
+selp.b32 %r9, %r15, %r13, %p0;
 "))
 
 (define code
 (send parser ir-from-string "
-
-and.u32 %r0, %r0, 31;
-	setp.eq.b32	%p0, %r0, 0;
-not.pred %p0, %p0;
+and.b32 %r0, %r0, 31;
+mul.wide.u32 %r2, %r1, %r0, -1431655765;
+shr.u32 %r1, %r2, 7;
 "))
 
 (define sketch
 (send parser ir-from-string "
 ?
 ?
-?
 "))
 
-(define constraint (progstate (vector #f #t #f #f) (vector #t #f)))
+(define constraint (progstate (vector #f #f #f #f
+                                      #t #t #t #t
+                                      #t #t #f #f
+                                      #f #f #f #f) (vector #f #f)))
 
 (define code1
 (send parser ir-from-string "

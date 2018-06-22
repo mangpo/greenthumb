@@ -13,8 +13,25 @@
     ;; Print in the assembly format.
     ;; x: string IR
     (define (print-syntax-inst x [indent ""])
+      (define opcode-name (inst-op x))
+      
+      (define new-opcode-name
+	(cond
+	 [(member opcode-name (list "shr" "mul.wide" "rem"))
+	  (format "~a.u32" opcode-name)]
+
+	 [(member opcode-name (list "and" "setp" "selp"))
+	  (format "~a.b32" opcode-name)]
+
+	 [(member opcode-name (list "not"))
+	  (format "~a.pred" opcode-name)]
+
+	 [else
+	  (format "~a.s32" opcode-name)]
+	 ))
+      
       (pretty-display (format "~a ~a;"
-                              (inst-op x)
+                              new-opcode-name
                               (string-join (vector->list (inst-args x)) ", "))))
 
     ;; Convert an instruction x from string-IR to encoded-IR format.
@@ -36,8 +53,8 @@
         ;; A function to convert argument in string format to number.
         (define (convert-arg arg)
 	  (cond
-	   [(equal? (substring arg 0 1) "%rd")
-	    (string->number (substring arg 3))]
+	   ;; [(equal? (substring arg 0 3) "%rd")
+	   ;;  (string->number (substring arg 3))]
 
 	   [(equal? (substring arg 0 1) "%") ;; %p, %r
 	    (string->number (substring arg 2))]
@@ -69,7 +86,7 @@
       (when (equal? "#" (substring opcode-name (sub1 str-len)))
             (set! opcode-name (substring opcode-name 0 (sub1 str-len))))
 
-      (define new-opcode-name
+      #;(define new-opcode-name
 	(cond
 	 [(member opcode-name (list "shr" "mul.wide" "rem"))
 	  (format "~a.u32" opcode-name)]
@@ -91,10 +108,10 @@
                      [(equal? type 'pred) (format "%p~a" arg)]
                      [else (number->string arg)])))
 
-      (inst new-opcode-name new-args))
+      (inst opcode-name new-args))
 
     ;;;;;;;;;;;;;;;;;;;;;;;;; For cooperative search ;;;;;;;;;;;;;;;;;;;;;;;
-    #|
+    
     ;; Convert live-out (the output from parser::info-from-file) into string. 
     ;; The string will be used as a piece of code the search driver generates as
     ;; the live-out argument to the method superoptimize of 
@@ -102,44 +119,39 @@
     ;; The string should be evaluated to a program state that contains 
     ;; #t and #f, where #t indicates that the corresponding element is live.
     (define/override (output-constraint-string live-out)
-      ? ;; modify this funcion.
-      
-      ;; Example:
       ;; Method encode-live is implemented below, returning
       ;; live infomation in a program state format.
       (format "(send printer encode-live '~a)" live-out))
 
     ;; Convert liveness infomation to the same format as program state.
     (define/public (encode-live x)
-      ? ;; modify this funcion.
-      
-      ;; Example:
-      ;; If x is a list, iterate over elements in x, and set those elements to be live.
-      (define reg-live (make-vector (send machine get-config) #f))
-      (define mem-live #f)
-      (for ([v x])
-           (cond
-            [(number? v) (vector-set! reg-live v #t)]
-            [(equal? v 'memory) (set! mem-live #t)]))
-      (progstate reg-live mem-live))
-    
+      (define config (send machine get-config))
+      (define reg-live (make-vector (car config) #f))
+      (define pred-live (make-vector (cdr config) #f))
+      (for ([v (car x)]) (vector-set! reg-live v #t))
+      (for ([v (cdr x)]) (vector-set! pred-live v #t))
+      (progstate reg-live pred-live))
+
     ;; Return program state config from a given program in string-IR format.
     ;; program: string IR format
     ;; output: program state config
     (define/override (config-from-string-ir program)
-      ? ;; modify this funcion.
-      
-      ;; Example:
       ;; config = number of registers
       ;; Find the highest register ID and return that as a config
-      (define max-reg 0)
+      (define max-reg 2)
+      (define max-pred 1)
       (for* ([x program]
 	     [arg (inst-args x)])
-            (when (equal? "r" (substring arg 0 1))
-                  (let ([id (string->number (substring arg 1))])
-                    (when (> id max-reg) (set! max-reg id)))))
-      (add1 max-reg))
-    |#
+	    (when (equal? (substring arg 0 1) "%") ;; register or predicate
+		  (let ([id (string->number (substring arg 2))])
+		    (cond
+		     [(equal? (substring arg 1 2) "r")
+		      (when (> id max-reg) (set! max-reg id))]
+		     [(equal? (substring arg 1 2) "p")
+		      (when (> id max-pred) (set! max-pred id))])
+		    )))
+			
+      (cons (add1 max-reg) (add1 max-pred)))
     
     ))
 

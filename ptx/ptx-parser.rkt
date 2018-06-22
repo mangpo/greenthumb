@@ -90,20 +90,19 @@
 
 
     ;;;;;;;;;;;;;;;;;;;;;;;;; For cooperative search ;;;;;;;;;;;;;;;;;;;;;;;
-    #|
     ;; Required method if using cooperative search driver.
     ;; Read from file and convert file content into the format we want.
     ;; Info usually includes live-out information.
     ;; It can also contain extra information such as precondition of the inputs.
     (define/override (info-from-file file)
-      ? ;; modify this function
-
-      ;; Example
       ;; read from file
       (define lines (file->lines file))
-      (define live-out (string-split (first lines) ","))
-      live-out)
-    |#
+      (define live-regs (string-split (first lines) ","))
+      (define live-preds
+	(if (> (length lines) 1)
+	    (string-split (second lines) ",")
+	    (list)))
+      (cons live-regs live-preds))
 
     ))
 
