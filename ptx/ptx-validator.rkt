@@ -26,7 +26,7 @@
 		      (assert (member item (cdr assumption)))
 		      (assert (equal? item (cdr assumption))))]
 		 [(member (car assumption) (list "<=" '<=))
-		  ;;(pretty-display `(and (<= ,item ,(cdr assumption)) (>= ,item 0)))
+		  (pretty-display `(and (<= ,item ,(cdr assumption)) (>= ,item 0)))
 		  (assert (and (<= item (cdr assumption)) (>= item 0)))])
 		))
 	

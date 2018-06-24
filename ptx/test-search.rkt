@@ -20,7 +20,6 @@
 
 (define prefix 
 (send parser ir-from-string "
-        and.u32         %r0, %r0, 31;
 "))
 
 (define postfix
@@ -48,6 +47,7 @@
 "))
 
 (define constraint (progstate (vector #f #t #t #t) (vector #f #f)))
+(define precondition (progstate (vector '(<= . 31) #f #f #f) (vector #f #f)))
 
 (define code1
 (send parser ir-from-string "
@@ -152,6 +152,7 @@ shl.s32 %r1, %r0, 1;
       encoded-prefix encoded-postfix
       constraint ;; live-out
       #f ;; upperbound cost, #f = no upperbound
-      3600 ;; time limit in seconds
+      36000 ;; time limit in seconds
+      #:assume precondition
       )
 

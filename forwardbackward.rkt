@@ -565,9 +565,9 @@
       
       (set! prefix (car (reduce-precision prefix)))
       (set! postfix (car (reduce-precision postfix)))
-      ;; (pretty-display `(assume ,assumption))
       (set! assumption (reduce-precision-assume assumption))
 
+      ;; (pretty-display `(compress-assumption))
       ;; (send machine display-state assumption-precise)
       ;; (newline)
       ;; (send machine display-state assumption)
