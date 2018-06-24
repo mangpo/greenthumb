@@ -1,9 +1,21 @@
 # Advanced Usage
+- [Superoptimize with Program Precondition](#precondition)
 - [Connection between Instruction Operand and Program State Element](#connect-operand-progstate)
 - [Vector Instructions](#vector)
 - [Instruction with Multiple Opcodes](#multiple-opcodes)
 - [Additional Pruning in Enumerative Search](#pruning)
 - [Customize Inverse Interpreter for Load/Store Instructions](#inverse-load-store)
+
+<a name="precondition"></a>
+### Superoptimize with Program Precondition
+Often a piece of program we want to superoptimize has a precondition. For example, we know that the value of `r0` at the beginning of a program fragment is always greather than or equal to 0 and less than a certain value. Providing this precondition to the superoptimizer may lead it to find a more optimal solution. To enable the superoptimizer to use a precondition, developers must supply a few more methods as follows.
+
+1. Overrride method `(assume state precondition)` in `xxx-validator.rkt`. Given a program state and a precondition , use [assert](https://docs.racket-lang.org/rosette-guide/ch_syntactic-forms_rosette.html#%28part._sec~3aassertions%29) to assert the precondition on the program state. Developers can define the format of precondition as desired. Precondition is passed from users who call method `synthesize-window` of `xxx-symbolic%` or `xxx-forwardbackword%`, or method `superoptimize` of `xxx-stochastic%` with the optional parameter `#:assume`.
+2. Modify method `(info-from-file filename)` in `xxx-parser.rkt` to additionally parse precondition infomation from a given file.
+3. Modify `xxx/optimize.rkt` to pass the precondition information returned from `(info-from-file filename)` as the `#:assume` parameter to function `optimize`. 
+4. Override method `(output-assume-string precondition)` in `xxx-printer.rkt`. The precondition passed to this method is an output from `info-from-file method`. This method should convert precondition into a string that is evaluated to the format taken by the method `(assume state precondition)` in `xxx-validator.rkt`. 
+
+For an example, see `ptx/ptx-validator.rkt`, `ptx/ptx-parser.rkt`, `ptx/ptx-printer.rkt`, and `ptx/optimize.rkt`.
 
 <a name="connect-operand-progstate"></a>
 ### Connection between Instruction Operand and Program State Element
@@ -175,3 +187,4 @@ Therefore, we made two modifications:
 Recall that we have to extend the methods `update-progstate-ins-load` and `update-progstate-ins-store` of the class `machine%` to enable the enumerative search to interpret load and store instructions backward. For `llvm` and `armdemo`, the implementations of these two methods are straightforward, but it is more complicated in `arm`.
 
 Consider an LLVM load instruction `%1 = load i32, i32* %0` and the method `(update-progstate-ins-load my-inst addr mem state)`. In this method, the address `addr` is given, so we can simply set `%0` to `addr`. However, consider an ARM load instruction `ldr r0 [sp, r1]`. Given an address, we can't simply set `sp` to `addr`, but we need to set `sp` and `r1` to all combination of values whose sum is `addr`. See `arm-machine.rkt` on how we implement these methods for ARM. Keep in mind that the inverse interpretation of an instruction happens in the reduced-bitwidth domain (4-bit).
+
