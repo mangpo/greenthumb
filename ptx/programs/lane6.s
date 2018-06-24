@@ -1,4 +1,3 @@
-	and.u32 	%r0, %r0, 31;
 	mul.lo.s32 	%r1, %r0, 3;
 	add.s32 	%r2, %r1, 2;
 	add.s32 	%r3, %r1, 1;

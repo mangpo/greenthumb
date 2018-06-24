@@ -122,16 +122,40 @@
       ;; Method encode-live is implemented below, returning
       ;; live infomation in a program state format.
       (format "(send printer encode-live '~a)" live-out))
+    
+    (define/override (output-assume-string assume)
+      ;; Method encode-live is implemented below, returning
+      ;; live infomation in a program state format.
+      (format "(send printer encode-assume '~a)" assume))
 
     ;; Convert liveness infomation to the same format as program state.
     (define/public (encode-live x)
       (define config (send machine get-config))
       (define reg-live (make-vector (car config) #f))
       (define pred-live (make-vector (cdr config) #f))
+      
       (for ([v (car x)]) (vector-set! reg-live v #t))
       (for ([v (cdr x)]) (vector-set! pred-live v #t))
       (progstate reg-live pred-live))
 
+    (define/public (encode-assume x)
+      (define config (send machine get-config))
+      (define reg-assume (make-vector (car config) #f))
+      (define pred-assume (make-vector (cdr config) #f))
+      
+      (for ([c (car x)])
+	   (let ([index (first c)]
+		 [op (second c)]
+		 [val (third c)])
+	     (vector-set! reg-assume index (cons op val))))
+      
+      (for ([c (cdr x)])
+	   (let ([index (first c)]
+		 [op (second c)]
+		 [val (third c)])
+	     (vector-set! pred-assume index (cons op val))))
+      (progstate reg-assume pred-assume))
+    
     ;; Return program state config from a given program in string-IR format.
     ;; program: string IR format
     ;; output: program state config

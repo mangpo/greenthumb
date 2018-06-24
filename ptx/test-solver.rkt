@@ -17,7 +17,6 @@
 
 (define code
 (send parser ir-from-string "
-	and.u32 	%r0, %r0, 31;
 	mul.wide.u32 	%r2, %r1, %r0, -1431655765;
 	shr.u32 	%r1, %r1, 1;
 	mul.lo.s32 	%r1, %r1, 3;
@@ -28,7 +27,6 @@
 
 (define sketch
 (send parser ir-from-string "
-and.b32 %r0, %r0, 31;
 mul.wide.u32 %r2, %r1, %r0, -1431655765;
 shr.u32 %r1, %r2, 7;
 and.u32 	%r1, %r1, 3;
@@ -43,6 +41,11 @@ and.u32 	%r1, %r1, 3;
         (progstate (vector #f #t #f #f
                            #t #t #t #t
                            #t #t #f #f
+                           #f #f #f #f) (vector #f #f))
+        #:assume
+        (progstate (vector '(<= . 31) #f #f #f
+                           #f #f #f #f
+                           #f #f #f #f
                            #f #f #f #f) (vector #f #f))))
 
 (pretty-display "Counterexample:")

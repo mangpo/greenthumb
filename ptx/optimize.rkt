@@ -53,9 +53,11 @@
    filename))
 
 (define parser (new ptx-parser%))
-(define live-out (send parser info-from-file (string-append file-to-optimize ".info")))
+(define-values (live-out assume)
+  (send parser info-from-file (string-append file-to-optimize ".info")))
 (define code (send parser ir-from-file file-to-optimize))
 
 (optimize code live-out (search-type) (mode)
+	  #:assume assume
           #:dir (dir) #:cores (cores) #:time-limit (time-limit))
 

@@ -97,12 +97,30 @@
     (define/override (info-from-file file)
       ;; read from file
       (define lines (file->lines file))
+      (define len (length lines))
       (define live-regs (string-split (first lines) ","))
       (define live-preds
-	(if (> (length lines) 1)
+	(if (> len 1)
 	    (string-split (second lines) ",")
 	    (list)))
-      (cons live-regs live-preds))
+
+
+      (define assume-regs (list))
+      (define assume-preds (list))
+
+      (when (> len 2)
+	    (let* ([constraints (string-split (third lines) ",")])
+	      (for ([c constraints])
+		   (let* ([l (regexp-match #rx"([a-z])([0-9]+)[ ]*([<=]+)[ ]*([0-9]+)" c)]
+			  [type (list-ref l 1)]
+			  [index (list-ref l 2)]
+			  [op (list-ref l 3)]
+			  [val (list-ref l 4)])
+		     (if (equal? type "r")
+			 (set! assume-regs (cons (list index op val) assume-regs))
+			 (set! assume-preds (cons (list index op val) assume-preds)))))))
+      
+      (values (cons live-regs live-preds) (cons assume-regs assume-preds)))
 
     ))
 

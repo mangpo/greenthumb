@@ -16,6 +16,7 @@
 ;; >>> OUTPUT >>>
 ;; Optimized code in string-IR format.
 (define (optimize code live-out search-type mode
+                  #:assume [assume #f]
                   #:dir [dir "output"] 
                   #:cores [cores 4]
                   #:time-limit [time-limit 3600]
@@ -33,7 +34,8 @@
                         [search-type search-type] [mode mode]
                         [window window]))
 
-  (send parallel optimize code live-out 
+  (send parallel optimize code live-out
+        #:assume assume
         #:dir dir #:cores cores 
         #:time-limit time-limit #:size size #:input-file input-file)
   )
