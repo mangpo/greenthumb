@@ -9,7 +9,7 @@ The top level directory contains ISA-independent files, which implement the supe
 - [Scaling Up Superoptimization (ASPLOS'16)](http://www.eecs.berkeley.edu/~mangpo/www/papers/lens-asplos16.pdf) explains the search strategy provided by GreenThumb.
 
 ## Software Prerequisites
-- **Racket**: Download and install drracket from https://racket-lang.org/download/. Include the installed 'bin' directory, which contains racket, drracket, raco, and etc., to the environment path.
+- **Racket**: Download and install drracket version 6.7 from https://racket-lang.org/download/. Other versions of Racket may work, but they are not tested. Include the installed 'bin' directory, which contains racket, drracket, raco, and etc., to the environment path. 
 - **Rosette**: Download [Rosette v1.1](https://github.com/emina/rosette/releases/tag/v1.1) and follow the instruction to install in Rosette's README file. Don't forget to put Z3 executable in rosette/bin, as GreenThumb depends on Z3 (but not CVC4).
 - **Python**
 
